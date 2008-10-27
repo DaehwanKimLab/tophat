@@ -1,4 +1,4 @@
-##-- CUSTOM INSIGNIA RULES --##
+##-- CUSTOM TOPHAT RULES --##
 
 ##-- install-exec-hook
 ##   execute this custom rule after the global install-exec rule

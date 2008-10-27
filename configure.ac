@@ -2,7 +2,7 @@
 
 # initialize
 AC_PREREQ(2.61)
-AC_INIT([TopHat],[1.0],[cole@cs.umd.edu],[tophat])
+AC_INIT([TopHat],[0.7.0],[cole@cs.umd.edu],[tophat])
 AC_PREFIX_DEFAULT([`pwd`])
 AC_CONFIG_SRCDIR([src/reads.h])
 AC_CONFIG_AUX_DIR([config])
