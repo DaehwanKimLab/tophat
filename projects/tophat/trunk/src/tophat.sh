@@ -30,6 +30,16 @@ do
   esac
 done
 
+if [ -z `which bowtie` ]; then
+    echo "Error: Bowtie was not detected on this system.  Please verify that Bowtie is installed and that the Bowtie executables are in your path"
+    exit
+fi
+
+if [ -z `which maq` ]; then
+    echo "Error: Maq was not detected on this system.  Please verify that Maq is installed and that the Maq executables (maq, fq_all2std.pl) are in your path"
+    exit
+fi
+
 if [ $ANCHOR_LEN -lt 3 ]; then
 	echo "Error: anchor length must be at least 3."
 	exit
