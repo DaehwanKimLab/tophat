@@ -1,0 +1,38 @@
+#!/bin/bash
+# If no configure script exists in the base directory, run this
+# script to bootstrap the project via automake and autoconf
+# OR
+# If the configure.ac script has been edited, run this script to
+# regenerate the configure script.
+#
+# If this script generates some warnings, run autoupdate on the
+# configure.ac file.
+#
+ACLOCAL="aclocal"
+AUTOHEADER="autoheader"
+AUTOCONF="autoconf"
+AUTOMAKE="automake"
+ 
+export ACLOCAL
+export AUTOHEADER
+export AUTOCONF
+export AUTOMAKE
+
+echo "+ collecting m4 macros"
+${ACLOCAL} \
+|| { echo "ERROR: aclocal failed"; exit 1; }
+
+echo "+ generating configuration header"
+${AUTOHEADER} --warnings=all \
+|| { echo "ERROR: autoheader failed"; exit 1; }
+
+echo "+ generating makefile inputs"
+${AUTOMAKE} --warnings=all --foreign --include-deps --add-missing --copy \
+|| { echo "ERROR: automake failed"; exit 1; }
+
+echo "+ generating configure script"
+${AUTOCONF} --warnings=all \
+|| { echo "ERROR: autoconf failed"; exit 1; }
+
+echo "BOOTSTRAP COMPLETE"
+
