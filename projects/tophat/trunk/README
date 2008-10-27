@@ -1,0 +1,11 @@
+This is a pre-release distribution of TopHat.  Only OS X and Linux are supported at the moment. The manual and more detailed installation instructions will appear at http://tophat.sourceforge.net/ once the site is approved and goes live. 
+
+To use TopHat, type 'configure' and then 'make' from within this directory.  Add this directory to your path.
+
+TopHat depends on Bowtie and Maq.  Please install both and add their binaries to your path.
+
+You will also need GNU awk and Python 2.5 or greater, both of which are installed by default in most Linux and OS X systems.
+
+You will need a Bowtie index installed, along with a Maq .bfa file the reference to use the pipeline.  Please see the script 'tophat' in this directory for more information.  The Bowtie index consists of two files such as m_musculus.1.ebwt and m_musculus.2.ebwt.  The Maq .bfa file must have the same prefix as the Bowtie files.  E.g. m_musculus.bfa
+
+To run TopHat, type for example 'tophat /path/to/bowtie/index/m_musculus reads.fq
