@@ -17,7 +17,8 @@ AC_PROG_CXX
 AC_PROG_AWK
 AC_PROG_INSTALL
 AC_PROG_RANLIB
-AC_PATH_PROG(PYTHON, [python], [:])
+#AC_PATH_PROG(PYTHON, [python2.4], [:])
+AM_PATH_PYTHON([2.4])
 
 # Checks for libraries.
 AC_CHECK_LIB([z], [gzread])
