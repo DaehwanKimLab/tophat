@@ -1,4 +1,4 @@
-This is a pre-release distribution of TopHat.  Only OS X and Linux are supported at the moment. The manual and more detailed installation instructions will appear at http://tophat.sourceforge.net/ once the site is approved and goes live. 
+This is an initial distribution of TopHat.  Only OS X and Linux are supported at the moment. The manual and more detailed installation instructions are hosted at http://tophat.sourceforge.net/ 
 
 To use TopHat, type 'configure' and then 'make' from within this directory.  Add this directory to your path.
 

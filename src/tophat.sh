@@ -18,13 +18,15 @@ SEED_SIZE=28
 
 LC_ALL=C
 
-while getopts  "a:s:m:fq" flag
+while getopts  "a:s:m:fqI:i:" flag
 do
   #echo "$flag" $OPTIND $OPTARG
   case "$flag" in
         a) ANCHOR_LEN=$OPTARG; echo "anchor length set to $ANCHOR_LEN";;
         m) SPAN_MISMATCHES=$OPTARG; echo "span mismatches set to $SPAN_MISMATCHES";;
 		s) SEED_SIZE=$OPTARG; echo "seed size set to $SEED_SIZE";;
+		I) MAX_INTRON_LENGTH=$OPTARG; echo "Maximum intron length set to $MAX_INTRON_LENGTH";;
+		i) MIN_INTRON_LENGTH=$OPTARG; echo "Maximum intron length set to $MIN_INTRON_LENGTH";;
 		q) FASTQ_FORMAT=1; echo "Expecting reads in FASTQ format";;
         f) FASTA_FORMAT=1; echo "Expecting reads in FASTA format";;
   esac
@@ -40,13 +42,18 @@ if [ -z `which maq` ]; then
     exit
 fi
 
-if [ $ANCHOR_LEN -lt 3 ]; then
-	echo "Error: anchor length must be at least 3."
+if [ $ANCHOR_LEN -lt 3 ] || [ $ANCHOR_LEN -gt 6 ]; then
+	echo "Error: anchor length must be greater than 2 and less than 8."
 	exit
 fi
 
-if [ $SPAN_MISMATCHES -gt 1 ]; then
-	echo "Error: no more than one spanning mismatch currently supported."
+if [ $SEED_SIZE -lt 20 ]; then
+	echo "Error: seed length must be at least 20"
+	exit
+fi
+
+if [ $SPAN_MISMATCHES -gt 2 ]; then
+	echo "Error: no more than two spanning mismatches currently supported."
 	exit
 fi
 
@@ -68,14 +75,38 @@ fi
 
 OPTIND=($OPTIND-1)
 
-if [ -z "${ARGS[($OPTIND)]}" ]
-then
-	echo "Error: no Bowtie index specified"
+INDEX_FWD_1="${ARGS[($OPTIND)]}.1.ebwt"
+INDEX_FWD_2="${ARGS[($OPTIND)]}.2.ebwt"
+INDEX_REV_1="${ARGS[($OPTIND)]}.rev.1.ebwt"
+INDEX_REV_2="${ARGS[($OPTIND)]}.rev.2.ebwt"
+if ! [ -f $INDEX_FWD_1  ]; then
+	echo "Error: Bowtie index file $INDEX_FWD_1 not found"
 	exit
 fi 
 
-if [ -z "${ARGS[($OPTIND+1)]}" ]
-then
+if ! [ -f $INDEX_FWD_2  ]; then
+	echo "Error: Bowtie index file $INDEX_FWD_2 not found"
+	exit
+fi
+
+if ! [ -f $INDEX_REV_1  ]; then
+	echo "Error: Bowtie index file $INDEX_REV_1 not found"
+	exit
+fi
+
+if ! [ -f $INDEX_REV_2  ]; then
+	echo "Error: Bowtie index file $INDEX_REV_2 not found"
+	exit
+fi
+
+INDEX_BFA="${ARGS[($OPTIND)]}.bfa"
+
+if ! [ -f $INDEX_BFA  ]; then
+	echo "Error: Binary fasta $INDEX_BFA not found"
+	exit
+fi
+
+if ! [ -f "${ARGS[($OPTIND)+1]}" ]; then
 	echo "Error: no reads provided"
 	exit
 fi 
