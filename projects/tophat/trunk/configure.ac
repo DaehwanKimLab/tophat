@@ -2,23 +2,32 @@
 
 # initialize
 AC_PREREQ(2.61)
-AC_INIT([TopHat],[0.7.0],[cole@cs.umd.edu],[tophat])
+AC_INIT([TopHat],[0.7.1],[cole@cs.umd.edu],[tophat])
 AC_PREFIX_DEFAULT([`pwd`])
 AC_CONFIG_SRCDIR([src/reads.h])
 AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([-Wall foreign])
 
+AC_ARG_ENABLE(
+	[debug],
+	[AC_HELP_STRING([--enable-debug], [enable debug messages. @<:@disabled@:>@])],
+	[test "${enableval}" = "yes" && CFLAGS="-O0 -g3" && CXXFLAGS="-O0 -g3" && AC_DEFINE([DEBUG], [1], [Enable debug messages.])]
+)
+
+
 # declare some precious variables
 AC_ARG_VAR(PYTHON, [python program])
+AC_ARG_VAR(PERL, [perl program])
 
 # Checks for programs.
 AC_PROG_CXX
 AC_PROG_AWK
 AC_PROG_INSTALL
 AC_PROG_RANLIB
-#AC_PATH_PROG(PYTHON, [python2.4], [:])
+AC_PATH_PROG(PERL, [perl], [:])
 AM_PATH_PYTHON([2.4])
+
 
 # Checks for libraries.
 AC_CHECK_LIB([z], [gzread])

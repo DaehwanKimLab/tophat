@@ -49,7 +49,8 @@ def main(argv=None):
                 arg_is_gff = True
         
         if (arg_is_splice == False and arg_is_gff == False) or (arg_is_splice == True and arg_is_gff == True):
-            print >> sys.stderr, "Please specify either -b or -g, but not both"
+			print >> sys.stderr, "Error: please specify either -b or -g, but not both"
+			raise Usage(help_message)
         
         if len(args) < 1:
             raise Usage(help_message)
