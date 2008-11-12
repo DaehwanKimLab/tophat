@@ -7,6 +7,7 @@
  *
  */
 
+#include <cassert>
 #include <stdio.h>
 #include "reads.h"
 

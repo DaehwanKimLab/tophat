@@ -12,6 +12,7 @@ bin_PROGRAMS = \
 dist_bin_SCRIPTS = \
 	contig_to_chr_coords.py \
 	junctions.py \
+	fq_all2std.pl \
 	tophat.sh
 
 #-- tophat library for linking convienence

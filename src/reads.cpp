@@ -7,6 +7,7 @@
  *
  */
 
+#include <cassert>
 #include <string>
 #include "reads.h"
 
@@ -116,10 +117,10 @@ bool next_fastq_record(FILE* fp, string& defline, string& seq, string& qual)
 			break;
 		}
 		// Only accept quality chars in the Sanger-scaled (but printable) range
-		else if (c >= '!' && c <= 'I')
-		{
-			qual.push_back(c);
-		}
+		//else if (c >= '!' && c <= 'I')
+		//{
+		qual.push_back(c);
+		//}
 	}
 	
 	return true;

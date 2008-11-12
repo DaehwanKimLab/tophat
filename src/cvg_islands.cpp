@@ -14,7 +14,7 @@
 #include <deque>
 #include <stdio.h>
 #include <zlib.h>
-#include <assert.h>
+#include <cassert>
 #include "const.h"
 #include "islands.h"
 

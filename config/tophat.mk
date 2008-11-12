@@ -42,6 +42,13 @@ install-bin-scripts-hook: $(dist_bin_SCRIPTS) $(bin_SCRIPTS)
                     "$(DESTDIR)$(bindir)/$$f" >> "$(DESTDIR)$(bindir)/$$b" \
                 || exit 1; \
                 ;; \
+			  *.pl) \
+	                echo " configuring perl '$$b'"; \
+	                echo '#!$(PERL)' > "$(DESTDIR)$(bindir)/$$b"; \
+	                sed -e '1 {s|^#!.*$$||;}' \
+	                    "$(DESTDIR)$(bindir)/$$f" >> "$(DESTDIR)$(bindir)/$$b" \
+	                || exit 1; \
+	                ;; \
               *) \
                 echo " configuring '$$b'"; \
                 cp "$(DESTDIR)$(bindir)/$$f" "$(DESTDIR)$(bindir)/$$b" \

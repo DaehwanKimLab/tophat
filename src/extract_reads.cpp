@@ -12,6 +12,7 @@
 #include <set>
 #include <algorithm>
 #include <string>
+#include <cassert>
 #include "reads.h"
 
 using namespace std;
