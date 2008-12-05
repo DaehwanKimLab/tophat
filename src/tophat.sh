@@ -62,6 +62,13 @@ if [ -z `which bowtie` ]; then
     exit
 fi
 
+# bowtie-convert was renamed in 0.9.8, this is for backwards-compatibility
+if [ -z `which bowtie-maqconvert` ]; then
+	BOWTIE_CONVERT=bowtie-maqconvert
+else
+	BOWTIE_CONVERT=bowtie-convert
+fi
+
 if [ -z `which maq` ]; then
     $ECHO "Error: Maq was not detected on this system.  Please verify that Maq is installed and that the Maq executables (maq, fq_all2std.pl) are in your path"
     exit
