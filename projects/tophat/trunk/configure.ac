@@ -2,7 +2,7 @@
 
 # initialize
 AC_PREREQ(2.61)
-AC_INIT([TopHat],[0.7.1],[cole@cs.umd.edu],[tophat])
+AC_INIT([TopHat],[0.7.2],[cole@cs.umd.edu],[tophat])
 AC_PREFIX_DEFAULT([`pwd`])
 AC_CONFIG_SRCDIR([src/reads.h])
 AC_CONFIG_AUX_DIR([config])
@@ -19,6 +19,7 @@ AC_ARG_ENABLE(
 # declare some precious variables
 AC_ARG_VAR(PYTHON, [python program])
 AC_ARG_VAR(PERL, [perl program])
+AC_ARG_VAR(TOPHAT_SHELL, [bash program])
 
 # Checks for programs.
 AC_PROG_CXX
@@ -26,6 +27,7 @@ AC_PROG_AWK
 AC_PROG_INSTALL
 AC_PROG_RANLIB
 AC_PATH_PROG(PERL, [perl], [:])
+AC_PATH_PROG(TOPHAT_SHELL, bash, no)
 AM_PATH_PYTHON([2.4])
 
 
@@ -48,7 +50,7 @@ AC_SYS_LARGEFILE
 
 # Checks for library functions.
 AC_FUNC_MALLOC
-AC_CHECK_FUNCS([memset strdup strrchr strtol])
+AC_CHECK_FUNCS([memset strdup strrchr strtol strsep])
 
 # check the platform
 AC_CANONICAL_HOST
