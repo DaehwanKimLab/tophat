@@ -64,9 +64,9 @@ fi
 
 # bowtie-convert was renamed in 0.9.8, this is for backwards-compatibility
 if [ -z `which bowtie-maqconvert` ]; then
-	BOWTIE_CONVERT=bowtie-maqconvert
-else
 	BOWTIE_CONVERT=bowtie-convert
+else
+	BOWTIE_CONVERT=bowtie-maqconvert
 fi
 
 if [ -z `which maq` ]; then
@@ -173,9 +173,9 @@ MAQ_FIX_VERSION=`echo $MAQ_VERSION_STR | awk -F"." '{print $3}'`
 #echo $MAQ_FIX_VERSION
 if [ $MAQ_MINOR_VERSION -lt 7 ] ; then 
 	$ECHO "Detected Maq older than 0.7.0, using 64bp read mapping format"
-	bowtie-convert -o  $BWTMAP $MAQMAP $EBWT.bfa 2>map_convert.log
+	$BOWTIE_CONVERT -o  $BWTMAP $MAQMAP $EBWT.bfa 2>map_convert.log
 else
-	bowtie-convert $BWTMAP $MAQMAP $EBWT.bfa 2>map_convert.log
+	$BOWTIE_CONVERT $BWTMAP $MAQMAP $EBWT.bfa 2>map_convert.log
 fi
 
 $ECHO  "Collecting initially unmapped reads : \c"
