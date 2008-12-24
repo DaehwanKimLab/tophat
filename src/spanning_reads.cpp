@@ -83,7 +83,7 @@ RefID id_for_refctg(const string& ref_name)
 
 static void print_usage() 
 {
-	fprintf(stderr, "Usage: spaning_reads [options] <islands.fa> <islands.gff> <unmapped_reads.fa>\n");
+	fprintf(stderr, "Usage: spanning_reads [options] <islands.fa> <islands.gff> <unmapped_reads.fa>\n");
 	fprintf(stderr, "    -v       verbose output\n");
 	fprintf(stderr, "    -s <int> Seed length                                [default: 28]\n");
 	fprintf(stderr, "    -a <int> anchor length                              [default: 5]\n");
@@ -470,18 +470,19 @@ unsigned int read_hits = 0;
  *  the correct seed region of that read.  Returns the increase in index size
  *  as a result of adding this read
  */
+
 size_t index_read(const string& seq, unsigned int read_num)
 {
-	assert (seq.length() <= 32);
-	if (2 * seq_key_len > 32)
-		return 0;
+//	assert (seq.length() <= 32);
+//	if (2 * seq_key_len > 32)
+//		return 0;
 	
 	// h is will hold the 2-bit-per-base representation of the k-mer seeds for
 	// this read.
 	
 	uint64_t seed = 0;
-	uint64_t left = 0;
-	uint64_t right = 0;
+	bitset<256> left = 0;
+	bitset<256> right = 0;
 	const char* p = seq.c_str();
 	
 	unsigned int seq_len = seq.length();
@@ -522,17 +523,26 @@ size_t index_read(const string& seq, unsigned int read_num)
 		
 		read_hits++;
 		
-		// How many base pairs exist in the right remainder?
+		// How many base pairs exist in the right remainder beyond what we have
+		// space for ?
 		int extra_right_bp = (seq.length() - (i + 2*seq_key_len)) - 16;
 		
 		uint32_t hit_right;
 		if (extra_right_bp > 0)
-			hit_right = right >> (extra_right_bp << 1);
+		{
+			//bitset<32> tmp_hit_right = (right >> (extra_right_bp << 1));
+			hit_right = (right >> (extra_right_bp << 1)).to_ulong();
+		}
 		else
-			hit_right = right;
+		{
+			hit_right = right.to_ulong();
+		}
+		
+		uint32_t hit_left = ((left << (256 - 32)) >> (256 - 32)).to_ulong();
+		
 		size_t prev_cap = mer_table[seed].capacity();
 		
-		mer_table[seed].push_back(ReadHit(left, hit_right,i, read_num));
+		mer_table[seed].push_back(ReadHit(hit_left, hit_right,i, read_num));
 		cap_increase += (mer_table[seed].capacity() - prev_cap) * sizeof (ReadHit);
 		new_hits++;
 		
@@ -549,15 +559,22 @@ size_t index_read(const string& seq, unsigned int read_num)
 		// Now take the leftmost base of the right remainder and stick it into 
 		// the rightmost position of the seed
 		uint32_t right_len = seq_len - (i + seq_key_len * 2);
-		bp = right & (0x3uLL << ((right_len - 1) << 1));
-		bp >>= ((right_len - 1) << 1);
+		//bp = right & (0x3uLL << ((right_len - 1) << 1));
+		
 		seed <<= 2;
-		seed |= bp;
+		//cout << right << endl;
+		bitset<256> tmp_right = (right >> ((right_len - 1) << 1));
+		//cout <<tmp_right << endl;
+		seed |= tmp_right.to_ulong();
 		seed &=  ~(0xFFFFFFFFFFFFFFFFuLL << (seq_key_len << 2));
 			
 		//Now remove that leftmost base of the right remainder
-		right &=  ~(0xFFFFFFFFFFFFFFFFuLL << (right_len - 1 << 1));
-					
+		//right &=  ~(0xFFFFFFFFFFFFFFFFuLL << (right_len - 1 << 1));
+		if (right_len)
+		{
+			right.set((right_len - 1 << 1), 0);
+			right.set((right_len - 1  << 1) + 1, 0);
+		}
 		++i;
 		
 	}while(i <= (size_t)(seq_end - seq.c_str()) - (2 * seq_key_len));

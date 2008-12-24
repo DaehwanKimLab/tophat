@@ -18,6 +18,7 @@ SEED_SIZE=28
 SELF_ISLAND_JUNCS=300
 SOLEXA_SCALE=""
 PHRED_CHAR="-R"
+BOWTIE_THREADS=1
 
 LC_ALL=C
 
@@ -33,14 +34,17 @@ Options:\n
 \t-i\t<int>\tMinimum intron length [default: 70]\n
 \t-X\t\tUse the solexa scale for qualities [default: off, use Phred scale]\n\n
 Experimental features (USE WITH CAUTION):\n
+\t-p\t<int>\tThreads to use when performing Bowtie mappings [default: 1]\n
 \t-D\t<0-1000>\tMinimum normalized depth to look for junctions within single islands [default: 300]\n
 \t-Q\t<';'-'I'>\t Allow Maq to call SNPs in islands sequences at positions >= this Phred qual [default: infinity, always use reference sequence]\n"
 
-while getopts  "a:s:m:fqI:i:D:hX" flag
+while getopts  "a:s:m:fqI:i:D:hXM:p:" flag
 do
   #echo "$flag" $OPTIND $OPTARG
   case "$flag" in
 		h) echo -e $USAGE_MSG; exit;;
+		p) BOWTIE_THREADS=$OPTARG; echo "using $BOWTIE_THREADS bowtie threads";;
+		M) MAX_MEM=$OPTARG; echo "allowing TopHat to use $MAX_MEM megs of RAM";;
         a) ANCHOR_LEN=$OPTARG; echo "anchor length set to $ANCHOR_LEN";;
         m) SPAN_MISMATCHES=$OPTARG; echo "span mismatches set to $SPAN_MISMATCHES";;
 		s) SEED_SIZE=$OPTARG; echo "seed size set to $SEED_SIZE";;
@@ -156,9 +160,9 @@ cat ${ARGS[($OPTIND+1)]} | $BINDIR/polyA_reads $FORMAT > kept_reads
 
 $ECHO  "Mapping reads in ${ARGS[($OPTIND+1)]} to $EBWT : \c"
 date
-echo "   bowtie -l $SEED_SIZE $FORMAT $SOLEXA_SCALE $EBWT kept_reads > $BWTMAP"
+echo "   bowtie -l $SEED_SIZE $FORMAT $SOLEXA_SCALE -p $BOWTIE_THREADS $EBWT kept_reads > $BWTMAP"
 
-bowtie -l $SEED_SIZE $FORMAT $SOLEXA_SCALE $EBWT kept_reads > $BWTMAP
+bowtie -l $SEED_SIZE $FORMAT $SOLEXA_SCALE -p $BOWTIE_THREADS $EBWT kept_reads > $BWTMAP
 
 MAQMAP=reads_to_$EBWT_SHORT.map
 
@@ -225,8 +229,8 @@ $BINDIR/cvg_islands -d 0.0 -b 6 -e 45 $PHRED_CHAR $MAQCNS islands.fa islands.gff
 
 $ECHO  "Mapping initially unmapped reads against possible exon junctions : \c"
 date
-$ECHO  "   spanning_reads -v -a $ANCHOR_LEN -s $SEED_SIZE -m $SPAN_MISMATCHES -I $MAX_INTRON_LENGTH -i $MIN_INTRON_LENGTH -S 300 islands.fa islands.gff unmapped_reads.fa > reads_to_$EBWT_SHORT.splices"
-$BINDIR/spanning_reads  -a $ANCHOR_LEN -s $SEED_SIZE -m $SPAN_MISMATCHES -I $MAX_INTRON_LENGTH -i $MIN_INTRON_LENGTH -S $SELF_ISLAND_JUNCS islands.fa islands.gff unmapped_reads.fa > reads_to_$EBWT_SHORT.splices
+$ECHO  "   spanning_reads -v -a $ANCHOR_LEN -s $SEED_SIZE -m $SPAN_MISMATCHES -I $MAX_INTRON_LENGTH -i $MIN_INTRON_LENGTH -S $SELF_ISLAND_JUNCS -M $MAX_MEM islands.fa islands.gff unmapped_reads.fa > reads_to_$EBWT_SHORT.splices"
+$BINDIR/spanning_reads  -v -a $ANCHOR_LEN -s $SEED_SIZE -m $SPAN_MISMATCHES -I $MAX_INTRON_LENGTH -i $MIN_INTRON_LENGTH -S $SELF_ISLAND_JUNCS -M $MAX_MEM islands.fa islands.gff unmapped_reads.fa > reads_to_$EBWT_SHORT.splices
 $ECHO  "Collecting junctions from spliced reads : \c"
 date
 
