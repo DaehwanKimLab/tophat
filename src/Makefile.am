@@ -22,7 +22,6 @@ dist_bin_SCRIPTS = \
 #-- tophat library for linking convienence
 noinst_LIBRARIES = libtophat.a
 noinst_HEADERS = \
-	const.h \
 	islands.h \
 	reads.h \
 	common.h \
@@ -42,7 +41,7 @@ libtophat_a_SOURCES = \
 
 #-- program sources
 cvg_islands_SOURCES = cvg_islands.cpp
-cvg_islands_LDADD = -lz
+cvg_islands_LDADD = -lz $(top_builddir)/src/libtophat.a
 
 extract_reads_SOURCES = extract_reads.cpp
 extract_reads_LDADD = $(top_builddir)/src/libtophat.a

@@ -22,7 +22,7 @@
 #include <cassert>
 #include <bitset>
 #include "reads.h"
-#include "const.h"
+//#include "const.h"
 #include "timer.h"
 #include "islands.h"
 
