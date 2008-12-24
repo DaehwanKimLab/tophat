@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include <zlib.h>
 #include <cassert>
-#include "const.h"
+#include "alphabet.h"
 #include "islands.h"
 
 #define LINE_LEN 60
@@ -131,10 +131,10 @@ void print_islands(FILE* fp_fasta,
 	unsigned long long total_map_length = 0;
 	while (gzread(fp, &len, sizeof(int))) {
 		char *name = (char*)malloc(len);
-		//bit8_t *qual;
+		//uint8_t *qual;
 		gzread(fp, name, len);
 		gzread(fp, &len, sizeof(int));
-		//qual = (bit8_t*)malloc(len);
+		//qual = (uint8_t*)malloc(len);
 		fprintf(stderr, "processing islands in: %s (%dbp)\n", name, len);
 		string seq;
 		
@@ -143,10 +143,10 @@ void print_islands(FILE* fp_fasta,
 		// This buffer keeps values from the zipped consensus for use with exon
 		// extension.  Elements are (low, high) consensus value pairs.  The 
 		// buffer keeps the most recent (rightmost) elements at the front.
-		deque<pair<bit32_t,bit32_t> > raw_cns_vals;
+		deque<pair<uint32_t,uint32_t> > raw_cns_vals;
 		static const unsigned int raw_cns_buf_size = 10000; 
 		
-		deque<pair<bit32_t, bit32_t> > lookforward_buf;
+		deque<pair<uint32_t, uint32_t> > lookforward_buf;
 		int max_extend = extend_exons;
 		
 		//string quals;
@@ -165,12 +165,12 @@ void print_islands(FILE* fp_fasta,
 		// Process individual columns in the consensus stream
 		while (processed_bases < len) {
 			
-			bit32_t low, high;
+			uint32_t low, high;
 			
 			if (lookforward_buf.empty())
 			{
-				gzread(fp, &low, sizeof(bit32_t));
-				gzread(fp, &high, sizeof(bit32_t));
+				gzread(fp, &low, sizeof(uint32_t));
+				gzread(fp, &high, sizeof(uint32_t));
 				++unzipped_bases;
 			}
 			else
@@ -189,7 +189,7 @@ void print_islands(FILE* fp_fasta,
 			
 			// Add the new (reference, donor) base-call pair to the consensus
 			// buffer
-			raw_cns_vals.push_front(make_pair<bit32_t, bit32_t>(low, high));
+			raw_cns_vals.push_front(make_pair<uint32_t, uint32_t>(low, high));
 			
 			char c = nst_nt16_rev_table[(high>>24) & 0xf];
 			
@@ -267,7 +267,7 @@ void print_islands(FILE* fp_fasta,
 							while (k >= 0 && k < (int)raw_cns_vals.size() &&
 								  (int)(k - k_start) < max_extend + clear_bases)
 							{
-								bit8_t ref_bits_k = (raw_cns_vals[k].second >> 28);
+								uint8_t ref_bits_k = (raw_cns_vals[k].second >> 28);
 								char ref_base_k = nst_nt16_rev_table[ref_bits_k];
 								extension.push_back(ref_base_k);
 								k++;
@@ -294,7 +294,7 @@ void print_islands(FILE* fp_fasta,
 							{
 								// Extract the reference base from the consensus
 								// history buffer
-								bit8_t ref_bits_k = (raw_cns_vals[k].second >> 28);
+								uint8_t ref_bits_k = (raw_cns_vals[k].second >> 28);
 								char ref_base_k = nst_nt16_rev_table[ref_bits_k];
 								assert (ref_base_k != 'X');
 								trim.push_back(ref_base_k);
@@ -321,7 +321,7 @@ void print_islands(FILE* fp_fasta,
 							{
 								// Extract the reference base from the consensus
 								// history buffer
-								bit8_t ref_bits_k = (raw_cns_vals[k].second >> 28);
+								uint8_t ref_bits_k = (raw_cns_vals[k].second >> 28);
 								char ref_base_k = nst_nt16_rev_table[ref_bits_k];
 								assert (ref_base_k != 'X');
 								extension.push_back(ref_base_k);
@@ -351,10 +351,10 @@ void print_islands(FILE* fp_fasta,
 									// toss the bases from the stream; we need
 									// to save them until we decide they aren't 
 									// part of an upcoming island.
-									gzread(fp, &low, sizeof(bit32_t));
-									gzread(fp, &high, sizeof(bit32_t));
+									gzread(fp, &low, sizeof(uint32_t));
+									gzread(fp, &high, sizeof(uint32_t));
 									++unzipped_bases;
-									lookforward_buf.push_back(make_pair<bit32_t, bit32_t>(low, high));
+									lookforward_buf.push_back(make_pair<uint32_t, uint32_t>(low, high));
 								}
 								else 
 								{
@@ -362,7 +362,7 @@ void print_islands(FILE* fp_fasta,
 									high = lookforward_buf[k].second;
 								}
 								
-								bit8_t ref_bits_k = (high >> 28);
+								uint8_t ref_bits_k = (high >> 28);
 								char ref_base_k = nst_nt16_rev_table[ref_bits_k];
 								extension.push_back(ref_base_k);
 							}
