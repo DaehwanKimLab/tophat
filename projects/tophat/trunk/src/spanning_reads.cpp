@@ -865,7 +865,7 @@ void map_possible_exon_juncs(FILE* reads_file)
 	unsigned int forward_splices = 0;
 	unsigned int reverse_splices = 0;
 	
-	Timer splice_map_timer(cerr);
+	Timer splice_map_timer(cerr, "", false);
 	typedef pair<size_t, PackedSpliceHalf> SpliceHalf;
 	for (EXONS_FOR_REFS::iterator j = exons_for_reference.begin();
 		 j != exons_for_reference.end();

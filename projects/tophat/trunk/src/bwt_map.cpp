@@ -72,74 +72,74 @@ void get_mapped_reads(FILE* bwtf, HitTable& hits, bool spliced, bool verbose)
         if (slash)
         {
             *slash = 0;
-			int read_len = strlen(sequence);
-			
-			// Add this alignment to the table of hits for this half of the
-			// Bowtie map
-			if (spliced)
+		}
+		int read_len = strlen(sequence);
+		
+		// Add this alignment to the table of hits for this half of the
+		// Bowtie map
+		if (spliced)
+		{
+			// Parse the text_name field to recover the splice coords
+			vector<string> toks;
+			char* pch = strtok (text_name,"|-");
+			while (pch != NULL)
 			{
-				// Parse the text_name field to recover the splice coords
-				vector<string> toks;
-				char* pch = strtok (text_name,"|-");
+				toks.push_back(pch);
+				pch = strtok (NULL, "|-");
+			}
+			
+			if (toks.size() == 7)
+			{
+				string contig = toks[0];
+				
+				uint32_t left = atoi(toks[1].c_str()) + text_offset;
+				uint32_t spliced_read_len = strlen(sequence);
+				int8_t left_splice_pos = atoi(toks[2].c_str()) - left;
+				int8_t right_splice_pos = spliced_read_len - left_splice_pos;
+				
+				uint32_t right = atoi(toks[3].c_str()) + right_splice_pos;
+				atoi(toks[4].c_str());
+				
+				assert (string(toks[6]) == "rev" || string(toks[6]) == "fwd");
+				assert (orientation == '-' || orientation == '+');
+				
+				//vector<string> mismatch_toks;
+				char* pch = strtok (mismatches,",");
+				bool mismatch_in_anchor = false;
 				while (pch != NULL)
 				{
-					toks.push_back(pch);
-					pch = strtok (NULL, "|-");
+					char* colon = strchr(pch, ':');
+					if (colon) 
+					{
+						*colon = NULL;
+						int mismatch_pos = atoi(pch);
+						if ((orientation == '+' && abs(mismatch_pos - left_splice_pos) < 5) ||
+							(orientation == '-' && abs(((int)spliced_read_len - left_splice_pos + 1) - mismatch_pos)) < 5)
+							mismatch_in_anchor = true;
+					}
+					//mismatch_toks.push_back(pch);
+					pch = strtok (NULL, ",");
 				}
 				
-				if (toks.size() == 7)
+				if (!mismatch_in_anchor)
 				{
-					string contig = toks[0];
-					
-					uint32_t left = atoi(toks[1].c_str()) + text_offset;
-					uint32_t spliced_read_len = strlen(sequence);
-					int8_t left_splice_pos = atoi(toks[2].c_str()) - left;
-					int8_t right_splice_pos = spliced_read_len - left_splice_pos;
-					
-					uint32_t right = atoi(toks[3].c_str()) + right_splice_pos;
-					atoi(toks[4].c_str());
-					
-					assert (string(toks[6]) == "rev" || string(toks[6]) == "fwd");
-					assert (orientation == '-' || orientation == '+');
-					
-					//vector<string> mismatch_toks;
-					char* pch = strtok (mismatches,",");
-					bool mismatch_in_anchor = false;
-					while (pch != NULL)
-					{
-						char* colon = strchr(pch, ':');
-						if (colon) 
-						{
-							*colon = NULL;
-							int mismatch_pos = atoi(pch);
-							if ((orientation == '+' && abs(mismatch_pos - left_splice_pos) < 5) ||
-								(orientation == '-' && abs(((int)spliced_read_len - left_splice_pos + 1) - mismatch_pos)) < 5)
-								mismatch_in_anchor = true;
-						}
-						//mismatch_toks.push_back(pch);
-						pch = strtok (NULL, ",");
-					}
-					
-					if (!mismatch_in_anchor)
-					{
-						hits.add_spliced_hit(name, 
-											 contig, 
-											 left, 
-											 right, 
-											 left_splice_pos, 
-											 right_splice_pos, 
-											 spliced_read_len, 
-											 orientation == '-', 
-											 string(toks[6]) == "rev");
-					}
+					hits.add_spliced_hit(name, 
+										 contig, 
+										 left, 
+										 right, 
+										 left_splice_pos, 
+										 right_splice_pos, 
+										 spliced_read_len, 
+										 orientation == '-', 
+										 string(toks[6]) == "rev");
 				}
 			}
-			else
-			{
-				hits.add_hit(name, text_name, text_offset, read_len, orientation == '-');
-			}
-			reads_extracted++;
 		}
+		else
+		{
+			hits.add_hit(name, text_name, text_offset, read_len, orientation == '-');
+		}
+		reads_extracted++;
 	}
 	
 	// This will sort the map by insert id.

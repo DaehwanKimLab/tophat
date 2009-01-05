@@ -37,6 +37,7 @@ class Usage(Exception):
 
 bowtie_threads = 1
 output_dir = "./tophat_out/"
+logging_dir = output_dir + "logs/"
 bin_dir = sys.path[0] + "/"
 
 #ok_str = "\t\t\t\t[OK]\n"
@@ -248,10 +249,10 @@ def extract_islands(maq_cns):
 def align_spliced_reads(islands_fasta, islands_gff, unmapped_reads):
     print >> sys.stderr, "[%s] Aligning spliced reads" % right_now()
     splice_log = open("/dev/null", "w")
-    spliced_reads_name = output_dir + "reads.sbwtout"
+    spliced_reads_name = output_dir + "spliced_map.sbwtout"
     spliced_reads = open(spliced_reads_name,"w")
     splice_cmd = [bin_dir + "spanning_reads",
-                  "-v",
+                  #"-v",
                   "-a","5", # Anchor length
                   "-m","0", # Mismatches allowed in extension
                   "-I", "20000", # Maxmimum intron length
@@ -278,9 +279,30 @@ def align_spliced_reads(islands_fasta, islands_gff, unmapped_reads):
        exit(1)
     return spliced_reads_name
 
-def compile_reports():
-    print >> sys.stderr, "[%s] Reporting junctions" % right_now()
-    #print >> sys.stderr, ok_str    
+def compile_reports(contiguous_map, spliced_map):
+    print >> sys.stderr, "[%s] Reporting output tracks" % right_now()
+    report_log = open("/dev/null", "w")
+    junctions = output_dir + "junctions.bed"
+    coverage = output_dir + "coverage.wig"
+    report_cmd = [bin_dir + "tophat_reports",
+                  coverage,
+                  junctions,
+                  contiguous_map,
+                  spliced_map]            
+    try:    
+       retcode = subprocess.call(report_cmd, 
+                                 stderr=report_log)
+       
+       # spanning_reads returned an error 
+       if retcode > 0:
+           print >> sys.stderr, fail_str, "Error: Report generation failed"
+           exit(1)
+    # cvg_islands not found
+    except OSError, o:
+       if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
+           print >> sys.stderr, fail_str, "Error: tophat_reports not found on this system"
+       exit(1)
+    return (coverage, junctions)
 
 def main(argv=None):
     if argv is None:
@@ -321,8 +343,10 @@ def main(argv=None):
         maq_map = convert_to_maq(use_long_maq_maps, bwt_map, bwt_idx_prefix)
         maq_cns = assemble_islands(maq_map, bwt_idx_prefix)
         (islands_fasta, islands_gff) = extract_islands(maq_cns)
-        align_spliced_reads(islands_fasta, islands_gff, unmapped_reads)
-        compile_reports()
+        spliced_reads = align_spliced_reads(islands_fasta, 
+                                            islands_gff, 
+                                            unmapped_reads)
+        compile_reports(bwt_map, spliced_reads)
         
     except Usage, err:
         print >> sys.stderr, sys.argv[0].split("/")[-1] + ": " + str(err.msg)
