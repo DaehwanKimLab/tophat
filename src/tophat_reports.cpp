@@ -39,7 +39,7 @@ static bool verbose = false;
 
 void print_usage()
 {
-    fprintf(stderr, "Usage:   tophat_reports <coverage.wig> <junctions.bed> <map1.bwtout> [splice_map1.bwtout] [map2.bwtout] [splice_map2.bwtout]\n");
+    fprintf(stderr, "Usage:   tophat_reports <coverage.wig> <junctions.bed> <map1.bwtout> [splice_map1.sbwtout] [map2.bwtout] [splice_map2.sbwtout]\n");
 }
 
 void insert_best_pairings(SequenceTable& rt,
