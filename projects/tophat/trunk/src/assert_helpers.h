@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <string>
 #include <cassert>
+#include <iostream>
 
 /**
  * Assertion for release-enabled assertions

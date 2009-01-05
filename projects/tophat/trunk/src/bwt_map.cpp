@@ -184,15 +184,15 @@ AlignStatus status(const BowtieHit* align)
 	return SPLICED;
 }
 
-bool left_status_better(MateStatusMask left, MateStatusMask right)
-{
-	return left < right;
-}
-
-bool status_equivalent(MateStatusMask left, MateStatusMask right)
-{	
-	return left == right;
-}
+//bool left_status_better(MateStatusMask left, MateStatusMask right)
+//{
+//	return left < right;
+//}
+//
+//bool status_equivalent(MateStatusMask left, MateStatusMask right)
+//{	
+//	return left == right;
+//}
 
 void best_insert_mappings(uint32_t refid,
 						  const string& name,
@@ -222,9 +222,6 @@ void best_insert_mappings(uint32_t refid,
 			if (h1.insert_id == h2.insert_id)
 			{
 				uint32_t insert_id = h2.insert_id;
-				
-				if (insert_id == 4348)
-					int a = 4;
 				
 				int min_mate_inner_dist = insert_len - h1.read_len() - 
 				h2.read_len() - insert_len_std_dev;

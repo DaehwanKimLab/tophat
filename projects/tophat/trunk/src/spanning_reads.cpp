@@ -22,7 +22,7 @@
 #include <cassert>
 #include <bitset>
 #include "reads.h"
-//#include "const.h"
+#include "alphabet.h"
 #include "timer.h"
 #include "islands.h"
 
@@ -430,21 +430,22 @@ int get_matching_chars(uint32_t w1, uint32_t w2)
 // TODO: consider packing pos and meta into a single 32-bit int.
 struct ReadHit
 {
-	ReadHit(uint32_t l, uint32_t r, uint32_t p, uint32_t m) 
-		: left(l), right(r), pos(p), meta(m) {}
+	ReadHit(uint32_t l, uint32_t r, uint32_t p, uint32_t m, bool rc) 
+		: left(l), right(r), pos(p), meta(m), reverse_complement(rc) {}
 	uint32_t left; // 2-bits per base rep of the left remainder
 	uint32_t right; //2-bits per base rep of the right remainder
 	uint32_t pos; // position of the seed within the read
-	uint32_t meta; 
+	uint32_t meta : 31;
+	bool reverse_complement;
 };
 
 /* Holds information about a read that we don't want to throw away,
    and only really need for printing */
 struct ReadMetadata
 {
-	ReadMetadata(const string& n, const string& s) : name(n)/*, seq(s) */{}
+	ReadMetadata(const string& n, const string& s) : name(n)/*, seq(s)*/{}
 	string name;
-//	string seq;
+	//string seq;
 };
 
 // read_metadata stores information we don't need for alignment, but that 
@@ -471,7 +472,7 @@ unsigned int read_hits = 0;
  *  as a result of adding this read
  */
 
-size_t index_read(const string& seq, unsigned int read_num)
+size_t index_read(const string& seq, unsigned int read_num, bool reverse_complement)
 {
 //	assert (seq.length() <= 32);
 //	if (2 * seq_key_len > 32)
@@ -542,7 +543,7 @@ size_t index_read(const string& seq, unsigned int read_num)
 		
 		size_t prev_cap = mer_table[seed].capacity();
 		
-		mer_table[seed].push_back(ReadHit(hit_left, hit_right,i, read_num));
+		mer_table[seed].push_back(ReadHit(hit_left, hit_right,i, read_num, reverse_complement));
 		cap_increase += (mer_table[seed].capacity() - prev_cap) * sizeof (ReadHit);
 		new_hits++;
 		
@@ -662,7 +663,7 @@ void index_reads(FILE* reads_file, long long max_memory_megs)
 		read_metadata.push_back(ReadMetadata(defline,seed));
 		
 		// Add the forward version of the read to the index
-		memory_used += index_read(seed, read_num);
+		memory_used += index_read(seed, read_num, false);
 		
 		reverse_complement(seq);
 				
@@ -680,7 +681,7 @@ void index_reads(FILE* reads_file, long long max_memory_megs)
 		//read_metadata.push_back(ReadMetadata(defline,seed));
 		
 		// Add the reverse version of the read to the index
-		memory_used += index_read(seed, read_num);
+		memory_used += index_read(seed, read_num, true);
 		
 		reads_processed++;
 		read_num++;
@@ -815,17 +816,42 @@ void lookup_splice_in_read_index(RefID ref_ctg_id,
 		ReadMetadata& rm = read_metadata[rh.meta];
 		
 		//fprintf(stderr, "%d, %s, %d\n", pos, rm.name.c_str(), rh.meta);
-		fprintf(stdout, "%s\t%s\t%s\t%s\t%d\t%d\t%s\t%d\t%d\n", 
-				rm.name.c_str(),
-				ids_to_refctgs[ref_ctg_id].c_str(),
-				antisense ? "-" : "+",
-				left->short_name.c_str(),
-				(int)left->pos_in_ref,
-				(int)pos_in_l + seq_key_len - 1,
-				right->short_name.c_str(),
-				(int)right->pos_in_ref,
-				(int)pos_in_r - seq_key_len);
+//		fprintf(stdout, "%s\t%s\t%s\t%s\t%d\t%d\t%s\t%d\t%d\n", 
+//				rm.name.c_str(),
+//				ids_to_refctgs[ref_ctg_id].c_str(),
+//				antisense ? "-" : "+",
+//				left->short_name.c_str(),
+//				(int)left->pos_in_ref,
+//				(int)pos_in_l + seq_key_len - 1,
+//				right->short_name.c_str(),
+//				(int)right->pos_in_ref,
+//				(int)pos_in_r - seq_key_len);
 		
+		string seq;
+		
+		seq = u32ToDna(rh.left, pos) + u32ToDna(p.seed, 2 * seq_key_len) + 
+			u32ToDna(rh.right, seed_size - 2 * seq_key_len - pos);
+		
+		int left_splice_coord = (int)left->pos_in_ref + (int)pos_in_l + seq_key_len - 1;
+		int right_splice_coord = (int)right->pos_in_ref + (int)pos_in_r - seq_key_len;
+		int window_length = seq.length() - seq_key_len;
+		int left_window_edge = left_splice_coord - window_length;
+		int right_window_edge = right_splice_coord + window_length;
+		int align_pos = window_length - pos;
+		// TODO: report mismatches in the spliced bowtie output
+		fprintf(stdout, "%s\t%s\t%s|%d|%d-%d|%d|GTAG|%s\t%d\t%s\t%s\t1\n", 
+				rm.name.c_str(), // read name
+				"+", // sense of the alignment
+				ids_to_refctgs[ref_ctg_id].c_str(), //reference contig
+				left_window_edge,
+				left_splice_coord,
+				right_splice_coord,
+				right_window_edge,
+				antisense ? "rev" : "fwd",
+				align_pos,
+				seq.c_str(),
+				string(seq.length(), 'I').c_str()
+				);
 	}
 }
 

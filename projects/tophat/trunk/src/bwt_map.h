@@ -346,7 +346,7 @@ struct InsertAlignmentGrade
 		{
 			// Both ends of both inserts are mapped
 			
-			// Prefer a alignment with one end contiguously mapped over a pair 
+			// Prefer an alignment with one end contiguously mapped over a pair 
 			// of spliced alignments
 			if (both_spliced != rhs.both_spliced)
 				return rhs.both_spliced < both_spliced;
