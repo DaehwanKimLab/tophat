@@ -27,7 +27,8 @@ Options:
     -p/--num-threads    <int>
     -i/--min-intron     <int>
     -I/--max-intron     <int>
-    -X/--use-solexa     <int>
+    -X/--solexa-quals   <int>
+    -s/--seed-length    <int>
 '''
 
 
@@ -35,7 +36,6 @@ class Usage(Exception):
     def __init__(self, msg):
         self.msg = msg
 
-bowtie_threads = 1
 output_dir = "./tophat_out/"
 logging_dir = output_dir + "logs/"
 bin_dir = sys.path[0] + "/"
@@ -47,38 +47,6 @@ def right_now():
     curr_time = datetime.now()
     return curr_time.strftime("%c")
 
-def initial_mapping(bwt_idx_prefix, reads_list, output_dir):
-    
-    print >> sys.stderr, "[%s] Mapping reads with Bowtie" % right_now()
-    
-    # Setup Bowtie output redirects
-    bwt_map = output_dir + "unspliced_map.bwtout"
-    bwt_log = open("/dev/null", "w")
-    unmapped_reads_fasta_name = output_dir + "unmapped.fa"
-    # Launch Bowtie
-    try:    
-        bowtie_cmd = ["bowtie", 
-                      "-p", str(bowtie_threads),
-                      "--unfa", unmapped_reads_fasta_name,
-                      bwt_idx_prefix, 
-                      reads_list, 
-                      bwt_map]              
-        
-        subprocess.check_call(bowtie_cmd, stderr=bwt_log)
-    
-    # Bowtie not found
-    except OSError, o:
-        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
-            print >> sys.stderr, fail_str, "Error: Bowtie not found on this system.  Did you forget to include it in your PATH?"
-    
-    # Bowtie reported an error
-    except subprocess.CalledProcessError:
-        print >> sys.stderr, fail_str, "Error: could not execute Bowtie"
-        exit(1)
-    
-    # Success    
-    return (bwt_map, unmapped_reads_fasta_name)
-
 def prepare_output_dir():
     
     print >> sys.stderr, "[%s] Prepare output location %s" % (right_now(), output_dir)
@@ -86,13 +54,20 @@ def prepare_output_dir():
         pass
     else:        
         os.mkdir(output_dir)
+        
+    if os.path.exists(logging_dir):
+        pass
+    else:        
+        os.mkdir(logging_dir)
 
 def check_bowtie_index():
     print >> sys.stderr, "[%s] Checking for Bowtie index files" % right_now()
+    # TODO
     #print >> sys.stderr, ok_str
 
 def check_bfa():
     print >> sys.stderr, "[%s] Checking for binary fasta" % right_now()
+    # TODO
     #print >> sys.stderr, ok_str
 
 def check_index():
@@ -156,6 +131,58 @@ def check_bowtie():
         print >> sys.stderr, "Error: TopHat requires Bowtie 0.9.9 or later"
         exit(1)
 
+def formatTD(td):
+  hours = td.seconds // 3600
+  minutes = (td.seconds % 3600) // 60
+  seconds = td.seconds % 60
+  return '%02d:%02d:%02d' % (hours, minutes, seconds) 
+
+def initial_mapping(bwt_idx_prefix, 
+                    reads_list, 
+                    output_dir, 
+                    bowtie_threads, 
+                    solexa_scale,
+                    seed_length):
+    start_time = datetime.now()
+    print >> sys.stderr, "[%s] Mapping reads with Bowtie" % start_time.strftime("%c"),
+    
+    # Setup Bowtie output redirects
+    bwt_map = output_dir + "unspliced_map.bwtout"
+    bwt_log = open(logging_dir + "unspliced_bwt.log", "w")
+    unmapped_reads_fasta_name = output_dir + "unmapped.fa"
+    # Launch Bowtie
+    try:    
+        qual_format = ""
+        if solexa_scale:
+            qual_format = "--solexa-quals"
+        
+        bowtie_cmd = ["bowtie"]
+        
+        if solexa_scale:
+            bowtie_cmd += [qual_format]
+        
+        bowtie_cmd += ["-p", str(bowtie_threads),
+                      "--unfa", unmapped_reads_fasta_name,
+                      "-l", str(seed_length),
+                      bwt_idx_prefix, 
+                      reads_list, 
+                      bwt_map]   
+        #print "\t executing: `%s'" % " ".join(bowtie_cmd)           
+        subprocess.check_call(bowtie_cmd, stderr=bwt_log)
+    # Bowtie not found
+    except OSError, o:
+        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
+            print >> sys.stderr, fail_str, "Error: Bowtie not found on this system.  Did you forget to include it in your PATH?"
+    # Bowtie reported an error
+    except subprocess.CalledProcessError:
+        print >> sys.stderr, fail_str, "Error: could not execute Bowtie"
+        exit(1)
+    # Success    
+    finish_time = datetime.now()
+    duration = finish_time - start_time
+    print >> sys.stderr, "\t\t\t[%s elapsed]" %  formatTD(duration)
+    return (bwt_map, unmapped_reads_fasta_name)
+
 def collect_unmapped_reads():
     print >> sys.stderr, "[%s] Collecting unmapped reads" % right_now()
     #print >> sys.stderr, ok_str
@@ -163,7 +190,7 @@ def collect_unmapped_reads():
 def convert_to_maq(use_long_maq_maps, bwt_map, bwt_idx_prefix):
     print >> sys.stderr, "[%s] Coverting alignments to Maq format" % right_now()
     
-    convert_log = open("/dev/null", "w")
+    convert_log = open(logging_dir + "convert_to_maq.log", "w")
     maq_map = output_dir + "unspliced_map.maqout"
     format_option = "-o"
     if use_long_maq_maps == True:
@@ -180,6 +207,7 @@ def convert_to_maq(use_long_maq_maps, bwt_map, bwt_idx_prefix):
         # bowtie-maqconvert reported an error
         if retcode > 0:
             print >> sys.stderr, fail_str, "Error: Conversion to Maq map format failed"
+            exit(1)
     # converter not found
     except OSError, o:
         if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
@@ -196,7 +224,7 @@ def convert_to_maq(use_long_maq_maps, bwt_map, bwt_idx_prefix):
 
 def assemble_islands(maq_map, idx_prefix):
     print >> sys.stderr, "[%s] Assembling coverage islands" % right_now()
-    asm_log = open(output_dir + "asm_log.txt", "w")
+    asm_log = open(logging_dir + "maq_asm.log", "w")
     maq_cns = output_dir + "unspliced.cns"
     asm_cmd = ["maq",
                "assemble",
@@ -220,7 +248,7 @@ def assemble_islands(maq_map, idx_prefix):
 
 def extract_islands(maq_cns):
     print >> sys.stderr, "[%s] Extracting coverage islands" % right_now()
-    extract_log = open("/dev/null", "w")
+    extract_log = open(logging_dir + "extract_islands.log", "w")
     island_fasta = output_dir + "islands.fa"
     island_gff = output_dir + "islands.gff"
     
@@ -246,15 +274,20 @@ def extract_islands(maq_cns):
        exit(1)
     return (island_fasta, island_gff)
 
-def align_spliced_reads(islands_fasta, islands_gff, unmapped_reads):
-    print >> sys.stderr, "[%s] Aligning spliced reads" % right_now()
-    splice_log = open("/dev/null", "w")
+def align_spliced_reads(islands_fasta, 
+                        islands_gff, 
+                        unmapped_reads,
+                        trim_length,
+                        splice_mismatches):
+    start_time = datetime.now()
+    print >> sys.stderr, "[%s] Aligning spliced reads" % start_time.strftime("%c"),
+    splice_log = open(logging_dir + "spliced_align.log", "w")
     spliced_reads_name = output_dir + "spliced_map.sbwtout"
     spliced_reads = open(spliced_reads_name,"w")
     splice_cmd = [bin_dir + "spanning_reads",
-                  #"-v",
-                  "-a","5", # Anchor length
-                  "-m","0", # Mismatches allowed in extension
+                  "-v",
+                  "-a", "5", # Anchor length
+                  "-m", str(splice_mismatches), # Mismatches allowed in extension
                   "-I", "20000", # Maxmimum intron length
                   "-i", "70", # Minimum intron length
                   "-s", "28", # Seed size for reads
@@ -262,10 +295,11 @@ def align_spliced_reads(islands_fasta, islands_gff, unmapped_reads):
                   "-M", "256", # Small memory footprint for now
                   islands_fasta,
                   islands_gff,
-                  unmapped_reads]            
+                  unmapped_reads]   
+    #print "\n"," ".join(splice_cmd)         
     try:    
        retcode = subprocess.call(splice_cmd, 
-                                 #stderr=splice_log,
+                                 stderr=splice_log,
                                  stdout=spliced_reads)
        
        # spanning_reads returned an error 
@@ -277,11 +311,15 @@ def align_spliced_reads(islands_fasta, islands_gff, unmapped_reads):
        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
            print >> sys.stderr, fail_str, "Error: spanning_reads not found on this system"
        exit(1)
+       
+    finish_time = datetime.now()
+    duration = finish_time - start_time
+    print >> sys.stderr, "\t\t\t[%s elapsed]" %  formatTD(duration)
     return spliced_reads_name
 
 def compile_reports(contiguous_map, spliced_map):
     print >> sys.stderr, "[%s] Reporting output tracks" % right_now()
-    report_log = open("/dev/null", "w")
+    report_log = open(logging_dir + "reports.log", "w")
     junctions = output_dir + "junctions.bed"
     coverage = output_dir + "coverage.wig"
     report_cmd = [bin_dir + "tophat_reports",
@@ -309,10 +347,20 @@ def main(argv=None):
         argv = sys.argv
     try:
         try:
-            opts, args = getopt.getopt(argv[1:], "ho:v", ["help", "output="])
+            opts, args = getopt.getopt(argv[1:], "ho:vXp:s:m:", 
+                                        ["help", 
+                                         "output=", 
+                                         "solexa-quals",
+                                         "num-threads=",
+                                         "seed-length=",
+                                         "splice-mismatches="])
         except getopt.error, msg:
             raise Usage(msg)
         
+        bowtie_threads = 1
+        solexa_scale = False
+        seed_length = 28
+        splice_mismatches = 0
         # option processing
         for option, value in opts:
             if option == "-v":
@@ -321,6 +369,14 @@ def main(argv=None):
                 raise Usage(help_message)
             if option in ("-o", "--output"):
                 output = value
+            if option in ("-X", "--solexa-quals"):
+                solexa_scale = True
+            if option in ("-p", "--num-threads"):
+                bowtie_threads = int(value)
+            if option in ("-s", "--seed-length"):
+                seed_length = int(value)
+            if option in ("-m", "--splice-mismatches"):
+                splice_mismatches = int(value)
                 
         if len(args) < 2:
             raise Usage(use_message)
@@ -338,14 +394,19 @@ def main(argv=None):
         prepare_output_dir()
         (bwt_map, unmapped_reads) = initial_mapping(bwt_idx_prefix, 
                                                     reads_list, 
-                                                    output_dir)
+                                                    output_dir,
+                                                    bowtie_threads,
+                                                    solexa_scale,
+                                                    seed_length)
         
         maq_map = convert_to_maq(use_long_maq_maps, bwt_map, bwt_idx_prefix)
         maq_cns = assemble_islands(maq_map, bwt_idx_prefix)
         (islands_fasta, islands_gff) = extract_islands(maq_cns)
         spliced_reads = align_spliced_reads(islands_fasta, 
                                             islands_gff, 
-                                            unmapped_reads)
+                                            unmapped_reads,
+                                            seed_length,
+                                            splice_mismatches)
         compile_reports(bwt_map, spliced_reads)
         
     except Usage, err:
