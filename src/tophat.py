@@ -23,12 +23,13 @@ Usage:
     tophat [options] <bowtie_index> <reads1.fq[,reads2.fq,...,readsN.fq]>
     
 Options:
-    -a/--min-anchor     <int>
-    -p/--num-threads    <int>
-    -i/--min-intron     <int>
-    -I/--max-intron     <int>
-    -X/--solexa-quals   <int>
-    -s/--seed-length    <int>
+    -a/--min-anchor       <int>
+    -p/--num-threads      <int>
+    -i/--min-intron       <int>
+    -I/--max-intron       <int>
+    -X/--solexa-quals     <int>
+    -s/--seed-length      <int>
+    -g/--max-gene-family  <int>
 '''
 
 
@@ -142,14 +143,17 @@ def initial_mapping(bwt_idx_prefix,
                     output_dir, 
                     bowtie_threads, 
                     solexa_scale,
-                    seed_length):
+                    seed_length,
+                    max_hits):
     start_time = datetime.now()
     print >> sys.stderr, "[%s] Mapping reads with Bowtie" % start_time.strftime("%c"),
     
     # Setup Bowtie output redirects
     bwt_map = output_dir + "unspliced_map.bwtout"
     bwt_log = open(logging_dir + "unspliced_bwt.log", "w")
+    
     unmapped_reads_fasta_name = output_dir + "unmapped.fa"
+    unmapped_repeat_fasta_name = output_dir + "unmapped_repeat.fa"
     # Launch Bowtie
     try:    
         qual_format = ""
@@ -164,11 +168,16 @@ def initial_mapping(bwt_idx_prefix,
         bowtie_cmd += ["-p", str(bowtie_threads),
                       "--unfa", unmapped_reads_fasta_name,
                       "-l", str(seed_length),
+                      "-k", str(max_hits),
+                      "-m", str(max_hits + 1),
+                      "--maxfa", unmapped_repeat_fasta_name,
                       bwt_idx_prefix, 
                       reads_list, 
                       bwt_map]   
         #print "\t executing: `%s'" % " ".join(bowtie_cmd)           
-        subprocess.check_call(bowtie_cmd, stderr=bwt_log)
+        subprocess.check_call(bowtie_cmd, 
+                              stdout=open("/dev/null"), 
+                              stderr=bwt_log)
     # Bowtie not found
     except OSError, o:
         if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
@@ -277,7 +286,7 @@ def extract_islands(maq_cns):
 def align_spliced_reads(islands_fasta, 
                         islands_gff, 
                         unmapped_reads,
-                        trim_length,
+                        seed_length,
                         splice_mismatches):
     start_time = datetime.now()
     print >> sys.stderr, "[%s] Aligning spliced reads" % start_time.strftime("%c"),
@@ -290,7 +299,7 @@ def align_spliced_reads(islands_fasta,
                   "-m", str(splice_mismatches), # Mismatches allowed in extension
                   "-I", "20000", # Maxmimum intron length
                   "-i", "70", # Minimum intron length
-                  "-s", "28", # Seed size for reads
+                  "-s", str(seed_length), # Seed size for reads
                   "-S", "300", # Min normalized DoC for self island junctions
                   "-M", "256", # Small memory footprint for now
                   islands_fasta,
@@ -353,7 +362,8 @@ def main(argv=None):
                                          "solexa-quals",
                                          "num-threads=",
                                          "seed-length=",
-                                         "splice-mismatches="])
+                                         "splice-mismatches=",
+                                         "max-gene-family="])
         except getopt.error, msg:
             raise Usage(msg)
         
@@ -361,6 +371,7 @@ def main(argv=None):
         solexa_scale = False
         seed_length = 28
         splice_mismatches = 0
+        max_hits = 10
         # option processing
         for option, value in opts:
             if option == "-v":
@@ -377,6 +388,8 @@ def main(argv=None):
                 seed_length = int(value)
             if option in ("-m", "--splice-mismatches"):
                 splice_mismatches = int(value)
+            if option in ("-g", "--max-gene-family"):
+                 max_hits = int(value)
                 
         if len(args) < 2:
             raise Usage(use_message)
@@ -397,7 +410,8 @@ def main(argv=None):
                                                     output_dir,
                                                     bowtie_threads,
                                                     solexa_scale,
-                                                    seed_length)
+                                                    seed_length,
+                                                    max_hits)
         
         maq_map = convert_to_maq(use_long_maq_maps, bwt_map, bwt_idx_prefix)
         maq_cns = assemble_islands(maq_map, bwt_idx_prefix)

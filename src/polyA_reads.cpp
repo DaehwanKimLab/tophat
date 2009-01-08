@@ -14,7 +14,7 @@
 enum Format {FASTA, FASTQ};
 Format format = FASTA;
 
-void filter_polyA_reads(FILE *fa)
+void filter_garbage_reads(FILE *fa)
 {
 	int num_reads_chucked = 0, num_reads = 0;
 	 
@@ -116,7 +116,7 @@ int main(int argc, char *argv[])
 	assert(fp);
 	
 	// Only print to standard out the good reads
-	filter_polyA_reads(fp);
+	filter_garbage_reads(fp);
 	fclose(fp);
 	return 0;
 }

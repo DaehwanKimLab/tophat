@@ -30,10 +30,12 @@ using namespace std;
 using namespace seqan;
 using std::set;
 
-const char *short_options = "r:I:d:s:va:";
+const char *short_options = "r:I:d:s:va:A";
 
 static int min_anchor_len = 5;
 static int min_intron_len = 40;
+
+static bool accept_all = false;
 
 static bool verbose = false;
 
@@ -77,6 +79,36 @@ void insert_best_pairings(SequenceTable& rt,
 	}	
 }
 
+void fragment_best_alignments(SequenceTable& rt,
+							  HitTable& hits1,
+							  BestFragmentAlignmentTable& best_alignments)						
+{
+	for(SequenceTable::const_iterator ci = rt.begin();
+		ci != rt.end();
+		++ci) 
+	{		
+		
+		// Tracks the number of singleton ALIGNMENTS, not the number of singleton
+		// READS in each Bowtie map.
+				
+		string name = ci->first;
+		uint32_t ref_id = rt.get_id(name);
+		HitList* hits_in_ref = hits1.get_hits(ref_id);
+		
+		if (!hits_in_ref)
+			continue;
+		
+		if (verbose)
+			fprintf(stderr, "Looking for best alignments in %s\n", name.c_str());
+		
+		best_fragment_mappings(ref_id,
+							 name, 
+							 *hits_in_ref, 
+							 best_alignments);
+	}	
+}
+
+
 void driver(FILE* map1, 
 			FILE* splice_map1,
 			FILE* map2, 
@@ -103,8 +135,6 @@ void driver(FILE* map1,
 		get_mapped_reads(map2, hits2, false);
 		get_mapped_reads(splice_map2, hits2, true);
 		
-		// TODO: screen hits based on best pairings, marking optimal hits as
-		// accepted.
 		BestInsertAlignmentTable best_pairings(it.size());
 		insert_best_pairings(rt, hits1, hits2, best_pairings);
 		
@@ -133,8 +163,17 @@ void driver(FILE* map1,
     }
 	else // Single-end reporting
 	{
-		accept_all_hits(hits1);
-		
+		if (accept_all)
+		{
+			accept_all_hits(hits1);
+		}
+		else
+		{
+			BestFragmentAlignmentTable best_alignments(it.size());
+			fragment_best_alignments(rt, hits1, best_alignments);
+			
+			accept_unique_hits(best_alignments);
+		}
 		junctions_from_alignments(hits1, junctions);
 		
 		print_junctions(junctions_out, junctions, rt);
@@ -163,6 +202,7 @@ static struct option long_options[] = {
 {"min-anchor",       required_argument,       0,            'a'},
 {"min-intron",       required_argument,       0,            'i'},
 {"verbose",		no_argument,	0,							'v'},
+{"accept_all",      no_argument,       0,            'A'},
 {0, 0, 0, 0} // terminator
 };
 
@@ -214,6 +254,9 @@ int parse_options(int argc, char** argv)
 				break;
 			case 'i':
 				min_intron_len = (uint32_t)parseInt(1, "-a/--min-intron arg must be at least 1");
+				break;
+			case 'A':
+				accept_all = true;
 				break;
 			case -1: /* Done with options. */
 				break;

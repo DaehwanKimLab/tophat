@@ -236,18 +236,61 @@ bool left_status_better(MateStatusMask left, MateStatusMask right);
 bool status_equivalent(MateStatusMask left, MateStatusMask right);
 typedef uint32_t MateStatusMask;
 
-//#define BOTH_CONTIGUOUS (1)
-//#define LEFT_SPLICED (1<<1)
-//#define RIGHT_SPLICED (1<<2)
-//#define TOO_CLOSE (1<<3)
-//#define TOO_FAR (1<<4)
-//#define WRONG_ORIENTATION (1<<5)
-//#define SINGLETON (1<<6)
-//#define NO_MAPPING (1<<7)
-
-// TODO: this enum is redundant with the above bitmask setup, we should dump 
-// AlignStatus.
 enum AlignStatus {CONTIGUOUS, SPLICED, UNALIGNED};
+
+struct FragmentAlignment
+{
+	FragmentAlignment(uint32_t _refid, 
+					BowtieHit* _alignment) : 
+	refid(_refid), 
+	alignment(_alignment) {}
+	
+	uint32_t refid;
+	BowtieHit* alignment;
+};
+
+struct FragmentAlignmentGrade
+{
+	FragmentAlignmentGrade() : 
+		spliced(false), num_mismatches(255), align_len(0), min_overhang(0) {}
+	
+	FragmentAlignmentGrade(const BowtieHit& h1) : 
+		spliced(false), num_mismatches(255), align_len(0), min_overhang(0)
+	{
+		if (h1.splice_pos_left != -1)
+		{
+			spliced = true;
+			min_overhang = min(h1.splice_pos_left, h1.splice_pos_right);
+		}
+		
+		align_len = h1.read_len();
+		num_mismatches = 0;
+	}
+	
+	FragmentAlignmentGrade& operator=(const FragmentAlignmentGrade& rhs)
+	{
+		spliced = rhs.spliced;
+		num_mismatches = rhs.num_mismatches;
+		min_overhang = rhs.min_overhang;
+		return *this;
+	}
+	
+	// Returns true if rhs is a "happier" alignment for the ends of this insert
+	// than this InsertStatus.
+	bool operator<(const FragmentAlignmentGrade& rhs)
+	{
+		return false;
+		
+		if (align_len != rhs.align_len)
+			return align_len < rhs.align_len;
+		return min_overhang < rhs.min_overhang;
+	}
+	
+	bool spliced;
+	uint8_t num_mismatches;
+	uint8_t align_len;
+	uint8_t min_overhang;
+};
 
 struct InsertAlignment
 {
@@ -336,6 +379,7 @@ struct InsertAlignmentGrade
 	// than this InsertStatus.
 	bool operator<(const InsertAlignmentGrade& rhs)
 	{
+		assert(!(both_mapped && one_mapped));
 		// We always prefer a insert alignment with both ends mapped than a
 		// singleton
 		if (both_mapped != rhs.both_mapped)
@@ -344,7 +388,6 @@ struct InsertAlignmentGrade
 		}
 		else
 		{
-			// Both ends of both inserts are mapped
 			
 			// Prefer an alignment with one end contiguously mapped over a pair 
 			// of spliced alignments
@@ -395,6 +438,8 @@ struct InsertAlignmentGrade
 typedef vector<pair<InsertAlignmentGrade, vector<InsertAlignment> > > BestInsertAlignmentTable;
 //vector<InsertAlignment> best_alignments;
 
+typedef vector<pair<FragmentAlignmentGrade, vector<FragmentAlignment> > > BestFragmentAlignmentTable;
+
 
 void best_insert_mappings(uint32_t refid,
 						  const string& name,
@@ -402,6 +447,10 @@ void best_insert_mappings(uint32_t refid,
 						  HitList& hits2_in_ref,
 						  BestInsertAlignmentTable& best_insert_alignments);
 
+void best_fragment_mappings(uint32_t refid,
+							const string& name,
+							HitList& hits1_in_ref,
+							BestFragmentAlignmentTable& best_status_for_fragments);
 
 //typedef vector<InsertStatus> InsertStatusTable;
 
@@ -410,4 +459,6 @@ void add_hits_to_coverage(const HitList& hits, vector<short>& DoC);
 void accept_all_hits(HitTable& hits);
 
 void accept_valid_hits(BestInsertAlignmentTable& best_status_for_inserts);
+void accept_valid_hits(BestFragmentAlignmentTable& best_status_for_fragments);
+void accept_unique_hits(BestFragmentAlignmentTable& best_status_for_fragments);
 #endif

@@ -96,7 +96,7 @@ void junctions_from_alignments(const HitTable& hits,
 {
 
 	std::set<pair< int, int > > splice_coords;
-	std::set<Junction> raw_junctions;
+	//JunctionSet raw_junctions;
 	for (HitTable::const_iterator ci = hits.begin();
 		 ci != hits.end();
 		 ++ci)
@@ -124,6 +124,8 @@ void junctions_from_alignments(const HitTable& hits,
 			}
 		}
 	}
+	
+	
 }
 
 
