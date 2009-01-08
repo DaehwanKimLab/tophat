@@ -9,19 +9,19 @@ AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([-Wall foreign])
 
-AC_ARG_ENABLE(
-	[debug],
-	[AC_HELP_STRING([--enable-debug], [enable debug messages. @<:@disabled@:>@])],
-	[test "${enableval}" = "yes" && CFLAGS="-O0 -g3" && CXXFLAGS="-O0 -g3" && AC_DEFINE([DEBUG], [1], [Enable debug messages.])]
-)
-
+AC_ARG_ENABLE(debug,
+	AC_HELP_STRING([--enable-debug],[build debug library (default=no)]),,enable_debug=no)
 
 # declare some precious variables
 AC_ARG_VAR(PYTHON, [python program])
 AC_ARG_VAR(PERL, [perl program])
 AC_ARG_VAR(TOPHAT_SHELL, [bash program])
 
+CFLAGS=" $CFLAGS"
+CXXFLAGS=" $CXXFLAGS"
 # Checks for programs.
+AC_LANG(C++)
+AC_PROG_CC
 AC_PROG_CXX
 AC_PROG_AWK
 AC_PROG_INSTALL
@@ -30,6 +30,30 @@ AC_PATH_PROG(PERL, [perl], [:])
 AC_PATH_PROG(TOPHAT_SHELL, bash, no)
 AM_PATH_PYTHON([2.4])
 
+# ---------------------------------------------------------------------
+# Debug and profile
+# ---------------------------------------------------------------------
+
+# these are first because the SET AM_C.*FLAGS, not just append
+if test x$enable_debug = xyes; then
+  GCJFLAGS="-g -O0"
+  if test x$ac_cv_prog_cc_g = xyes; then
+    AM_CFLAGS="-g3 -O0 -Wall"
+  else
+    AM_CFLAGS="-O0 -Wall"
+  fi
+  if test x$ac_cv_prog_cxx_g = xyes; then
+    AM_CXXFLAGS="-g3 -O0 -Wall"
+  else
+    AM_CXXFLAGS="-O0 -Wall"
+  fi
+else
+  AM_CFLAGS="-O3"
+  AM_CXXFLAGS="-O3"
+fi
+
+
+AM_CXXFLAGS="$AM_CXXFLAGS -I./SeqAn-1.1"
 
 # Checks for libraries.
 AC_CHECK_LIB([z], [gzread])
@@ -54,6 +78,9 @@ AC_CHECK_FUNCS([memset strdup strrchr strtol strsep])
 
 # check the platform
 AC_CANONICAL_HOST
+
+AC_SUBST(CC)
+AC_SUBST(AM_CXXFLAGS)
 
 # makefiles to configure
 AC_CONFIG_FILES([Makefile src/Makefile])

@@ -762,6 +762,13 @@ void lookup_splice_in_read_index(RefID ref_ctg_id,
 	assert(p.seed < mer_table.size());
 	ReadHitList& hl = mer_table[p.seed];
 	
+	bool filter_debug = false;//left->pos_in_ref == 19961027 && pos_in_l == 201 && right->pos_in_ref == 19962790 && pos_in_r == 268;
+	
+	string ref;
+	
+	if (filter_debug)
+		int a = 5;
+	
 	for (size_t hit = 0; hit < hl.size(); ++hit)
 	{
 		ReadHit& rh = hl[hit];
@@ -779,10 +786,18 @@ void lookup_splice_in_read_index(RefID ref_ctg_id,
 			}
 
 			
-			int left_mismatches = mismatching_bases(read_left, 
-														   splice_left, 
-														   pos,
-														   max_span_mismatches);
+			left_mismatches = mismatching_bases(read_left, 
+												splice_left, 
+												pos,
+												max_span_mismatches);
+			
+			
+			if (filter_debug)
+			{
+				//cerr << u32ToDna(read_left, pos) << " " << u32ToDna(splice_left, pos)  << " " << left_mismatches << endl;
+				ref += u32ToDna(splice_left, min(16, (int)pos)) + " ";
+				ref += u32ToDna(p.seed, 2*seq_key_len) + " ";
+			}
 			
 			if (left_mismatches > (int)max_span_mismatches)
 			{
@@ -802,11 +817,21 @@ void lookup_splice_in_read_index(RefID ref_ctg_id,
 			uint32_t right_mask = (0xFFFFFFFFu << (32ul - right_bits));
 			uint32_t splice_right = p.right & right_mask;
 			splice_right >>= ((16 - right_read_bases) << 1);
-
+			
+			
+			
 			uint32_t right_mismatches = mismatching_bases(read_right, 
 															splice_right, 
 															right_read_bases,
 															max_span_mismatches - left_mismatches);
+			
+			if (filter_debug)
+			{
+				//cerr << u32ToDna(read_right, right_read_bases) << " " << u32ToDna(splice_right, right_read_bases) << " " << right_mismatches << endl;
+				ref += u32ToDna(splice_right, right_read_bases);
+
+			}
+			
 			if (right_mismatches > max_span_mismatches - left_mismatches)
 			{
 				continue;
@@ -827,17 +852,26 @@ void lookup_splice_in_read_index(RefID ref_ctg_id,
 //				(int)right->pos_in_ref,
 //				(int)pos_in_r - seq_key_len);
 		
-		string seq;
+		string left_str = u32ToDna(rh.left, min((int)pos, 16));
+		string seed = u32ToDna(p.seed, 2 * seq_key_len);
+		string right_str = u32ToDna(rh.right, min(16, (int)seed_size - (int)(2 * seq_key_len) - (int)pos));
+		string seq =  left_str + seed + right_str;
 		
-		seq = u32ToDna(rh.left, pos) + u32ToDna(p.seed, 2 * seq_key_len) + 
-			u32ToDna(rh.right, seed_size - 2 * seq_key_len - pos);
+		if (filter_debug)
+		{
+			//cerr << u32ToDna(read_right, right_read_bases) << " " << u32ToDna(splice_right, right_read_bases) << " " << right_mismatches << endl;
+			//ref += u32ToDna(splice_right, right_read_bases);
+			cerr << ref << endl;
+			cerr << left_str + " " + seed + " " + right_str << endl;
+		}
 		
 		int left_splice_coord = (int)left->pos_in_ref + (int)pos_in_l + seq_key_len - 1;
 		int right_splice_coord = (int)right->pos_in_ref + (int)pos_in_r - seq_key_len;
 		int window_length = seq.length() - seq_key_len;
 		int left_window_edge = left_splice_coord - window_length;
 		int right_window_edge = right_splice_coord + window_length;
-		int align_pos = window_length - pos;
+		int align_pos = window_length - (left_str.length() + seq_key_len);
+		assert (align_pos >= 0 && align_pos <= window_length);
 		// TODO: report mismatches in the spliced bowtie output
 		fprintf(stdout, "%s\t%s\t%s|%d|%d-%d|%d|GTAG|%s\t%d\t%s\t%s\t1\n", 
 				rm.name.c_str(), // read name
