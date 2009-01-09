@@ -111,7 +111,7 @@ void get_mapped_reads(FILE* bwtf, HitTable& hits, bool spliced, bool verbose)
 					char* colon = strchr(pch, ':');
 					if (colon) 
 					{
-						*colon = NULL;
+						*colon = 0;
 						int mismatch_pos = atoi(pch);
 						if ((orientation == '+' && abs(mismatch_pos - left_splice_pos) < 5) ||
 							(orientation == '-' && abs(((int)spliced_read_len - left_splice_pos + 1) - mismatch_pos)) < 5)
@@ -394,10 +394,22 @@ void accept_unique_hits(BestFragmentAlignmentTable& best_status_for_fragments)
 	{
 		const pair<FragmentAlignmentGrade, vector<FragmentAlignment> >& fragment_best
 			= best_status_for_fragments[i];
-		if (fragment_best.second.size() == 1)
-			fragment_best.second[0].alignment->accepted = true;
+		if (fragment_best.first.spliced)
+		{
+			if (fragment_best.second.size() == 1)
+				fragment_best.second[0].alignment->accepted = true;
+			else
+				fragment_best.second[0].alignment->accepted = false;
+		}
 		else
-			fragment_best.second[0].alignment->accepted = false;
+		{
+			for (size_t j = 0; j < fragment_best.second.size(); ++j)
+			{
+				const FragmentAlignment& a = fragment_best.second[j];
+				a.alignment->accepted = true;
+			}
+		}
+			
 	}
 }
 

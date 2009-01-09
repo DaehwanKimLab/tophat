@@ -129,7 +129,7 @@ def check_bowtie():
         print >> sys.stderr, "Error: Bowtie not found on this system"
         exit(1)
     elif bowtie_version[1] < 9 or bowtie_version[2] < 8:
-        print >> sys.stderr, "Error: TopHat requires Bowtie 0.9.9 or later"
+        print >> sys.stderr, "Error: TopHat requires Bowtie 0.9.8 or later"
         exit(1)
 
 def formatTD(td):
@@ -138,8 +138,39 @@ def formatTD(td):
   seconds = td.seconds % 60
   return '%02d:%02d:%02d' % (hours, minutes, seconds) 
 
+def filter_garbage(reads_list, reads_format):
+    try:    
+        #filter_cmd = ["filter_garbage"]
+        if reads_format == "-f":
+            reads_suffix = ".fa"
+        else:
+            reads_suffix = ".fq"
+            
+        kept_reads_filename = "kept_reads" + reads_suffix
+        kept_reads = open(output_dir + kept_reads_filename, "w")
+        
+        bowtie_cmd = ["filter_garbage",
+                      reads_format]   
+        #print "\t executing: `%s'" % " ".join(bowtie_cmd)    
+        files = reads_list.split(',')
+        for reads_file in files:       
+            subprocess.check_call(filter_cmd, 
+                                  stdin=open(reads_file),
+                                  stdout=kept_reads)
+    # Bowtie not found
+    except OSError, o:
+        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
+            print >> sys.stderr, fail_str, "Error: Bowtie not found on this system.  Did you forget to include it in your PATH?"
+    # Bowtie reported an error
+    except subprocess.CalledProcessError:
+        print >> sys.stderr, fail_str, "Error: could not execute Bowtie"
+        exit(1)    
+    
+    return kept_reads_filename
+
 def initial_mapping(bwt_idx_prefix, 
-                    reads_list, 
+                    reads_list,
+                    reads_format, 
                     output_dir, 
                     bowtie_threads, 
                     solexa_scale,
@@ -165,15 +196,16 @@ def initial_mapping(bwt_idx_prefix,
         if solexa_scale:
             bowtie_cmd += [qual_format]
         
-        bowtie_cmd += ["-p", str(bowtie_threads),
-                      "--unfa", unmapped_reads_fasta_name,
-                      "-l", str(seed_length),
-                      "-k", str(max_hits),
-                      "-m", str(max_hits + 1),
-                      "--maxfa", unmapped_repeat_fasta_name,
-                      bwt_idx_prefix, 
-                      reads_list, 
-                      bwt_map]   
+        bowtie_cmd += [reads_format,
+                       "-p", str(bowtie_threads),
+                       "--unfa", unmapped_reads_fasta_name,
+                       "-l", str(seed_length),
+                       "-k", str(max_hits),
+                       "-m", str(max_hits + 1),
+                       "--maxfa", unmapped_repeat_fasta_name,
+                       bwt_idx_prefix, 
+                       reads_list, 
+                       bwt_map]   
         #print "\t executing: `%s'" % " ".join(bowtie_cmd)           
         subprocess.check_call(bowtie_cmd, 
                               stdout=open("/dev/null"), 
@@ -287,7 +319,8 @@ def align_spliced_reads(islands_fasta,
                         islands_gff, 
                         unmapped_reads,
                         seed_length,
-                        splice_mismatches):
+                        splice_mismatches,
+                        max_mem):
     start_time = datetime.now()
     print >> sys.stderr, "[%s] Aligning spliced reads" % start_time.strftime("%c"),
     splice_log = open(logging_dir + "spliced_align.log", "w")
@@ -301,7 +334,7 @@ def align_spliced_reads(islands_fasta,
                   "-i", "70", # Minimum intron length
                   "-s", str(seed_length), # Seed size for reads
                   "-S", "300", # Min normalized DoC for self island junctions
-                  "-M", "256", # Small memory footprint for now
+                  "-M", str(max_mem), # Small memory footprint for now
                   islands_fasta,
                   islands_gff,
                   unmapped_reads]   
@@ -356,14 +389,17 @@ def main(argv=None):
         argv = sys.argv
     try:
         try:
-            opts, args = getopt.getopt(argv[1:], "ho:vXp:s:m:", 
+            opts, args = getopt.getopt(argv[1:], "ho:vXp:s:m:M:fq", 
                                         ["help", 
                                          "output=", 
                                          "solexa-quals",
                                          "num-threads=",
                                          "seed-length=",
                                          "splice-mismatches=",
-                                         "max-gene-family="])
+                                         "max-gene-family=",
+                                         "max-mem=",
+                                         "fasta",
+                                         "fastq"])
         except getopt.error, msg:
             raise Usage(msg)
         
@@ -372,6 +408,8 @@ def main(argv=None):
         seed_length = 28
         splice_mismatches = 0
         max_hits = 10
+        max_mem = 1024
+        reads_format = "-q"
         # option processing
         for option, value in opts:
             if option == "-v":
@@ -390,6 +428,12 @@ def main(argv=None):
                 splice_mismatches = int(value)
             if option in ("-g", "--max-gene-family"):
                  max_hits = int(value)
+            if option in ("-M", "--max-mem"):
+                max_mem = int(value)
+            if option in ("-f", "--fasta"):
+                reads_format = "-f"
+            if option in ("-q", "--fastq"):
+                reads_format = "-q"
                 
         if len(args) < 2:
             raise Usage(use_message)
@@ -401,12 +445,18 @@ def main(argv=None):
         print >> sys.stderr, "[%s] Beginning TopHat run" % right_now()
         print >> sys.stderr, "-----------------------------------------------" 
         
+        start_time = datetime.now()
+        
         check_index()
         use_long_maq_maps = check_maq()
         check_bowtie()
         prepare_output_dir()
+        
+        kept_reads = filter_garbage(reads_list, reads_format)
+        
         (bwt_map, unmapped_reads) = initial_mapping(bwt_idx_prefix, 
-                                                    reads_list, 
+                                                    kept_reads,
+                                                    reads_format, 
                                                     output_dir,
                                                     bowtie_threads,
                                                     solexa_scale,
@@ -420,8 +470,14 @@ def main(argv=None):
                                             islands_gff, 
                                             unmapped_reads,
                                             seed_length,
-                                            splice_mismatches)
+                                            splice_mismatches,
+                                            max_mem)
         compile_reports(bwt_map, spliced_reads)
+        
+        finish_time = datetime.now()
+        duration = finish_time - start_time
+        print >> sys.stderr,"-----------------------------------------------"
+        print >> sys.stderr, "Run complete [%s elapsed]" %  formatTD(duration)
         
     except Usage, err:
         print >> sys.stderr, sys.argv[0].split("/")[-1] + ": " + str(err.msg)
