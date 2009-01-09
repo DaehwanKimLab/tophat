@@ -214,7 +214,7 @@ SeqAn-1.1/seqan/system.h
 bin_PROGRAMS = \
 	cvg_islands \
 	extract_reads \
-	polyA_reads \
+	filter_garbage \
 	read_ids \
 	spanning_reads \
 	tophat_reports \
@@ -253,8 +253,8 @@ cvg_islands_LDADD = -lz $(top_builddir)/src/libtophat.a
 extract_reads_SOURCES = extract_reads.cpp
 extract_reads_LDADD = $(top_builddir)/src/libtophat.a
 
-polyA_reads_SOURCES = polyA_reads.cpp
-polyA_reads_LDADD = $(top_builddir)/src/libtophat.a
+filter_garbage_SOURCES = filter_garbage.cpp
+filter_garbage_LDADD = $(top_builddir)/src/libtophat.a
 
 read_ids_SOURCES = read_ids.cpp
 read_ids_LDADD = $(top_builddir)/src/libtophat.a
