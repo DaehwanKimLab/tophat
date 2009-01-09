@@ -146,17 +146,20 @@ def filter_garbage(reads_list, reads_format):
         else:
             reads_suffix = ".fq"
             
-        kept_reads_filename = "kept_reads" + reads_suffix
-        kept_reads = open(output_dir + kept_reads_filename, "w")
+        kept_reads_filename = output_dir + "kept_reads" + reads_suffix
+        kept_reads = open(kept_reads_filename, "w")
         
-        bowtie_cmd = ["filter_garbage",
+        filter_log = open(logging_dir + "filter_garbage.log", "w")
+        
+        filter_cmd = ["filter_garbage",
                       reads_format]   
         #print "\t executing: `%s'" % " ".join(bowtie_cmd)    
         files = reads_list.split(',')
         for reads_file in files:       
             subprocess.check_call(filter_cmd, 
                                   stdin=open(reads_file),
-                                  stdout=kept_reads)
+                                  stdout=kept_reads,
+                                  stderr=filter_log)
     # Bowtie not found
     except OSError, o:
         if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
