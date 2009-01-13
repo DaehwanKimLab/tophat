@@ -69,9 +69,10 @@ struct BowtieHit
 	uint32_t right;       // Position in the reference of the right side of the alignment
 	int8_t splice_pos_left; // Offset from left where the splice begins, or -1 for unspliced alignments (ADD to left)
 	int8_t splice_pos_right;// Offset from right where the splice begins, or -1 for unspliced alignments (SUBTRACT from right)
-	bool antisense_aln;       // Whether the alignment is to the reverse strand
-	bool antisense_splice;    // Whether the junction spanned is on the reverse strand
-	bool accepted;
+	bool antisense_aln : 1;       // Whether the alignment is to the reverse strand
+	bool antisense_splice : 1;    // Whether the junction spanned is on the reverse strand
+	bool accepted : 1;
+	uint16_t packing : 13;
 };
 
 class SequenceTable
@@ -236,7 +237,7 @@ bool left_status_better(MateStatusMask left, MateStatusMask right);
 bool status_equivalent(MateStatusMask left, MateStatusMask right);
 typedef uint32_t MateStatusMask;
 
-enum AlignStatus {CONTIGUOUS, SPLICED, UNALIGNED};
+enum AlignStatus {UNALIGNED, SPLICED, CONTIGUOUS};
 
 struct FragmentAlignment
 {
@@ -252,26 +253,23 @@ struct FragmentAlignment
 struct FragmentAlignmentGrade
 {
 	FragmentAlignmentGrade() : 
-		spliced(false), num_mismatches(255), align_len(0), min_overhang(0) {}
+		status(UNALIGNED) {}
 	
-	FragmentAlignmentGrade(const BowtieHit& h1) : 
-		spliced(false), num_mismatches(255), align_len(0), min_overhang(0)
+	FragmentAlignmentGrade(const BowtieHit& h1) 
 	{
 		if (h1.splice_pos_left != -1)
 		{
-			spliced = true;
-			min_overhang = min(h1.splice_pos_left, h1.splice_pos_right);
+			status = SPLICED;
 		}
-		
-		align_len = h1.read_len();
-		num_mismatches = 0;
+		else
+		{
+			status = CONTIGUOUS;
+		}
 	}
 	
 	FragmentAlignmentGrade& operator=(const FragmentAlignmentGrade& rhs)
 	{
-		spliced = rhs.spliced;
-		num_mismatches = rhs.num_mismatches;
-		min_overhang = rhs.min_overhang;
+		status = rhs.status;
 		return *this;
 	}
 	
@@ -279,17 +277,10 @@ struct FragmentAlignmentGrade
 	// than this InsertStatus.
 	bool operator<(const FragmentAlignmentGrade& rhs)
 	{
-		return false;
-		
-		if (align_len != rhs.align_len)
-			return align_len < rhs.align_len;
-		return min_overhang < rhs.min_overhang;
+		return status < rhs.status;
 	}
 	
-	bool spliced;
-	uint8_t num_mismatches;
-	uint8_t align_len;
-	uint8_t min_overhang;
+	uint8_t status;
 };
 
 struct InsertAlignment

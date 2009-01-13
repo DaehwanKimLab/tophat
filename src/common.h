@@ -7,6 +7,8 @@
  *
  */
 
+#include <cassert>
+
 extern int insert_len;
 extern int insert_len_std_dev;
 extern int max_mate_inner_dist; 
