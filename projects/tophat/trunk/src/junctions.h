@@ -523,6 +523,10 @@ private:
 
 struct Junction
 {
+	
+	Junction (uint32_t ref, uint32_t l, uint32_t r, bool a)
+	: refid(ref), left(l), right(r), antisense(a) {}
+	Junction() {}
 	uint32_t refid;
 	uint32_t left;
 	uint32_t right;
@@ -560,7 +564,8 @@ struct JunctionStats
 {
 	uint8_t left_extent;
 	uint8_t right_extent;
-	uint16_t num_reads;
+	uint16_t num_reads : 15;
+	bool accepted;
 };
 
 typedef std::map<Junction, JunctionStats> JunctionSet;
@@ -580,6 +585,14 @@ void junction_from_alignment(const BowtieHit& spliced_alignment,
 
 void junctions_from_alignments(const HitTable& hits,
 							   JunctionSet& junctions);
+
+void accept_valid_junctions(JunctionSet& junctions,
+							const uint32_t refid,
+							const vector<short>& DoC,
+							float min_isoform_fraction);
+
+void accept_all_junctions(JunctionSet& junctions,
+							const uint32_t refid);
 
 void print_junctions(FILE* junctions_out, 
 					 const JunctionSet& junctions,

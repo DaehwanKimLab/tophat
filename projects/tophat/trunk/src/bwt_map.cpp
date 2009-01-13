@@ -394,22 +394,42 @@ void accept_unique_hits(BestFragmentAlignmentTable& best_status_for_fragments)
 	{
 		const pair<FragmentAlignmentGrade, vector<FragmentAlignment> >& fragment_best
 			= best_status_for_fragments[i];
-		if (fragment_best.first.spliced)
+		if (fragment_best.first.status == SPLICED)
 		{
-			if (fragment_best.second.size() == 1)
-				fragment_best.second[0].alignment->accepted = true;
-			else
-				fragment_best.second[0].alignment->accepted = false;
+//			if (fragment_best.second.size() == 1)
+//				fragment_best.second[0].alignment->accepted = true;
+//			else
+//				fragment_best.second[0].alignment->accepted = false;
+			for (size_t j = 0; j < fragment_best.second.size(); ++j)
+			{
+				const FragmentAlignment& a = fragment_best.second[j];
+				a.alignment->accepted = true;
+			}
+			for (size_t j = 0; j < fragment_best.second.size(); ++j)
+			{
+				const FragmentAlignment& a = fragment_best.second[j];
+				for (size_t k = 0; k < fragment_best.second.size(); ++k)
+				{
+					const FragmentAlignment& b = fragment_best.second[k];
+					if (k != j && 
+						(a.alignment->left == b.alignment->left || 
+						 a.alignment->right == b.alignment->right))
+					{
+						a.alignment->accepted = false;
+						b.alignment->accepted = false;
+					}
+				}
+			}
 		}
 		else
 		{
 			for (size_t j = 0; j < fragment_best.second.size(); ++j)
 			{
 				const FragmentAlignment& a = fragment_best.second[j];
+				assert (a.alignment->splice_pos_left == -1);
 				a.alignment->accepted = true;
 			}
 		}
-			
 	}
 }
 

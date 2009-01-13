@@ -13,6 +13,7 @@ import subprocess
 import errno
 import os
 import tempfile
+import warnings
 
 from datetime import datetime, date, time
 
@@ -211,8 +212,8 @@ def initial_mapping(bwt_idx_prefix,
                        bwt_map]   
         #print "\t executing: `%s'" % " ".join(bowtie_cmd)           
         subprocess.check_call(bowtie_cmd, 
-                              stdout=open("/dev/null"), 
-                              stderr=bwt_log)
+                            stdout=open("/dev/null"), 
+                            stderr=bwt_log)
     # Bowtie not found
     except OSError, o:
         if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
@@ -231,11 +232,8 @@ def collect_unmapped_reads():
     print >> sys.stderr, "[%s] Collecting unmapped reads" % right_now()
     #print >> sys.stderr, ok_str
 
-def convert_to_maq(use_long_maq_maps, bwt_map, bwt_idx_prefix):
-    print >> sys.stderr, "[%s] Coverting alignments to Maq format" % right_now()
-    
-    convert_log = open(logging_dir + "convert_to_maq.log", "w")
-    maq_map = output_dir + "unspliced_map.maqout"
+def convert_chunk_to_maq(use_long_maq_maps, bwt_map, maq_map, bwt_idx_prefix, convert_log):
+    #convert_log = open(logging_dir + "convert_to_maq.log", "w")
     format_option = "-o"
     if use_long_maq_maps == True:
         format_option = ""
@@ -245,7 +243,7 @@ def convert_to_maq(use_long_maq_maps, bwt_map, bwt_idx_prefix):
                    maq_map,
                    bwt_idx_prefix + ".bfa", 
                    bwt_map]            
-        
+    print >> convert_log, "Converting %s to %s" % (bwt_map, maq_map)
     try:    
         retcode = subprocess.call(convert_cmd, stderr=convert_log)
         # bowtie-maqconvert reported an error
@@ -257,12 +255,82 @@ def convert_to_maq(use_long_maq_maps, bwt_map, bwt_idx_prefix):
         if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
             print >> sys.stderr, fail_str, "Error: bowtie-maqconvert not found on this system"
             exit(1)
-            
+
     # Bowtie reported an error
     except subprocess.CalledProcessError:
-        print >> sys.stderr, fail_str, "Error: could not execute Bowtie"
+        print >> sys.stderr, fail_str, "Error: could not execute bowtie-maqconvert"
+        exit(1)
+
+    # Success
+    return maq_map
+
+def convert_to_maq(use_long_maq_maps, bwt_map, bwt_idx_prefix, alignments_per_chunk=10000000):
+    print >> sys.stderr, "[%s] Converting alignments to Maq format" % right_now()
+    
+    maq_map = output_dir + "unspliced_map.maqout"
+    big_bwt_map = open(bwt_map)
+    i = 0
+    
+    convert_log = open(logging_dir + "convert_to_maq.log", "w")
+    #convert_log = open("/dev/null", "w")
+    tmp_bwt_name = os.tmpnam()
+    tmp_bwt = open(tmp_bwt_name,"w")
+    #print tmp_bwt_name
+    tmp_maq = os.tmpnam()
+    #print tmp_maq
+    tmp_maps = [tmp_maq]
+    tmp_bwts = [tmp_bwt_name]
+    num_chunks = 1
+    for line in big_bwt_map:
+        i += 1
+        if i >= alignments_per_chunk: 
+            #print "converting chunk", num_chunks
+            tmp_bwt.flush()
+            convert_chunk_to_maq(use_long_maq_maps, tmp_bwt_name, tmp_maq, bwt_idx_prefix, convert_log)
+            tmp_bwt_name = os.tmpnam()
+            tmp_bwts.append(tmp_bwt_name)
+            tmp_bwt = open(tmp_bwt_name,"w")
+            tmp_maq = os.tmpnam()
+            tmp_maps.append(tmp_maq)
+            num_chunks += 1
+            i = 0
+        print >> tmp_bwt, line,
+    if i > 0:
+        #print "converting chunk", num_chunks
+        tmp_bwt.flush()
+        convert_chunk_to_maq(use_long_maq_maps, tmp_bwt_name, tmp_maq, bwt_idx_prefix, convert_log)         
+
+    convert_cmd = ["maq",
+                   "mapmerge",
+                   maq_map]
+                   
+    convert_cmd.extend(tmp_maps)            
+    print >> convert_log, " ".join(convert_cmd)
+    try:    
+        retcode = subprocess.call(convert_cmd, stderr=convert_log)
+        # bowtie-maqconvert reported an error
+        if retcode > 0:
+            print >> sys.stderr, fail_str, "Error: Conversion to Maq map format failed"
+            exit(1)
+    # converter not found
+    except OSError, o:
+        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
+            print >> sys.stderr, fail_str, "Error: maq not found on this system"
+            exit(1)
+
+    # Bowtie reported an error
+    except subprocess.CalledProcessError:
+        print >> sys.stderr, fail_str, "Error: could not execute maq mapmerge"
         exit(1)
     
+    #print " ".join(tmp_maps)
+    for m in tmp_maps:
+        #print m
+        os.remove(m)
+    for m in tmp_bwts:
+        #print m
+        os.remove(m)
+        
     # Success
     return maq_map
 
@@ -362,12 +430,13 @@ def align_spliced_reads(islands_fasta,
     print >> sys.stderr, "\t\t\t[%s elapsed]" %  formatTD(duration)
     return spliced_reads_name
 
-def compile_reports(contiguous_map, spliced_map):
+def compile_reports(contiguous_map, spliced_map, min_isoform_fraction):
     print >> sys.stderr, "[%s] Reporting output tracks" % right_now()
     report_log = open(logging_dir + "reports.log", "w")
     junctions = output_dir + "junctions.bed"
     coverage = output_dir + "coverage.wig"
     report_cmd = [bin_dir + "tophat_reports",
+                  "-F", str(min_isoform_fraction),
                   coverage,
                   junctions,
                   contiguous_map,
@@ -402,7 +471,8 @@ def main(argv=None):
                                          "max-gene-family=",
                                          "max-mem=",
                                          "fasta",
-                                         "fastq"])
+                                         "fastq",
+                                         "min-isoform-fraction="])
         except getopt.error, msg:
             raise Usage(msg)
         
@@ -413,6 +483,7 @@ def main(argv=None):
         max_hits = 10
         max_mem = 1024
         reads_format = "-q"
+        min_isoform_fraction = 0.15
         # option processing
         for option, value in opts:
             if option == "-v":
@@ -437,7 +508,8 @@ def main(argv=None):
                 reads_format = "-f"
             if option in ("-q", "--fastq"):
                 reads_format = "-q"
-                
+            if option in ("-F", "--min-isoform-fraction"):
+                min_isoform_fraction = float(value)
         if len(args) < 2:
             raise Usage(use_message)
             
@@ -455,8 +527,8 @@ def main(argv=None):
         check_bowtie()
         prepare_output_dir()
         
-        kept_reads = filter_garbage(reads_list, reads_format)
-        
+        #kept_reads = filter_garbage(reads_list, reads_format)
+        kept_reads = reads_list
         (bwt_map, unmapped_reads) = initial_mapping(bwt_idx_prefix, 
                                                     kept_reads,
                                                     reads_format, 
@@ -465,7 +537,7 @@ def main(argv=None):
                                                     solexa_scale,
                                                     seed_length,
                                                     max_hits)
-        
+        warnings.filterwarnings("ignore", "tmpnam is a potential security risk")
         maq_map = convert_to_maq(use_long_maq_maps, bwt_map, bwt_idx_prefix)
         maq_cns = assemble_islands(maq_map, bwt_idx_prefix)
         (islands_fasta, islands_gff) = extract_islands(maq_cns)
@@ -475,7 +547,7 @@ def main(argv=None):
                                             seed_length,
                                             splice_mismatches,
                                             max_mem)
-        compile_reports(bwt_map, spliced_reads)
+        compile_reports(bwt_map, spliced_reads, min_isoform_fraction)
         
         finish_time = datetime.now()
         duration = finish_time - start_time

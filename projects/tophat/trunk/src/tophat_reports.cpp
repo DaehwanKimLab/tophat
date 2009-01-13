@@ -30,14 +30,16 @@ using namespace std;
 using namespace seqan;
 using std::set;
 
-const char *short_options = "r:I:d:s:va:A";
+const char *short_options = "r:I:d:s:va:AF:j";
 
 static int min_anchor_len = 5;
 static int min_intron_len = 40;
 
+static bool filter_junctions = true;
+static float min_isoform_fraction = 0.15;
 static bool accept_all = false;
 
-static bool verbose = false;
+bool verbose = false;
 
 void print_usage()
 {
@@ -176,8 +178,6 @@ void driver(FILE* map1,
 		}
 		junctions_from_alignments(hits1, junctions);
 		
-		print_junctions(junctions_out, junctions, rt);
-		
 		for (SequenceTable::const_iterator ci = rt.begin();
 			 ci != rt.end();
 			 ++ci)
@@ -187,11 +187,25 @@ void driver(FILE* map1,
 			if (h1)
 				add_hits_to_coverage(*h1, DoC);
 			
+			if (filter_junctions)
+				accept_valid_junctions(junctions, ci->second, DoC, min_isoform_fraction);
+			else
+				accept_all_junctions(junctions, ci->second);
+			
 			print_wiggle_for_ref(coverage_out, ci->first, DoC);
 		}
+		
+		print_junctions(junctions_out, junctions, rt);
 	}
 	
-    fprintf(stderr, "Found %d junctions from happy spliced reads\n", (int)junctions.size());
+	uint32_t accepted_junctions = 0;
+	for (JunctionSet::iterator itr = junctions.begin(); itr != junctions.end(); ++itr)
+	{
+		if(itr->second.accepted)
+			accepted_junctions++;
+	}
+	
+    fprintf(stderr, "Found %d junctions from happy spliced reads\n", accepted_junctions);
 }
 
 static struct option long_options[] = {
@@ -201,8 +215,10 @@ static struct option long_options[] = {
 {"max-dist",       required_argument,       0,            'd'},
 {"min-anchor",       required_argument,       0,            'a'},
 {"min-intron",       required_argument,       0,            'i'},
+{"accept-all-junctions",       no_argument,       0,            'j'},
+{"min-isoform-fraction",       required_argument,       0,            'F'},
 {"verbose",		no_argument,	0,							'v'},
-{"accept_all",      no_argument,       0,            'A'},
+{"accept-all-hits",      no_argument,       0,            'A'},
 {0, 0, 0, 0} // terminator
 };
 
@@ -230,6 +246,36 @@ static int parseInt(int lower, const char *errmsg) {
 	return -1;
 }
 
+/**
+ * Parse an int out of optarg and enforce that it be at least 'lower';
+ * if it is less than 'lower', than output the given error message and
+ * exit with an error and a usage message.
+ */
+static float parseFloat(float lower, float upper, const char *errmsg) {
+	float l;
+	l = atof(optarg);
+	
+	if (l < lower) {
+		cerr << errmsg << endl;
+		print_usage();
+		exit(1);
+	}
+	
+	if (l > upper)
+	{
+		cerr << errmsg << endl;
+		print_usage();
+		exit(1);
+	}
+	
+	return l;
+	
+	cerr << errmsg << endl;
+	print_usage();
+	exit(1);
+	return -1;
+}
+
 int parse_options(int argc, char** argv)
 {
 	int option_index = 0;
@@ -249,11 +295,17 @@ int parse_options(int argc, char** argv)
 			case 'v':
 				verbose = true;
 				break;
+			case 'j':
+				filter_junctions = false;
+				break;
 			case 'a':
 				min_anchor_len = (uint32_t)parseInt(4, "-a/--min-anchor arg must be at least 4");
 				break;
 			case 'i':
 				min_intron_len = (uint32_t)parseInt(1, "-a/--min-intron arg must be at least 1");
+				break;
+			case 'F':
+				min_isoform_fraction = parseFloat(0.0, 1.0, "-a/--min-isoform-fraction arg must be (0.0,1.0]");
 				break;
 			case 'A':
 				accept_all = true;
