@@ -24,6 +24,8 @@
 #include "common.h"
 #include "bwt_map.h"
 #include "junctions.h"
+#include "inserts.h"
+#include "fragments.h"
 #include "wiggles.h"
 
 using namespace std;
