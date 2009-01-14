@@ -214,8 +214,8 @@ void driver(FILE* map1, FILE* map2, ifstream& ref_stream)
 {
 	typedef String< Dna5, Alloc<> > Reference;
 
-	SequenceTable it;
-	SequenceTable rt;
+	SequenceTable it(true);
+	SequenceTable rt(true);
     HitTable hits1(it,rt);
     HitTable hits2(it,rt);
     

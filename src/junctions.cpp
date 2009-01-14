@@ -138,11 +138,11 @@ bool accept_if_valid(const Junction& j,
 	uint32_t left_junc_doc = 0;
 	uint32_t right_junc_doc = 0;
 	
-	for (int i = j.left - s.left_extent + 1; i <= j.left; ++i)
+	for (uint32_t i = j.left - s.left_extent + 1; i <= j.left; ++i)
 	{
 		left_junc_doc += DoC[i];
 	}
-	for (int i = j.right; i < j.right + s.right_extent; ++i)
+	for (uint32_t i = j.right; i < j.right + s.right_extent; ++i)
 	{
 		right_junc_doc += DoC[i];
 	}

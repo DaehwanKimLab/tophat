@@ -37,7 +37,7 @@ static int min_intron_len = 40;
 
 static bool filter_junctions = true;
 static float min_isoform_fraction = 0.15;
-static bool accept_all = false;
+static bool accept_all = true;
 
 bool verbose = false;
 
@@ -118,8 +118,10 @@ void driver(FILE* map1,
 			FILE* coverage_out,
 			FILE* junctions_out)
 {
-	SequenceTable it;
-	SequenceTable rt;
+	
+	bool paired_end = map2 && splice_map2;
+	SequenceTable it(paired_end);
+	SequenceTable rt(true);
     HitTable hits1(it,rt);
     HitTable hits2(it,rt);
     
@@ -127,12 +129,11 @@ void driver(FILE* map1,
 	if (splice_map1)
 		get_mapped_reads(splice_map1, hits1, true);
 	
-	
 	JunctionSet junctions;
 	
 	print_wiggle_header(coverage_out);
 	
-	if (map2 && splice_map2) // Paired-end reporting
+	if (paired_end) // Paired-end reporting
 	{
 		get_mapped_reads(map2, hits2, false);
 		get_mapped_reads(splice_map2, hits2, true);
@@ -165,6 +166,9 @@ void driver(FILE* map1,
     }
 	else // Single-end reporting
 	{
+		fprintf(stderr, "Finished reading alignments\n");
+		//it.clear();
+
 		if (accept_all)
 		{
 			accept_all_hits(hits1);
@@ -369,7 +373,7 @@ int main(int argc, char** argv)
 	FILE* coverage_file = fopen(coverage_file_name.c_str(), "w");
 	if (coverage_file == NULL)
 	{
-		fprintf(stderr, "Error: cannot open %s for reading\n",
+		fprintf(stderr, "Error: cannot open %s for writing\n",
 				coverage_file_name.c_str());
 		exit(1);
 	}
@@ -377,7 +381,7 @@ int main(int argc, char** argv)
 	FILE* junctions_file = fopen(junctions_file_name.c_str(), "w");
 	if (junctions_file == NULL)
 	{
-		fprintf(stderr, "Error: cannot open %s for reading\n",
+		fprintf(stderr, "Error: cannot open %s for writing\n",
 				junctions_file_name.c_str());
 		exit(1);
 	}
