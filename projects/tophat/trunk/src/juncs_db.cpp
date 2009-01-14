@@ -14,7 +14,9 @@
 
 #include "common.h"
 #include "bwt_map.h"
+#include "closures.h"
 #include "junctions.h"
+#include "inserts.h"
 
 using namespace std;
 using namespace seqan;

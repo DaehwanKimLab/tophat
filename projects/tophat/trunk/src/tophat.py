@@ -70,15 +70,30 @@ def check_bowtie_index(idx_prefix):
     idx_rev_1 = idx_prefix + ".rev.1.ebwt"
     idx_rev_2 = idx_prefix + ".rev.2.ebwt"
     
-    
     if os.path.exists(idx_fwd_1) and \
        os.path.exists(idx_fwd_2) and \
        os.path.exists(idx_rev_1) and \
        os.path.exists(idx_rev_2):
         return 
     else:
-        print >> sys.stderr, "Error: Could not find Bowtie index files " + idx_prefix + ".*"
-        exit(1)
+        bowtie_idx_env_var = os.environ.get("BOWTIE_INDEXES")
+        if bowtie_idx_env_var == None:
+            print >> sys.stderr, "Error: Could not find Bowtie index files " + idx_prefix + ".*"
+            exit(1)
+        idx_prefix = bowtie_idx_env_var + idx_prefix 
+        idx_fwd_1 = idx_prefix + ".1.ebwt"
+        idx_fwd_2 = idx_prefix + ".2.ebwt"
+        idx_rev_1 = idx_prefix + ".rev.1.ebwt"
+        idx_rev_2 = idx_prefix + ".rev.2.ebwt"
+        
+        if os.path.exists(idx_fwd_1) and \
+           os.path.exists(idx_fwd_2) and \
+           os.path.exists(idx_rev_1) and \
+           os.path.exists(idx_rev_2):
+            return 
+        else:
+            print >> sys.stderr, "Error: Could not find Bowtie index files " + idx_prefix + ".*"
+            exit(1)
 
 def bowtie_idx_to_bfa(idx_prefix):
     idx_name = idx_prefix.split('/')[-1]
@@ -137,9 +152,16 @@ def check_bfa(idx_prefix):
     if os.path.exists(idx_bfa):
         return idx_bfa
     else:
+        idx_name = idx_prefix.split('/')[-1]
+        bowtie_idx_env_var = os.environ.get("BOWTIE_INDEXES")
+        if bowtie_idx_env_var != None:
+            idx_bfa = bowtie_idx_env_var + idx_name + ".bfa" 
+            if os.path.exists(idx_bfa):
+                return idx_bfa
+        
         print >> sys.stderr, "Warning: Could not find Maq binary fasta file " + idx_bfa
-        bfa_idx = bowtie_idx_to_bfa(idx_prefix)
-        return bfa_idx
+        idx_bfa = bowtie_idx_to_bfa(idx_prefix)
+        return idx_bfa
         #print >> sys.stderr, "Error: Could not find Maq binary fasta file " + idx_bfa
         #exit(1)
     
@@ -202,9 +224,75 @@ def check_bowtie():
     if bowtie_version == None:
         print >> sys.stderr, "Error: Bowtie not found on this system"
         exit(1)
-    elif bowtie_version[1] < 9 or bowtie_version[2] < 8 or (bowtie_version == [0,9,8]):
+    elif bowtie_version[1] < 9 or bowtie_version[2] < 8 or (bowtie_version == [0,9,8,0]):
         print >> sys.stderr, "Error: TopHat requires Bowtie 0.9.8.1 or later"
         exit(1)
+    print >> sys.stderr, "\tBowtie version:\t\t %s" % ".".join([str(x) for x in bowtie_version])
+        
+def check_reads(reads_files, default_seed_len, default_format, solexa_scale):
+    print >> sys.stderr, "[%s] Checking reads" % right_now()
+    bowtie_version = get_bowtie_version()
+    
+    seed_len = default_seed_len
+    format = default_format
+    
+    observed_formats = set([])
+    observed_scales = set([])
+    min_seed_len = 99999
+    max_qual = -1
+    files = reads_files.split(',')
+    for f_name in files:
+        f = open(f_name)
+        
+        first_line = f.readline()
+        if first_line[0] == "@":
+            format = "fastq"
+        elif first_line[0] == ">":
+            format = "fasta"
+        else:
+            print >> sys.stderr, "Error: file %s does not appear to be a valid FASTA or FASTQ file" % f_name
+        observed_formats.add(format)
+        f.seek(0)
+        line_num = 0
+        if format == "fastq":
+            for line in f:
+                if line_num % 4 == 1:
+                    seq_len = len(line) - 1
+                    if seq_len < 20:
+                        print >> sys.stderr, "Warning: found a read < 20bp in", f_name
+                    else:
+                        min_seed_len = min(seq_len, min_seed_len)                
+                elif line_num % 4 == 3:
+                    max_line_qual = max([ord(x) for x in list(line.strip())])
+                    max_qual = max(max_line_qual, max_qual)
+                line_num += 1
+            if max_qual > 90:
+                solexa_scale = True
+
+        elif format == "fasta":
+            for line in f:
+                if line_num % 2 == 1:
+                    seq_len = len(line) - 1
+                    if seq_len < 20:
+                        print >> sys.stderr, "Warning: found a read < 20bp in", f_name
+                    else:
+                        min_seed_len = min(seq_len, min_seed_len)
+                line_num += 1
+            
+    if len(observed_formats) > 1:
+        print >> sys.stderr, "Error: TopHat requires all reads be either FASTQ or FASTA.  Mixing formats is not supported."
+        exit(1)
+          
+    seed_len = min(seed_len, min_seed_len)
+    print >> sys.stderr, "\tseed length:\t %dbp" % seed_len
+    print >> sys.stderr, "\tformat:\t\t %s" % format
+    if format == "fastq":
+        print >> sys.stderr, "\tquality scale:\t %s" % (solexa_scale and "solexa" or "phred")
+    
+    #print seed_len, format, solexa_scale
+    return seed_len, format, solexa_scale
+    
+    
 
 def formatTD(td):
   hours = td.seconds // 3600
@@ -534,7 +622,7 @@ def main(argv=None):
         argv = sys.argv
     try:
         try:
-            opts, args = getopt.getopt(argv[1:], "ho:vXp:s:m:M:fq", 
+            opts, args = getopt.getopt(argv[1:], "ho:vXp:s:m:M:", 
                                         ["help", 
                                          "output=", 
                                          "solexa-quals",
@@ -543,8 +631,8 @@ def main(argv=None):
                                          "splice-mismatches=",
                                          "max-gene-family=",
                                          "max-mem=",
-                                         "fasta",
-                                         "fastq",
+                                         # "fasta",
+                                         # "fastq",
                                          "min-isoform-fraction="])
         except getopt.error, msg:
             raise Usage(msg)
@@ -555,7 +643,7 @@ def main(argv=None):
         splice_mismatches = 0
         max_hits = 10
         max_mem = 1024
-        reads_format = "-q"
+        reads_format = "fastq"
         min_isoform_fraction = 0.15
         # option processing
         for option, value in opts:
@@ -577,10 +665,10 @@ def main(argv=None):
                  max_hits = int(value)
             if option in ("-M", "--max-mem"):
                 max_mem = int(value)
-            if option in ("-f", "--fasta"):
-                reads_format = "-f"
-            if option in ("-q", "--fastq"):
-                reads_format = "-q"
+            # if option in ("-f", "--fasta"):
+            #     reads_format = "-f"
+            # if option in ("-q", "--fastq"):
+            #     reads_format = "-q"
             if option in ("-F", "--min-isoform-fraction"):
                 min_isoform_fraction = float(value)
         if len(args) < 2:
@@ -598,13 +686,23 @@ def main(argv=None):
         idx_bfa = check_index(bwt_idx_prefix)
         use_long_maq_maps = check_maq()
         check_bowtie()
+        
+        (seed_length, reads_format, solexa_scale) = check_reads(reads_list, 
+                                                                seed_length, 
+                                                                reads_format, 
+                                                                solexa_scale) 
+        if reads_format == "fastq":
+            format_flag = "-q"
+        elif reads_format == "fasta":
+            format_flag = "-f"
+        
         prepare_output_dir()
         
-        kept_reads = filter_garbage(reads_list, reads_format)
+        kept_reads = filter_garbage(reads_list, format_flag)
         kept_reads = reads_list
         (bwt_map, unmapped_reads) = initial_mapping(bwt_idx_prefix, 
                                                     kept_reads,
-                                                    reads_format, 
+                                                    format_flag, 
                                                     output_dir,
                                                     bowtie_threads,
                                                     solexa_scale,

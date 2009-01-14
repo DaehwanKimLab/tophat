@@ -237,14 +237,19 @@ noinst_HEADERS = \
 	junctions.h \
 	assert_helpers.h \
 	alphabet.h \
-	timer.h 
+	timer.h \
+	fragments.h \
+	inserts.h 
+	
 libtophat_a_SOURCES = \
 	reads.cpp \
 	alphabet.c \
 	bwt_map.cpp \
 	common.cpp \
 	wiggles.cpp \
-	junctions.cpp
+	junctions.cpp \
+	fragments.cpp \
+	inserts.cpp
 
 #-- program sources
 cvg_islands_SOURCES = cvg_islands.cpp
