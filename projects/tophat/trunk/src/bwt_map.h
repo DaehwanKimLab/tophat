@@ -27,15 +27,23 @@ using namespace std;
 */
 struct BowtieHit
 {
-	BowtieHit(uint32_t _insert_id, uint32_t _left, uint32_t read_len, bool _antisense) : 
+	BowtieHit(uint16_t _ref_id,
+			  uint32_t _insert_id, 
+			  uint32_t _left, 
+			  uint32_t read_len, 
+			  bool _antisense) :
+		ref_id(_ref_id),
+		antisense_aln(_antisense),
 		insert_id(_insert_id), 
 		left(_left), 
+		antisense_splice(false),
 		right(_left + read_len),
+		accepted(false),
 		splice_pos_left(-1),
-		splice_pos_right(-1),
-		antisense_aln(_antisense) {}
+		splice_pos_right(-1) {}
 	
-	BowtieHit(uint32_t _insert_id, 
+	BowtieHit(uint16_t _ref_id,
+			  uint32_t _insert_id, 
 			  uint32_t _left, 
 			  uint32_t _right, 
 			  uint32_t _sp_left,
@@ -43,14 +51,15 @@ struct BowtieHit
 			  uint32_t read_len, 
 			  bool _antisense_aln,
 			  bool _antisense_splice) : 
-		insert_id(_insert_id), 
+		ref_id(_ref_id),
+		antisense_aln(_antisense_aln),	
+		insert_id(_insert_id), 	
 		left(_left), 
+		antisense_splice(_antisense_splice),
 		right(_right),
+		accepted(false),
 		splice_pos_left(_sp_left),
-		splice_pos_right(_sp_right),
-		antisense_aln(_antisense_aln),
-		antisense_splice(_antisense_splice), 
-		accepted(false) {}
+		splice_pos_right(_sp_right) {}
 	
 	uint8_t read_len() const
 	{
@@ -64,16 +73,19 @@ struct BowtieHit
 		}
 	}
 	
+	uint16_t ref_id : 15;
+	bool antisense_aln : 1;       // Whether the alignment is to the reverse strand
 	uint32_t insert_id;   // Id of the sequencing insert
-	uint32_t left;        // Position in the reference of the left side of the alignment
-	uint32_t right;       // Position in the reference of the right side of the alignment
+	
+	uint32_t left : 31;        // Position in the reference of the left side of the alignment
+	bool antisense_splice : 1;    // Whether the junction spanned is on the reverse strand
+	uint32_t right : 31;       // Position in the reference of the right side of the alignment
+	bool accepted : 1;
 	int8_t splice_pos_left; // Offset from left where the splice begins, or -1 for unspliced alignments (ADD to left)
 	int8_t splice_pos_right;// Offset from right where the splice begins, or -1 for unspliced alignments (SUBTRACT from right)
-	bool antisense_aln : 1;       // Whether the alignment is to the reverse strand
-	bool antisense_splice : 1;    // Whether the junction spanned is on the reverse strand
-	bool accepted : 1;
-	uint16_t packing : 13;
-};
+	
+	//uint16_t packing : 13;
+} __attribute__((packed));
 
 class SequenceTable
 {
@@ -84,17 +96,24 @@ public:
 	typedef TableType::iterator iterator;
 	typedef TableType::const_iterator const_iterator;
 	
-	SequenceTable() : _next_id(0) {}
+	SequenceTable(bool keep_names) : _next_id(0), _keep_names(keep_names) {}
 	
 	uint32_t get_id(const string& seq_name)
 	{
-		pair<TableType::iterator, bool> ret = 
-		_sequences_by_name.insert(make_pair(seq_name, _next_id));
-		if (ret.second == true)
+		if (_keep_names)
 		{
-			++_next_id;
+			pair<TableType::iterator, bool> ret = 
+			_sequences_by_name.insert(make_pair(seq_name, _next_id));
+			if (ret.second == true)
+			{
+				++_next_id;
+			}
+			return ret.first->second;
 		}
-		return ret.first->second;
+		else
+		{
+			return hash_string(seq_name.c_str());
+		}
 	}
 	
 	// You must call invert() before using this function
@@ -124,11 +143,25 @@ public:
 		}
 	}
 	
+	void clear()
+	{
+		_sequences_by_name.clear();
+		_sequences_by_id.clear();
+	}
+	
 private:
+	
+	inline uint32_t hash_string(const char* __s)
+	{
+		unsigned long __h = 0;
+		for ( ; *__s; ++__s)
+			__h = __h*5 + *__s;
+		return uint32_t(__h);
+	}
 	
 	TableType _sequences_by_name;
 	uint32_t _next_id;
-	
+	bool _keep_names;
 	InvertedTableType _sequences_by_id;
 };
 
@@ -169,12 +202,13 @@ public:
 						 bool antisense_splice)
 	{
 		uint32_t insert_id = _insert_table.get_id(insert_name);
-		uint32_t reference_id = _ref_table.get_id(ref_name);
+		uint16_t reference_id = _ref_table.get_id(ref_name);
 		
 		pair<RefHits::iterator, bool> ret = 
 		_hits_for_ref.insert(make_pair(reference_id, HitList()));
 		
-		BowtieHit bh = BowtieHit(insert_id, 
+		BowtieHit bh = BowtieHit(reference_id,
+								 insert_id, 
 								 left, 
 								 right, 
 								 splice_pos_left, 
@@ -193,12 +227,16 @@ public:
 				 bool antisense)
 	{
 		uint32_t insert_id = _insert_table.get_id(insert_name);
-		uint32_t reference_id = _ref_table.get_id(ref_name);
+		uint16_t reference_id = _ref_table.get_id(ref_name);
 		
 		pair<RefHits::iterator, bool> ret = 
 		_hits_for_ref.insert(make_pair(reference_id, HitList()));
 		
-		(*(ret.first)).second.push_back(BowtieHit(insert_id, left, read_len, antisense));
+		(*(ret.first)).second.push_back(BowtieHit(reference_id, 
+												  insert_id, 
+												  left, 
+												  read_len, 
+												  antisense));
 	}
 	
 	void finalize()
@@ -239,16 +277,18 @@ typedef uint32_t MateStatusMask;
 
 enum AlignStatus {UNALIGNED, SPLICED, CONTIGUOUS};
 
-struct FragmentAlignment
-{
-	FragmentAlignment(uint32_t _refid, 
-					BowtieHit* _alignment) : 
-	refid(_refid), 
-	alignment(_alignment) {}
-	
-	uint32_t refid;
-	BowtieHit* alignment;
-};
+//struct FragmentAlignment
+//{
+//	FragmentAlignment(uint32_t _refid, 
+//					BowtieHit* _alignment) : 
+//	refid(_refid), 
+//	alignment(_alignment) {}
+//	
+//	uint32_t refid;
+//	BowtieHit* alignment;
+//};
+
+typedef BowtieHit FragmentAlignment;
 
 struct FragmentAlignmentGrade
 {
@@ -429,7 +469,7 @@ struct InsertAlignmentGrade
 typedef vector<pair<InsertAlignmentGrade, vector<InsertAlignment> > > BestInsertAlignmentTable;
 //vector<InsertAlignment> best_alignments;
 
-typedef vector<pair<FragmentAlignmentGrade, vector<FragmentAlignment> > > BestFragmentAlignmentTable;
+typedef vector<pair<FragmentAlignmentGrade, vector<FragmentAlignment*> > > BestFragmentAlignmentTable;
 
 
 void best_insert_mappings(uint32_t refid,

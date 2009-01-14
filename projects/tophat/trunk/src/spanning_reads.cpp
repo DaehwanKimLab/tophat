@@ -98,6 +98,8 @@ static void print_usage()
 
 void read_exons(FILE* exon_fasta, FILE* exon_gff)
 {
+	int total_exon_length = 0;
+	int num_exons = 0;
 	while(!feof(exon_fasta))
 	{
 		Exon* e = new Exon;
@@ -106,6 +108,10 @@ void read_exons(FILE* exon_fasta, FILE* exon_gff)
 			delete e;
 			break;	
 		}
+		
+		total_exon_length += e->seq.length();
+		num_exons++;
+		
 		RefID ref = 0u;
 		unsigned int pos_in_ref = 0;
 		
@@ -182,6 +188,7 @@ void read_exons(FILE* exon_fasta, FILE* exon_gff)
 	
 	if (verbose)
 	{
+		fprintf(stderr, "Loaded %d bp in %d islands\n", total_exon_length, num_exons);
 		fprintf(stderr, "Will examine %d islands for single island junctions, %d bp total\n",
 				single_junc_islands, single_junc_island_length);
 	}
@@ -393,8 +400,8 @@ struct ReadHit
 	uint32_t right; //2-bits per base rep of the right remainder
 	uint32_t pos; // position of the seed within the read
 	uint32_t meta : 31;
-	bool reverse_complement;
-};
+	bool reverse_complement : 1;
+} __attribute__((packed));
 
 /* Holds information about a read that we don't want to throw away,
    and only really need for printing */

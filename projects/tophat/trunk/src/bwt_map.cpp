@@ -315,7 +315,7 @@ void best_fragment_mappings(uint32_t refid,
 				
 		FragmentAlignmentGrade s(h1);
 				
-		pair<FragmentAlignmentGrade, vector<FragmentAlignment> >& fragment_best
+		pair<FragmentAlignmentGrade, vector<FragmentAlignment*> >& fragment_best
 				= best_status_for_fragments[fragment_id];
 		FragmentAlignmentGrade& current = fragment_best.first;
 		// Is the new status better than the current best one?
@@ -323,11 +323,11 @@ void best_fragment_mappings(uint32_t refid,
 		{
 			fragment_best.second.clear();
 			current = s;
-			fragment_best.second.push_back(FragmentAlignment(refid, &h1));
+			fragment_best.second.push_back(&h1);
 		}
 		else if (! (s < current)) // is it just as good?
 		{
-			fragment_best.second.push_back(FragmentAlignment(refid, &h1));
+			fragment_best.second.push_back(&h1);
 		}
 	}
 }
@@ -392,7 +392,7 @@ void accept_unique_hits(BestFragmentAlignmentTable& best_status_for_fragments)
 {
 	for (size_t i = 0; i < best_status_for_fragments.size(); ++i)
 	{
-		const pair<FragmentAlignmentGrade, vector<FragmentAlignment> >& fragment_best
+		const pair<FragmentAlignmentGrade, vector<FragmentAlignment*> >& fragment_best
 			= best_status_for_fragments[i];
 		if (fragment_best.first.status == SPLICED)
 		{
@@ -402,21 +402,21 @@ void accept_unique_hits(BestFragmentAlignmentTable& best_status_for_fragments)
 //				fragment_best.second[0].alignment->accepted = false;
 			for (size_t j = 0; j < fragment_best.second.size(); ++j)
 			{
-				const FragmentAlignment& a = fragment_best.second[j];
-				a.alignment->accepted = true;
+				FragmentAlignment& a = *(fragment_best.second[j]);
+				a.accepted = true;
 			}
 			for (size_t j = 0; j < fragment_best.second.size(); ++j)
 			{
-				const FragmentAlignment& a = fragment_best.second[j];
+				FragmentAlignment& a = *(fragment_best.second[j]);
 				for (size_t k = 0; k < fragment_best.second.size(); ++k)
 				{
-					const FragmentAlignment& b = fragment_best.second[k];
+					FragmentAlignment& b = *(fragment_best.second[k]);
 					if (k != j && 
-						(a.alignment->left == b.alignment->left || 
-						 a.alignment->right == b.alignment->right))
+						(a.left == b.left || 
+						 a.right == b.right))
 					{
-						a.alignment->accepted = false;
-						b.alignment->accepted = false;
+						a.accepted = false;
+						b.accepted = false;
 					}
 				}
 			}
@@ -425,9 +425,9 @@ void accept_unique_hits(BestFragmentAlignmentTable& best_status_for_fragments)
 		{
 			for (size_t j = 0; j < fragment_best.second.size(); ++j)
 			{
-				const FragmentAlignment& a = fragment_best.second[j];
-				assert (a.alignment->splice_pos_left == -1);
-				a.alignment->accepted = true;
+				FragmentAlignment& a = *(fragment_best.second[j]);
+				assert (a.splice_pos_left == -1);
+				a.accepted = true;
 			}
 		}
 	}
@@ -437,14 +437,14 @@ void accept_valid_hits(BestFragmentAlignmentTable& best_status_for_fragments)
 {
 	for (size_t i = 0; i < best_status_for_fragments.size(); ++i)
 	{
-		const pair<FragmentAlignmentGrade, vector<FragmentAlignment> >& fragment_best
+		const pair<FragmentAlignmentGrade, vector<FragmentAlignment*> >& fragment_best
 		= best_status_for_fragments[i];
 
 		for (size_t j = 0; j < fragment_best.second.size(); ++j)
 		{
-			const FragmentAlignment& a = fragment_best.second[j];
+			FragmentAlignment& a = *(fragment_best.second[j]);
 			bool valid = valid_fragment_alignment(fragment_best.first, a);
-			a.alignment->accepted = valid;
+			a.accepted = valid;
 		}
 	}
 }

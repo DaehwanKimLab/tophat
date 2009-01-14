@@ -62,19 +62,90 @@ def prepare_output_dir():
     else:        
         os.mkdir(logging_dir)
 
-def check_bowtie_index():
+def check_bowtie_index(idx_prefix):
     print >> sys.stderr, "[%s] Checking for Bowtie index files" % right_now()
-    # TODO
-    #print >> sys.stderr, ok_str
+    
+    idx_fwd_1 = idx_prefix + ".1.ebwt"
+    idx_fwd_2 = idx_prefix + ".2.ebwt"
+    idx_rev_1 = idx_prefix + ".rev.1.ebwt"
+    idx_rev_2 = idx_prefix + ".rev.2.ebwt"
+    
+    
+    if os.path.exists(idx_fwd_1) and \
+       os.path.exists(idx_fwd_2) and \
+       os.path.exists(idx_rev_1) and \
+       os.path.exists(idx_rev_2):
+        return 
+    else:
+        print >> sys.stderr, "Error: Could not find Bowtie index files " + idx_prefix + ".*"
+        exit(1)
 
-def check_bfa():
+def bowtie_idx_to_bfa(idx_prefix):
+    idx_name = idx_prefix.split('/')[-1]
+    idx_bfa = output_dir + idx_name + ".bfa"
+    print >> sys.stderr, "[%s] Building Maq binary fasta file %s \n\tfrom Bowtie index" % (right_now(), idx_bfa)
+    
+    try:    
+        
+        tmp_fasta_file_name = output_dir + idx_name + ".fa"
+        tmp_fasta_file = open(tmp_fasta_file_name, "w")
+
+        inspect_log = open(logging_dir + "bowtie_inspect.log", "w")
+
+        inspect_cmd = ["bowtie-inspect",
+                      idx_prefix]
+        #print >> sys.stderr, "Executing: " + " ".join(inspect_cmd) + " > " + tmp_fasta_file_name   
+        subprocess.check_call(inspect_cmd, 
+                              stdout=tmp_fasta_file,
+                              stderr=inspect_log)
+    # Bowtie not found
+    except OSError, o:
+        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
+            print >> sys.stderr, fail_str, "Error: bowtie-inspect not found on this system.  Did you forget to include it in your PATH?"
+    # Bowtie reported an error
+    except subprocess.CalledProcessError:
+        print >> sys.stderr, fail_str, "Error: bowtie-inspect returned an error"
+        exit(1) 
+
+    try:    
+        
+        fasta2bfa_log = open(logging_dir + "fasta2bfa.log", "w")
+
+        fasta2bfa_cmd = ["maq",
+                         "fasta2bfa",
+                         tmp_fasta_file_name,
+                         idx_bfa]
+                          
+        subprocess.check_call(fasta2bfa_cmd, 
+                              stderr=fasta2bfa_log)
+    # Maq not found
+    except OSError, o:
+        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
+            print >> sys.stderr, fail_str, "Error: Maq not found on this system.  Did you forget to include it in your PATH?"
+            exit(1)
+    # Maq reported an error
+    except subprocess.CalledProcessError:
+        print >> sys.stderr, fail_str, "Error: maq fasta2bfa returned an error"
+        exit(1)   
+    os.remove(tmp_fasta_file_name)
+        
+    return idx_bfa
+
+def check_bfa(idx_prefix):
     print >> sys.stderr, "[%s] Checking for binary fasta" % right_now()
-    # TODO
-    #print >> sys.stderr, ok_str
-
-def check_index():
-    check_bowtie_index()
-    check_bfa()
+    idx_bfa = idx_prefix + ".bfa"
+    if os.path.exists(idx_bfa):
+        return idx_bfa
+    else:
+        print >> sys.stderr, "Warning: Could not find Maq binary fasta file " + idx_bfa
+        bfa_idx = bowtie_idx_to_bfa(idx_prefix)
+        return bfa_idx
+        #print >> sys.stderr, "Error: Could not find Maq binary fasta file " + idx_bfa
+        #exit(1)
+    
+def check_index(idx_prefix):
+    check_bowtie_index(idx_prefix)
+    return check_bfa(idx_prefix)
 
 def get_maq_version():
     
@@ -109,7 +180,9 @@ def get_bowtie_version():
         nl = bowtie_out.find("\\n", ver_str_idx)
         version_val = bowtie_out[ver_str_idx + len(version_str):nl]
         bowtie_version = [int(x) for x in version_val.split('.')]
-
+    if len(bowtie_version) == 3:
+        bowtie_version.append(0)
+        
     return bowtie_version
 
 def check_maq():
@@ -129,8 +202,8 @@ def check_bowtie():
     if bowtie_version == None:
         print >> sys.stderr, "Error: Bowtie not found on this system"
         exit(1)
-    elif bowtie_version[1] < 9 or bowtie_version[2] < 8:
-        print >> sys.stderr, "Error: TopHat requires Bowtie 0.9.8 or later"
+    elif bowtie_version[1] < 9 or bowtie_version[2] < 8 or (bowtie_version == [0,9,8]):
+        print >> sys.stderr, "Error: TopHat requires Bowtie 0.9.8.1 or later"
         exit(1)
 
 def formatTD(td):
@@ -232,7 +305,7 @@ def collect_unmapped_reads():
     print >> sys.stderr, "[%s] Collecting unmapped reads" % right_now()
     #print >> sys.stderr, ok_str
 
-def convert_chunk_to_maq(use_long_maq_maps, bwt_map, maq_map, bwt_idx_prefix, convert_log):
+def convert_chunk_to_maq(use_long_maq_maps, bwt_map, maq_map, idx_bfa, convert_log):
     #convert_log = open(logging_dir + "convert_to_maq.log", "w")
     format_option = "-o"
     if use_long_maq_maps == True:
@@ -241,7 +314,7 @@ def convert_chunk_to_maq(use_long_maq_maps, bwt_map, maq_map, bwt_idx_prefix, co
                    format_option,
                    bwt_map, 
                    maq_map,
-                   bwt_idx_prefix + ".bfa", 
+                   idx_bfa, 
                    bwt_map]            
     print >> convert_log, "Converting %s to %s" % (bwt_map, maq_map)
     try:    
@@ -264,7 +337,7 @@ def convert_chunk_to_maq(use_long_maq_maps, bwt_map, maq_map, bwt_idx_prefix, co
     # Success
     return maq_map
 
-def convert_to_maq(use_long_maq_maps, bwt_map, bwt_idx_prefix, alignments_per_chunk=10000000):
+def convert_to_maq(use_long_maq_maps, bwt_map, idx_bfa, alignments_per_chunk=10000000):
     print >> sys.stderr, "[%s] Converting alignments to Maq format" % right_now()
     
     maq_map = output_dir + "unspliced_map.maqout"
@@ -286,7 +359,7 @@ def convert_to_maq(use_long_maq_maps, bwt_map, bwt_idx_prefix, alignments_per_ch
         if i >= alignments_per_chunk: 
             #print "converting chunk", num_chunks
             tmp_bwt.flush()
-            convert_chunk_to_maq(use_long_maq_maps, tmp_bwt_name, tmp_maq, bwt_idx_prefix, convert_log)
+            convert_chunk_to_maq(use_long_maq_maps, tmp_bwt_name, tmp_maq, idx_bfa, convert_log)
             tmp_bwt_name = os.tmpnam()
             tmp_bwts.append(tmp_bwt_name)
             tmp_bwt = open(tmp_bwt_name,"w")
@@ -298,7 +371,7 @@ def convert_to_maq(use_long_maq_maps, bwt_map, bwt_idx_prefix, alignments_per_ch
     if i > 0:
         #print "converting chunk", num_chunks
         tmp_bwt.flush()
-        convert_chunk_to_maq(use_long_maq_maps, tmp_bwt_name, tmp_maq, bwt_idx_prefix, convert_log)         
+        convert_chunk_to_maq(use_long_maq_maps, tmp_bwt_name, tmp_maq, idx_bfa, convert_log)         
 
     convert_cmd = ["maq",
                    "mapmerge",
@@ -334,7 +407,7 @@ def convert_to_maq(use_long_maq_maps, bwt_map, bwt_idx_prefix, alignments_per_ch
     # Success
     return maq_map
 
-def assemble_islands(maq_map, idx_prefix):
+def assemble_islands(maq_map, idx_bfa):
     print >> sys.stderr, "[%s] Assembling coverage islands" % right_now()
     asm_log = open(logging_dir + "maq_asm.log", "w")
     maq_cns = output_dir + "unspliced.cns"
@@ -342,7 +415,7 @@ def assemble_islands(maq_map, idx_prefix):
                "assemble",
                "-s",
                maq_cns,
-               idx_prefix + ".bfa",
+               idx_bfa,
                maq_map]            
     try:    
        retcode = subprocess.call(asm_cmd, stderr=asm_log)
@@ -522,12 +595,12 @@ def main(argv=None):
         
         start_time = datetime.now()
         
-        check_index()
+        idx_bfa = check_index(bwt_idx_prefix)
         use_long_maq_maps = check_maq()
         check_bowtie()
         prepare_output_dir()
         
-        #kept_reads = filter_garbage(reads_list, reads_format)
+        kept_reads = filter_garbage(reads_list, reads_format)
         kept_reads = reads_list
         (bwt_map, unmapped_reads) = initial_mapping(bwt_idx_prefix, 
                                                     kept_reads,
@@ -538,8 +611,8 @@ def main(argv=None):
                                                     seed_length,
                                                     max_hits)
         warnings.filterwarnings("ignore", "tmpnam is a potential security risk")
-        maq_map = convert_to_maq(use_long_maq_maps, bwt_map, bwt_idx_prefix)
-        maq_cns = assemble_islands(maq_map, bwt_idx_prefix)
+        maq_map = convert_to_maq(use_long_maq_maps, bwt_map, idx_bfa)
+        maq_cns = assemble_islands(maq_map, idx_bfa)
         (islands_fasta, islands_gff) = extract_islands(maq_cns)
         spliced_reads = align_spliced_reads(islands_fasta, 
                                             islands_gff, 
