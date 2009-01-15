@@ -35,10 +35,10 @@ void print_wiggle_for_ref(FILE* coverage_out,
 			size_t j = last_pos;
 			while (i - j > 10000000)
 			{
-				fprintf(coverage_out,"chr%s\t%d\t%d\t%d\n",ref_name.c_str(),(int)j + 1, (int)j + 10000000 + 1, last_doc);
+				fprintf(coverage_out,"%s\t%d\t%d\t%d\n",ref_name.c_str(),(int)j + 1, (int)j + 10000000 + 1, last_doc);
 				j += 10000000;
 			}
-			fprintf(coverage_out,"chr%s\t%d\t%d\t%d\n",ref_name.c_str(),(int)j + 1, (int)i + 1, last_doc);
+			fprintf(coverage_out,"%s\t%d\t%d\t%d\n",ref_name.c_str(),(int)j + 1, (int)i + 1, last_doc);
 			last_pos = i;
 			last_doc = DoC[i];
 		}

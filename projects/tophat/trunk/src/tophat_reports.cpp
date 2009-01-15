@@ -24,15 +24,18 @@
 #include "common.h"
 #include "bwt_map.h"
 #include "junctions.h"
-#include "inserts.h"
 #include "fragments.h"
 #include "wiggles.h"
+
+#ifdef PAIRED_END
+#include "inserts.h"
+#endif
 
 using namespace std;
 using namespace seqan;
 using std::set;
 
-const char *short_options = "r:I:d:s:va:AF:j";
+const char *short_options = "r:I:d:s:va:AF:";
 
 static int min_anchor_len = 5;
 static int min_intron_len = 40;
@@ -45,9 +48,14 @@ bool verbose = false;
 
 void print_usage()
 {
+#ifdef PAIRED_END
     fprintf(stderr, "Usage:   tophat_reports <coverage.wig> <junctions.bed> <map1.bwtout> [splice_map1.sbwtout] [map2.bwtout] [splice_map2.sbwtout]\n");
+#else
+	fprintf(stderr, "Usage:   tophat_reports <coverage.wig> <junctions.bed> <map1.bwtout> [splice_map1.sbwtout]\n");
+#endif
 }
 
+#ifdef PAIRED_END
 void insert_best_pairings(SequenceTable& rt,
 						  HitTable& hits1,
 						  HitTable& hits2,
@@ -82,6 +90,7 @@ void insert_best_pairings(SequenceTable& rt,
 							 best_pairings);
 	}	
 }
+#endif
 
 void fragment_best_alignments(SequenceTable& rt,
 							  HitTable& hits1,
@@ -135,42 +144,10 @@ void driver(FILE* map1,
 	
 	print_wiggle_header(coverage_out);
 	
-	if (paired_end) // Paired-end reporting
-	{
-		get_mapped_reads(map2, hits2, false);
-		get_mapped_reads(splice_map2, hits2, true);
-		
-		BestInsertAlignmentTable best_pairings(it.size());
-		insert_best_pairings(rt, hits1, hits2, best_pairings);
-		
-		accept_valid_hits(best_pairings);
-		
-		junctions_from_alignments(hits1, junctions);
-		junctions_from_alignments(hits2, junctions);
-		
-		print_junctions(junctions_out, junctions, rt);
-		
-		for (SequenceTable::const_iterator ci = rt.begin();
-			 ci != rt.end();
-			 ++ci)
-		{
-			vector<short> DoC;
-			const HitList* h1 = hits1.get_hits(ci->second);
-			if (h1)
-				add_hits_to_coverage(*h1, DoC);
-			
-			const HitList* h2 = hits2.get_hits(ci->second);
-			if (h2)
-				add_hits_to_coverage(*h2, DoC);
-			
-			print_wiggle_for_ref(coverage_out, ci->first, DoC);
-		}
-    }
-	else // Single-end reporting
+	if (!paired_end)
 	{
 		fprintf(stderr, "Finished reading alignments\n");
-		//it.clear();
-
+		
 		if (accept_all)
 		{
 			accept_all_hits(hits1);
@@ -203,6 +180,39 @@ void driver(FILE* map1,
 		
 		print_junctions(junctions_out, junctions, rt);
 	}
+#ifdef PAIRED_END	
+	else
+	{
+		get_mapped_reads(map2, hits2, false);
+		get_mapped_reads(splice_map2, hits2, true);
+		
+		BestInsertAlignmentTable best_pairings(it.size());
+		insert_best_pairings(rt, hits1, hits2, best_pairings);
+		
+		accept_valid_hits(best_pairings);
+		
+		junctions_from_alignments(hits1, junctions);
+		junctions_from_alignments(hits2, junctions);
+		
+		print_junctions(junctions_out, junctions, rt);
+		
+		for (SequenceTable::const_iterator ci = rt.begin();
+			 ci != rt.end();
+			 ++ci)
+		{
+			vector<short> DoC;
+			const HitList* h1 = hits1.get_hits(ci->second);
+			if (h1)
+				add_hits_to_coverage(*h1, DoC);
+			
+			const HitList* h2 = hits2.get_hits(ci->second);
+			if (h2)
+				add_hits_to_coverage(*h2, DoC);
+			
+			print_wiggle_for_ref(coverage_out, ci->first, DoC);
+		}
+    }
+#endif
 	
 	uint32_t accepted_junctions = 0;
 	for (JunctionSet::iterator itr = junctions.begin(); itr != junctions.end(); ++itr)
@@ -221,7 +231,6 @@ static struct option long_options[] = {
 {"max-dist",       required_argument,       0,            'd'},
 {"min-anchor",       required_argument,       0,            'a'},
 {"min-intron",       required_argument,       0,            'i'},
-{"accept-all-junctions",       no_argument,       0,            'j'},
 {"min-isoform-fraction",       required_argument,       0,            'F'},
 {"verbose",		no_argument,	0,							'v'},
 {"accept-all-hits",      no_argument,       0,            'A'},
@@ -301,9 +310,6 @@ int parse_options(int argc, char** argv)
 			case 'v':
 				verbose = true;
 				break;
-			case 'j':
-				filter_junctions = false;
-				break;
 			case 'a':
 				min_anchor_len = (uint32_t)parseInt(4, "-a/--min-anchor arg must be at least 4");
 				break;
@@ -311,7 +317,11 @@ int parse_options(int argc, char** argv)
 				min_intron_len = (uint32_t)parseInt(1, "-a/--min-intron arg must be at least 1");
 				break;
 			case 'F':
-				min_isoform_fraction = parseFloat(0.0, 1.0, "-a/--min-isoform-fraction arg must be (0.0,1.0]");
+				min_isoform_fraction = parseFloat(0.0, 1.0, "-a/--min-isoform-fraction arg must be [0.0,1.0]");
+				if (min_isoform_fraction = 0.0)
+				{
+					filter_junctions = false;
+				}
 				break;
 			case 'A':
 				accept_all = true;

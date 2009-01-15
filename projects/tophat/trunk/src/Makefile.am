@@ -217,8 +217,8 @@ bin_PROGRAMS = \
 	filter_garbage \
 	read_ids \
 	spanning_reads \
-	tophat_reports \
-	juncs_db 
+	tophat_reports
+ 
 
 #-- scripts to be installed in $prefix/bin
 dist_bin_SCRIPTS = \
@@ -238,8 +238,8 @@ noinst_HEADERS = \
 	assert_helpers.h \
 	alphabet.h \
 	timer.h \
-	fragments.h \
-	inserts.h 
+	fragments.h
+
 	
 libtophat_a_SOURCES = \
 	reads.cpp \
@@ -248,8 +248,8 @@ libtophat_a_SOURCES = \
 	common.cpp \
 	wiggles.cpp \
 	junctions.cpp \
-	fragments.cpp \
-	inserts.cpp
+	fragments.cpp
+
 
 #-- program sources
 cvg_islands_SOURCES = cvg_islands.cpp
@@ -267,8 +267,8 @@ read_ids_LDADD = $(top_builddir)/src/libtophat.a
 spanning_reads_SOURCES = spanning_reads.cpp
 spanning_reads_LDADD = -lz $(top_builddir)/src/libtophat.a
 
-juncs_db_SOURCES = juncs_db.cpp
-juncs_db_LDADD = $(top_builddir)/src/libtophat.a
+#juncs_db_SOURCES = juncs_db.cpp
+#juncs_db_LDADD = $(top_builddir)/src/libtophat.a
 
 tophat_reports_SOURCES = tophat_reports.cpp
 tophat_reports_LDADD = $(top_builddir)/src/libtophat.a
