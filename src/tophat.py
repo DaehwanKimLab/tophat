@@ -51,7 +51,7 @@ def right_now():
 
 def prepare_output_dir():
     
-    print >> sys.stderr, "[%s] Prepare output location %s" % (right_now(), output_dir)
+    print >> sys.stderr, "[%s] Preparing output location %s" % (right_now(), output_dir)
     if os.path.exists(output_dir):
         pass
     else:        
@@ -96,6 +96,7 @@ def check_bowtie_index(idx_prefix):
             exit(1)
 
 def bowtie_idx_to_bfa(idx_prefix):
+    
     idx_name = idx_prefix.split('/')[-1]
     idx_bfa = output_dir + idx_name + ".bfa"
     print >> sys.stderr, "[%s] Building Maq binary fasta file %s \n\tfrom Bowtie index" % (right_now(), idx_bfa)
@@ -155,7 +156,7 @@ def check_bfa(idx_prefix):
         idx_name = idx_prefix.split('/')[-1]
         bowtie_idx_env_var = os.environ.get("BOWTIE_INDEXES")
         if bowtie_idx_env_var != None:
-            idx_bfa = bowtie_idx_env_var + idx_name + ".bfa" 
+            idx_bfa = bowtie_idx_env_var + idx_prefix + ".bfa" 
             if os.path.exists(idx_bfa):
                 return idx_bfa
         
@@ -242,8 +243,12 @@ def check_reads(reads_files, default_seed_len, default_format, solexa_scale):
     max_qual = -1
     files = reads_files.split(',')
     for f_name in files:
-        f = open(f_name)
-        
+        try:
+            f = open(f_name)
+        except IOError:
+            print >> sys.stderr, "Error: could not open file", f_name
+            exit(1)
+            
         first_line = f.readline()
         if first_line[0] == "@":
             format = "fastq"
@@ -301,6 +306,7 @@ def formatTD(td):
   return '%02d:%02d:%02d' % (hours, minutes, seconds) 
 
 def filter_garbage(reads_list, reads_format):
+    
     try:    
         #filter_cmd = ["filter_garbage"]
         if reads_format == "-f":
@@ -497,6 +503,8 @@ def convert_to_maq(use_long_maq_maps, bwt_map, idx_bfa, alignments_per_chunk=100
 
 def assemble_islands(maq_map, idx_bfa):
     print >> sys.stderr, "[%s] Assembling coverage islands" % right_now()
+    
+    
     asm_log = open(logging_dir + "maq_asm.log", "w")
     maq_cns = output_dir + "unspliced.cns"
     asm_cmd = ["maq",
@@ -519,16 +527,18 @@ def assemble_islands(maq_map, idx_bfa):
        exit(1)
     return maq_cns
 
-def extract_islands(maq_cns):
+def extract_islands(maq_cns, island_gap, extend_islands):
     print >> sys.stderr, "[%s] Extracting coverage islands" % right_now()
+    
+    
     extract_log = open(logging_dir + "extract_islands.log", "w")
     island_fasta = output_dir + "islands.fa"
     island_gff = output_dir + "islands.gff"
     
     extract_cmd = [bin_dir + "cvg_islands",
                    "-d", "0.0", # Minimum average depth of coverage threshold
-                   "-b", "6", # Max gap length
-                   "-e", "45", # Extension length
+                   "-b", str(island_gap), # Max gap length
+                   "-e", str(extend_islands), # Extension length
                    "-R", # Always take reference sequence (no SNP calls)
                    maq_cns,
                    island_fasta,
@@ -551,19 +561,24 @@ def align_spliced_reads(islands_fasta,
                         islands_gff, 
                         unmapped_reads,
                         seed_length,
+                        min_anchor_len,
                         splice_mismatches,
+                        min_intron_length,
+                        max_intron_length,
                         max_mem):
     start_time = datetime.now()
     print >> sys.stderr, "[%s] Aligning spliced reads" % start_time.strftime("%c"),
+    
+    
     splice_log = open(logging_dir + "spliced_align.log", "w")
     spliced_reads_name = output_dir + "spliced_map.sbwtout"
     spliced_reads = open(spliced_reads_name,"w")
     splice_cmd = [bin_dir + "spanning_reads",
                   "-v",
-                  "-a", "5", # Anchor length
+                  "-a", str(min_anchor_len), # Anchor length
                   "-m", str(splice_mismatches), # Mismatches allowed in extension
-                  "-I", "20000", # Maxmimum intron length
-                  "-i", "70", # Minimum intron length
+                  "-I", str(max_intron_length), # Maxmimum intron length
+                  "-i", str(min_intron_length), # Minimum intron length
                   "-s", str(seed_length), # Seed size for reads
                   "-S", "300", # Min normalized DoC for self island junctions
                   "-M", str(max_mem), # Small memory footprint for now
@@ -593,6 +608,8 @@ def align_spliced_reads(islands_fasta,
 
 def compile_reports(contiguous_map, spliced_map, min_isoform_fraction):
     print >> sys.stderr, "[%s] Reporting output tracks" % right_now()
+    
+    
     report_log = open(logging_dir + "reports.log", "w")
     junctions = output_dir + "junctions.bed"
     coverage = output_dir + "coverage.wig"
@@ -618,26 +635,31 @@ def compile_reports(contiguous_map, spliced_map, min_isoform_fraction):
     return (coverage, junctions)
 
 def main(argv=None):
+    
+    
     if argv is None:
         argv = sys.argv
     try:
         try:
-            opts, args = getopt.getopt(argv[1:], "ho:vXp:s:m:M:", 
-                                        ["help", 
-                                         "output=", 
+            opts, args = getopt.getopt(argv[1:], "hvXp:s:m:M:F:a:i:I:e:b:", 
+                                        ["help",  
                                          "solexa-quals",
                                          "num-threads=",
                                          "seed-length=",
                                          "splice-mismatches=",
                                          "max-gene-family=",
                                          "max-mem=",
-                                         # "fasta",
-                                         # "fastq",
-                                         "min-isoform-fraction="])
+                                         "min-isoform-fraction=",
+                                         "min-anchor-length=",
+                                         "min-intron-length=",
+                                         "max-intron-length=",
+                                         "island-gap="
+                                         "extend-islands="])
         except getopt.error, msg:
             raise Usage(msg)
         
         bowtie_threads = 1
+        min_anchor_len = 5
         solexa_scale = False
         seed_length = 28
         splice_mismatches = 0
@@ -645,32 +667,65 @@ def main(argv=None):
         max_mem = 1024
         reads_format = "fastq"
         min_isoform_fraction = 0.15
+        min_intron_length = 70
+        max_intron_length = 20000
+        
+        island_gap = 6
+        extend_islands = 45
         # option processing
         for option, value in opts:
             if option == "-v":
                 verbose = True
             if option in ("-h", "--help"):
                 raise Usage(help_message)
-            if option in ("-o", "--output"):
-                output = value
+            if option in ("-a", "--min-anchor"):
+                min_anchor_len = int(value)
+                if min_anchor_len < 3 or min_anchor_len > 6:
+                    print >> sys.stderr, "Error: arg to --min-anchor-len must be in [3,6]"
+                    exit(1)
             if option in ("-X", "--solexa-quals"):
                 solexa_scale = True
             if option in ("-p", "--num-threads"):
                 bowtie_threads = int(value)
             if option in ("-s", "--seed-length"):
                 seed_length = int(value)
+                if seed_length < 20:
+                    print >> sys.stderr, "Error: arg to --seed-length must be at least 20"
+                    exit(1)
             if option in ("-m", "--splice-mismatches"):
                 splice_mismatches = int(value)
+                if not splice_mismatches in [0,1,2]:
+                    print >> sys.stderr, "Error: arg to --splice-mismatches must be 0, 1, or 2"
+                    exit(1)
             if option in ("-g", "--max-gene-family"):
                  max_hits = int(value)
             if option in ("-M", "--max-mem"):
                 max_mem = int(value)
-            # if option in ("-f", "--fasta"):
-            #     reads_format = "-f"
-            # if option in ("-q", "--fastq"):
-            #     reads_format = "-q"
             if option in ("-F", "--min-isoform-fraction"):
                 min_isoform_fraction = float(value)
+                if min_isoform_fraction < 0.0 or min_isoform_fraction > 1.0:
+                    print >> sys.stderr, "Error: arg to --min-isoform-fraction must be between 0.0 and 1.0"
+                    exit(1)
+            if option in ("-i", "--min-intron-length"):
+                min_intron_length = int(value)
+                if min_intron_length <= 0:
+                    print >> sys.stderr, "Error: arg to --min-intron-length must be greater than 0"
+                    exit(1)                    
+            if option in ("-I", "--max-intron-length"):
+                max_intron_length = int(value)
+                if max_intron_length <= 0:
+                    print >> sys.stderr, "Error: arg to --max-intron-length must be greater than 0"
+                    exit(1)
+            if option in ("-e", "--extend-islands"):
+                island_extension = int(value)
+                if island_extension < 0:
+                    print >> sys.stderr, "Error: arg to --extend-islands must be at least 0"
+                    exit(1)
+            if option in ("-b", "--island-gap"):
+                island_gap = int(value)
+                if island_gap < 0:
+                    print >> sys.stderr, "Error: arg to --island-gap must be at least 0"
+                    exit(1)
         if len(args) < 2:
             raise Usage(use_message)
             
@@ -711,12 +766,18 @@ def main(argv=None):
         warnings.filterwarnings("ignore", "tmpnam is a potential security risk")
         maq_map = convert_to_maq(use_long_maq_maps, bwt_map, idx_bfa)
         maq_cns = assemble_islands(maq_map, idx_bfa)
-        (islands_fasta, islands_gff) = extract_islands(maq_cns)
+        (islands_fasta, islands_gff) = extract_islands(maq_cns,
+                                                       island_gap,
+                                                       extend_islands)
+                                                       
         spliced_reads = align_spliced_reads(islands_fasta, 
                                             islands_gff, 
                                             unmapped_reads,
                                             seed_length,
+                                            min_anchor_len,
                                             splice_mismatches,
+                                            min_intron_length,
+                                            max_intron_length,
                                             max_mem)
         compile_reports(bwt_map, spliced_reads, min_isoform_fraction)
         
