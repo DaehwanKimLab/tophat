@@ -6,7 +6,7 @@
  *  Copyright 2008 Cole Trapnell. All rights reserved.
  *
  */
-
+#include <cassert>
 #include <cstdio>
 #include <vector>
 #include <string>
@@ -36,9 +36,6 @@ using namespace seqan;
 using std::set;
 
 const char *short_options = "r:I:d:s:va:AF:";
-
-static int min_anchor_len = 5;
-static int min_intron_len = 40;
 
 static bool filter_junctions = true;
 static float min_isoform_fraction = 0.15;
@@ -314,11 +311,11 @@ int parse_options(int argc, char** argv)
 				min_anchor_len = (uint32_t)parseInt(4, "-a/--min-anchor arg must be at least 4");
 				break;
 			case 'i':
-				min_intron_len = (uint32_t)parseInt(1, "-a/--min-intron arg must be at least 1");
+				min_intron_length = (uint32_t)parseInt(1, "-a/--min-intron arg must be at least 1");
 				break;
 			case 'F':
 				min_isoform_fraction = parseFloat(0.0, 1.0, "-a/--min-isoform-fraction arg must be [0.0,1.0]");
-				if (min_isoform_fraction = 0.0)
+				if (min_isoform_fraction == 0.0)
 				{
 					filter_junctions = false;
 				}

@@ -21,6 +21,7 @@
 #include <numeric>
 #include <cassert>
 #include <bitset>
+#include "common.h"
 #include "reads.h"
 #include "alphabet.h"
 #include "timer.h"
@@ -34,9 +35,8 @@ typedef unsigned int RefID;
 static unsigned int seq_key_len = 4;
 static unsigned int max_span_mismatches = 0;
 static unsigned int seed_size = 28;
-static unsigned int max_intron_length = 20000;
-static unsigned int min_intron_length = 70;
-static unsigned int max_memory_megs = 2048;
+
+static unsigned int max_memory_megs = 1024;
 static int single_island_juncs_above = 9999; // score should max out at 1000, so the default excludes all single island juncs
 
 static bool verbose = false;

@@ -1,22 +1,18 @@
 include $(top_srcdir)/config/tophat.mk
 
+#SUBDIRS = FSA
+
 #AM_CXXFLAGS = -I$(top_srcdir)/src/SeqAn-1.1
 
 # Generated with 
 # find SeqAn-1.1 -type f -print | grep -v ".svn" | sed 's/$/ \\/g'
 # run from src
 EXTRA_DIST = \
-SeqAn-1.1/config.guess \
-SeqAn-1.1/config.sub \
-SeqAn-1.1/depcomp \
 SeqAn-1.1/GPL.txt \
-SeqAn-1.1/install-sh \
 SeqAn-1.1/LGPL.txt \
-SeqAn-1.1/missing \
 SeqAn-1.1/platform_linux_gcc.h \
 SeqAn-1.1/platform_windows_mingw.h \
 SeqAn-1.1/platform_windows_vs.h \
-SeqAn-1.1/README.txt \
 SeqAn-1.1/seqan/basic/basic_aggregates.h \
 SeqAn-1.1/seqan/basic/basic_allocator_chunkpool.h \
 SeqAn-1.1/seqan/basic/basic_allocator_interface.h \
@@ -213,11 +209,11 @@ SeqAn-1.1/seqan/system.h
 #-- progs to be installed in $prefix/bin
 bin_PROGRAMS = \
 	cvg_islands \
-	extract_reads \
 	filter_garbage \
-	read_ids \
 	spanning_reads \
-	tophat_reports
+	tophat_reports \
+	juncs_db \
+	gff_juncs 
  
 
 #-- scripts to be installed in $prefix/bin
@@ -238,6 +234,10 @@ noinst_HEADERS = \
 	assert_helpers.h \
 	alphabet.h \
 	timer.h \
+	closures.h \
+	FSA/regexp.h \
+	FSA/gff.h \
+	FSA/misc.h \
 	fragments.h
 
 	
@@ -248,27 +248,28 @@ libtophat_a_SOURCES = \
 	common.cpp \
 	wiggles.cpp \
 	junctions.cpp \
-	fragments.cpp
+	FSA/regexp.cc \
+	FSA/gff.cc \
+	FSA/misc.cc \
+	fragments.cpp \
+	gff_juncs.cpp
 
 
 #-- program sources
 cvg_islands_SOURCES = cvg_islands.cpp
 cvg_islands_LDADD = -lz $(top_builddir)/src/libtophat.a
 
-extract_reads_SOURCES = extract_reads.cpp
-extract_reads_LDADD = $(top_builddir)/src/libtophat.a
-
 filter_garbage_SOURCES = filter_garbage.cpp
 filter_garbage_LDADD = $(top_builddir)/src/libtophat.a
-
-read_ids_SOURCES = read_ids.cpp
-read_ids_LDADD = $(top_builddir)/src/libtophat.a
 
 spanning_reads_SOURCES = spanning_reads.cpp
 spanning_reads_LDADD = -lz $(top_builddir)/src/libtophat.a
 
-#juncs_db_SOURCES = juncs_db.cpp
-#juncs_db_LDADD = $(top_builddir)/src/libtophat.a
+gff_juncs_SOURCES = gff_juncs.cpp
+gff_juncs_LDADD = $(top_builddir)/src/libtophat.a
+
+juncs_db_SOURCES = juncs_db.cpp
+juncs_db_LDADD = $(top_builddir)/src/libtophat.a
 
 tophat_reports_SOURCES = tophat_reports.cpp
 tophat_reports_LDADD = $(top_builddir)/src/libtophat.a

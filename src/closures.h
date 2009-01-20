@@ -505,4 +505,124 @@ private:
 	vector<vector<int> > _right_memo;
 };
 
+typedef std::set<pair<size_t, size_t> > CoordSet;
+void check_mates(const HitList& hits1_in_ref,
+				 const HitList& hits2_in_ref,
+				 vector<pair<size_t, size_t> >& happy_mates,
+				 vector<size_t>& map1_singletons,
+				 vector<size_t>& map2_singletons);
+
+
+/* The following computation identifies possible splice sites.
+ 
+ |||||||||||||||-----------------------------------------||||||||||||||||
+ read_len                  inner_dist                      read_len    
+ Where r is the length of a read and x is the *internal* distance between 
+ mates in the *genomic* coordinate space.  We first check to see whether
+ x is too long to be an insert from a single contiguous substring of the 
+ genome.  That is, if x is longer than you'd expect from a unspliced 
+ molecule, than the insert likely spans a splice junction.
+ 
+ The expected value of x when the insert doesn't span a splice is the
+ library insert size mean (I) minus twice the read length, plus or minus 
+ the library insert size standard deviation.  If x is longer than that,
+ the insert probably spans a splice.
+ 
+ For an insert that spans a splice junction, that junction must fall between
+ the ends of the mates.  Let the right side of the alignment of the left
+ read be called minor_hit_end, and the left side of the alignment of the right 
+ read be major_hit_start.  Then an insert's inner_dist = major_hit_start - 
+ minor_hit_end.  Let the expected inner distance for a insert that doesn't 
+ cross a junction be Insert_mean - 2* read_len. Then a splice-crossing insert 
+ must have inner_dist >= expected_inner_dist.  
+ 
+ Let the actual splice position = (splice_left, splice_right). Then 
+ (splice_left - minor_hit_end) + (major_hit_start - splice_right) = 
+ expected_inner_dist +/- std_dev.
+ */
+
+
+// Hops that are (right_motif,left_motif) represent exonic links, and
+// increase the transcriptomic distance.
+
+// Hops that are (left_motif, right_motif) represent intronic links,
+// and don't increase the transcriptomic distance, but we may emit them as
+// potential splice sites, if they are on a closure between the ends of an
+// insert.
+
+template<typename TStr>
+void closure_search(const uint32_t ref_id,
+					const TStr& ref_str,
+					const HitTable& hits1,
+					const HitTable& hits2,
+					uint32_t island_extension,
+					CoordSet& fwd_splices, 
+					CoordSet& rev_splices)
+{
+	// Tracks the number of singleton ALIGNMENTS, not the number of singleton
+	// READS in each Bowtie map.
+	vector<size_t> map1_singletons;
+	vector<size_t> map2_singletons;
+	vector<pair<size_t, size_t> > happy_mates;
+	
+	static const uint32_t bowtie_padding = 5;
+	
+	const HitList* p_hits1_in_ref = hits1.get_hits(ref_id);
+	const HitList* p_hits2_in_ref = hits2.get_hits(ref_id);
+	
+	if (!p_hits1_in_ref || !p_hits2_in_ref)
+		return;
+	const HitList& hits1_in_ref = *p_hits1_in_ref;
+	const HitList& hits2_in_ref = *p_hits2_in_ref;
+	
+	
+	check_mates(hits1_in_ref,
+				hits2_in_ref,
+				happy_mates,
+				map1_singletons,
+				map2_singletons);
+	
+	vector<const HitList*> all_hits;
+	all_hits.push_back(p_hits1_in_ref);
+	all_hits.push_back(p_hits2_in_ref);
+	
+	typedef MappedIntronFinder<TStr> IF;
+	typedef JunctionFinder<TStr, MappedIntronFinder<TStr> > JF;
+	
+	// Very aggressive allowance for finding donors and acceptors
+	IF fwd_intron_finder(ref_str, all_hits, "GT", "AG", island_extension);  
+	
+	JF fwd_finder(ref_str, 
+				  fwd_intron_finder, 
+				  insert_len, 
+				  insert_len_std_dev, 
+				  min_intron_length, 
+				  min_exon_length, 
+				  bowtie_padding, 
+				  island_extension);
+	
+	fwd_finder.possible_junctions(fwd_splices,
+								  happy_mates,
+								  hits1_in_ref,
+								  hits2_in_ref);
+	
+	
+	// Very aggressive allowance for finding donors and acceptors
+	IF rev_intron_finder(ref_str, all_hits, "CT", "AC", island_extension);  
+	
+	JF rev_finder(ref_str, 
+				  rev_intron_finder, 
+				  insert_len, 
+				  insert_len_std_dev, 
+				  min_intron_length, 
+				  min_exon_length, 
+				  bowtie_padding, 
+				  island_extension);
+	
+	rev_finder.possible_junctions(rev_splices,
+								  happy_mates,
+								  hits1_in_ref,
+								  hits2_in_ref);
+}
+
 #endif
