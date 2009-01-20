@@ -730,9 +730,6 @@ void lookup_splice_in_read_index(RefID ref_ctg_id,
 	
 	string ref;
 	
-	if (filter_debug)
-		int a = 5;
-	
 	for (size_t hit = 0; hit < hl.size(); ++hit)
 	{
 		ReadHit& rh = hl[hit];
@@ -763,7 +760,7 @@ void lookup_splice_in_read_index(RefID ref_ctg_id,
 				ref += u32ToDna(p.seed, 2*seq_key_len) + " ";
 			}
 			
-			if (left_mismatches > (int)max_span_mismatches)
+			if (left_mismatches > max_span_mismatches)
 			{
 				continue;
 			}
@@ -1067,9 +1064,8 @@ void map_possible_exon_juncs(FILE* reads_file)
 		
 		if (verbose)
 		{
-			fprintf(stderr, "finished %ld splices in %d seconds ~(%f splices/sec)\n", 
+			fprintf(stderr, "finished %lld splices in %d seconds ~(%f splices/sec)\n", 
 					total_splices, (int)splice_map_timer.elapsed(), total_splices/(float)(splice_map_timer.elapsed()));
-			
 			
 		}
 	}
