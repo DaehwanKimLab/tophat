@@ -18,5 +18,6 @@ extern int max_mate_inner_dist;
 extern uint32_t min_anchor_len;
 extern uint32_t min_intron_length;
 extern uint32_t max_intron_length;
+extern uint32_t min_exon_length;
 
 #endif

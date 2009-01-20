@@ -10,6 +10,8 @@
  *
  */
 
+#include "common.h"
+
 
 typedef std::set<pair<size_t, size_t> > SpliceSet;
 
