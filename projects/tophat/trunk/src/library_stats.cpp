@@ -6,7 +6,7 @@
  *  Copyright 2008 Cole Trapnell. All rights reserved.
  *
  */
-
+#include <cassert>
 #include <cstdio>
 #include <vector>
 #include <string>

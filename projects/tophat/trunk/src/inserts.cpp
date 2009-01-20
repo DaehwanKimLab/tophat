@@ -6,7 +6,7 @@
  *  Copyright 2009 Cole Trapnell. All rights reserved.
  *
  */
-
+#include <cassert>
 #include <map>
 #include <set>
 #include "bwt_map.h"

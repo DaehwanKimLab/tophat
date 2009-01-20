@@ -6,7 +6,8 @@
  *  Copyright 2008 Cole Trapnell. All rights reserved.
  *
  */
-
+ 
+#include <cassert>
 #include "junctions.h"
 
 extern bool verbose;

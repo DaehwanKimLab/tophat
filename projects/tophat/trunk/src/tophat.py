@@ -14,6 +14,7 @@ import errno
 import os
 import tempfile
 import warnings
+import shutil
 
 from datetime import datetime, date, time
 
@@ -21,16 +22,19 @@ use_message = '''
 TopHat maps short sequences from spliced transcripts to whole genomes.
 
 Usage:
-    tophat [options] <bowtie_index> <reads1.fq[,reads2.fq,...,readsN.fq]>
+    tophat [options] <bowtie_index> <reads1[,reads2,...,readsN]>
     
 Options:
-    -a/--min-anchor       <int>
-    -p/--num-threads      <int>
-    -i/--min-intron       <int>
-    -I/--max-intron       <int>
-    -X/--solexa-quals     <int>
-    -s/--seed-length      <int>
-    -g/--max-gene-family  <int>
+    -s/--seed-length               <int>    [ default: 28    ]
+    -a/--min-anchor                <3-6>    [ default: 5     ]
+    -m/--splice-mismatches         <0-2>    [ default: 0     ]
+    -i/--min-intron                <int>    [ default: 70    ]
+    -I/--max-intron                <int>    [ default: 20000 ]
+    -g/--max-gene-family           <int>    [ default: 10    ]
+    -F/--min-isoform-fraction      <float>  [ default: 0.15  ]
+    -X/--solexa-quals              <int>    [ default: false ]
+    -M/--max-mem                   <int>    [ default: 1024  ]
+    -p/--num-threads               <int>    [ deafult: 1     ]
 '''
 
 
@@ -111,17 +115,20 @@ def bowtie_idx_to_bfa(idx_prefix):
         inspect_cmd = ["bowtie-inspect",
                       idx_prefix]
         #print >> sys.stderr, "Executing: " + " ".join(inspect_cmd) + " > " + tmp_fasta_file_name   
-        subprocess.check_call(inspect_cmd, 
+        ret = subprocess.call(inspect_cmd, 
                               stdout=tmp_fasta_file,
                               stderr=inspect_log)
+
+        # Bowtie reported an error
+        if ret != 0:
+           print >> sys.stderr, fail_str, "Error: bowtie-inspect returned an error"
+           exit(1)
+           
     # Bowtie not found
     except OSError, o:
         if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
             print >> sys.stderr, fail_str, "Error: bowtie-inspect not found on this system.  Did you forget to include it in your PATH?"
-    # Bowtie reported an error
-    except subprocess.CalledProcessError:
-        print >> sys.stderr, fail_str, "Error: bowtie-inspect returned an error"
-        exit(1) 
+ 
 
     try:    
         
@@ -132,17 +139,19 @@ def bowtie_idx_to_bfa(idx_prefix):
                          tmp_fasta_file_name,
                          idx_bfa]
                           
-        subprocess.check_call(fasta2bfa_cmd, 
+        ret = subprocess.call(fasta2bfa_cmd, 
                               stderr=fasta2bfa_log)
+        # Maq reported an error
+        if ret != 0:
+            print >> sys.stderr, fail_str, "Error: maq fasta2bfa returned an error"
+            exit(1)
+          
     # Maq not found
     except OSError, o:
         if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
             print >> sys.stderr, fail_str, "Error: Maq not found on this system.  Did you forget to include it in your PATH?"
             exit(1)
-    # Maq reported an error
-    except subprocess.CalledProcessError:
-        print >> sys.stderr, fail_str, "Error: maq fasta2bfa returned an error"
-        exit(1)   
+  
     os.remove(tmp_fasta_file_name)
         
     return idx_bfa
@@ -306,36 +315,37 @@ def formatTD(td):
   return '%02d:%02d:%02d' % (hours, minutes, seconds) 
 
 def filter_garbage(reads_list, reads_format):
+
     
-    try:    
-        #filter_cmd = ["filter_garbage"]
-        if reads_format == "-f":
-            reads_suffix = ".fa"
-        else:
-            reads_suffix = ".fq"
-            
-        kept_reads_filename = output_dir + "kept_reads" + reads_suffix
-        kept_reads = open(kept_reads_filename, "w")
+    #filter_cmd = ["filter_garbage"]
+    if reads_format == "-f":
+        reads_suffix = ".fa"
+    else:
+        reads_suffix = ".fq"
         
-        filter_log = open(logging_dir + "filter_garbage.log", "w")
-        
-        filter_cmd = ["filter_garbage",
-                      reads_format]   
-        #print "\t executing: `%s'" % " ".join(bowtie_cmd)    
-        files = reads_list.split(',')
-        for reads_file in files:       
-            subprocess.check_call(filter_cmd, 
+    kept_reads_filename = output_dir + "kept_reads" + reads_suffix
+    kept_reads = open(kept_reads_filename, "w")
+    
+    filter_log = open(logging_dir + "filter_garbage.log", "w")
+    
+    filter_cmd = ["filter_garbage",
+                  reads_format]   
+    #print "\t executing: `%s'" % " ".join(bowtie_cmd)    
+    files = reads_list.split(',')
+    for reads_file in files:
+        try:       
+            ret = subprocess.call(filter_cmd, 
                                   stdin=open(reads_file),
                                   stdout=kept_reads,
                                   stderr=filter_log)
-    # Bowtie not found
-    except OSError, o:
-        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
-            print >> sys.stderr, fail_str, "Error: Bowtie not found on this system.  Did you forget to include it in your PATH?"
-    # Bowtie reported an error
-    except subprocess.CalledProcessError:
-        print >> sys.stderr, fail_str, "Error: could not execute Bowtie"
-        exit(1)    
+                                  # Bowtie reported an error
+            if ret != 0:
+                print >> sys.stderr, fail_str, "Error: could not execute Bowtie"
+                exit(1)
+        # Bowtie not found
+        except OSError, o:
+            if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
+                print >> sys.stderr, fail_str, "Error: Bowtie not found on this system.  Did you forget to include it in your PATH?"
     
     return kept_reads_filename
 
@@ -378,17 +388,19 @@ def initial_mapping(bwt_idx_prefix,
                        reads_list, 
                        bwt_map]   
         #print "\t executing: `%s'" % " ".join(bowtie_cmd)           
-        subprocess.check_call(bowtie_cmd, 
-                            stdout=open("/dev/null"), 
-                            stderr=bwt_log)
+        ret = subprocess.call(bowtie_cmd, 
+                              stdout=open("/dev/null"), 
+                              stderr=bwt_log)
+        # Bowtie reported an error
+        if ret != 0:
+            print >> sys.stderr, fail_str, "Error: could not execute Bowtie"
+            exit(1)
+            
     # Bowtie not found
     except OSError, o:
         if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
             print >> sys.stderr, fail_str, "Error: Bowtie not found on this system.  Did you forget to include it in your PATH?"
-    # Bowtie reported an error
-    except subprocess.CalledProcessError:
-        print >> sys.stderr, fail_str, "Error: could not execute Bowtie"
-        exit(1)
+
     # Success    
     finish_time = datetime.now()
     duration = finish_time - start_time
@@ -401,15 +413,14 @@ def collect_unmapped_reads():
 
 def convert_chunk_to_maq(use_long_maq_maps, bwt_map, maq_map, idx_bfa, convert_log):
     #convert_log = open(logging_dir + "convert_to_maq.log", "w")
-    format_option = "-o"
-    if use_long_maq_maps == True:
-        format_option = ""
-    convert_cmd = ["bowtie-maqconvert", 
-                   format_option,
-                   bwt_map, 
-                   maq_map,
-                   idx_bfa, 
-                   bwt_map]            
+
+    convert_cmd = ["bowtie-maqconvert"] 
+    if use_long_maq_maps == False:
+        convert_cmd.append("-o")
+    convert_cmd.extend([bwt_map, 
+                        maq_map,
+                        idx_bfa, 
+                        bwt_map])            
     print >> convert_log, "Converting %s to %s" % (bwt_map, maq_map)
     try:    
         retcode = subprocess.call(convert_cmd, stderr=convert_log)
@@ -466,34 +477,41 @@ def convert_to_maq(use_long_maq_maps, bwt_map, idx_bfa, alignments_per_chunk=100
         #print "converting chunk", num_chunks
         tmp_bwt.flush()
         convert_chunk_to_maq(use_long_maq_maps, tmp_bwt_name, tmp_maq, idx_bfa, convert_log)         
-
-    convert_cmd = ["maq",
-                   "mapmerge",
-                   maq_map]
-                   
-    convert_cmd.extend(tmp_maps)            
-    print >> convert_log, " ".join(convert_cmd)
-    try:    
-        retcode = subprocess.call(convert_cmd, stderr=convert_log)
-        # bowtie-maqconvert reported an error
-        if retcode > 0:
-            print >> sys.stderr, fail_str, "Error: Conversion to Maq map format failed"
-            exit(1)
-    # converter not found
-    except OSError, o:
-        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
-            print >> sys.stderr, fail_str, "Error: maq not found on this system"
-            exit(1)
-
-    # Bowtie reported an error
-    except subprocess.CalledProcessError:
-        print >> sys.stderr, fail_str, "Error: could not execute maq mapmerge"
-        exit(1)
     
-    #print " ".join(tmp_maps)
-    for m in tmp_maps:
-        #print m
-        os.remove(m)
+    if i == 1:
+        try:
+            shutil.move(tmp_maps[0], maq_map)
+        except OSError, o:
+            print >> sys.stderr, "Error: couldn't rename Maq map from %s to %s" % (tmp_maps[0], maq_map)
+            exit(1)
+    else:
+        convert_cmd = ["maq",
+                       "mapmerge",
+                       maq_map]
+                   
+        convert_cmd.extend(tmp_maps)            
+        print >> convert_log, " ".join(convert_cmd)
+        try:    
+            retcode = subprocess.call(convert_cmd, stderr=convert_log)
+            # bowtie-maqconvert reported an error
+            if retcode > 0:
+                print >> sys.stderr, fail_str, "Error: Conversion to Maq map format failed"
+                exit(1)
+        # converter not found
+        except OSError, o:
+            if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
+                print >> sys.stderr, fail_str, "Error: maq not found on this system"
+                exit(1)
+
+        # Bowtie reported an error
+        except subprocess.CalledProcessError:
+            print >> sys.stderr, fail_str, "Error: could not execute maq mapmerge"
+            exit(1)
+    
+        #print " ".join(tmp_maps)
+        for m in tmp_maps:
+            #print m
+            os.remove(m)
     for m in tmp_bwts:
         #print m
         os.remove(m)
@@ -671,7 +689,7 @@ def main(argv=None):
         max_intron_length = 20000
         
         island_gap = 6
-        extend_islands = 45
+        island_extension = 45
         # option processing
         for option, value in opts:
             if option == "-v":
@@ -737,6 +755,7 @@ def main(argv=None):
         print >> sys.stderr, "-----------------------------------------------" 
         
         start_time = datetime.now()
+        prepare_output_dir()
         
         idx_bfa = check_index(bwt_idx_prefix)
         use_long_maq_maps = check_maq()
@@ -751,10 +770,8 @@ def main(argv=None):
         elif reads_format == "fasta":
             format_flag = "-f"
         
-        prepare_output_dir()
-        
         kept_reads = filter_garbage(reads_list, format_flag)
-        kept_reads = reads_list
+        
         (bwt_map, unmapped_reads) = initial_mapping(bwt_idx_prefix, 
                                                     kept_reads,
                                                     format_flag, 
@@ -768,7 +785,7 @@ def main(argv=None):
         maq_cns = assemble_islands(maq_map, idx_bfa)
         (islands_fasta, islands_gff) = extract_islands(maq_cns,
                                                        island_gap,
-                                                       extend_islands)
+                                                       island_extension)
                                                        
         spliced_reads = align_spliced_reads(islands_fasta, 
                                             islands_gff, 
@@ -788,7 +805,7 @@ def main(argv=None):
         
     except Usage, err:
         print >> sys.stderr, sys.argv[0].split("/")[-1] + ": " + str(err.msg)
-        print >> sys.stderr, "\t for detailed help use --help"
+        print >> sys.stderr, "    for detailed help see http://tophat.cbcb.umd.edu/manual.html"
         return 2
 
 

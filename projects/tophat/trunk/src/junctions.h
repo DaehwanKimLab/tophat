@@ -85,6 +85,8 @@ void print_junction(FILE* junctions_out,
 					const JunctionStats& s, 
 					uint32_t junc_id);
 
+
+
 void junction_from_alignment(const BowtieHit& spliced_alignment,
 							 uint32_t refid,
 							 JunctionSet& junctions);

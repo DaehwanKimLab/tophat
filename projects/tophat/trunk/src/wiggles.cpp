@@ -8,7 +8,7 @@
  *  Copyright 2008 Cole Trapnell. All rights reserved.
  *
  */
-
+#include <cassert>
 #include <stdio.h>
 #include <vector>
 #include <string>
