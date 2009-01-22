@@ -17,7 +17,10 @@
 #include "bwt_map.h"
 #include "closures.h"
 #include "junctions.h"
+
+#ifdef PAIRED_END
 #include "inserts.h"
+#endif
 
 using namespace std;
 using namespace seqan;
