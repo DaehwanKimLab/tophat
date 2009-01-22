@@ -25,16 +25,18 @@ Usage:
     tophat [options] <bowtie_index> <reads1[,reads2,...,readsN]>
     
 Options:
-    -s/--seed-length               <int>    [ default: 28    ]
-    -a/--min-anchor                <3-6>    [ default: 5     ]
-    -m/--splice-mismatches         <0-2>    [ default: 0     ]
-    -i/--min-intron                <int>    [ default: 70    ]
-    -I/--max-intron                <int>    [ default: 20000 ]
-    -g/--max-gene-family           <int>    [ default: 10    ]
-    -F/--min-isoform-fraction      <float>  [ default: 0.15  ]
-    -X/--solexa-quals              <int>    [ default: false ]
-    -M/--max-mem                   <int>    [ default: 1024  ]
-    -p/--num-threads               <int>    [ deafult: 1     ]
+    -s/--seed-length               <int>       [ default: 28    ]
+    -a/--min-anchor                <3-6>       [ default: 5     ]
+    -m/--splice-mismatches         <0-2>       [ default: 0     ]
+    -i/--min-intron                <int>       [ default: 70    ]
+    -I/--max-intron                <int>       [ default: 20000 ]
+    -g/--max-gene-family           <int>       [ default: 10    ]
+    -F/--min-isoform-fraction      <float>     [ default: 0.15  ]
+    -X/--solexa-quals              <int>       [ default: false ]
+    -M/--max-mem                   <int>       [ default: 1024  ]
+    -p/--num-threads               <int>       [ default: 1     ]
+    -G/--GFF                       <filename>
+    --no-novel                                 [ default: off   ]
 '''
 
 
@@ -306,7 +308,28 @@ def check_reads(reads_files, default_seed_len, default_format, solexa_scale):
     #print seed_len, format, solexa_scale
     return seed_len, format, solexa_scale
     
+def get_gff_juncs(gff_juncs_filename):
+    annotations_name = gff_juncs_filename.split('/')[-1]
     
+    juncs_filename = output_dir + annotations_name + ".juncs"
+    juncs = open(juncs_filename, "w")
+    
+    gff_juncs_log = open(logging_dir + "gff_juncs.log", "w")
+    gff_juncs_cmd = ["gff_juncs",
+                     gff_juncs_filename]   
+    try:       
+        ret = subprocess.call(gff_juncs_cmd, 
+                              stdout=juncs,
+                              stderr=gff_juncs_log)
+                              # Bowtie reported an error
+        if ret != 0:
+            print >> sys.stderr, fail_str, "Error: gff_juncs returned an error"
+            exit(1)
+    # gff_juncs not found
+    except OSError, o:
+        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
+            print >> sys.stderr, fail_str, "Error: gff_juncs not found on this system.  Did you forget to include it in your PATH?"
+    return juncs_filename   
 
 def formatTD(td):
   hours = td.seconds // 3600
@@ -342,7 +365,7 @@ def filter_garbage(reads_list, reads_format):
             if ret != 0:
                 print >> sys.stderr, fail_str, "Error: could not execute Bowtie"
                 exit(1)
-        # Bowtie not found
+        # filter_garbage not found
         except OSError, o:
             if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
                 print >> sys.stderr, fail_str, "Error: Bowtie not found on this system.  Did you forget to include it in your PATH?"
@@ -547,8 +570,6 @@ def assemble_islands(maq_map, idx_bfa):
 
 def extract_islands(maq_cns, island_gap, extend_islands):
     print >> sys.stderr, "[%s] Extracting coverage islands" % right_now()
-    
-    
     extract_log = open(logging_dir + "extract_islands.log", "w")
     island_fasta = output_dir + "islands.fa"
     island_gff = output_dir + "islands.gff"
@@ -574,6 +595,7 @@ def extract_islands(maq_cns, island_gap, extend_islands):
            print >> sys.stderr, fail_str, "Error: cvg_islands not found on this system"
        exit(1)
     return (island_fasta, island_gff)
+
 
 def align_spliced_reads(islands_fasta, 
                         islands_gff, 
@@ -624,19 +646,22 @@ def align_spliced_reads(islands_fasta,
     print >> sys.stderr, "\t\t\t[%s elapsed]" %  formatTD(duration)
     return spliced_reads_name
 
-def compile_reports(contiguous_map, spliced_map, min_isoform_fraction):
+def compile_reports(contiguous_map, spliced_map, min_isoform_fraction, gff_annotation):
     print >> sys.stderr, "[%s] Reporting output tracks" % right_now()
     
-    
+    spliced_map = ','.join(spliced_map)
     report_log = open(logging_dir + "reports.log", "w")
-    junctions = output_dir + "junctions.bed"
-    coverage = output_dir + "coverage.wig"
+    junctions = "junctions.bed"
+    coverage =  "coverage.wig"
     report_cmd = [bin_dir + "tophat_reports",
-                  "-F", str(min_isoform_fraction),
-                  coverage,
-                  junctions,
-                  contiguous_map,
-                  spliced_map]            
+                  "-F", str(min_isoform_fraction)]
+    if gff_annotation != None:
+        report_cmd.extend(["-G", gff_annotation])
+        
+    report_cmd.extend([coverage,
+                       junctions,
+                       contiguous_map,
+                       spliced_map])            
     try:    
        retcode = subprocess.call(report_cmd, 
                                  stderr=report_log)
@@ -659,7 +684,7 @@ def main(argv=None):
         argv = sys.argv
     try:
         try:
-            opts, args = getopt.getopt(argv[1:], "hvXp:s:m:M:F:a:i:I:e:b:", 
+            opts, args = getopt.getopt(argv[1:], "hvXp:s:m:M:F:a:i:I:e:b:G:", 
                                         ["help",  
                                          "solexa-quals",
                                          "num-threads=",
@@ -671,8 +696,10 @@ def main(argv=None):
                                          "min-anchor-length=",
                                          "min-intron-length=",
                                          "max-intron-length=",
-                                         "island-gap="
-                                         "extend-islands="])
+                                         "island-gap=",
+                                         "extend-islands=",
+                                         "GFF=",
+                                         "no-novel"])
         except getopt.error, msg:
             raise Usage(msg)
         
@@ -687,9 +714,11 @@ def main(argv=None):
         min_isoform_fraction = 0.15
         min_intron_length = 70
         max_intron_length = 20000
-        
         island_gap = 6
         island_extension = 45
+        gff_annotation = None
+        find_novel_juncs = True
+        
         # option processing
         for option, value in opts:
             if option == "-v":
@@ -744,6 +773,11 @@ def main(argv=None):
                 if island_gap < 0:
                     print >> sys.stderr, "Error: arg to --island-gap must be at least 0"
                     exit(1)
+            if option in ("-G", "--GFF"):
+                gff_annotation = value
+            if option == "--no-novel":
+                find_novel_juncs = False
+                
         if len(args) < 2:
             raise Usage(use_message)
             
@@ -757,6 +791,8 @@ def main(argv=None):
         start_time = datetime.now()
         prepare_output_dir()
         
+        # Validate all the input files, check all prereqs before committing 
+        # to the run
         idx_bfa = check_index(bwt_idx_prefix)
         use_long_maq_maps = check_maq()
         check_bowtie()
@@ -770,6 +806,12 @@ def main(argv=None):
         elif reads_format == "fasta":
             format_flag = "-f"
         
+        # user_supplied_juncs = []
+        # if gff_annotation != None:
+        #     gff_juncs = get_gff_juncs(gff_annotation)
+        #     user_supplied_juncs.append(gff_juncs)
+            
+        # Now start the timing consuming stuff
         kept_reads = filter_garbage(reads_list, format_flag)
         
         (bwt_map, unmapped_reads) = initial_mapping(bwt_idx_prefix, 
@@ -786,17 +828,25 @@ def main(argv=None):
         (islands_fasta, islands_gff) = extract_islands(maq_cns,
                                                        island_gap,
                                                        island_extension)
-                                                       
-        spliced_reads = align_spliced_reads(islands_fasta, 
-                                            islands_gff, 
-                                            unmapped_reads,
-                                            seed_length,
-                                            min_anchor_len,
-                                            splice_mismatches,
-                                            min_intron_length,
-                                            max_intron_length,
-                                            max_mem)
-        compile_reports(bwt_map, spliced_reads, min_isoform_fraction)
+        
+        spliced_reads = []
+        
+        # for u in user_supplied_juncs:
+        #     user_junctions = align_reads_to_junctions(u)
+        #     spliced_reads.append(user_junctions)
+        
+        if find_novel_juncs == True:                                               
+            novel_juncs = align_spliced_reads(islands_fasta, 
+                                                islands_gff, 
+                                                unmapped_reads,
+                                                seed_length,
+                                                min_anchor_len,
+                                                splice_mismatches,
+                                                min_intron_length,
+                                                max_intron_length,
+                                                max_mem)
+            spliced_reads.append(novel_juncs)
+        compile_reports(bwt_map, spliced_reads, min_isoform_fraction, gff_annotation)
         
         finish_time = datetime.now()
         duration = finish_time - start_time

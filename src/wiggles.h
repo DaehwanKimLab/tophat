@@ -16,7 +16,7 @@
 void print_wiggle_header(FILE* coverage_out);
 void print_wiggle_for_ref(FILE* coverage_out,
 						  const string& ref_name,
-						  const vector<short> DoC);
+						  const vector<short>& DoC);
 
 
 #endif

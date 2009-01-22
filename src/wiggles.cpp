@@ -23,7 +23,7 @@ void print_wiggle_header(FILE* coverage_out)
 
 void print_wiggle_for_ref(FILE* coverage_out,
 						  const string& ref_name,
-						  const vector<short> DoC)
+						  const vector<short>& DoC)
 {
 	short last_doc = 0; // Last DoC value we wrote to the file
 	size_t last_pos = 0; // Postition where the last written DoC came from

@@ -26,6 +26,7 @@
 #include "junctions.h"
 #include "fragments.h"
 #include "wiggles.h"
+#include "FSA/gff.h"
 
 #ifdef PAIRED_END
 #include "inserts.h"
@@ -33,14 +34,16 @@
 
 using namespace std;
 using namespace seqan;
+using namespace fsa;
 using std::set;
 
-const char *short_options = "r:I:d:s:va:AF:";
+
 
 static bool filter_junctions = true;
 static float min_isoform_fraction = 0.15;
 static bool accept_all = true;
-
+string gff_file = "";
+string output_dir = "tophat_out";
 bool verbose = false;
 
 void print_usage()
@@ -119,12 +122,212 @@ void fragment_best_alignments(SequenceTable& rt,
 }
 
 
+void gene_rpkms_for_ref(FILE* rpkm_out,
+						const string& ref_name,
+						const vector<short>& DoC,
+						const GFF_database& gff_db)
+{
+	
+	// Warning: 0xFFFFFFFF will overflow, hence 0xFFFFFFFE. 
+	// Need a new function to just get features by seqid.
+	GFF_database ref_features = gff_db.chromosome_features(ref_name); 
+	typedef map<string, const GFF*> GeneTable;
+	typedef map<string, string> TransTable;
+	typedef map<const GFF*, vector<const GFF*> > GeneExonTable; 
+	
+	GeneTable genes;
+	TransTable transcripts;
+	GeneExonTable gene_exons;
+	
+	for(GFF_database::const_iterator gff_itr = ref_features.begin();
+		gff_itr != ref_features.end();
+		++gff_itr)
+	{
+		const GFF& gff_rec = *gff_itr;
+		if (gff_rec.type == "gene")
+		{
+			GFF::AttributeTable::const_iterator att_itr;
+			att_itr = gff_rec.attributes.find("ID");
+			if (att_itr == gff_rec.attributes.end() ||
+				att_itr->second.size() != 1)
+			{
+				cerr << "Malformed gene record " << gff_rec << endl; 
+				continue;
+			}
+			const string& id = att_itr->second.front();
+			genes.insert(make_pair(id, &gff_rec));
+			gene_exons.insert(make_pair(&gff_rec, vector<const GFF*>()));
+		}
+		
+	}
+	
+	for(GFF_database::const_iterator gff_itr = ref_features.begin();
+		gff_itr != ref_features.end();
+		++gff_itr)
+	{
+		const GFF& gff_rec = *gff_itr;
+		if (gff_rec.type == "mRNA")
+		{
+			GFF::AttributeTable::const_iterator att_itr;
+			att_itr = gff_rec.attributes.find("ID");
+			if (att_itr == gff_rec.attributes.end() ||
+				att_itr->second.size() != 1)
+			{
+				cerr << "Malformed transcript record " << gff_rec << endl; 
+				continue;
+			}
+			string id = att_itr->second.front();
+			
+			att_itr = gff_rec.attributes.find("Parent");
+			if (att_itr == gff_rec.attributes.end() ||
+				att_itr->second.size() != 1)
+			{
+				cerr << "Malformed transcript record " << gff_rec << endl; 
+				continue;
+			}
+			string gene = att_itr->second.front();
+			
+			transcripts.insert(make_pair(id, gene));
+		}
+		
+	}
+	
+	for(GFF_database::const_iterator gff_itr = ref_features.begin();
+		gff_itr != ref_features.end();
+		++gff_itr)
+	{
+		const GFF& gff_rec = *gff_itr;
+		if (gff_rec.type == "exon")
+		{
+			GFF::AttributeTable::const_iterator att_itr;
+			att_itr = gff_rec.attributes.find("Parent");
+			if (att_itr == gff_rec.attributes.end())
+			{
+				cerr << "Malformed exon record " << gff_rec << endl; 
+				continue;
+			}
+			vector<string> parent_transcripts = att_itr->second;
+			for (vector<string>::iterator par_itr = parent_transcripts.begin();
+				 par_itr != parent_transcripts.end();
+				 ++par_itr)
+			{
+				// Get a valid transcript for this exon
+				const string& transcript_str = *par_itr;
+				TransTable::iterator transcript_itr = transcripts.find(transcript_str);
+				if (transcript_itr == transcripts.end())
+				{
+					cerr << "No transcript with id " << transcript_str << endl;
+					continue;
+				}
+				
+				// Now find the gene GFF record for that transcript
+				GeneTable::iterator gene_itr = genes.find(transcript_itr->second);
+				if (gene_itr == genes.end())
+				{
+					cerr << "No gene associated with transcript " << transcript_str << endl;
+					continue;
+				}
+				
+				
+				GeneExonTable::iterator gene_exon_itr = gene_exons.find(gene_itr->second);
+				if (gene_exon_itr == gene_exons.end())
+				{
+					cerr << "No exons for " << gene_itr->second << endl;
+					continue;
+				}
+				
+				const GFF* gene_for_exon = gene_exon_itr->first;
+				if (gene_for_exon->start <= gff_rec.start && gene_for_exon->end >= gff_rec.end)
+				{
+					gene_exon_itr->second.push_back(&gff_rec);
+				}
+				else
+				{
+					cerr << "Exon falls outside of its enclosing gene" << endl;
+					cerr << "Offending exon:" << endl << gff_rec;
+					cerr << "In transcript: " << transcript_str << endl;
+					cerr << "Enclosing gene:" << endl << *gene_for_exon;
+				}
+				break;
+			
+			}
+		}
+	}
+	
+	uint64_t total_depth = 0;
+//	for (size_t i = 0; i < DoC.size(); ++i)
+//	{
+//		total_depth += DoC[i];
+//	}
+	
+	for (GeneExonTable::iterator gene_itr = gene_exons.begin(); 
+		 gene_itr != gene_exons.end();
+		 ++gene_itr)
+	{
+		GFF gene_gff = *(gene_itr->first);
+		uint32_t gene_DoC = 0;
+		uint32_t gene_exonic_length = 0;
+		vector<bool> exonic_coords(gene_gff.end - gene_gff.start + 1);
+		for (vector<const GFF*>::iterator exon_itr = gene_itr->second.begin();
+			 exon_itr != gene_itr->second.end();
+			 ++exon_itr)
+		{
+			const GFF* exon_gff = *exon_itr;
+			assert (exon_gff->start >= gene_gff.start);
+			for (uint32_t i = exon_gff->start;
+				 i < exon_gff->end;
+				 ++i)
+			{
+				// Did we already count this one?
+				if (!exonic_coords[i - gene_gff.start])
+				{
+					// if not, bump the exonic length and add this coordinates
+					// contribution to the gene's total depth of coverage.
+					gene_exonic_length++;
+					gene_DoC += DoC[i - 1];
+					total_depth += DoC[i - 1];
+
+				}
+				exonic_coords[i - gene_gff.start] = true;
+			}
+		}
+		double gene_rpkm = 1000000000 * (gene_DoC / ((double) gene_exonic_length * (double)total_depth));
+		//gene_gff.add_value<string, double>("RPKM", gene_rpkm);
+		//cout << gene_gff;
+		
+		GFF::AttributeTable::const_iterator att_itr;
+		string gene_name;
+		att_itr = gene_gff.attributes.find("Name");
+		if (att_itr == gene_gff.attributes.end())
+		{
+			att_itr = gene_gff.attributes.find("ID");
+			if (att_itr == gene_gff.attributes.end())
+			{
+				cerr << "Malformed gene record " << gene_gff << endl; 
+				continue;
+			}
+			else
+			{
+				gene_name = att_itr->second.front();
+			}
+		}
+		else
+		{
+			gene_name = att_itr->second.front();	
+		}
+		//const string& gene_name = att_itr->second.front();
+		fprintf(rpkm_out, "%s\t%lf\n", gene_name.c_str(), gene_rpkm);
+	}
+}
+
 void driver(FILE* map1, 
 			FILE* splice_map1,
 			FILE* map2, 
 			FILE* splice_map2,
 			FILE* coverage_out,
-			FILE* junctions_out)
+			FILE* junctions_out,
+			GFF_database gff_db,
+			FILE* rpkm_out)
 {
 	
 	bool paired_end = map2 && splice_map2;
@@ -173,6 +376,11 @@ void driver(FILE* map1,
 				accept_all_junctions(junctions, ci->second);
 			
 			print_wiggle_for_ref(coverage_out, ci->first, DoC);
+			
+			if (rpkm_out != NULL)
+			{
+				gene_rpkms_for_ref(rpkm_out, ci->first, DoC, gff_db);
+			}
 		}
 		
 		print_junctions(junctions_out, junctions, rt);
@@ -221,6 +429,8 @@ void driver(FILE* map1,
     fprintf(stderr, "Found %d junctions from happy spliced reads\n", accepted_junctions);
 }
 
+const char *short_options = "r:I:d:s:va:AF:G:o:";
+
 static struct option long_options[] = {
 {"insert-len",      required_argument,       0,            'I'},
 {"insert-stddev",      required_argument,       0,            's'},
@@ -231,6 +441,8 @@ static struct option long_options[] = {
 {"min-isoform-fraction",       required_argument,       0,            'F'},
 {"verbose",		no_argument,	0,							'v'},
 {"accept-all-hits",      no_argument,       0,            'A'},
+{"gff-annotations",      no_argument,       0,            'G'},
+{"output-dir",      no_argument,       0,            'o'},
 {0, 0, 0, 0} // terminator
 };
 
@@ -323,6 +535,12 @@ int parse_options(int argc, char** argv)
 			case 'A':
 				accept_all = true;
 				break;
+			case 'G':
+				gff_file = optarg;
+				break;
+			case 'o':
+				output_dir = optarg;
+				break;
 			case -1: /* Done with options. */
 				break;
 			default: 
@@ -379,7 +597,7 @@ int main(int argc, char** argv)
 		
 	// Open the approppriate files
 
-	FILE* coverage_file = fopen(coverage_file_name.c_str(), "w");
+	FILE* coverage_file = fopen((output_dir + "/" + coverage_file_name).c_str(), "w");
 	if (coverage_file == NULL)
 	{
 		fprintf(stderr, "Error: cannot open %s for writing\n",
@@ -387,7 +605,7 @@ int main(int argc, char** argv)
 		exit(1);
 	}
 	
-	FILE* junctions_file = fopen(junctions_file_name.c_str(), "w");
+	FILE* junctions_file = fopen((output_dir + "/" + junctions_file_name).c_str(), "w");
 	if (junctions_file == NULL)
 	{
 		fprintf(stderr, "Error: cannot open %s for writing\n",
@@ -444,13 +662,34 @@ int main(int argc, char** argv)
 			exit(1);
 		}
 	}
-    
+	
+	GFF_database gff_db;
+	FILE* rpkm_out = NULL;
+	if (gff_file != "")
+	{
+		gff_db.from_file(gff_file);
+		gff_db.sort_entries();
+		string::size_type slash = gff_file.rfind("/");
+		string::size_type dotGFF = gff_file.rfind(".gff");
+		
+		string rpkm_out_filename;
+		if (slash == string::npos)
+			slash = 0;
+				
+		rpkm_out_filename = gff_file.substr(slash, dotGFF);
+		rpkm_out_filename += ".rpkm";
+
+		rpkm_out = fopen((output_dir + "/" + rpkm_out_filename).c_str(), "w");
+	}
+	
     driver(map1_file, 
 		   splice_map1_file, 
 		   map2_file,
 		   splice_map2_file, 
 		   coverage_file, 
-		   junctions_file);
+		   junctions_file, 
+		   gff_db,
+		   rpkm_out);
     
     return 0;
 }
