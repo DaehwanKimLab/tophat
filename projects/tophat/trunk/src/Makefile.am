@@ -238,6 +238,8 @@ noinst_HEADERS = \
 	FSA/regexp.h \
 	FSA/gff.h \
 	FSA/misc.h \
+	FSA/sequence.h \
+	FSA/fsa_alphabet.h \
 	fragments.h
 
 	
@@ -251,6 +253,8 @@ libtophat_a_SOURCES = \
 	FSA/regexp.cc \
 	FSA/gff.cc \
 	FSA/misc.cc \
+	FSA/sequence.cc \
+	FSA/fsa_alphabet.cc \
 	fragments.cpp \
 	gff_juncs.cpp
 

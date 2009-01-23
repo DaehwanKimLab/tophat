@@ -27,6 +27,7 @@
 #include "fragments.h"
 #include "wiggles.h"
 #include "FSA/gff.h"
+#include "FSA/sequence.h"
 
 #ifdef PAIRED_END
 #include "inserts.h"
@@ -34,7 +35,8 @@
 
 using namespace std;
 using namespace seqan;
-using namespace fsa;
+using fsa::GFF;
+using fsa::GFF_database;
 using std::set;
 
 
@@ -43,6 +45,7 @@ static bool filter_junctions = true;
 static float min_isoform_fraction = 0.15;
 static bool accept_all = true;
 string gff_file = "";
+string ref_fasta = "";
 string output_dir = "tophat_out";
 bool verbose = false;
 
@@ -121,42 +124,212 @@ void fragment_best_alignments(SequenceTable& rt,
 	}	
 }
 
+typedef map<string, const GFF*> GeneTable;
+typedef map<const GFF*, vector<const GFF*> > GeneExonTable; 
 
-void gene_rpkms_for_ref(FILE* rpkm_out,
-						const string& ref_name,
-						const vector<short>& DoC,
-						const GFF_database& gff_db)
+uint32_t total_exonic_depth(const GeneExonTable& genes, 
+							const vector<short>& DoC,
+							fsa::Sequence* ref_str)
+{
+	uint32_t total_depth = 0;
+	for (GeneExonTable::const_iterator gene_itr = genes.begin(); 
+		 gene_itr != genes.end();
+		 ++gene_itr)
+	{
+		const GFF& gene_gff = *(gene_itr->first);
+		const vector<const GFF*>& exons = gene_itr->second;
+		vector<bool> exonic_coords(gene_gff.end - gene_gff.start + 1);
+		for (vector<const GFF*>::const_iterator exon_itr = exons.begin();
+			 exon_itr != exons.end();
+			 ++exon_itr)
+		{
+			const GFF* exon_gff = *exon_itr;
+			assert (exon_gff->start >= gene_gff.start);
+			for (uint32_t i = exon_gff->start;
+				 i < exon_gff->end;
+				 ++i)
+			{
+				assert (i - 1 < DoC.size());
+				// Did we already count this one?
+				if (!exonic_coords[i - gene_gff.start] && (!ref_str || !ref_str->is_pos_hardmasked(i - 1)))
+				{
+					total_depth += DoC[i - 1];
+				}
+				exonic_coords[i - gene_gff.start] = true;
+			}
+		}
+	}
+	
+	return total_depth;
+}
+
+uint32_t gene_depth(const GFF& gene_gff, 
+						   const vector<const GFF*>& exons,
+						   const vector<short>& DoC,
+						   fsa::Sequence* ref_str)
+{
+	uint32_t gene_DoC = 0;
+	vector<bool> exonic_coords(gene_gff.end - gene_gff.start + 1);
+	for (vector<const GFF*>::const_iterator exon_itr = exons.begin();
+		 exon_itr != exons.end();
+		 ++exon_itr)
+	{
+		const GFF* exon_gff = *exon_itr;
+		assert (exon_gff->start >= gene_gff.start);
+		for (uint32_t i = exon_gff->start;
+			 i < exon_gff->end;
+			 ++i)
+		{
+			assert (i - 1 < DoC.size());
+			// Did we already count this one?
+			if (!exonic_coords[i - gene_gff.start] && (!ref_str || !ref_str->is_pos_hardmasked(i - 1)))
+			{
+				gene_DoC += DoC[i - 1];
+			}
+			exonic_coords[i - gene_gff.start] = true;
+		}
+	}
+	
+	return gene_DoC;
+}
+
+uint32_t gene_length(const GFF& gene_gff, 
+					 const vector<const GFF*>& exons,
+					 fsa::Sequence* ref_str)
+{
+	uint32_t gene_exonic_length = 0;
+	vector<bool> exonic_coords(gene_gff.end - gene_gff.start + 1);
+	for (vector<const GFF*>::const_iterator exon_itr = exons.begin();
+		 exon_itr != exons.end();
+		 ++exon_itr)
+	{
+		const GFF* exon_gff = *exon_itr;
+		assert (exon_gff->start >= gene_gff.start);
+		for (uint32_t i = exon_gff->start;
+			 i < exon_gff->end;
+			 ++i)
+		{
+			// Did we already count this one?
+			if (!exonic_coords[i - gene_gff.start] && (!ref_str || !ref_str->is_pos_hardmasked(i - 1)))
+			{
+				gene_exonic_length++;
+			}
+			exonic_coords[i - gene_gff.start] = true;
+		}
+	}
+	
+	return gene_exonic_length;
+}
+
+double gene_mend(const GFF& gene_gff, 
+				 const vector<const GFF*>& exons,
+				 const vector<short>& DoC,
+				 uint32_t total_map_depth,
+				 fsa::Sequence* ref_str)
+{
+	vector<bool> exonic_coords(gene_gff.end - gene_gff.start + 1);
+	vector<short> gene_depths;
+	for (vector<const GFF*>::const_iterator exon_itr = exons.begin();
+		 exon_itr != exons.end();
+		 ++exon_itr)
+	{
+		const GFF* exon_gff = *exon_itr;
+		assert (exon_gff->start >= gene_gff.start);
+		for (uint32_t i = exon_gff->start;
+			 i < exon_gff->end;
+			 ++i)
+		{
+			assert (i - 1 < DoC.size());
+			// Did we already count this one?
+			if (!exonic_coords[i - gene_gff.start] && (!ref_str || !ref_str->is_pos_hardmasked(i - 1)))
+			{
+				gene_depths.push_back(DoC[i - 1]);
+			}
+			exonic_coords[i - gene_gff.start] = true;
+		}
+	}
+	double gene_mend = 0.0;
+	if (gene_depths.size())
+	{
+		sort(gene_depths.begin(), gene_depths.end());
+		double median_DoC = gene_depths[gene_depths.size()/2];
+		
+		gene_mend = /*1000000000.0 * */ (median_DoC / ((double)total_map_depth));
+	}
+	
+	return gene_mend;
+}
+
+double gene_rpkm(const GFF& gene_gff, 
+				 const vector<const GFF*>& exons,
+				 const vector<short>& DoC,
+				 uint32_t total_map_depth,
+				 fsa::Sequence* ref_str)
+{
+	uint32_t length = gene_length(gene_gff, exons, ref_str);
+	uint32_t depth = gene_depth(gene_gff, exons, DoC, ref_str);
+	double gene_avg_DoC = depth / (double) length;
+	
+	double gene_rpkm = 1000000000 * ( gene_avg_DoC / (double)total_map_depth );
+	return gene_rpkm;
+}
+
+string gene_short_name(const GFF& gene_gff)
+{
+	GFF::AttributeTable::const_iterator att_itr;
+	string gene_name;
+	att_itr = gene_gff.attributes.find("Name");
+	if (att_itr == gene_gff.attributes.end())
+	{
+		att_itr = gene_gff.attributes.find("ID");
+		if (att_itr == gene_gff.attributes.end())
+		{
+			cerr << "Malformed gene record " << gene_gff << endl; 
+			return "";
+		}
+		else
+		{
+			gene_name = att_itr->second.front();
+		}
+	}
+	else
+	{
+		gene_name = att_itr->second.front();	
+	}
+	
+	return gene_name;
+}
+
+void genes_for_ref(const GFF_database& gff_db, 
+				   const string& ref_name,
+				   GeneExonTable& gene_exons)
 {
 	
-	// Warning: 0xFFFFFFFF will overflow, hence 0xFFFFFFFE. 
-	// Need a new function to just get features by seqid.
 	GFF_database ref_features = gff_db.chromosome_features(ref_name); 
-	typedef map<string, const GFF*> GeneTable;
+	
 	typedef map<string, string> TransTable;
-	typedef map<const GFF*, vector<const GFF*> > GeneExonTable; 
 	
 	GeneTable genes;
 	TransTable transcripts;
-	GeneExonTable gene_exons;
 	
 	for(GFF_database::const_iterator gff_itr = ref_features.begin();
 		gff_itr != ref_features.end();
 		++gff_itr)
 	{
-		const GFF& gff_rec = *gff_itr;
-		if (gff_rec.type == "gene")
+		const GFF* gff_rec = new GFF(*gff_itr);
+		if (gff_rec->type == "gene")
 		{
 			GFF::AttributeTable::const_iterator att_itr;
-			att_itr = gff_rec.attributes.find("ID");
-			if (att_itr == gff_rec.attributes.end() ||
+			att_itr = gff_rec->attributes.find("ID");
+			if (att_itr == gff_rec->attributes.end() ||
 				att_itr->second.size() != 1)
 			{
-				cerr << "Malformed gene record " << gff_rec << endl; 
+				cerr << "Malformed gene record " << *gff_rec << endl; 
 				continue;
 			}
 			const string& id = att_itr->second.front();
-			genes.insert(make_pair(id, &gff_rec));
-			gene_exons.insert(make_pair(&gff_rec, vector<const GFF*>()));
+			genes.insert(make_pair(id, gff_rec));
+			gene_exons.insert(make_pair(gff_rec, vector<const GFF*>()));
 		}
 		
 	}
@@ -196,12 +369,12 @@ void gene_rpkms_for_ref(FILE* rpkm_out,
 		gff_itr != ref_features.end();
 		++gff_itr)
 	{
-		const GFF& gff_rec = *gff_itr;
-		if (gff_rec.type == "exon")
+		const GFF* gff_rec = new GFF(*gff_itr);
+		if (gff_rec->type == "exon")
 		{
 			GFF::AttributeTable::const_iterator att_itr;
-			att_itr = gff_rec.attributes.find("Parent");
-			if (att_itr == gff_rec.attributes.end())
+			att_itr = gff_rec->attributes.find("Parent");
+			if (att_itr == gff_rec->attributes.end())
 			{
 				cerr << "Malformed exon record " << gff_rec << endl; 
 				continue;
@@ -237,9 +410,9 @@ void gene_rpkms_for_ref(FILE* rpkm_out,
 				}
 				
 				const GFF* gene_for_exon = gene_exon_itr->first;
-				if (gene_for_exon->start <= gff_rec.start && gene_for_exon->end >= gff_rec.end)
+				if (gene_for_exon->start <= gff_rec->start && gene_for_exon->end >= gff_rec->end)
 				{
-					gene_exon_itr->second.push_back(&gff_rec);
+					gene_exon_itr->second.push_back(gff_rec);
 				}
 				else
 				{
@@ -249,75 +422,56 @@ void gene_rpkms_for_ref(FILE* rpkm_out,
 					cerr << "Enclosing gene:" << endl << *gene_for_exon;
 				}
 				break;
-			
+				
 			}
 		}
 	}
+}
+
+
+void mend_for_genes(FILE* quant_expression_out,
+					const vector<short>& DoC,
+					const GeneExonTable& gene_exons,
+					uint32_t map_depth,
+					fsa::Sequence* ref_str)
+{
 	
-	uint64_t total_depth = 0;
-//	for (size_t i = 0; i < DoC.size(); ++i)
-//	{
-//		total_depth += DoC[i];
-//	}
-	
-	for (GeneExonTable::iterator gene_itr = gene_exons.begin(); 
+	for (GeneExonTable::const_iterator gene_itr = gene_exons.begin(); 
 		 gene_itr != gene_exons.end();
 		 ++gene_itr)
 	{
-		GFF gene_gff = *(gene_itr->first);
-		uint32_t gene_DoC = 0;
-		uint32_t gene_exonic_length = 0;
-		vector<bool> exonic_coords(gene_gff.end - gene_gff.start + 1);
-		for (vector<const GFF*>::iterator exon_itr = gene_itr->second.begin();
-			 exon_itr != gene_itr->second.end();
-			 ++exon_itr)
-		{
-			const GFF* exon_gff = *exon_itr;
-			assert (exon_gff->start >= gene_gff.start);
-			for (uint32_t i = exon_gff->start;
-				 i < exon_gff->end;
-				 ++i)
-			{
-				// Did we already count this one?
-				if (!exonic_coords[i - gene_gff.start])
-				{
-					// if not, bump the exonic length and add this coordinates
-					// contribution to the gene's total depth of coverage.
-					gene_exonic_length++;
-					gene_DoC += DoC[i - 1];
-					total_depth += DoC[i - 1];
-
-				}
-				exonic_coords[i - gene_gff.start] = true;
-			}
-		}
-		double gene_rpkm = 1000000000 * (gene_DoC / ((double) gene_exonic_length * (double)total_depth));
-		//gene_gff.add_value<string, double>("RPKM", gene_rpkm);
-		//cout << gene_gff;
-		
-		GFF::AttributeTable::const_iterator att_itr;
-		string gene_name;
-		att_itr = gene_gff.attributes.find("Name");
-		if (att_itr == gene_gff.attributes.end())
-		{
-			att_itr = gene_gff.attributes.find("ID");
-			if (att_itr == gene_gff.attributes.end())
-			{
-				cerr << "Malformed gene record " << gene_gff << endl; 
-				continue;
-			}
-			else
-			{
-				gene_name = att_itr->second.front();
-			}
-		}
-		else
-		{
-			gene_name = att_itr->second.front();	
-		}
 		//const string& gene_name = att_itr->second.front();
-		fprintf(rpkm_out, "%s\t%lf\n", gene_name.c_str(), gene_rpkm);
+		string gene_name = gene_short_name(*(gene_itr->first));
+//		if (gene_name == "btd")
+//			int a = 5;
+		double mend = gene_mend(*(gene_itr->first), gene_itr->second, DoC, map_depth, ref_str);
+		fprintf(quant_expression_out, "%s\t%lf\n", gene_name.c_str(), mend);
 	}
+}
+
+void rpkm_for_genes(FILE* quant_expression_out,
+					const vector<short>& DoC,
+					const GeneExonTable& gene_exons,
+					uint32_t map_depth,
+					fsa::Sequence* ref_str)
+{
+	
+	for (GeneExonTable::const_iterator gene_itr = gene_exons.begin(); 
+		 gene_itr != gene_exons.end();
+		 ++gene_itr)
+	{
+		//const string& gene_name = att_itr->second.front();
+		double rpkm = gene_rpkm(*(gene_itr->first), gene_itr->second, DoC, map_depth, ref_str);
+		string gene_name = gene_short_name(*(gene_itr->first));
+		fprintf(quant_expression_out, "%s\t%lf\n", gene_name.c_str(), rpkm);
+	}
+}
+
+bool is_masked_char(char c)
+{
+	if (c == 'N' || c == 'n')
+		return true;
+	return false;
 }
 
 void driver(FILE* map1, 
@@ -327,8 +481,29 @@ void driver(FILE* map1,
 			FILE* coverage_out,
 			FILE* junctions_out,
 			GFF_database gff_db,
-			FILE* rpkm_out)
+			FILE* quant_expression_out,
+			ifstream& ref_stream)
 {
+	typedef String<char> Reference;
+	map<string, ifstream::pos_type> ref_file_offsets;
+	
+	gff_db.sort_entries();
+	
+	uint32_t total_map_depth = 0;
+	
+	while(ref_stream.good() && 
+		  !ref_stream.eof()) 
+	{
+		Reference ref_str;
+		string name;
+		readMeta(ref_stream, name, Fasta());
+		ifstream::pos_type offset = ref_stream.tellg();
+		ref_file_offsets[name] = offset;
+		read(ref_stream, ref_str, Fasta());
+	}
+
+	ref_stream.clear();
+	ref_stream.seekg(0, ios::beg);
 	
 	bool paired_end = map2 && splice_map2;
 	SequenceTable it(paired_end);
@@ -366,6 +541,23 @@ void driver(FILE* map1,
 			 ++ci)
 		{
 			vector<short> DoC;
+			fsa::Sequence* ref_seq = NULL;
+			
+			if (ref_stream.good())
+			{	
+				map<string,ifstream::pos_type>::iterator pi = ref_file_offsets.find(ci->first);
+				if (pi != ref_file_offsets.end())
+				{	
+					ifstream::pos_type pos = pi->second;
+					ref_stream.seekg(pos, ios::beg);
+					Reference ref;
+					read(ref_stream, ref, Fasta());
+					ref_seq = new fsa::Sequence("", string(toCString(ref)));
+					ref_seq->init_hardmasking(1, is_masked_char);
+					//get_mask(string(toCString(ref_seq)), mask_ref);
+				}
+			}
+			
 			const HitList* h1 = hits1.get_hits(ci->second);
 			if (h1)
 				add_hits_to_coverage(*h1, DoC);
@@ -377,10 +569,69 @@ void driver(FILE* map1,
 			
 			print_wiggle_for_ref(coverage_out, ci->first, DoC);
 			
-			if (rpkm_out != NULL)
-			{
-				gene_rpkms_for_ref(rpkm_out, ci->first, DoC, gff_db);
+			GeneExonTable gene_exons;
+			genes_for_ref(gff_db, ci->first, gene_exons);
+			total_map_depth += total_exonic_depth(gene_exons,DoC, ref_seq);
+			delete ref_seq;
+		}
+		
+		ref_stream.clear();
+		ref_stream.seekg(0, ios::beg);
+		
+		for (SequenceTable::const_iterator ci = rt.begin();
+			 ci != rt.end();
+			 ++ci)
+		{
+			vector<short> DoC;
+			fsa::Sequence* ref_seq = NULL;
+			
+			if (ref_stream.good())
+			{	
+				map<string,ifstream::pos_type>::iterator pi = ref_file_offsets.find(ci->first);
+				if (pi != ref_file_offsets.end())
+				{	
+					ifstream::pos_type pos = pi->second;
+					ref_stream.seekg(pos, ios::beg);
+					Reference ref;
+					read(ref_stream, ref, Fasta());
+					ref_seq = new fsa::Sequence("", string(toCString(ref)));
+					ref_seq->init_hardmasking(1, is_masked_char);
+					//get_mask(string(toCString(ref_seq)), mask_ref);
+				}
 			}
+			
+			const HitList* h1 = hits1.get_hits(ci->second);
+			if (h1)
+				add_hits_to_coverage(*h1, DoC);
+			
+			if (filter_junctions)
+				accept_valid_junctions(junctions, ci->second, DoC, min_isoform_fraction);
+			else
+				accept_all_junctions(junctions, ci->second);
+			
+			GeneExonTable gene_exons;
+			genes_for_ref(gff_db, ci->first, gene_exons);
+			
+			if (quant_expression_out)
+			{
+//				if (use_rpkm)
+//				{
+//					rpkm_for_genes(quant_expression_out, 
+//								   DoC, 
+//								   gene_exons, 
+//								   total_map_depth, 
+//								   ref_seq);
+//				}
+//				else
+//				{
+//					mend_for_genes(quant_expression_out, 
+//								   DoC, 
+//								   gene_exons, 
+//								   total_map_depth, 
+//								   ref_seq);
+//				}
+			}
+			delete ref_seq;
 		}
 		
 		print_junctions(junctions_out, junctions, rt);
@@ -429,7 +680,9 @@ void driver(FILE* map1,
     fprintf(stderr, "Found %d junctions from happy spliced reads\n", accepted_junctions);
 }
 
-const char *short_options = "r:I:d:s:va:AF:G:o:";
+const char *short_options = "r:I:d:s:va:AF:G:o:R:";
+
+#define USE_RPKM 260
 
 static struct option long_options[] = {
 {"insert-len",      required_argument,       0,            'I'},
@@ -442,6 +695,7 @@ static struct option long_options[] = {
 {"verbose",		no_argument,	0,							'v'},
 {"accept-all-hits",      no_argument,       0,            'A'},
 {"gff-annotations",      no_argument,       0,            'G'},
+{"ref-fasta",      no_argument,       0,            'R'},
 {"output-dir",      no_argument,       0,            'o'},
 {0, 0, 0, 0} // terminator
 };
@@ -537,6 +791,9 @@ int parse_options(int argc, char** argv)
 				break;
 			case 'G':
 				gff_file = optarg;
+				break;
+			case 'R':
+				ref_fasta = optarg;
 				break;
 			case 'o':
 				output_dir = optarg;
@@ -664,23 +921,23 @@ int main(int argc, char** argv)
 	}
 	
 	GFF_database gff_db;
-	FILE* rpkm_out = NULL;
+	FILE* quant_expression_out = NULL;
 	if (gff_file != "")
 	{
 		gff_db.from_file(gff_file);
-		gff_db.sort_entries();
 		string::size_type slash = gff_file.rfind("/");
 		string::size_type dotGFF = gff_file.rfind(".gff");
 		
-		string rpkm_out_filename;
+		string expr_out_filename;
 		if (slash == string::npos)
 			slash = 0;
 				
-		rpkm_out_filename = gff_file.substr(slash, dotGFF);
-		rpkm_out_filename += ".rpkm";
-
-		rpkm_out = fopen((output_dir + "/" + rpkm_out_filename).c_str(), "w");
+		expr_out_filename = gff_file.substr(slash, dotGFF) + ".expr";
+		
+		quant_expression_out = fopen((output_dir + "/" + expr_out_filename).c_str(), "w");
 	}
+	
+	ifstream ref_stream(ref_fasta.c_str(), ifstream::in);;
 	
     driver(map1_file, 
 		   splice_map1_file, 
@@ -689,7 +946,8 @@ int main(int argc, char** argv)
 		   coverage_file, 
 		   junctions_file, 
 		   gff_db,
-		   rpkm_out);
+		   quant_expression_out,
+		   ref_stream);
     
     return 0;
 }

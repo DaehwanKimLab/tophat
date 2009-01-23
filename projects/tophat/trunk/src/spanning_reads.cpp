@@ -836,7 +836,7 @@ void lookup_splice_in_read_index(RefID ref_ctg_id,
 		// TODO: report mismatches in the spliced bowtie output
 		fprintf(stdout, "%s\t%s\t%s|%d|%d-%d|%d|GTAG|%s\t%d\t%s\t%s\t1\n", 
 				rm.name.c_str(), // read name
-				"+", // sense of the alignment
+				rh.reverse_complement ? "-" : "+", // sense of the alignment
 				ids_to_refctgs[ref_ctg_id].c_str(), //reference contig
 				left_window_edge,
 				left_splice_coord,
