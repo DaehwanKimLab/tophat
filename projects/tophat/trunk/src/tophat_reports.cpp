@@ -502,7 +502,7 @@ void print_gene_expression(FILE* expr_out, const GETable& gene_expression)
 		 itr != gene_expression.end();
 		 ++itr)
 	{
-		fprintf(stdout, "%s\t%lf\t%lf\n", itr->first.c_str(), itr->second.rpkm, itr->second.mend);
+		fprintf(expr_out, "%s\t%lf\t%lf\n", itr->first.c_str(), itr->second.rpkm, itr->second.mend);
 	}
 }
 

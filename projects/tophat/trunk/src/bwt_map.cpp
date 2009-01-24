@@ -95,7 +95,7 @@ void get_mapped_reads(FILE* bwtf, HitTable& hits, bool spliced, bool verbose)
 				
 				uint32_t left = atoi(toks[1].c_str()) + text_offset;
 				uint32_t spliced_read_len = strlen(sequence);
-				int8_t left_splice_pos = atoi(toks[2].c_str()) - left;
+				int8_t left_splice_pos = atoi(toks[2].c_str()) - left + 1;
 				int8_t right_splice_pos = spliced_read_len - left_splice_pos;
 				
 				uint32_t right = atoi(toks[3].c_str()) + right_splice_pos;
