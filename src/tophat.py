@@ -465,6 +465,14 @@ def convert_chunk_to_maq(use_long_maq_maps, bwt_map, maq_map, idx_bfa, convert_l
     # Success
     return maq_map
 
+def tmp_name():
+    tmp_root = output_dir + "tmp/"
+    if os.path.exists(tmp_root):
+        pass
+    else:        
+        os.mkdir(tmp_root)
+    return tmp_root + os.tmpnam().split('/')[-1] 
+
 def convert_to_maq(use_long_maq_maps, bwt_map, idx_bfa, alignments_per_chunk=10000000):
     print >> sys.stderr, "[%s] Converting alignments to Maq format" % right_now()
     
@@ -474,10 +482,10 @@ def convert_to_maq(use_long_maq_maps, bwt_map, idx_bfa, alignments_per_chunk=100
     
     convert_log = open(logging_dir + "convert_to_maq.log", "w")
     #convert_log = open("/dev/null", "w")
-    tmp_bwt_name = os.tmpnam()
+    tmp_bwt_name = tmp_name()
     tmp_bwt = open(tmp_bwt_name,"w")
     #print tmp_bwt_name
-    tmp_maq = os.tmpnam()
+    tmp_maq = tmp_name()
     #print tmp_maq
     tmp_maps = [tmp_maq]
     tmp_bwts = [tmp_bwt_name]
@@ -488,10 +496,10 @@ def convert_to_maq(use_long_maq_maps, bwt_map, idx_bfa, alignments_per_chunk=100
             #print "converting chunk", num_chunks
             tmp_bwt.flush()
             convert_chunk_to_maq(use_long_maq_maps, tmp_bwt_name, tmp_maq, idx_bfa, convert_log)
-            tmp_bwt_name = os.tmpnam()
+            tmp_bwt_name = tmp_name()
             tmp_bwts.append(tmp_bwt_name)
             tmp_bwt = open(tmp_bwt_name,"w")
-            tmp_maq = os.tmpnam()
+            tmp_maq = tmp_name()
             tmp_maps.append(tmp_maq)
             num_chunks += 1
             i = 0

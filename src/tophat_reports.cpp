@@ -210,7 +210,8 @@ uint32_t gene_length(const GFF& gene_gff,
 			 ++i)
 		{
 			// Did we already count this one?
-			if (!exonic_coords[i - gene_gff.start] && (!ref_str || !ref_str->is_pos_hardmasked(i - 1)))
+			if (!exonic_coords[i - gene_gff.start] && 
+				(!ref_str || !ref_str->is_pos_hardmasked(i - 1)))
 			{
 				gene_exonic_length++;
 			}
@@ -228,7 +229,7 @@ double gene_mend(const GFF& gene_gff,
 				 fsa::Sequence* ref_str)
 {
 	vector<bool> exonic_coords(gene_gff.end - gene_gff.start + 1);
-	vector<short> gene_depths;
+	vector<double> gene_depths;
 	for (vector<const GFF*>::const_iterator exon_itr = exons.begin();
 		 exon_itr != exons.end();
 		 ++exon_itr)
@@ -241,7 +242,8 @@ double gene_mend(const GFF& gene_gff,
 		{
 			assert (i - 1 < DoC.size());
 			// Did we already count this one?
-			if (!exonic_coords[i - gene_gff.start] && (!ref_str || !ref_str->is_pos_hardmasked(i - 1)))
+			if (!exonic_coords[i - gene_gff.start] && 
+				(!ref_str || !ref_str->is_pos_hardmasked(i - 1)))
 			{
 				gene_depths.push_back(DoC[i - 1]);
 			}
@@ -254,7 +256,7 @@ double gene_mend(const GFF& gene_gff,
 		sort(gene_depths.begin(), gene_depths.end());
 		double median_DoC = gene_depths[gene_depths.size()/2];
 		
-		gene_mend = /*1000000000.0 * */ (median_DoC / ((double)total_map_depth));
+		gene_mend = 1000000000.0 * (median_DoC / (double)total_map_depth);
 	}
 	
 	return gene_mend;
@@ -442,8 +444,6 @@ void mend_for_genes(FILE* quant_expression_out,
 	{
 		//const string& gene_name = att_itr->second.front();
 		string gene_name = gene_short_name(*(gene_itr->first));
-//		if (gene_name == "btd")
-//			int a = 5;
 		double mend = gene_mend(*(gene_itr->first), gene_itr->second, DoC, map_depth, ref_str);
 		fprintf(quant_expression_out, "%s\t%lf\n", gene_name.c_str(), mend);
 	}
@@ -464,6 +464,45 @@ void rpkm_for_genes(FILE* quant_expression_out,
 		double rpkm = gene_rpkm(*(gene_itr->first), gene_itr->second, DoC, map_depth, ref_str);
 		string gene_name = gene_short_name(*(gene_itr->first));
 		fprintf(quant_expression_out, "%s\t%lf\n", gene_name.c_str(), rpkm);
+	}
+}
+
+struct GeneExpression
+{
+	GeneExpression(double R = 0.0, double M = 0.0) : rpkm(R), mend(M) {}
+	double rpkm;
+	double mend;
+};
+
+typedef map<string, GeneExpression> GETable;
+
+void calculate_gene_expression(GETable& gene_expression,
+								 const vector<short>& DoC,
+								 const GeneExonTable& gene_exons,
+								 uint32_t map_depth,
+								 fsa::Sequence* ref_str)
+{
+	for (GeneExonTable::const_iterator gene_itr = gene_exons.begin(); 
+		 gene_itr != gene_exons.end();
+		 ++gene_itr)
+	{
+		string gene_name = gene_short_name(*(gene_itr->first));
+		if (gene_name == "pxb")
+			int a = 5;
+		//const string& gene_name = att_itr->second.front();
+		double rpkm = gene_rpkm(*(gene_itr->first), gene_itr->second, DoC, map_depth, ref_str);
+		double mend = gene_mend(*(gene_itr->first), gene_itr->second, DoC, map_depth, ref_str);
+		gene_expression[gene_name] = GeneExpression(rpkm, mend);
+	}
+}
+
+void print_gene_expression(FILE* expr_out, const GETable& gene_expression)
+{
+	for (GETable::const_iterator itr = gene_expression.begin();
+		 itr != gene_expression.end();
+		 ++itr)
+	{
+		fprintf(stdout, "%s\t%lf\t%lf\n", itr->first.c_str(), itr->second.rpkm, itr->second.mend);
 	}
 }
 
@@ -578,6 +617,8 @@ void driver(FILE* map1,
 		ref_stream.clear();
 		ref_stream.seekg(0, ios::beg);
 		
+		GETable gene_expression;
+		
 		for (SequenceTable::const_iterator ci = rt.begin();
 			 ci != rt.end();
 			 ++ci)
@@ -614,26 +655,16 @@ void driver(FILE* map1,
 			
 			if (quant_expression_out)
 			{
-//				if (use_rpkm)
-//				{
-//					rpkm_for_genes(quant_expression_out, 
-//								   DoC, 
-//								   gene_exons, 
-//								   total_map_depth, 
-//								   ref_seq);
-//				}
-//				else
-//				{
-//					mend_for_genes(quant_expression_out, 
-//								   DoC, 
-//								   gene_exons, 
-//								   total_map_depth, 
-//								   ref_seq);
-//				}
+				calculate_gene_expression(gene_expression, 
+										  DoC, 
+										  gene_exons, 
+										  total_map_depth, 
+										  ref_seq);
 			}
 			delete ref_seq;
 		}
-		
+		if (quant_expression_out)
+			print_gene_expression(quant_expression_out, gene_expression);
 		print_junctions(junctions_out, junctions, rt);
 	}
 #ifdef PAIRED_END	
