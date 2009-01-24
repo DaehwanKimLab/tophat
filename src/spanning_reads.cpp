@@ -829,8 +829,8 @@ void lookup_splice_in_read_index(RefID ref_ctg_id,
 		int left_splice_coord = (int)left->pos_in_ref + (int)pos_in_l + seq_key_len - 1;
 		int right_splice_coord = (int)right->pos_in_ref + (int)pos_in_r - seq_key_len;
 		int window_length = seq.length() - seq_key_len;
-		int left_window_edge = left_splice_coord - window_length;
-		int right_window_edge = right_splice_coord + window_length;
+		int left_window_edge = left_splice_coord - (window_length - 1);
+		int right_window_edge = right_splice_coord + (window_length);
 		int align_pos = window_length - (left_str.length() + seq_key_len);
 		assert (align_pos >= 0 && align_pos <= window_length);
 		// TODO: report mismatches in the spliced bowtie output
