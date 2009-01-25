@@ -213,7 +213,8 @@ bin_PROGRAMS = \
 	spanning_reads \
 	tophat_reports \
 	juncs_db \
-	gff_juncs 
+	gff_juncs \
+	extract_reads
  
 
 #-- scripts to be installed in $prefix/bin
@@ -240,6 +241,7 @@ noinst_HEADERS = \
 	FSA/misc.h \
 	FSA/sequence.h \
 	FSA/fsa_alphabet.h \
+	tokenize.cpp \
 	fragments.h
 
 	
@@ -256,6 +258,7 @@ libtophat_a_SOURCES = \
 	FSA/sequence.cc \
 	FSA/fsa_alphabet.cc \
 	fragments.cpp \
+	tokenize.cpp \
 	gff_juncs.cpp
 
 
@@ -277,3 +280,6 @@ juncs_db_LDADD = $(top_builddir)/src/libtophat.a
 
 tophat_reports_SOURCES = tophat_reports.cpp
 tophat_reports_LDADD = $(top_builddir)/src/libtophat.a
+
+extract_reads_SOURCES = extract_reads.cpp
+extract_reads_LDADD = $(top_builddir)/src/libtophat.a

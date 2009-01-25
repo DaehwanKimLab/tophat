@@ -6,6 +6,10 @@
  *  Copyright 2009 Cole Trapnell. All rights reserved.
  *
  */
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include <cassert>
 #include <map>
 #include <set>

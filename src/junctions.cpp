@@ -7,6 +7,10 @@
  *
  */
  
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include <cassert>
 #include "junctions.h"
 
@@ -36,7 +40,7 @@ void print_junction(FILE* junctions_out,
 					const JunctionStats& s, 
 					uint32_t junc_id)
 {
-	fprintf(stdout,
+	fprintf(junctions_out,
 			"%s\t%d\t%d\tJUNC%08d\t%d\t%c\t%d\t%d\t255,0,0\t2\t%d,%d\t0,%d\n",
 			name.c_str(),
 			j.left - s.left_extent,

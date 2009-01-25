@@ -6,6 +6,11 @@
  *  Copyright 2008 Cole Trapnell. All rights reserved.
  *
  */
+
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include <cassert>
 #include <cstdio>
 #include <vector>

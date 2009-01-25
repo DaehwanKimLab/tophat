@@ -1,3 +1,17 @@
+/*
+ *  juncs_db.cpp
+ *  TopHat
+ *
+ *  Created by Cole Trapnell on 12/12/08.
+ *  Copyright 2008 Cole Trapnell. All rights reserved.
+ *
+ */
+
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
+
 #include <cassert>
 #include <cstdio>
 #include <vector>
@@ -15,7 +29,8 @@
 
 #include "common.h"
 #include "bwt_map.h"
-#include "closures.h"
+//#include "closures.h"
+#include "tokenize.h"
 #include "junctions.h"
 
 #ifdef PAIRED_END
@@ -33,7 +48,7 @@ static bool verbose = false;
 static int read_length = -1;
 void print_usage()
 {
-    fprintf(stderr, "Usage:   juncs_db <min_anchor> <read_length> <splice_coords> <ref.fa>\n");
+    fprintf(stderr, "Usage:   juncs_db <min_anchor> <read_length> <splice_coords1,...,splice_coordsN> <ref.fa>\n");
 }
 
 typedef vector<string> Mapped;
@@ -129,21 +144,6 @@ int parse_options(int argc, char** argv)
 			case 'v':
 				verbose = true;
 				break;
-//			case 'i':
-//				min_intron_length = (uint32_t)parseInt(20, "-i/--min-intron arg must be at least 40");
-//				break;
-//			case 'e':
-//				min_exon_length = (uint32_t)parseInt(20, "-e/--min-exon arg must be at least 20");
-//				break;
-//			case 'I':
-//	   			insert_len = (uint32_t)parseInt(1, "-I/--insert-len arg must be at least 1");
-//	   			break;
-//			case 's':
-//	   			insert_len_std_dev = (uint32_t)parseInt(1, "-s/--insert-stddev arg must be at least 1");
-//	   			break;
-//			case 'd':
-//	   			max_mate_inner_dist = (uint32_t)parseInt(0, "-d/--max-dist arg must be at least 0");
-//	   			break;
 			case -1: /* Done with options. */
 				break;
 			default: 
@@ -155,40 +155,44 @@ int parse_options(int argc, char** argv)
 	return 0;
 }
 
-void driver(FILE* splice_coords, 
+void driver(const vector<FILE*>& splice_coords_files, 
 			ifstream& ref_stream)
 {
 	char splice_buf[2048];
 	SequenceTable rt(true);
 	JunctionSet junctions;
-	while (fgets(splice_buf, 2048, splice_coords))
+	for (size_t i = 0; i < splice_coords_files.size(); ++i)
 	{
-		char* nl = strrchr(splice_buf, '\n');
-		char* buf = splice_buf;
-		if (nl) *nl = 0;
-		
-		/**
-		 Fields are:
-		 1) reference name
-		 2) left coord of splice (last char of the left exon)
-		 3) right coord of splice (first char of the right exon)
-		 */
-		
-		char* ref_name                   = strsep((char**)&buf, "\t");
-		char* scan_left_coord            = strsep((char**)&buf, "\t");
-		char* scan_right_coord           = strsep((char**)&buf, "\t");
-		char* orientation				 = strsep((char**)&buf, "\t");
-		
-		if (!scan_left_coord || !scan_right_coord || !orientation)
+		FILE* splice_coords = splice_coords_files[i];
+		while (fgets(splice_buf, 2048, splice_coords))
 		{
-			fprintf(stderr,"Error: malformed splice coordinate record\n");
-			exit(1);
+			char* nl = strrchr(splice_buf, '\n');
+			char* buf = splice_buf;
+			if (nl) *nl = 0;
+			
+			/**
+			 Fields are:
+			 1) reference name
+			 2) left coord of splice (last char of the left exon)
+			 3) right coord of splice (first char of the right exon)
+			 */
+			
+			char* ref_name                   = strsep((char**)&buf, "\t");
+			char* scan_left_coord            = strsep((char**)&buf, "\t");
+			char* scan_right_coord           = strsep((char**)&buf, "\t");
+			char* orientation				 = strsep((char**)&buf, "\t");
+			
+			if (!scan_left_coord || !scan_right_coord || !orientation)
+			{
+				fprintf(stderr,"Error: malformed splice coordinate record\n");
+				exit(1);
+			}
+			uint32_t ref_id = rt.get_id(ref_name);
+			uint32_t left_coord = atoi(scan_left_coord);
+			uint32_t right_coord = atoi(scan_right_coord);
+			bool antisense = *orientation == '-';
+			junctions.insert(make_pair<Junction, JunctionStats>(Junction(ref_id, left_coord, right_coord, antisense), JunctionStats()));
 		}
-		uint32_t ref_id = rt.get_id(ref_name);
-		uint32_t left_coord = atoi(scan_left_coord);
-		uint32_t right_coord = atoi(scan_right_coord);
-		bool antisense = *orientation == '-';
-		junctions.insert(make_pair<Junction, JunctionStats>(Junction(ref_id, left_coord, right_coord, antisense), JunctionStats()));
 	}
 	
 	typedef String< Dna5, Alloc<> > Reference;
@@ -247,17 +251,23 @@ int main(int argc, char** argv)
 		return 1;
 	}
 	
-	string splice_coords_file_name = argv[optind++];
-	
-	FILE* coords_file = fopen(splice_coords_file_name.c_str(), "r");
-	
-	if (!coords_file)
+	string splice_coords_file_list = argv[optind++];
+	vector<string> splice_coords_file_names;
+	vector<FILE*> coords_files;
+	tokenize(splice_coords_file_list, ",", splice_coords_file_names);
+	for (size_t s = 0; s < splice_coords_file_names.size(); ++s)
 	{
-		fprintf(stderr, "Error: cannot open %s for reading\n",
-				splice_coords_file_name.c_str());
-		exit(1);
-	}
 	
+		FILE* coords_file = fopen(splice_coords_file_names[s].c_str(), "r");
+		
+		if (!coords_file)
+		{
+			fprintf(stderr, "Error: cannot open %s for reading\n",
+					splice_coords_file_names[s].c_str());
+			exit(1);
+		}
+		coords_files.push_back(coords_file);
+	}
 	if(optind >= argc) 
 	{
 		print_usage();
@@ -274,6 +284,6 @@ int main(int argc, char** argv)
 		exit(1);
 	}
     
-	driver(coords_file, ref_stream);
+	driver(coords_files, ref_stream);
     return 0;
 }
