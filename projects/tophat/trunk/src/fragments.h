@@ -1,3 +1,5 @@
+#ifndef FRAGMENTS_H
+#define FRAGMENTS_H
 /*
  *  fragments.h
  *  TopHat
@@ -54,4 +56,4 @@ void best_fragment_mappings(uint32_t refid,
 void accept_valid_hits(BestFragmentAlignmentTable& best_status_for_fragments);
 void accept_unique_hits(BestFragmentAlignmentTable& best_status_for_fragments);
 
-
+#endif

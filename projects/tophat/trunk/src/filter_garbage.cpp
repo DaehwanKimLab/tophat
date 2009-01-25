@@ -7,6 +7,10 @@
  *	Derived from maq "catfilter", by Heng Li at Sanger
  */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include <stdio.h>
 #include <cassert>
 #include "reads.h"

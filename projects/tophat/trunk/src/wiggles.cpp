@@ -1,5 +1,7 @@
-#ifndef WIGGLES_H
-#define WIGGLES_H
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 /*
  *  wiggles.cpp
  *  TopHat
@@ -44,5 +46,3 @@ void print_wiggle_for_ref(FILE* coverage_out,
 		}
 	}
 }
-
-#endif
