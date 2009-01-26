@@ -77,6 +77,19 @@ struct BowtieHit
 		}
 	}
 	
+	bool operator==(const BowtieHit& rhs)
+	{
+	    return (insert_id == rhs.insert_id &&
+	            ref_id == rhs.ref_id &&
+	            antisense_aln == rhs.antisense_aln &&
+	            left == rhs.left && 
+	            right == rhs.right &&
+	            antisense_splice == rhs.antisense_splice &&
+	            /* DO NOT USE ACCEPTED IN COMPARISON */
+	            splice_pos_left == rhs.splice_pos_left &&
+                splice_pos_right == rhs.splice_pos_right);
+    }
+	
 	uint16_t ref_id : 15;
 	bool antisense_aln : 1;       // Whether the alignment is to the reverse strand
 	uint32_t insert_id;   // Id of the sequencing insert
@@ -186,7 +199,7 @@ public:
 	
 	HitTable(SequenceTable& insert_table, 
 			 SequenceTable& reference_table) : 
-	_insert_table(insert_table), _ref_table(reference_table) {}
+	_insert_table(insert_table), _ref_table(reference_table), _total_hits(0) {}
 	
 	const_iterator begin() const { return _hits_for_ref.begin(); }
 	const_iterator end() const { return _hits_for_ref.end(); }
@@ -203,45 +216,13 @@ public:
 						 char splice_pos_right,
 						 uint32_t read_len,
 						 bool antisense_aln,
-						 bool antisense_splice)
-	{
-		uint32_t insert_id = _insert_table.get_id(insert_name);
-		uint16_t reference_id = _ref_table.get_id(ref_name);
-		
-		pair<RefHits::iterator, bool> ret = 
-		_hits_for_ref.insert(make_pair(reference_id, HitList()));
-		
-		BowtieHit bh = BowtieHit(reference_id,
-								 insert_id, 
-								 left, 
-								 right, 
-								 splice_pos_left, 
-								 splice_pos_right, 
-								 read_len, 
-								 antisense_aln,
-								 antisense_splice);
-		
-		(*(ret.first)).second.push_back(bh);
-	}
+                         bool antisense_splice);
 	
 	void add_hit(const string& insert_name, 
 				 const string& ref_name,
 				 uint32_t left,
 				 uint32_t read_len,
-				 bool antisense)
-	{
-		uint32_t insert_id = _insert_table.get_id(insert_name);
-		uint16_t reference_id = _ref_table.get_id(ref_name);
-		
-		pair<RefHits::iterator, bool> ret = 
-		_hits_for_ref.insert(make_pair(reference_id, HitList()));
-		
-		(*(ret.first)).second.push_back(BowtieHit(reference_id, 
-												  insert_id, 
-												  left, 
-												  read_len, 
-												  antisense));
-	}
+                 bool antisense);
 	
 	void finalize()
 	{
@@ -262,12 +243,13 @@ public:
 			return &(i->second);
 	}
 	
-	
+    uint32_t total_hits() const { return _total_hits; }
 	
 private:
 	SequenceTable& _insert_table;
 	SequenceTable& _ref_table;
 	RefHits _hits_for_ref;
+    uint32_t _total_hits;
 };
 
 typedef uint32_t MateStatusMask;
