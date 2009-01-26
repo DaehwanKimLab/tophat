@@ -21,7 +21,101 @@
 
 using namespace std;
 
+void HitTable::add_spliced_hit(const string& insert_name, 
+					 const string& ref_name,
+					 uint32_t left,
+					 uint32_t right,
+					 char splice_pos_left,
+					 char splice_pos_right,
+					 uint32_t read_len,
+					 bool antisense_aln,
+					 bool antisense_splice)
+{
+	uint32_t insert_id = _insert_table.get_id(insert_name);
+	uint16_t reference_id = _ref_table.get_id(ref_name);
+	
+	pair<RefHits::iterator, bool> ret = 
+	_hits_for_ref.insert(make_pair(reference_id, HitList()));
+	
+	BowtieHit bh = BowtieHit(reference_id,
+							 insert_id, 
+							 left, 
+							 right, 
+							 splice_pos_left, 
+							 splice_pos_right, 
+							 read_len, 
+							 antisense_aln,
+							 antisense_splice);
+	
+	// Check uniqueness, in case we are adding spliced hits from 
+	// several spliced alignment sources (e.g. de novo hashing + Bowtie 
+	// against a user-supplied index).  We don't want to count the same
+	// alignment twice if it happened to be found by more than one method
+	
+    HitList& hl = ret.first->second;
+    HitList::iterator lb = lower_bound(hl.begin(), hl.end(), bh, hit_insert_id_lt);   
+	HitList::iterator ub = upper_bound(hl.begin(), hl.end(), bh, hit_insert_id_lt); 
+    for (; lb != ub && lb != hl.end(); ++lb)
+    {
+		if (*lb == bh)
+			return;
+		
+		if (lb->insert_id == bh.insert_id &&
+			lb->ref_id == bh.ref_id &&
+			lb->antisense_aln == bh.antisense_aln)
+		{
+			// If we get here, we may be looking at the same alignment
+			// However, spanning_reads may report a shorter, trimmed alignment
+			// so not all fields will be equal.  If they just disagree on the 
+			// ends, and don't indicate a different junction coord, the 
+			// alignments are the same.
 
+            if ((lb->left <= bh.left && lb->right >= bh.right) ||
+                (bh.left <= lb->left && bh.right >= lb->right))
+            {
+                int left_end_disagree     = abs((int)lb->left - (int)bh.left);
+                int left_to_gap_disagree  = abs((int)lb->splice_pos_left -
+                                                (int)bh.splice_pos_left);
+                int right_end_disagree    = abs((int)lb->right - (int)bh.right);
+                int right_to_gap_disagree = abs((int)lb->splice_pos_right - 
+                                                (int)bh.splice_pos_right);
+
+                if (left_end_disagree == left_to_gap_disagree &&
+                    right_end_disagree == right_to_gap_disagree)
+                    // One alignment is contained in the other, they agree on 
+                    // where the junction, if any, is, and they share an id
+                    // => this is a redundant aligment, so toss it
+                    return;
+            }
+			
+			
+				
+		}
+    }
+    
+    _total_hits++;
+	hl.push_back(bh);
+}
+
+void HitTable::add_hit(const string& insert_name, 
+			 const string& ref_name,
+			 uint32_t left,
+			 uint32_t read_len,
+			 bool antisense)
+{
+	uint32_t insert_id = _insert_table.get_id(insert_name);
+	uint16_t reference_id = _ref_table.get_id(ref_name);
+	
+	pair<RefHits::iterator, bool> ret = 
+	_hits_for_ref.insert(make_pair(reference_id, HitList()));
+	
+	(*(ret.first)).second.push_back(BowtieHit(reference_id, 
+											  insert_id, 
+											  left, 
+											  read_len, 
+											  antisense));
+    _total_hits++;
+}
 
 bool hit_insert_id_lt(const BowtieHit& h1, const BowtieHit& h2)
 {

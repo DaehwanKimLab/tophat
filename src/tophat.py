@@ -329,29 +329,6 @@ def check_reads(reads_files, default_seed_len, default_format, solexa_scale):
     
     #print seed_len, format, solexa_scale
     return seed_len, format, solexa_scale
-    
-def get_gff_juncs(gff_juncs_filename):
-    annotations_name = gff_juncs_filename.split('/')[-1]
-    
-    juncs_filename = output_dir + annotations_name + ".juncs"
-    juncs = open(juncs_filename, "w")
-    
-    gff_juncs_log = open(logging_dir + "gff_juncs.log", "w")
-    gff_juncs_cmd = ["gff_juncs",
-                     gff_juncs_filename]   
-    try:       
-        ret = subprocess.call(gff_juncs_cmd, 
-                              stdout=juncs,
-                              stderr=gff_juncs_log)
-                              # Bowtie reported an error
-        if ret != 0:
-            print >> sys.stderr, fail_str, "Error: gff_juncs returned an error"
-            exit(1)
-    # gff_juncs not found
-    except OSError, o:
-        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
-            print >> sys.stderr, fail_str, "Error: gff_juncs not found on this system.  Did you forget to include it in your PATH?"
-    return juncs_filename   
 
 def formatTD(td):
   hours = td.seconds // 3600
@@ -646,7 +623,8 @@ def get_gff_juncs(gff_annotation):
        
        # cvg_islands returned an error
        if retcode == 1:
-           print >> sys.stderr, "\tWarning: TopHat did not find any junctions in GFF file" 
+           print >> sys.stderr, "\tWarning: TopHat did not find any junctions in GFF file"
+           return (False, gff_juncs_out_name) 
        elif retcode > 1:
            print >> sys.stderr, fail_str, "Error: GFF junction extraction failed"
            exit(1)
@@ -655,7 +633,7 @@ def get_gff_juncs(gff_annotation):
        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
            print >> sys.stderr, fail_str, "Error: gff_juncs not found on this system"
        exit(1)
-    return gff_juncs_out_name
+    return (True, gff_juncs_out_name)
 
 
 def build_juncs_bwt_index(user_splice_fasta):
@@ -766,10 +744,12 @@ def align_spliced_reads(islands_fasta,
     return spliced_reads_name
     
 
-def compile_reports(contiguous_map, spliced_map, min_isoform_fraction, gff_annotation):
+def compile_reports(maps, min_isoform_fraction, gff_annotation):
     print >> sys.stderr, "[%s] Reporting output tracks" % right_now()
     
-    spliced_map = ','.join(spliced_map)
+    maps = [x for x in maps if (os.path.exists(x) and os.path.getsize(x) > 0)]
+    
+    maps = ','.join(maps)
     report_log = open(logging_dir + "reports.log", "w")
     junctions = "junctions.bed"
     coverage =  "coverage.wig"
@@ -780,8 +760,7 @@ def compile_reports(contiguous_map, spliced_map, min_isoform_fraction, gff_annot
         
     report_cmd.extend([coverage,
                        junctions,
-                       contiguous_map,
-                       spliced_map])            
+                       maps])            
     try:    
        retcode = subprocess.call(report_cmd, 
                                  stderr=report_log)
@@ -972,8 +951,9 @@ def main(argv=None):
         
         user_supplied_juncs = []
         if gff_annotation != None:
-            gff_juncs = get_gff_juncs(gff_annotation)
-            user_supplied_juncs.append(gff_juncs)
+            (found_juncs, gff_juncs) = get_gff_juncs(gff_annotation)
+            if found_juncs == True:
+                user_supplied_juncs.append(gff_juncs)
             
         # Now start the timing consuming stuff
         kept_reads = filter_garbage(reads_list, format_flag)
@@ -1020,16 +1000,22 @@ def main(argv=None):
         
         if find_novel_juncs == True:                                               
             novel_juncs = align_spliced_reads(islands_fasta, 
-                                                islands_gff, 
-                                                unmapped_reads,
-                                                seed_length,
-                                                min_anchor_length,
-                                                splice_mismatches,
-                                                min_intron_length,
-                                                max_intron_length,
-                                                max_mem)
+                                              islands_gff, 
+                                              unmapped_reads,
+                                              seed_length,
+                                              min_anchor_length,
+                                              splice_mismatches,
+                                              min_intron_length,
+                                              max_intron_length,
+                                              max_mem)
             spliced_reads.append(novel_juncs)
-        compile_reports(bwt_map, spliced_reads, min_isoform_fraction, gff_annotation)
+        
+        maps = [bwt_map]
+        maps.extend(spliced_reads)
+            
+        compile_reports(maps, 
+                        min_isoform_fraction, 
+                        gff_annotation)
         
         finish_time = datetime.now()
         duration = finish_time - start_time

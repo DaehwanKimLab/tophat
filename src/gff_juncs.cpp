@@ -147,7 +147,7 @@ void get_junctions_from_gff(const GFF_database& gff_db,
 				fprintf(stderr, "Offending exons overlapped:\n");
 				cerr << *five_prime_ex;
 				cerr << *three_prime_ex;
-				exit(1);
+				exit(2);
 			}
 			fprintf(stdout, "%s\t%d\t%d\t%c\n",
 					five_prime_ex->seqid.c_str(),
@@ -172,7 +172,7 @@ int main(int argc, char** argv)
 	if(optind >= argc) 
 	{
 		print_usage();
-		return 1;
+		return 2;
 	}
 	
 	string gff_filename = argv[optind++];
@@ -181,7 +181,7 @@ int main(int argc, char** argv)
 	if (gff_filename == "")
 	{
 		print_usage();
-		exit(1);
+		exit(2);
 	}
 	
 	gff_db.from_file(gff_filename);
@@ -190,7 +190,7 @@ int main(int argc, char** argv)
 	JunctionSet junctions;
 	get_junctions_from_gff(gff_db, junctions); 
     fprintf(stderr, "Extracted %ud junctions from %s\n", 
-            junctions.size(), gff_filename.c_str());
+            (uint32_t)junctions.size(), gff_filename.c_str());
     if (junctions.size())
         return 1;
     return 0;
