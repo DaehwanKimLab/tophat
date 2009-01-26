@@ -39,7 +39,6 @@ Options:
     --no-novel                                 [ default: off   ]
 '''
 
-
 class Usage(Exception):
     def __init__(self, msg):
         self.msg = msg
@@ -831,6 +830,9 @@ def exclude_reads(reads_file, reads_format, read_ids):
     os.remove(tmp_read_ids_name)
     return reads_file
 
+def get_version():
+   return "0.8.1"
+    
 def main(argv=None):
     
     
@@ -839,7 +841,8 @@ def main(argv=None):
     try:
         try:
             opts, args = getopt.getopt(argv[1:], "hvXp:s:m:M:F:a:i:I:e:b:G:", 
-                                        ["help",  
+                                        ["version",
+                                         "help",  
                                          "solexa-quals",
                                          "num-threads=",
                                          "seed-length=",
@@ -876,8 +879,9 @@ def main(argv=None):
         find_GFF_juncs = True
         # option processing
         for option, value in opts:
-            if option == "-v":
-                verbose = True
+            if option in ("-v", "--version"):
+                print "TopHat v%s" % (get_version())
+                exit(0)
             if option in ("-h", "--help"):
                 raise Usage(help_message)
             if option in ("-a", "--min-anchor"):
@@ -942,7 +946,7 @@ def main(argv=None):
         reads_list = args[1]
         
         print >> sys.stderr
-        print >> sys.stderr, "[%s] Beginning TopHat run" % right_now()
+        print >> sys.stderr, "[%s] Beginning TopHat run (v%s)" % (right_now(), get_version())
         print >> sys.stderr, "-----------------------------------------------" 
         
         start_time = datetime.now()
