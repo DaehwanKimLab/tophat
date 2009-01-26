@@ -644,8 +644,10 @@ def get_gff_juncs(gff_annotation):
                                  stderr=gff_juncs_log,
                                  stdout=gff_juncs_out)
        
-       # cvg_islands returned an error 
-       if retcode > 0:
+       # cvg_islands returned an error
+       if retcode == 1:
+           print >> sys.stderr, "\tWarning: TopHat did not find any junctions in GFF file" 
+       elif retcode > 1:
            print >> sys.stderr, fail_str, "Error: GFF junction extraction failed"
            exit(1)
     # cvg_islands not found
@@ -686,6 +688,7 @@ def build_juncs_index(user_supplied_juncs, min_anchor, read_len, reference_fasta
     juncs_db_log = open(logging_dir + "juncs_db.log", "w")
     
     user_splices_out_name  = output_dir + "user_splices.fa"
+    
     user_splices_out = open(user_splices_out_name, "w")
     
     juncs_db_cmd = [bin_dir + "juncs_db", 
