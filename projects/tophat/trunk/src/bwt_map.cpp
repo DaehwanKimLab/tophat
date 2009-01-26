@@ -139,6 +139,11 @@ void get_mapped_reads(FILE* bwtf, HitTable& hits, bool spliced, bool verbose)
 										 string(toks[6]) == "rev");
 				}
 			}
+			else
+			{
+			    fprintf(stderr, "Warning: found malformed splice record, skipping\n");
+    			continue;
+		    }
 		}
 		else
 		{
