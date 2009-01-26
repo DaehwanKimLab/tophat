@@ -241,7 +241,7 @@ noinst_HEADERS = \
 	FSA/misc.h \
 	FSA/sequence.h \
 	FSA/fsa_alphabet.h \
-	tokenize.cpp \
+	tokenize.h \
 	fragments.h
 
 	
