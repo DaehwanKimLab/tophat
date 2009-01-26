@@ -831,7 +831,7 @@ def exclude_reads(reads_file, reads_format, read_ids):
     return reads_file
 
 def get_version():
-   return "0.8.1-a"
+   return "0.8.1"
     
 def main(argv=None):
     
