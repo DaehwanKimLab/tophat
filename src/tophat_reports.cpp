@@ -158,7 +158,8 @@ uint32_t total_exonic_depth(const GeneExonTable& genes,
 					break;
 				
 				// Did we already count this one?
-				if (!exonic_coords[i - gene_gff.start] && (!ref_str || !ref_str->is_pos_hardmasked(i - 1)))
+				if (!exonic_coords[i - gene_gff.start] && 
+				    (!ref_str || !ref_str->is_pos_hardmasked(i - 1)))
 				{
 					total_depth += DoC[i - 1];
 				}
@@ -190,7 +191,8 @@ uint32_t gene_depth(const GFF& gene_gff,
 			if (i - 1 >= DoC.size())
 				break;
 			// Did we already count this one?
-			if (!exonic_coords[i - gene_gff.start] && (!ref_str || !ref_str->is_pos_hardmasked(i - 1)))
+			if (!exonic_coords[i - gene_gff.start] && 
+			    (!ref_str || !ref_str->is_pos_hardmasked(i - 1)))
 			{
 				gene_DoC += DoC[i - 1];
 			}
