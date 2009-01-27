@@ -15,7 +15,6 @@
 #include <string>
 
 #include "common.h"
-#include "junctions.h"
 #include "FSA/gff.h"
 
 using namespace std;
@@ -55,8 +54,7 @@ int parse_options(int argc, char** argv)
 	return 0;
 }
 
-void get_junctions_from_gff(const GFF_database& gff_db,
-							JunctionSet& junctions)
+uint32_t get_junctions_from_gff(const GFF_database& gff_db)
 {
 	// Table to hold the exons for each transcript, we'll make introns 
 	// from these below
@@ -65,6 +63,8 @@ void get_junctions_from_gff(const GFF_database& gff_db,
 	typedef map<const GFF*, vector<const GFF*> > TransExonTable; 
 	TransTable transcripts;
 	TransExonTable transcript_exons;
+	
+    uint32_t num_juncs_reported = 0;
 	
 	for(GFF_database::const_iterator gff_itr = gff_db.begin();
 		gff_itr != gff_db.end();
@@ -149,16 +149,18 @@ void get_junctions_from_gff(const GFF_database& gff_db,
 				cerr << *three_prime_ex;
 				exit(2);
 			}
+			
 			fprintf(stdout, "%s\t%d\t%d\t%c\n",
 					five_prime_ex->seqid.c_str(),
 					five_prime_ex->end - 1,
 					three_prime_ex->start - 1,
 					five_prime_ex->strand);
+            ++num_juncs_reported;
 			++curr_itr;
 			++prev_itr;
 		}
 	}
-	
+    return num_juncs_reported;
 	
 }
 
@@ -187,11 +189,10 @@ int main(int argc, char** argv)
 	gff_db.from_file(gff_filename);
     gff_db.sort_entries();
 	
-	JunctionSet junctions;
-	get_junctions_from_gff(gff_db, junctions); 
+	uint32_t num_juncs_reported = get_junctions_from_gff(gff_db); 
     fprintf(stderr, "Extracted %u junctions from %s\n", 
-            (uint32_t)junctions.size(), gff_filename.c_str());
-    if (junctions.size())
+            num_juncs_reported, gff_filename.c_str());
+    if (num_juncs_reported)
         return 1;
     return 0;
 }
