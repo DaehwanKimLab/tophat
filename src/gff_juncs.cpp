@@ -192,7 +192,7 @@ int main(int argc, char** argv)
 	uint32_t num_juncs_reported = get_junctions_from_gff(gff_db); 
     fprintf(stderr, "Extracted %u junctions from %s\n", 
             num_juncs_reported, gff_filename.c_str());
-    if (num_juncs_reported)
+    if (!num_juncs_reported)
         return 1;
     return 0;
 }
