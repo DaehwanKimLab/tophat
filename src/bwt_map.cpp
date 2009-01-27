@@ -18,6 +18,7 @@
 
 #include "common.h"
 #include "bwt_map.h"
+#include "tokenize.h"
 
 using namespace std;
 
@@ -180,27 +181,49 @@ void get_mapped_reads(FILE* bwtf, HitTable& hits, bool spliced, bool verbose)
 		{
 			// Parse the text_name field to recover the splice coords
 			vector<string> toks;
-			char* pch = strtok (text_name,"|-");
-			while (pch != NULL)
-			{
-				toks.push_back(pch);
-				pch = strtok (NULL, "|-");
-			}
 			
-			if (toks.size() == 7)
+            tokenize_strict(text_name, "|", toks);
+            
+            int num_extra_toks = toks.size() - 6;
+			
+			if (num_extra_toks >= 0)
 			{
-				string contig = toks[0];
+                static const uint8_t left_window_edge_field = 1;
+                static const uint8_t splice_field = 2;
+                static const uint8_t right_window_edge_field = 3;
+                //static const uint8_t junction_type_field = 4;
+                static const uint8_t strand_field = 5;
+                
+                string contig = toks[0];
+                for (int t = 1; t <= num_extra_toks; ++t)
+                {
+                    contig += "|";
+                    contig += toks[t];
+                }
 				
-				uint32_t left = atoi(toks[1].c_str()) + text_offset;
+                vector<string> splice_toks;
+                tokenize(toks[num_extra_toks + splice_field], "-", splice_toks);
+                if (splice_toks.size() != 2)
+                {			
+                    fprintf(stderr, "Warning: found malformed splice record, skipping\n");
+                 	continue;			       
+                }
+				
+				uint32_t left = atoi(toks[num_extra_toks + left_window_edge_field].c_str()) + text_offset;
 				uint32_t spliced_read_len = strlen(sequence);
-				int8_t left_splice_pos = atoi(toks[2].c_str()) - left + 1;
+				int8_t left_splice_pos = atoi(splice_toks[0].c_str()) - left + 1;
 				int8_t right_splice_pos = spliced_read_len - left_splice_pos;
 				
-				uint32_t right = atoi(toks[3].c_str()) + right_splice_pos;
-				atoi(toks[4].c_str());
+				uint32_t right = atoi(splice_toks[1].c_str()) + right_splice_pos;
+				atoi(toks[right_window_edge_field].c_str());
 				
-				assert (string(toks[6]) == "rev" || string(toks[6]) == "fwd");
-				assert (orientation == '-' || orientation == '+');
+				string junction_strand = toks[num_extra_toks + strand_field];
+				if (!(junction_strand == "rev" || junction_strand == "fwd")||
+				    !(orientation == '-' || orientation == '+'))
+				{
+				    fprintf(stderr, "Warning: found malformed splice record, skipping\n");
+        			continue;
+			    }
 				
 				//vector<string> mismatch_toks;
 				char* pch = strtok (mismatches,",");
@@ -230,7 +253,7 @@ void get_mapped_reads(FILE* bwtf, HitTable& hits, bool spliced, bool verbose)
 										 right_splice_pos, 
 										 spliced_read_len, 
 										 orientation == '-', 
-										 string(toks[6]) == "rev");
+										 junction_strand == "rev" );
 				}
 			}
 			else
