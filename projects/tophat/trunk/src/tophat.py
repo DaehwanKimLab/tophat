@@ -839,7 +839,8 @@ def main(argv=None):
                                          "extend-islands=",
                                          "GFF=",
                                          "no-novel-juncs",
-                                         "no-gff-juncs"])
+                                         "no-gff-juncs",
+                                         "skip-check-reads"])
         except getopt.error, msg:
             raise Usage(msg)
         
@@ -859,6 +860,8 @@ def main(argv=None):
         gff_annotation = None
         find_novel_juncs = True
         find_GFF_juncs = True
+        skip_check_reads = False
+        
         # option processing
         for option, value in opts:
             if option in ("-v", "--version"):
@@ -920,6 +923,8 @@ def main(argv=None):
                 find_novel_juncs = False
             if option == "--no-gff-juncs":
                 find_GFF_juncs = False
+            if option == "--skip-check-reads":
+                skip_check_reads = True 
                 
         if len(args) < 2:
             raise Usage(use_message)
@@ -940,7 +945,8 @@ def main(argv=None):
         use_long_maq_maps = check_maq()
         check_bowtie()
         
-        (seed_length, reads_format, solexa_scale) = check_reads(reads_list, 
+        if skip_check_reads == False:
+            (seed_length, reads_format, solexa_scale) = check_reads(reads_list, 
                                                                 seed_length, 
                                                                 reads_format, 
                                                                 solexa_scale) 
