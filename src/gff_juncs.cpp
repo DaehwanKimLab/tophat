@@ -189,7 +189,7 @@ int main(int argc, char** argv)
 	
 	JunctionSet junctions;
 	get_junctions_from_gff(gff_db, junctions); 
-    fprintf(stderr, "Extracted %ud junctions from %s\n", 
+    fprintf(stderr, "Extracted %u junctions from %s\n", 
             (uint32_t)junctions.size(), gff_filename.c_str());
     if (junctions.size())
         return 1;
