@@ -542,7 +542,7 @@ void load_hits(const vector<string>& filenames,
         size_t num_hits_before_load = hits.total_hits();
         get_mapped_reads(map, hits, spliced);
         fprintf(stderr, "Loaded %d hits from %s\n", 
-                hits.total_hits() - num_hits_before_load, 
+                (int)hits.total_hits() - (int)num_hits_before_load, 
                 filename.c_str());
     }
 }

@@ -8,4 +8,7 @@ void tokenize(const std::string& s,
               const std::string& delims,
               std::vector<std::string>& ss);
 
+void tokenize_strict(const string& s,
+                     const string& delims, 
+                     vector<string>& ss);
 #endif /*TOKENIZE_H_*/
