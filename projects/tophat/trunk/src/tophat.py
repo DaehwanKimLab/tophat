@@ -36,7 +36,8 @@ Options:
     -M/--max-mem                   <int>       [ default: 1024  ]
     -p/--num-threads               <int>       [ default: 1     ]
     -G/--GFF                       <filename>
-    --no-novel                                 [ default: off   ]
+    --no-novel-juncs                           [ default: off   ]
+    --no-gff-juncs                             [ default: off   ]
 '''
 
 class Usage(Exception):
