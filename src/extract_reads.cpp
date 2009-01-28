@@ -56,7 +56,7 @@ void extract_reads(FILE *fa, const READSET& selected_reads)
 		}
 		reads_examined++;
 		bool read_in_set = selected_reads.find(read.name) != selected_reads.end();
-		if (read_in_set || (!read_in_set && invert_selection))
+		if ((read_in_set && !invert_selection) || (!read_in_set && invert_selection))
 		{
 			++num_reads;
 			if (format == FASTA)
@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
 	int c;
 	unsigned int chunk_size = 0xFFFFFFFF;
 	// Parse command line options
-	while ((c = getopt(argc, argv, "hqfr:")) >= 0) {
+	while ((c = getopt(argc, argv, "hqfr:v")) >= 0) {
 		switch (c) {
 			case 'h': 
 			{
@@ -175,7 +175,13 @@ int main(int argc, char *argv[])
 		return 1;
 	} 
 	
-	FILE* f_selected_reads = fopen(argv[optind],"r");
+	string selected_reads_name = argv[optind];
+	FILE* f_selected_reads = fopen(selected_reads_name.c_str(),"r");
+	if (!f_selected_reads)
+	{
+		fprintf(stderr, "Error: could not open %s\n", selected_reads_name.c_str());
+		exit(1);
+	}
 	
 	fp = stdin;
 	//fp = (strcmp(argv[optind], "-") == 0)? stdin : fopen(argv[optind], "r");
