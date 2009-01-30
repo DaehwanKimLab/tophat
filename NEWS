@@ -8,6 +8,9 @@
   Parent heirarchy. Users are encouraged to treat GFF support as unstable and
   interpret their results with caution.
 
+  TopHat 0.8.1 uses some code kindly provided by Robert Bradley. The
+  code originally came from Rob's statistical alignment package FSA. 
+
 * Several minor bugfixes.
 		 
 	 
