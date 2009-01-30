@@ -7,7 +7,7 @@ AC_PREFIX_DEFAULT([`pwd`])
 AC_CONFIG_SRCDIR([src/reads.h])
 AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_HEADERS([config.h])
-AM_INIT_AUTOMAKE([-Wall foreign])
+AM_INIT_AUTOMAKE([-Wall gnits])
 
 AC_ARG_ENABLE(debug,
 	AC_HELP_STRING([--enable-debug],[build debug library (default=no)]),,enable_debug=no)
