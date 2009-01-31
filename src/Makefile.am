@@ -1,6 +1,6 @@
 include $(top_srcdir)/config/tophat.mk
 
-#SUBDIRS = FSA
+#SUBDIRS = samtools
 
 #AM_CXXFLAGS = -I$(top_srcdir)/src/SeqAn-1.1
 
@@ -236,6 +236,17 @@ noinst_HEADERS = \
 	alphabet.h \
 	timer.h \
 	closures.h \
+	samtools/bam.h \
+	samtools/bam_endian.h \
+	samtools/bam_maqcns.h \
+	samtools/bgzf.h \
+	samtools/faidx.h \
+	samtools/glf.h \
+	samtools/khash.h \
+	samtools/kseq.h \
+	samtools/ksort.h \
+	samtools/razf.h \
+	samtools/zutil.h \
 	FSA/regexp.h \
 	FSA/gff.h \
 	FSA/misc.h \
@@ -261,7 +272,6 @@ libtophat_a_SOURCES = \
 	tokenize.cpp \
 	gff_juncs.cpp
 
-
 #-- program sources
 cvg_islands_SOURCES = cvg_islands.cpp
 cvg_islands_LDADD = -lz $(top_builddir)/src/libtophat.a
@@ -279,7 +289,7 @@ juncs_db_SOURCES = juncs_db.cpp
 juncs_db_LDADD = $(top_builddir)/src/libtophat.a
 
 tophat_reports_SOURCES = tophat_reports.cpp
-tophat_reports_LDADD = $(top_builddir)/src/libtophat.a
+tophat_reports_LDADD = $(top_builddir)/src/libtophat.a 
 
 extract_reads_SOURCES = extract_reads.cpp
 extract_reads_LDADD = $(top_builddir)/src/libtophat.a
