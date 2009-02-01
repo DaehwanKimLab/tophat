@@ -58,9 +58,9 @@ bool verbose = false;
 void print_usage()
 {
 #ifdef PAIRED_END
-    fprintf(stderr, "Usage:   tophat_reports <coverage.wig> <junctions.bed> <map1.bwtout> [splice_map1.sbwtout] [map2.bwtout] [splice_map2.sbwtout]\n");
+    fprintf(stderr, "Usage:   tophat_reports <coverage.wig> <junctions.bed> <accepted_hits.sam> <map1.bwtout> [splice_map1.sbwtout] [map2.bwtout] [splice_map2.sbwtout]\n");
 #else
-    fprintf(stderr, "Usage:   tophat_reports <coverage.wig> <junctions.bed> <map1.bwtout> [splice_map1.sbwtout]\n");
+    fprintf(stderr, "Usage:   tophat_reports <coverage.wig> <junctions.bed> <accepted_hits.sam> <map1.bwtout> [splice_map1.sbwtout]\n");
 #endif
 }
 
@@ -524,7 +524,8 @@ bool is_masked_char(char c)
     return false;
 }
 
-void load_hits(const vector<string>& filenames,
+void load_hits(HitFactory& hit_factory,
+			   const vector<string>& filenames,
                HitTable& hits)
 {
     for (size_t i = 0; i < filenames.size(); ++i)
@@ -540,26 +541,250 @@ void load_hits(const vector<string>& filenames,
         }
         fprintf(stderr, "Loading hits from %s\n", filename.c_str());
         size_t num_hits_before_load = hits.total_hits();
-        get_mapped_reads(map, hits, spliced);
+        get_mapped_reads(map, hits, hit_factory, spliced);
         fprintf(stderr, "Loaded %d hits from %s\n", 
                 (int)hits.total_hits() - (int)num_hits_before_load, 
                 filename.c_str());
     }
 }
 
-void load_hits(const string& left_read_maplist,
+void load_hits(HitFactory& hit_factory,
+			   const string& left_read_maplist,
                HitTable& left_hits,
                const string* right_read_maplist,
                HitTable* right_hits)
 {
     vector<string> left_filenames;
     tokenize(left_read_maplist, ",", left_filenames);
-    load_hits(left_filenames, left_hits);
+    load_hits(hit_factory, left_filenames, left_hits);
     if (right_read_maplist && right_hits)
     {
         vector<string> right_filenames;
         tokenize(*right_read_maplist, ",", right_filenames);
-        load_hits(right_filenames, *right_hits);
+        load_hits(hit_factory, right_filenames, *right_hits);
+    }
+}
+
+void print_sam_for_hit(FILE* fout, 
+					   const char* bwt_buf, 
+					   bool spliced)
+{
+	const char* bwt_fmt_str = "%s %c %s %d %s %s %d %s";
+	static const int buf_size = 256;
+	char orientation;
+	char read_name[buf_size];
+	int bwtf_ret = 0;
+	//uint32_t seqid = 0;
+	char text_name[buf_size];
+	unsigned int text_offset;
+	char sequence[buf_size];
+	
+	uint32_t sam_flag = 0;
+	uint32_t sam_pos = 0;
+	uint32_t map_quality = 255;
+	char cigar[256];
+	string mate_ref_name = "*";
+	uint32_t mate_pos = 0;
+	uint32_t insert_size = 0;
+	char qualities[buf_size];
+	unsigned int other_occs;
+	char mismatches[buf_size];
+	memset(mismatches, 0, sizeof(mismatches));
+	// Get a new record from the tab-delimited Bowtie map
+	bwtf_ret = sscanf(bwt_buf,
+					  bwt_fmt_str,
+					  read_name,
+					  &orientation,
+					  text_name,   // name of reference sequence
+					  &text_offset,
+					  sequence,
+					  qualities,
+					  &other_occs,
+					  mismatches);
+	
+	// If we didn't get enough fields, this record is bad, so skip it
+	if (bwtf_ret > 0 && bwtf_ret < 6)
+	{
+		//fprintf(stderr, "Warning: found malformed record, skipping\n");
+		return;
+	}
+	
+	// Stripping the slash and number following it gives the insert name
+	char* slash = strrchr(read_name, '/');
+	if (slash)
+	{
+		*slash = 0;
+	}
+	int read_len = strlen(sequence);
+	
+	// Add this alignment to the table of hits for this half of the
+	// Bowtie map
+	if (spliced)
+	{
+		// Parse the text_name field to recover the splice coords
+		vector<string> toks;
+		
+		tokenize_strict(text_name, "|", toks);
+		
+		int num_extra_toks = toks.size() - 6;
+		
+		if (num_extra_toks >= 0)
+		{
+			static const uint8_t left_window_edge_field = 1;
+			static const uint8_t splice_field = 2;
+			static const uint8_t right_window_edge_field = 3;
+			//static const uint8_t junction_type_field = 4;
+			static const uint8_t strand_field = 5;
+			
+			string contig = toks[0];
+			for (int t = 1; t <= num_extra_toks; ++t)
+			{
+				contig += "|";
+				contig += toks[t];
+			}
+			
+			vector<string> splice_toks;
+			tokenize(toks[num_extra_toks + splice_field], "-", splice_toks);
+
+			
+			uint32_t left = atoi(toks[num_extra_toks + left_window_edge_field].c_str()) + text_offset;
+			
+			sam_pos = left + 1;
+			
+			uint32_t spliced_read_len = strlen(sequence);
+			uint32_t left_splice_coord = atoi(splice_toks[0].c_str());
+			uint32_t right_splice_coord = atoi(splice_toks[1].c_str());
+			int8_t left_splice_overhang = left_splice_coord - left + 1;
+			int8_t right_splice_overhang = spliced_read_len - left_splice_overhang;
+			
+			uint32_t right = atoi(splice_toks[1].c_str()) + right_splice_overhang;
+			
+			sprintf(cigar, 
+					"%dM%dN%dM", 
+					left_splice_overhang,
+					right_splice_coord - left_splice_coord - 1,
+					right_splice_overhang);
+			
+			//vector<string> mismatch_toks;
+			char* pch = strtok (mismatches,",");
+			bool mismatch_in_anchor = false;
+			while (pch != NULL)
+			{
+				char* colon = strchr(pch, ':');
+				if (colon) 
+				{
+					*colon = 0;
+					int mismatch_pos = atoi(pch);
+					if ((orientation == '+' && abs(mismatch_pos - left_splice_overhang) < 5) ||
+						(orientation == '-' && abs(((int)spliced_read_len - left_splice_overhang + 1) - mismatch_pos)) < 5)
+						mismatch_in_anchor = true;
+				}
+				//mismatch_toks.push_back(pch);
+				pch = strtok (NULL, ",");
+			}
+			strcpy(text_name, contig.c_str());
+			//strcpy(sequence, "*");
+			//strcpy(qualities,"*");
+		}
+	}
+	else
+	{
+		sam_pos = text_offset + 1;
+		sprintf(cigar, "%dM", read_len);
+	}
+	
+	if (orientation == '-')
+		sam_flag |= 0x0010; // BAM_FREVERSE
+	
+	fprintf(fout,
+			"%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\n",
+			read_name,
+			sam_flag,
+			text_name,
+			sam_pos,
+			map_quality,
+			cigar,
+			mate_ref_name.c_str(),
+			mate_pos,
+			insert_size,
+			sequence,
+			qualities);
+}
+
+
+
+void print_sam_for_accepted_hits(FILE* fout,
+								 HitFactory& hit_factory,
+								 const vector<string>& filenames,
+								 HitTable& hits)
+{
+    for (size_t i = 0; i < filenames.size(); ++i)
+    {
+        const string& filename = filenames[i];
+        bool spliced = (filename.rfind(".sbwtout") != string::npos);
+        FILE* map = fopen(filename.c_str(), "r");
+		
+        if (map == NULL)
+        {
+            fprintf(stderr, "Error: could not open %s\n", filename.c_str());
+            exit(1);
+        }
+        //fprintf(stderr, "Loading hits from %s\n", filename.c_str());
+        size_t num_hits_before_load = hits.total_hits();
+		
+		char bwt_buf[2048];
+		uint32_t reads_extracted = 0;
+		
+		while (fgets(bwt_buf, 2048, map))
+		{
+			// Chomp the newline
+			char* nl = strrchr(bwt_buf, '\n');
+			if (nl) *nl = 0;
+			string clean_buf = bwt_buf;
+			// Get a new record from the tab-delimited Bowtie map
+			BowtieHit bh;
+			if (hit_factory.get_hit_from_buf(bwt_buf, spliced, bh))
+			{
+				// Only check uniqueness if these hits are spliced
+				// hits.add_hit(bh, spliced);
+				const HitList* hit_list = hits.get_hits(bh.ref_id);
+				if (!hit_list ||
+					!binary_search(hit_list->begin(), hit_list->end(), bh, hit_insert_id_lt))
+					continue;
+				//fprintf(fout, "%s\n", clean_buf.c_str());
+				print_sam_for_hit(fout, clean_buf.c_str(), spliced);
+				
+			}
+			reads_extracted++;
+		}
+		
+		// This will sort the map by insert id.
+		
+//		if (verbose)
+//		{
+//			fprintf(stderr, "Extracted %d alignments from Bowtie map\n", reads_extracted);
+//		}
+//        fprintf(stderr, "Loaded %d hits from %s\n", 
+//                (int)hits.total_hits() - (int)num_hits_before_load, 
+//                filename.c_str());
+    }
+}
+
+void print_sam_for_accepted_hits(FILE* fout, 
+								 HitFactory& hit_factory,
+								 const string& left_read_maplist,
+								 HitTable& left_hits,
+								 const string* right_read_maplist,
+								 HitTable* right_hits)
+{
+    vector<string> left_filenames;
+    tokenize(left_read_maplist, ",", left_filenames);
+    print_sam_for_accepted_hits(fout, hit_factory, left_filenames, left_hits);
+    if (right_read_maplist && right_hits)
+    {
+        vector<string> right_filenames;
+        tokenize(*right_read_maplist, ",", right_filenames);
+        print_sam_for_accepted_hits(fout, hit_factory, right_filenames, *right_hits);
     }
 }
 
@@ -567,6 +792,7 @@ void driver(const string& left_maps,
             const string* right_maps,
             FILE* coverage_out,
             FILE* junctions_out,
+			FILE* accepted_hits_out,
             GFF_database gff_db,
             FILE* quant_expression_out,
             ifstream& ref_stream)
@@ -597,16 +823,19 @@ void driver(const string& left_maps,
     // Load the set of left maps, and if provided, the set of right maps
     SequenceTable it(false);
     SequenceTable rt(true);
-    HitTable left_hits(it,rt);
+	
+	HitFactory hit_factory(it,rt);
+	
+    HitTable left_hits;
     HitTable* right_hits = NULL;
     if (right_maps != NULL)
     {
         // FIXME: verify that it's ok to toss the read ids for PE mode.
         // we should still just be able to hash
-        right_hits = new HitTable(it,rt);
+        right_hits = new HitTable();
     }
 
-    load_hits(left_maps, left_hits, right_maps, right_hits);
+    load_hits(hit_factory, left_maps, left_hits, right_maps, right_hits);
 
     JunctionSet junctions;
 
@@ -759,9 +988,28 @@ void driver(const string& left_maps,
     for (JunctionSet::iterator itr = junctions.begin(); itr != junctions.end(); ++itr)
     {
         if(itr->second.accepted)
+		{
             accepted_junctions++;
+		}
+		else
+		{
+			JunctionStats& s = itr->second;
+			for (std::set<BowtieHit*>::iterator hi = s.supporting_hits.begin();
+				 hi != s.supporting_hits.end();
+				 ++hi)
+			{
+				(*hi)->accepted = false;
+			}
+		}
     }
-
+	
+	print_sam_for_accepted_hits(accepted_hits_out, 
+								hit_factory, 
+								left_maps, 
+								left_hits, 
+								right_maps, 
+								right_hits);
+	
     fprintf(stderr, "Found %d junctions from happy spliced reads\n", accepted_junctions);
 }
 
@@ -921,6 +1169,14 @@ int main(int argc, char** argv)
         print_usage();
         return 1;
     }
+	
+	string accepted_hits_file_name = argv[optind++];
+	
+    if(optind >= argc)
+    {
+        print_usage();
+        return 1;
+    }
 
     string left_maps = argv[optind++];
     string* right_maps = NULL;
@@ -946,7 +1202,14 @@ int main(int argc, char** argv)
         exit(1);
     }
 
-
+    FILE* accepted_hits_file = fopen((output_dir + "/" + accepted_hits_file_name).c_str(), "w");
+    if (accepted_hits_file == NULL)
+    {
+        fprintf(stderr, "Error: cannot open %s for writing\n",
+                accepted_hits_file_name.c_str());
+        exit(1);
+    }
+	
     GFF_database gff_db;
     FILE* quant_expression_out = NULL;
     if (gff_file != "")
@@ -970,6 +1233,7 @@ int main(int argc, char** argv)
            right_maps,
            coverage_file,
            junctions_file,
+		   accepted_hits_file,
            gff_db,
            quant_expression_out,
            ref_stream);

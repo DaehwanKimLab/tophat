@@ -17,7 +17,7 @@
 extern bool verbose;
 
 // This routine DOES NOT set the real refid!  
-pair<Junction, JunctionStats> junction_from_spliced_hit(const BowtieHit& h)
+pair<Junction, JunctionStats> junction_from_spliced_hit(BowtieHit& h)
 {
 	
 	assert (h.splice_pos_left != -1 && h.splice_pos_right != -1); 
@@ -30,7 +30,7 @@ pair<Junction, JunctionStats> junction_from_spliced_hit(const BowtieHit& h)
 	JunctionStats stats;
 	stats.left_extent = h.splice_pos_left;
 	stats.right_extent = h.splice_pos_right;
-	stats.num_reads = 1;
+	stats.supporting_hits.insert(&h);
 	return make_pair(junc, stats);
 }
 
@@ -46,7 +46,7 @@ void print_junction(FILE* junctions_out,
 			j.left - s.left_extent,
 			j.right + s.right_extent,
 			junc_id,
-			s.num_reads,
+			(int)(s.supporting_hits.size()),
 			j.antisense ? '-' : '+',
 			j.left - s.left_extent,
 			j.right + s.right_extent,
@@ -55,7 +55,7 @@ void print_junction(FILE* junctions_out,
 			j.right - (j.left - s.left_extent));
 }
 
-void junction_from_alignment(const BowtieHit& spliced_alignment,
+void junction_from_alignment(BowtieHit& spliced_alignment,
 							 uint32_t refid,
 							 JunctionSet& junctions)
 {
@@ -69,7 +69,7 @@ void junction_from_alignment(const BowtieHit& spliced_alignment,
 		JunctionStats& j = itr->second;
 		j.left_extent = max(j.left_extent, junc.second.left_extent);
 		j.right_extent = max(j.right_extent, junc.second.right_extent);
-		j.num_reads++;
+		j.supporting_hits.insert(&spliced_alignment);
 	}
 	else
 	{
@@ -98,17 +98,17 @@ int rejected = 0;
 int rejected_spliced = 0;
 int total_spliced = 0;
 int total = 0;
-void junctions_from_alignments(const HitTable& hits,
+void junctions_from_alignments(HitTable& hits,
 							   JunctionSet& junctions)
 {
 
 	std::set<pair< int, int > > splice_coords;
 	//JunctionSet raw_junctions;
-	for (HitTable::const_iterator ci = hits.begin();
+	for (HitTable::iterator ci = hits.begin();
 		 ci != hits.end();
 		 ++ci)
 	{
-		const HitList& rh = ci->second;
+		HitList& rh = ci->second;
 		if (rh.size() == 0)
 			continue;
 		for (size_t i = 0; i < rh.size(); ++i)
@@ -168,7 +168,7 @@ bool accept_if_valid(const Junction& j,
 	float avg_junc_doc = junc_doc / (float)(extent);
 	
 	//if (avg_junc_doc / (float) s.num_reads > 100.0)
-	if (s.num_reads / avg_junc_doc < min_isoform_fraction)
+	if (s.supporting_hits.size() / avg_junc_doc < min_isoform_fraction)
 	{
 		s.accepted = false;
 	}
