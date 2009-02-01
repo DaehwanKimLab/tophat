@@ -22,110 +22,207 @@
 
 using namespace std;
 
-void HitTable::add_spliced_hit(const string& insert_name, 
-					 const string& ref_name,
-					 uint32_t left,
-					 uint32_t right,
-					 char splice_pos_left,
-					 char splice_pos_right,
-					 uint32_t read_len,
-					 bool antisense_aln,
-					 bool antisense_splice)
+void HitTable::add_hit(const BowtieHit& bh, bool check_uniqueness)
 {
-	uint32_t insert_id = _insert_table.get_id(insert_name);
-	uint16_t reference_id = _ref_table.get_id(ref_name);
+	//uint32_t insert_id = bh.insert_id;
+	uint16_t reference_id = bh.ref_id;
 	
 	pair<RefHits::iterator, bool> ret = 
 	_hits_for_ref.insert(make_pair(reference_id, HitList()));
-	
-	BowtieHit bh = BowtieHit(reference_id,
-							 insert_id, 
-							 left, 
-							 right, 
-							 splice_pos_left, 
-							 splice_pos_right, 
-							 read_len, 
-							 antisense_aln,
-							 antisense_splice);
-	
-	// Check uniqueness, in case we are adding spliced hits from 
-	// several spliced alignment sources (e.g. de novo hashing + Bowtie 
-	// against a user-supplied index).  We don't want to count the same
-	// alignment twice if it happened to be found by more than one method
-	
-    HitList& hl = ret.first->second;
-    HitList::iterator lb = lower_bound(hl.begin(), hl.end(), bh, hit_insert_id_lt);   
-	HitList::iterator ub = upper_bound(hl.begin(), hl.end(), bh, hit_insert_id_lt); 
-    for (; lb != ub && lb != hl.end(); ++lb)
-    {
-		if (*lb == bh)
-			return;
-		
-		if (lb->insert_id == bh.insert_id &&
-			lb->ref_id == bh.ref_id &&
-			lb->antisense_aln == bh.antisense_aln)
+	HitList& hl = ret.first->second;
+	if (check_uniqueness)
+	{
+		// Check uniqueness, in case we are adding spliced hits from 
+		// several spliced alignment sources (e.g. de novo hashing + Bowtie 
+		// against a user-supplied index).  We don't want to count the same
+		// alignment twice if it happened to be found by more than one method
+		HitList::iterator lb = lower_bound(hl.begin(), hl.end(), bh, hit_insert_id_lt);   
+		HitList::iterator ub = upper_bound(hl.begin(), hl.end(), bh, hit_insert_id_lt); 
+		for (; lb != ub && lb != hl.end(); ++lb)
 		{
-			// If we get here, we may be looking at the same alignment
-			// However, spanning_reads may report a shorter, trimmed alignment
-			// so not all fields will be equal.  If they just disagree on the 
-			// ends, and don't indicate a different junction coord, the 
-			// alignments are the same.
-
-            if ((lb->left <= bh.left && lb->right >= bh.right) ||
-                (bh.left <= lb->left && bh.right >= lb->right))
-            {
-                int left_end_disagree     = abs((int)lb->left - (int)bh.left);
-                int left_to_gap_disagree  = abs((int)lb->splice_pos_left -
-                                                (int)bh.splice_pos_left);
-                int right_end_disagree    = abs((int)lb->right - (int)bh.right);
-                int right_to_gap_disagree = abs((int)lb->splice_pos_right - 
-                                                (int)bh.splice_pos_right);
-
-                if (left_end_disagree == left_to_gap_disagree &&
-                    right_end_disagree == right_to_gap_disagree)
-                    // One alignment is contained in the other, they agree on 
-                    // where the junction, if any, is, and they share an id
-                    // => this is a redundant aligment, so toss it
-                    return;
-            }
+			if (*lb == bh)
+				return;
 			
-			
-				
+			if (lb->insert_id == bh.insert_id &&
+				lb->ref_id == bh.ref_id &&
+				lb->antisense_aln == bh.antisense_aln)
+			{
+				// If we get here, we may be looking at the same alignment
+				// However, spanning_reads may report a shorter, trimmed alignment
+				// so not all fields will be equal.  If they just disagree on the 
+				// ends, and don't indicate a different junction coord, the 
+				// alignments are the same.
+
+				if ((lb->left <= bh.left && lb->right >= bh.right) ||
+					(bh.left <= lb->left && bh.right >= lb->right))
+				{
+					int left_end_disagree     = abs((int)lb->left - (int)bh.left);
+					int left_to_gap_disagree  = abs((int)lb->splice_pos_left -
+													(int)bh.splice_pos_left);
+					int right_end_disagree    = abs((int)lb->right - (int)bh.right);
+					int right_to_gap_disagree = abs((int)lb->splice_pos_right - 
+													(int)bh.splice_pos_right);
+
+					if (left_end_disagree == left_to_gap_disagree &&
+						right_end_disagree == right_to_gap_disagree)
+						// One alignment is contained in the other, they agree on 
+						// where the junction, if any, is, and they share an id
+						// => this is a redundant aligment, so toss it
+						return;
+				}
+			}
 		}
-    }
-    
+	}
     _total_hits++;
 	hl.push_back(bh);
 }
 
-void HitTable::add_hit(const string& insert_name, 
-			 const string& ref_name,
-			 uint32_t left,
-			 uint32_t read_len,
-			 bool antisense)
-{
-	uint32_t insert_id = _insert_table.get_id(insert_name);
-	uint16_t reference_id = _ref_table.get_id(ref_name);
-	
-	pair<RefHits::iterator, bool> ret = 
-	_hits_for_ref.insert(make_pair(reference_id, HitList()));
-	
-	(*(ret.first)).second.push_back(BowtieHit(reference_id, 
-											  insert_id, 
-											  left, 
-											  read_len, 
-											  antisense));
-    _total_hits++;
-}
+//void HitTable::add_spliced_hit(const string& insert_name, 
+//					 const string& ref_name,
+//					 uint32_t left,
+//					 uint32_t right,
+//					 char splice_pos_left,
+//					 char splice_pos_right,
+//					 uint32_t read_len,
+//					 bool antisense_aln,
+//					 bool antisense_splice)
+//{
+//	uint32_t insert_id = _insert_table.get_id(insert_name);
+//	uint16_t reference_id = _ref_table.get_id(ref_name);
+//	
+//	pair<RefHits::iterator, bool> ret = 
+//	_hits_for_ref.insert(make_pair(reference_id, HitList()));
+//	
+//	BowtieHit bh = BowtieHit(reference_id,
+//							 insert_id, 
+//							 left, 
+//							 right, 
+//							 splice_pos_left, 
+//							 splice_pos_right, 
+//							 read_len, 
+//							 antisense_aln,
+//							 antisense_splice);
+//	
+//	// Check uniqueness, in case we are adding spliced hits from 
+//	// several spliced alignment sources (e.g. de novo hashing + Bowtie 
+//	// against a user-supplied index).  We don't want to count the same
+//	// alignment twice if it happened to be found by more than one method
+//	
+//    HitList& hl = ret.first->second;
+//    HitList::iterator lb = lower_bound(hl.begin(), hl.end(), bh, hit_insert_id_lt);   
+//	HitList::iterator ub = upper_bound(hl.begin(), hl.end(), bh, hit_insert_id_lt); 
+//    for (; lb != ub && lb != hl.end(); ++lb)
+//    {
+//		if (*lb == bh)
+//			return;
+//		
+//		if (lb->insert_id == bh.insert_id &&
+//			lb->ref_id == bh.ref_id &&
+//			lb->antisense_aln == bh.antisense_aln)
+//		{
+//			// If we get here, we may be looking at the same alignment
+//			// However, spanning_reads may report a shorter, trimmed alignment
+//			// so not all fields will be equal.  If they just disagree on the 
+//			// ends, and don't indicate a different junction coord, the 
+//			// alignments are the same.
+//
+//            if ((lb->left <= bh.left && lb->right >= bh.right) ||
+//                (bh.left <= lb->left && bh.right >= lb->right))
+//            {
+//                int left_end_disagree     = abs((int)lb->left - (int)bh.left);
+//                int left_to_gap_disagree  = abs((int)lb->splice_pos_left -
+//                                                (int)bh.splice_pos_left);
+//                int right_end_disagree    = abs((int)lb->right - (int)bh.right);
+//                int right_to_gap_disagree = abs((int)lb->splice_pos_right - 
+//                                                (int)bh.splice_pos_right);
+//
+//                if (left_end_disagree == left_to_gap_disagree &&
+//                    right_end_disagree == right_to_gap_disagree)
+//                    // One alignment is contained in the other, they agree on 
+//                    // where the junction, if any, is, and they share an id
+//                    // => this is a redundant aligment, so toss it
+//                    return;
+//            }
+//			
+//			
+//				
+//		}
+//    }
+//    
+//    _total_hits++;
+//	hl.push_back(bh);
+//}
+//
+//void HitTable::add_hit(const string& insert_name, 
+//			 const string& ref_name,
+//			 uint32_t left,
+//			 uint32_t read_len,
+//			 bool antisense)
+//{
+//	uint32_t insert_id = _insert_table.get_id(insert_name);
+//	uint16_t reference_id = _ref_table.get_id(ref_name);
+//	
+//	pair<RefHits::iterator, bool> ret = 
+//	_hits_for_ref.insert(make_pair(reference_id, HitList()));
+//	
+//	(*(ret.first)).second.push_back(BowtieHit(reference_id, 
+//											  insert_id, 
+//											  left, 
+//											  read_len, 
+//											  antisense));
+//    _total_hits++;
+//}
 
 bool hit_insert_id_lt(const BowtieHit& h1, const BowtieHit& h2)
 {
 	return h1.insert_id < h2.insert_id;
 }
 
-void get_mapped_reads(FILE* bwtf, HitTable& hits, bool spliced, bool verbose)
+BowtieHit HitFactory::create_hit(const string& insert_name, 
+							   const string& ref_name,
+							   uint32_t left,
+							   uint32_t right,
+							   uint32_t sp_left,
+							   uint32_t sp_right,
+							   uint32_t read_len,
+							   bool antisense_aln,
+							   bool antisense_splice)
 {
-    const char* bwt_fmt_str = "%s %c %s %d %s %s %d %s";
+	uint32_t insert_id = _insert_table.get_id(insert_name);
+	uint16_t reference_id = _ref_table.get_id(ref_name);
+	
+	return BowtieHit(reference_id,
+					 insert_id, 
+					 left, 
+					 right, 
+					 sp_left, 
+					 sp_right, 
+					 read_len, 
+					 antisense_aln,
+					 antisense_splice);	
+}
+
+BowtieHit HitFactory::create_hit(const string& insert_name, 
+								 const string& ref_name,
+								 uint32_t left,
+								 uint32_t read_len,
+								 bool antisense_aln)
+{
+	uint32_t insert_id = _insert_table.get_id(insert_name);
+	uint16_t reference_id = _ref_table.get_id(ref_name);
+	
+	return BowtieHit(reference_id,
+					 insert_id, 
+					 left,
+					 read_len, 
+					 antisense_aln);	
+}
+
+bool HitFactory::get_hit_from_buf(const char* bwt_buf, 
+								  bool spliced,
+								  BowtieHit& bh)
+{
+	const char* bwt_fmt_str = "%s %c %s %d %s %s %d %s";
 	static const int buf_size = 256;
 	char orientation;
 	char name[buf_size];
@@ -138,6 +235,143 @@ void get_mapped_reads(FILE* bwtf, HitTable& hits, bool spliced, bool verbose)
 	char qualities[buf_size];
 	unsigned int other_occs;
 	char mismatches[buf_size];
+	memset(mismatches, 0, sizeof(mismatches));
+	// Get a new record from the tab-delimited Bowtie map
+	bwtf_ret = sscanf(bwt_buf,
+					  bwt_fmt_str,
+					  name,
+					  &orientation,
+					  text_name,   // name of reference sequence
+					  &text_offset,
+					  sequence,
+					  qualities,
+					  &other_occs,
+					  mismatches);
+	
+	// If we didn't get enough fields, this record is bad, so skip it
+	if (bwtf_ret > 0 && bwtf_ret < 6)
+	{
+		//fprintf(stderr, "Warning: found malformed record, skipping\n");
+		return false;
+	}
+	
+	// Stripping the slash and number following it gives the insert name
+	char* slash = strrchr(name, '/');
+	if (slash)
+	{
+		*slash = 0;
+	}
+	int read_len = strlen(sequence);
+	
+	// Add this alignment to the table of hits for this half of the
+	// Bowtie map
+	if (spliced)
+	{
+		// Parse the text_name field to recover the splice coords
+		vector<string> toks;
+		
+		tokenize_strict(text_name, "|", toks);
+		
+		int num_extra_toks = toks.size() - 6;
+		
+		if (num_extra_toks >= 0)
+		{
+			static const uint8_t left_window_edge_field = 1;
+			static const uint8_t splice_field = 2;
+			static const uint8_t right_window_edge_field = 3;
+			//static const uint8_t junction_type_field = 4;
+			static const uint8_t strand_field = 5;
+			
+			string contig = toks[0];
+			for (int t = 1; t <= num_extra_toks; ++t)
+			{
+				contig += "|";
+				contig += toks[t];
+			}
+			
+			vector<string> splice_toks;
+			tokenize(toks[num_extra_toks + splice_field], "-", splice_toks);
+			if (splice_toks.size() != 2)
+			{			
+				//fprintf(stderr, "Warning: found malformed splice record, skipping\n");
+				return false;			       
+			}
+			
+			uint32_t left = atoi(toks[num_extra_toks + left_window_edge_field].c_str()) + text_offset;
+			uint32_t spliced_read_len = strlen(sequence);
+			int8_t left_splice_pos = atoi(splice_toks[0].c_str()) - left + 1;
+			int8_t right_splice_pos = spliced_read_len - left_splice_pos;
+			
+			uint32_t right = atoi(splice_toks[1].c_str()) + right_splice_pos;
+			atoi(toks[right_window_edge_field].c_str());
+			
+			string junction_strand = toks[num_extra_toks + strand_field];
+			if (!(junction_strand == "rev" || junction_strand == "fwd")||
+				!(orientation == '-' || orientation == '+'))
+			{
+				//fprintf(stderr, "Warning: found malformed splice record, skipping\n");
+				return false;
+			}
+			
+			//vector<string> mismatch_toks;
+			char* pch = strtok (mismatches,",");
+			bool mismatch_in_anchor = false;
+			while (pch != NULL)
+			{
+				char* colon = strchr(pch, ':');
+				if (colon) 
+				{
+					*colon = 0;
+					int mismatch_pos = atoi(pch);
+					if ((orientation == '+' && abs(mismatch_pos - left_splice_pos) < 5) ||
+						(orientation == '-' && abs(((int)spliced_read_len - left_splice_pos + 1) - mismatch_pos)) < 5)
+						mismatch_in_anchor = true;
+				}
+				//mismatch_toks.push_back(pch);
+				pch = strtok (NULL, ",");
+			}
+			
+			if (!mismatch_in_anchor)
+			{
+				bh = create_hit(name,
+									 contig,
+									 left, 
+									 right, 
+									 left_splice_pos, 
+									 right_splice_pos, 
+									 spliced_read_len, 
+									 orientation == '-', 
+									 junction_strand == "rev" );
+				return true;
+			}
+		}
+		else
+		{
+//			fprintf(stderr, "Warning: found malformed splice record, skipping\n");
+//			continue;
+			return false;
+		}
+	}
+	else
+	{
+		bh = create_hit(name,
+						 text_name,
+						 text_offset, 
+						 read_len, 
+						 orientation == '-');
+		return true;
+//		hits.add_hit(name, text_name, text_offset, read_len, orientation == '-');
+	}
+	return false;
+}
+
+void get_mapped_reads(FILE* bwtf, 
+					  HitTable& hits, 
+					  HitFactory& hit_factory, 
+					  bool spliced, 
+					  bool verbose)
+{
+
 	
     char bwt_buf[2048];
 	uint32_t reads_extracted = 0;
@@ -147,124 +381,13 @@ void get_mapped_reads(FILE* bwtf, HitTable& hits, bool spliced, bool verbose)
 		// Chomp the newline
 		char* nl = strrchr(bwt_buf, '\n');
 		if (nl) *nl = 0;
-		memset(mismatches, 0, sizeof(mismatches));
+		
 		// Get a new record from the tab-delimited Bowtie map
-		bwtf_ret = sscanf(bwt_buf,
-						  bwt_fmt_str,
-						  name,
-						  &orientation,
-						  text_name,   // name of reference sequence
-						  &text_offset,
-						  sequence,
-						  qualities,
-						  &other_occs,
-						  mismatches);
-		
-		// If we didn't get enough fields, this record is bad, so skip it
-		if (bwtf_ret > 0 && bwtf_ret < 6)
+		BowtieHit bh;
+		if (hit_factory.get_hit_from_buf(bwt_buf, spliced, bh))
 		{
-			fprintf(stderr, "Warning: found malformed record, skipping\n");
-			continue;
-		}
-        
-		// Stripping the slash and number following it gives the insert name
-        char* slash = strrchr(name, '/');
-        if (slash)
-        {
-            *slash = 0;
-		}
-		int read_len = strlen(sequence);
-		
-		// Add this alignment to the table of hits for this half of the
-		// Bowtie map
-		if (spliced)
-		{
-			// Parse the text_name field to recover the splice coords
-			vector<string> toks;
-			
-            tokenize_strict(text_name, "|", toks);
-            
-            int num_extra_toks = toks.size() - 6;
-			
-			if (num_extra_toks >= 0)
-			{
-                static const uint8_t left_window_edge_field = 1;
-                static const uint8_t splice_field = 2;
-                static const uint8_t right_window_edge_field = 3;
-                //static const uint8_t junction_type_field = 4;
-                static const uint8_t strand_field = 5;
-                
-                string contig = toks[0];
-                for (int t = 1; t <= num_extra_toks; ++t)
-                {
-                    contig += "|";
-                    contig += toks[t];
-                }
-				
-                vector<string> splice_toks;
-                tokenize(toks[num_extra_toks + splice_field], "-", splice_toks);
-                if (splice_toks.size() != 2)
-                {			
-                    fprintf(stderr, "Warning: found malformed splice record, skipping\n");
-                 	continue;			       
-                }
-				
-				uint32_t left = atoi(toks[num_extra_toks + left_window_edge_field].c_str()) + text_offset;
-				uint32_t spliced_read_len = strlen(sequence);
-				int8_t left_splice_pos = atoi(splice_toks[0].c_str()) - left + 1;
-				int8_t right_splice_pos = spliced_read_len - left_splice_pos;
-				
-				uint32_t right = atoi(splice_toks[1].c_str()) + right_splice_pos;
-				atoi(toks[right_window_edge_field].c_str());
-				
-				string junction_strand = toks[num_extra_toks + strand_field];
-				if (!(junction_strand == "rev" || junction_strand == "fwd")||
-				    !(orientation == '-' || orientation == '+'))
-				{
-				    fprintf(stderr, "Warning: found malformed splice record, skipping\n");
-        			continue;
-			    }
-				
-				//vector<string> mismatch_toks;
-				char* pch = strtok (mismatches,",");
-				bool mismatch_in_anchor = false;
-				while (pch != NULL)
-				{
-					char* colon = strchr(pch, ':');
-					if (colon) 
-					{
-						*colon = 0;
-						int mismatch_pos = atoi(pch);
-						if ((orientation == '+' && abs(mismatch_pos - left_splice_pos) < 5) ||
-							(orientation == '-' && abs(((int)spliced_read_len - left_splice_pos + 1) - mismatch_pos)) < 5)
-							mismatch_in_anchor = true;
-					}
-					//mismatch_toks.push_back(pch);
-					pch = strtok (NULL, ",");
-				}
-				
-				if (!mismatch_in_anchor)
-				{
-					hits.add_spliced_hit(name, 
-										 contig, 
-										 left, 
-										 right, 
-										 left_splice_pos, 
-										 right_splice_pos, 
-										 spliced_read_len, 
-										 orientation == '-', 
-										 junction_strand == "rev" );
-				}
-			}
-			else
-			{
-			    fprintf(stderr, "Warning: found malformed splice record, skipping\n");
-    			continue;
-		    }
-		}
-		else
-		{
-			hits.add_hit(name, text_name, text_offset, read_len, orientation == '-');
+			// Only check uniqueness if these hits are spliced
+			hits.add_hit(bh, spliced);
 		}
 		reads_extracted++;
 	}

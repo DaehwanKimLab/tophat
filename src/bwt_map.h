@@ -31,6 +31,8 @@ using namespace std;
 */
 struct BowtieHit
 {
+	BowtieHit() : accepted(false) {}
+	
 	BowtieHit(uint16_t _ref_id,
 			  uint32_t _insert_id, 
 			  uint32_t _left, 
@@ -187,19 +189,19 @@ bool hit_insert_id_lt(const BowtieHit& h1, const BowtieHit& h2);
 typedef vector<BowtieHit> HitList;
 
 /* This class stores all the hits from a Bowtie map */
+
+// TODO: HitTable also acts like a factory for BowtieHits.  This is a poor
+// design, and should be refactored, decoupling its container and factory
+// roles.
 class HitTable
 {
-
-	
 public:
 
 	typedef map<uint32_t, HitList> RefHits;
 	typedef RefHits::const_iterator const_iterator;
 	typedef RefHits::iterator iterator;
 	
-	HitTable(SequenceTable& insert_table, 
-			 SequenceTable& reference_table) : 
-	_insert_table(insert_table), _ref_table(reference_table), _total_hits(0) {}
+	HitTable() :  _total_hits(0) {}
 	
 	const_iterator begin() const { return _hits_for_ref.begin(); }
 	const_iterator end() const { return _hits_for_ref.end(); }
@@ -207,22 +209,7 @@ public:
 	iterator begin() { return _hits_for_ref.begin(); }
 	iterator end() { return _hits_for_ref.end(); }
 	
-	
-	void add_spliced_hit(const string& insert_name, 
-						 const string& ref_name,
-						 uint32_t left,
-						 uint32_t right,
-						 char splice_pos_left,
-						 char splice_pos_right,
-						 uint32_t read_len,
-						 bool antisense_aln,
-                         bool antisense_splice);
-	
-	void add_hit(const string& insert_name, 
-				 const string& ref_name,
-				 uint32_t left,
-				 uint32_t read_len,
-                 bool antisense);
+	void add_hit(const BowtieHit& bh, bool check_uniqueness);
 	
 	void finalize()
 	{
@@ -246,19 +233,49 @@ public:
     uint32_t total_hits() const { return _total_hits; }
 	
 private:
-	SequenceTable& _insert_table;
-	SequenceTable& _ref_table;
 	RefHits _hits_for_ref;
     uint32_t _total_hits;
+};
+
+class HitFactory
+{
+public:
+	HitFactory(SequenceTable& insert_table, 
+			 SequenceTable& reference_table) : 
+	_insert_table(insert_table), _ref_table(reference_table) {}
+	
+	BowtieHit create_hit(const string& insert_name, 
+						 const string& ref_name,
+						 uint32_t left,
+						 uint32_t right,
+						 uint32_t sp_left,
+						 uint32_t sp_right,
+						 uint32_t read_len,
+						 bool antisense_aln,
+						 bool antisense_splice);
+	
+	BowtieHit create_hit(const string& insert_name, 
+						 const string& ref_name,
+						 uint32_t left,
+						 uint32_t read_len,
+						 bool antisense_aln);
+	
+	bool get_hit_from_buf(const char* bwt_buf, 
+						  bool spliced,
+						  BowtieHit& bh);
+	
+private:
+	SequenceTable& _insert_table;
+	SequenceTable& _ref_table;
 };
 
 typedef uint32_t MateStatusMask;
 
 void get_mapped_reads(FILE* bwtf, 
-					  HitTable& hits, 
+					  HitTable& hits,
+					  HitFactory& hit_factory,
 					  bool spliced, 
 					  bool verbose = false);
-
 
 //bool left_status_better(MateStatusMask left, MateStatusMask right);
 //bool status_equivalent(MateStatusMask left, MateStatusMask right);

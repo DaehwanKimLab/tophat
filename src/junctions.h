@@ -70,7 +70,7 @@ struct JunctionStats
 {
 	uint8_t left_extent;
 	uint8_t right_extent;
-	uint16_t num_reads : 15;
+	set<BowtieHit*> supporting_hits;
 	bool accepted;
 };
 
@@ -87,11 +87,11 @@ void print_junction(FILE* junctions_out,
 
 
 
-void junction_from_alignment(const BowtieHit& spliced_alignment,
+void junction_from_alignment(BowtieHit& spliced_alignment,
 							 uint32_t refid,
 							 JunctionSet& junctions);
 
-void junctions_from_alignments(const HitTable& hits,
+void junctions_from_alignments(HitTable& hits,
 							   JunctionSet& junctions);
 
 void accept_valid_junctions(JunctionSet& junctions,
