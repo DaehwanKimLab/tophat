@@ -253,7 +253,8 @@ noinst_HEADERS = \
 	FSA/sequence.h \
 	FSA/fsa_alphabet.h \
 	tokenize.h \
-	fragments.h
+	fragments.h \
+    genes.h 
 
 	
 libtophat_a_SOURCES = \
@@ -270,7 +271,8 @@ libtophat_a_SOURCES = \
 	FSA/fsa_alphabet.cc \
 	fragments.cpp \
 	tokenize.cpp \
-	gff_juncs.cpp
+	gff_juncs.cpp \
+    genes.cpp
 
 #-- program sources
 cvg_islands_SOURCES = cvg_islands.cpp

@@ -147,7 +147,8 @@ uint32_t get_junctions_from_gff(const GFF_database& gff_db)
 				fprintf(stderr, "Offending exons overlapped:\n");
 				cerr << *five_prime_ex;
 				cerr << *three_prime_ex;
-				exit(2);
+				//exit(2);
+                break;
 			}
 			
 			fprintf(stdout, "%s\t%d\t%d\t%c\n",

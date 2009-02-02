@@ -754,6 +754,7 @@ def compile_reports(maps, min_isoform_fraction, gff_annotation):
     report_log = open(logging_dir + "reports.log", "w")
     junctions = "junctions.bed"
     coverage =  "coverage.wig"
+    accepted_hits = "accepted_hits.sam"
     report_cmd = [bin_dir + "tophat_reports",
                   "-F", str(min_isoform_fraction)]
     if gff_annotation != None:
@@ -761,6 +762,7 @@ def compile_reports(maps, min_isoform_fraction, gff_annotation):
         
     report_cmd.extend([coverage,
                        junctions,
+					   accepted_hits,
                        maps])            
     try:    
        retcode = subprocess.call(report_cmd, 
@@ -814,7 +816,7 @@ def exclude_reads(reads_file, reads_format, read_ids):
     return reads_file
 
 def get_version():
-   return "0.8.1"
+   return "0.8.2"
     
 def main(argv=None):
     
