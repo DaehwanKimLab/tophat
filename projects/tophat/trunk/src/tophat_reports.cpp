@@ -481,8 +481,7 @@ void rpkm_for_genes(FILE* quant_expression_out,
 
 struct GeneExpression
 {
-    GeneExpression(double R = 0.0, double M = 0.0) : rpkm(R), mend(M) {
-    }
+    GeneExpression(double R = 0.0, double M = 0.0) : rpkm(R), mend(M) {}
     double rpkm;
     double mend;
 };
