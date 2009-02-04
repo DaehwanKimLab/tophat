@@ -29,6 +29,12 @@ namespace fsa {
   struct Util {
 
   public:
+      
+      inline static std::string trim_right(const std::string &source , const std::string& t = " ");
+      
+      inline static std::string trim_left( const std::string& source, const std::string& t = " ");
+      
+      inline static std::string trim(const std::string& source, const std::string& t = " ");
 
     /**
      * \brief Convert to a string.
@@ -165,6 +171,23 @@ namespace fsa {
     return std::rand() % (max + 1);
   }
 
+    inline std::string Util::trim_right(const std::string &source , const std::string& t)
+    {
+        std::string str = source;
+        return str.erase( str.find_last_not_of(t) + 1);
+    }
+    
+    inline std::string Util::trim_left( const std::string& source, const std::string& t)
+    {
+        std::string str = source;
+        return str.erase(0 , source.find_first_not_of(t) );
+    }
+    
+    inline std::string Util::trim(const std::string& source, const std::string& t)
+    {
+        std::string str = source;
+        return trim_left( trim_right( str , t) , t );
+    }
 
 }
 
