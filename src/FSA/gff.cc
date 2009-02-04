@@ -41,26 +41,6 @@ bool ciStringCompare::operator() (const std::string& s1, const std::string& s2) 
                                     ciCharLess);
 }
 
-inline std::string trim_right(const std::string &source , const std::string& t = " ")
-{
-    std::string str = source;
-    return str.erase( str.find_last_not_of(t) + 1);
-}
-
-inline std::string trim_left( const std::string& source, const std::string& t = " ")
-{
-    std::string str = source;
-    return str.erase(0 , source.find_first_not_of(t) );
-}
-
-inline std::string trim(const std::string& source, const std::string& t = " ")
-{
-    std::string str = source;
-    return trim_left( trim_right( str , t) , t );
-}
-
-
-
 void GFF::from_string (const std::string& str) {
 
     std::vector<std::string> tokens = Util::tokenize_string (str, "\t"); // hold tab-separated tokens
@@ -91,12 +71,12 @@ void GFF::parse_attributes_string (const std::string& str) {
     std::vector<std::string> key_value_pairs = Util::tokenize_string (str, GFF::attributes_split_char);
     for (std::vector<std::string>::const_iterator key_value = key_value_pairs.begin(); key_value != key_value_pairs.end(); ++key_value) {
         if (re_key_value.Match (key_value->c_str())) {
-            std::string key = trim(re_key_value[1]);
+            std::string key = Util::trim(re_key_value[1]);
             std::vector<std::string> values = Util::tokenize_string (re_key_value[2], GFF::attributes_list_char);
             if (values.size())
                 attributes_ordering.push_back (key);
             for (std::vector<std::string>::const_iterator value = values.begin(); value != values.end(); ++value)
-                attributes[key].push_back (trim(*value));
+                attributes[key].push_back (Util::trim(*value));
         }
     }
 

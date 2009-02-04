@@ -29,7 +29,7 @@ Gene* Exon::gene()
     return _transcript->_gene;
 }
 
-uint32_t Gene::exonic_length() const
+uint32_t Gene::exonic_length(const fsa::Sequence* ref_str) const
 {
     uint32_t gene_exonic_length = 0;
     
@@ -50,12 +50,12 @@ uint32_t Gene::exonic_length() const
             const Exon* exon = *exon_itr;
             assert (exon->start() >= start);
             for (uint32_t i = exon->start();
-                 i < exon->end();
+                 i <= exon->end();
                  ++i)
             {
                 // Did we already count this one?
-                if (!exonic_coords[i - start] /*&&
-                 (!ref_str || !ref_str->is_pos_hardmasked(i - 1))*/)
+                if (!exonic_coords[i - start] &&
+                 (!ref_str || !ref_str->is_pos_hardmasked(i - 1)))
                 {
                     gene_exonic_length++;
                 }
@@ -74,11 +74,13 @@ pair<uint32_t, uint32_t> Gene::coords() const
          t_itr != transcripts.end();
          ++t_itr)
     {
+        assert(t_itr->second->exons.size() > 0);
+            
         if (t_itr->second->exons.front()->start() < start)
         {
             start = t_itr->second->exons.front()->start();
         }
-        if (t_itr->second->exons.back()->end() < end)
+        if (t_itr->second->exons.back()->end() > end)
         {
             end = t_itr->second->exons.back()->end();
         }
@@ -86,7 +88,8 @@ pair<uint32_t, uint32_t> Gene::coords() const
     return make_pair<uint32_t, uint32_t>(start, end);
 }
 
-uint32_t Gene::exonic_depth(const vector<short>& DoC) const
+uint32_t Gene::exonic_depth(const vector<short>& DoC,
+                            const fsa::Sequence* ref_str) const
 {
     uint32_t gene_DoC = 0;
     
@@ -107,14 +110,14 @@ uint32_t Gene::exonic_depth(const vector<short>& DoC) const
             const Exon* exon = *exon_itr;
             assert (exon->start() >= start);
             for (uint32_t i = exon->start();
-                 i < exon->end();
+                 i <= exon->end();
                  ++i)
             {
                 if (i - 1 >= DoC.size())
                     break;
                 // Did we already count this one?
-                if (!exonic_coords[i - start] /*&&
-                    (!ref_str || !ref_str->is_pos_hardmasked(i - 1))*/)
+                if (!exonic_coords[i - start] &&
+                    (!ref_str || !ref_str->is_pos_hardmasked(i - 1)))
                 {
                     gene_DoC += DoC[i - 1];
                 }
@@ -127,17 +130,32 @@ uint32_t Gene::exonic_depth(const vector<short>& DoC) const
 }
 
 Expression* Gene::expression(const vector<short>& DoC, 
-                             uint32_t total_map_depth) const 
+                             uint32_t total_map_depth,
+                             const fsa::Sequence* ref_str) const 
 {
-    uint32_t length = exonic_length();
-    uint32_t depth = exonic_depth(DoC);
+    uint32_t length = exonic_length(ref_str);
+    if (length == 0)
+        return NULL;
+    
+    uint32_t depth = exonic_depth(DoC,ref_str);
     double gene_avg_DoC = depth / (double) length;
     
     double gene_rpkm = 1000000000 * (gene_avg_DoC / (double)total_map_depth);
     return new Expression(gene_rpkm, 0.0);
 }
 
-void GeneFactory::get_genes(const GFF_database& gffdb, GeneTable& genes)
+void GeneFactory::get_genes(const string& ref, 
+                            const fsa::GFF_database& gffdb, 
+                            GeneTable& genes,
+                            const std::set<string>* gene_name_filter)
+{
+    GFF_database ref_gff_db = gffdb.chromosome_features(ref);
+    get_genes(ref_gff_db, genes, gene_name_filter);
+}
+
+void GeneFactory::get_genes(const GFF_database& gffdb, 
+                            GeneTable& genes,
+                            const std::set<string>* gene_name_filter)
 {
     map<string, Transcript*> mRNAs;
     
@@ -158,9 +176,29 @@ void GeneFactory::get_genes(const GFF_database& gffdb, GeneTable& genes)
             }
             const string& id = att_itr->second.front();
             
+            string short_name;
+            att_itr = gff_rec.attributes.find("Name");
+            
+            // No name record?  Use the ID as the short name, too.
+            if (att_itr == gff_rec.attributes.end())
+            {
+                short_name = id;
+            }
+            else
+            {
+                short_name = att_itr->second.front();
+            }
+            
             Gene* gene = new Gene();
-            genes[id] = gene;
+            gene->ID = id;
+            gene->short_name = short_name;
+            if (!gene_name_filter || 
+                gene_name_filter->find(short_name) != gene_name_filter->end())
+                genes[id] = gene;
         }
+        
+        //    GFF::AttributeTable::const_iterator att_itr;
+
     }
     
     for(GFF_database::const_iterator gff_itr = gffdb.begin();
@@ -195,12 +233,13 @@ void GeneFactory::get_genes(const GFF_database& gffdb, GeneTable& genes)
                 Transcript* mRNA = new Transcript();
                 mRNA->_gene = gene_itr->second;
                 gene_itr->second->transcripts[id] = mRNA;
+                mRNA->ID = id;
                 mRNAs[id] = mRNA;
             }
             else
             {
-                cerr << "No gene record "  << gene_id 
-                     << " for transcript " << id << endl;
+                //cerr << "No gene record "  << gene_id 
+                //     << " for transcript " << id << endl;
                 continue;
             }
         }
@@ -229,7 +268,7 @@ void GeneFactory::get_genes(const GFF_database& gffdb, GeneTable& genes)
                 cerr << "Malformed transcript record " << gff_rec << endl;
                 continue;
             }
-            const string& id = att_itr->second.front();
+            //const string& id = att_itr->second.front();
             
             map<string, Transcript*>::iterator mRNA_itr = mRNAs.find(mRNA_id);
             if (mRNA_itr != mRNAs.end())
@@ -242,8 +281,8 @@ void GeneFactory::get_genes(const GFF_database& gffdb, GeneTable& genes)
             }
             else
             {
-                cerr << "No transcript record "  << mRNA_id 
-                << " for exon " << id << endl;
+                //cerr << "No transcript record "  << mRNA_id 
+                //<< " for exon " << id << endl;
                 continue;
             }
             
@@ -255,35 +294,60 @@ void GeneFactory::get_genes(const GFF_database& gffdb, GeneTable& genes)
          ++itr)
     {
         Transcript& mRNA = *(itr->second);
-        sort(mRNA.exons.begin(), mRNA.exons.end(),exon_lt_by_pos); 
+        if (mRNA.exons.size() == 0)
+        {
+            Gene* parent = mRNA.gene();
+            parent->transcripts.erase(mRNA.ID);
+            // FIXME: leaking transcripts here.
+        }
+        else
+        {
+            sort(mRNA.exons.begin(), mRNA.exons.end(),exon_lt_by_pos); 
+        }
     }
 }
 
 uint32_t total_exonic_depth(const GeneTable& genes,
-                            const vector<short>& DoC)
+                            const vector<short>& DoC,
+                            const fsa::Sequence* ref_str)
 {
     uint32_t total_depth = 0;
     for (GeneTable::const_iterator gene_itr = genes.begin();
          gene_itr != genes.end();
          ++gene_itr)
     {
-        total_depth += gene_itr->second->exonic_depth(DoC);
+        total_depth += gene_itr->second->exonic_depth(DoC, ref_str);
     }
     
     return total_depth;
 }
 
-void print_gene_expression(FILE* expr_out, 
-                           const GeneTable& genes,
-                           const vector<short>& DoC)
+void calculate_gene_expression(const GeneTable& genes,
+                               const vector<short>& DoC,
+                               const fsa::Sequence* ref_str,
+                               uint32_t total_map_depth,
+                               map<string, Expression*>& gene_expression)
 {
-    
-    uint32_t total_depth = total_exonic_depth(genes, DoC);
     for (GeneTable::const_iterator itr = genes.begin();
          itr != genes.end();
          ++itr)
     {
-        Expression* expr = itr->second->expression(DoC, total_depth);
+        Expression* expr = itr->second->expression(DoC, total_map_depth, ref_str);
+        if (expr != NULL)
+            gene_expression[itr->second->short_name] = expr;
+        
+        //fprintf(expr_out, "%s\t%lf\t%lf\n", itr->first.c_str(), expr->rpkm, expr->mend);
+    }
+}
+
+void print_gene_expression(FILE* expr_out, 
+                           const map<string, Expression*>& gene_expression)
+{
+    for (map<string, Expression*>::const_iterator itr = gene_expression.begin();
+         itr != gene_expression.end();
+         ++itr)
+    {
+        Expression* expr = itr->second;
         fprintf(expr_out, "%s\t%lf\t%lf\n", itr->first.c_str(), expr->rpkm, expr->mend);
     }
 }
