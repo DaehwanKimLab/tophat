@@ -25,19 +25,21 @@ Usage:
     tophat [options] <bowtie_index> <reads1[,reads2,...,readsN]>
     
 Options:
-    -s/--seed-length               <int>       [ default: 28    ]
-    -a/--min-anchor                <3-6>       [ default: 5     ]
-    -m/--splice-mismatches         <0-2>       [ default: 0     ]
-    -i/--min-intron                <int>       [ default: 70    ]
-    -I/--max-intron                <int>       [ default: 20000 ]
-    -g/--max-gene-family           <int>       [ default: 10    ]
-    -F/--min-isoform-fraction      <float>     [ default: 0.15  ]
-    -X/--solexa-quals              <int>       [ default: false ]
-    -M/--max-mem                   <int>       [ default: 1024  ]
-    -p/--num-threads               <int>       [ default: 1     ]
+    -o/--output-dir                <string>    [ default: ./tophat_out ]
+    -s/--seed-length               <int>       [ default: 28           ]
+    -a/--min-anchor                <3-6>       [ default: 5            ]
+    -m/--splice-mismatches         <0-2>       [ default: 0            ]
+    -i/--min-intron                <int>       [ default: 70           ]
+    -I/--max-intron                <int>       [ default: 20000        ]
+    -g/--max-gene-family           <int>       [ default: 10           ]
+    -F/--min-isoform-fraction      <float>     [ default: 0.15         ]
+    -X/--solexa-quals              <int>       [ default: false        ]
+    -M/--max-mem                   <int>       [ default: 1024         ]
+    -p/--num-threads               <int>       [ default: 1            ]
+    -D/--min-norm-depth            <0-1000>    [ default: 300          ]
     -G/--GFF                       <filename>
-    --no-novel-juncs                           [ default: off   ]
-    --no-gff-juncs                             [ default: off   ]
+    --no-novel-juncs                           [ default: off          ]
+    --no-gff-juncs                             [ default: off          ]
 '''
 
 class Usage(Exception):
@@ -703,7 +705,8 @@ def align_spliced_reads(islands_fasta,
                         splice_mismatches,
                         min_intron_length,
                         max_intron_length,
-                        max_mem):
+                        max_mem,
+                        min_norm_depth):
     start_time = datetime.now()
     print >> sys.stderr, "[%s] Aligning spliced reads" % start_time.strftime("%c")
     
@@ -718,7 +721,7 @@ def align_spliced_reads(islands_fasta,
                   "-I", str(max_intron_length), # Maxmimum intron length
                   "-i", str(min_intron_length), # Minimum intron length
                   "-s", str(seed_length), # Seed size for reads
-                  "-S", "300", # Min normalized DoC for self island junctions
+                  "-S", str(min_norm_depth), # Min normalized DoC for self island junctions
                   "-M", str(max_mem), # Small memory footprint for now
                   islands_fasta,
                   islands_gff,
@@ -825,7 +828,7 @@ def main(argv=None):
         argv = sys.argv
     try:
         try:
-            opts, args = getopt.getopt(argv[1:], "hvXp:s:m:M:F:a:i:I:e:b:G:", 
+            opts, args = getopt.getopt(argv[1:], "hvXp:s:m:M:F:a:i:I:e:b:G:D:o:j:", 
                                         ["version",
                                          "help",  
                                          "solexa-quals",
@@ -843,7 +846,10 @@ def main(argv=None):
                                          "GFF=",
                                          "no-novel-juncs",
                                          "no-gff-juncs",
-                                         "skip-check-reads"])
+                                         "skip-check-reads",
+                                         "min-norm-depth=",
+                                         "output-dir=",
+                                         "raw-juncs="])
         except getopt.error, msg:
             raise Usage(msg)
         
@@ -864,9 +870,15 @@ def main(argv=None):
         find_novel_juncs = True
         find_GFF_juncs = True
         skip_check_reads = False
+        min_norm_depth = 300
+        
+        user_supplied_juncs = []
         
         # option processing
         for option, value in opts:
+            if option in ("-o", "--output-dir"):
+                global output_dir
+                output_dir = value + "/"
             if option in ("-v", "--version"):
                 print "TopHat v%s" % (get_version())
                 exit(0)
@@ -904,6 +916,11 @@ def main(argv=None):
                 min_intron_length = int(value)
                 if min_intron_length <= 0:
                     print >> sys.stderr, "Error: arg to --min-intron-length must be greater than 0"
+                    exit(1)
+            if option in ("-D", "--min-norm-depth"):
+                min_norm_depth = int(value)
+                if min_norm_depth < 0 or min_norm_depth > 1000:
+                    print >> sys.stderr, "Error: arg to --min-norm-depth must be between 0 and 1000"
                     exit(1)                    
             if option in ("-I", "--max-intron-length"):
                 max_intron_length = int(value)
@@ -958,7 +975,6 @@ def main(argv=None):
         elif reads_format == "fasta":
             format_flag = "-f"
         
-        user_supplied_juncs = []
         if gff_annotation != None:
             (found_juncs, gff_juncs) = get_gff_juncs(gff_annotation)
             if found_juncs == True:
@@ -1016,7 +1032,8 @@ def main(argv=None):
                                               splice_mismatches,
                                               min_intron_length,
                                               max_intron_length,
-                                              max_mem)
+                                              max_mem,
+                                              min_norm_depth)
             spliced_reads.append(novel_juncs)
         
         maps = [bwt_map]

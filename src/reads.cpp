@@ -13,6 +13,7 @@
 
 #include <cassert>
 #include <string>
+#include <cstring>
 #include "reads.h"
 
 using namespace std;

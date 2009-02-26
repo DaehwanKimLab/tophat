@@ -348,6 +348,6 @@ void print_gene_expression(FILE* expr_out,
          ++itr)
     {
         Expression* expr = itr->second;
-        fprintf(expr_out, "%s\t%lf\t%lf\n", itr->first.c_str(), expr->rpkm, expr->mend);
+        fprintf(expr_out, "%s\t%lf\n", itr->first.c_str(), expr->rpkm/*, expr->mend*/);
     }
 }
