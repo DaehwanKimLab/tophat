@@ -58,7 +58,7 @@ def right_now():
     return curr_time.strftime("%c")
 
 def prepare_output_dir():
-    
+    #global output_dir
     print >> sys.stderr, "[%s] Preparing output location %s" % (right_now(), output_dir)
     if os.path.exists(output_dir):
         pass
@@ -759,6 +759,7 @@ def compile_reports(maps, min_isoform_fraction, gff_annotation):
     coverage =  "coverage.wig"
     accepted_hits = "accepted_hits.sam"
     report_cmd = [bin_dir + "tophat_reports",
+                  "-o", output_dir,
                   "-F", str(min_isoform_fraction)]
     if gff_annotation != None:
         report_cmd.extend(["-G", gff_annotation])
@@ -878,7 +879,10 @@ def main(argv=None):
         for option, value in opts:
             if option in ("-o", "--output-dir"):
                 global output_dir
+                global logging_dir
+                
                 output_dir = value + "/"
+                logging_dir = output_dir + "logs/"
             if option in ("-v", "--version"):
                 print "TopHat v%s" % (get_version())
                 exit(0)
