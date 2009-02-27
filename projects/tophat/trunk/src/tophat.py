@@ -845,6 +845,7 @@ def main(argv=None):
                                          "island-gap=",
                                          "extend-islands=",
                                          "GFF=",
+                                         "raw-juncs=",
                                          "no-novel-juncs",
                                          "no-gff-juncs",
                                          "skip-check-reads",
@@ -943,6 +944,8 @@ def main(argv=None):
                     exit(1)
             if option in ("-G", "--GFF"):
                 gff_annotation = value
+            if option in ("-j", "--raw-juncs"):
+                user_supplied_juncs = [value]
             if option == "--no-novel-juncs":
                 find_novel_juncs = False
             if option == "--no-gff-juncs":
@@ -981,7 +984,7 @@ def main(argv=None):
         
         if gff_annotation != None:
             (found_juncs, gff_juncs) = get_gff_juncs(gff_annotation)
-            if found_juncs == True:
+            if found_juncs == True and find_GFF_juncs:
                 user_supplied_juncs.append(gff_juncs)
             
         # Now start the timing consuming stuff
@@ -1005,7 +1008,7 @@ def main(argv=None):
         
         spliced_reads = []
         
-        if len(user_supplied_juncs) > 0 and find_GFF_juncs:
+        if len(user_supplied_juncs) > 0:
             juncs_idx = build_juncs_index(user_supplied_juncs, 
                                           min_anchor_length, 
                                           seed_length, 
