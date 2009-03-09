@@ -152,9 +152,7 @@ bool BowtieHitFactory::get_hit_from_buf(const char* bwt_buf,
 		//fprintf(stderr, "Warning: found malformed record, skipping\n");
 		return false;
 	}
-#ifndef NDEBUG	
-	//fprintf(stderr, "retrieved %s \n", name);
-#endif	
+
 	// Copy the tag out of the name field before we might wipe it out
 	char* pipe = strrchr(name, '|');
 	if (pipe)
@@ -215,15 +213,13 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* bwt_buf,
 					  &other_occs,
 					  mismatches);
 	
+
 	// If we didn't get enough fields, this record is bad, so skip it
 	if (bwtf_ret > 0 && bwtf_ret < 6)
 	{
 		//fprintf(stderr, "Warning: found malformed record, skipping\n");
 		return false;
 	}
-#ifndef NDEBUG	
-	//fprintf(stderr, "retrieved %s \n", name);
-#endif	
 	// Copy the tag out of the name field before we might wipe it out
 	char* pipe = strrchr(name, '|');
 	if (pipe)

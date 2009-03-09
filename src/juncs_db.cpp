@@ -33,9 +33,9 @@
 #include "tokenize.h"
 #include "junctions.h"
 
-#ifdef PAIRED_END
-#include "inserts.h"
-#endif
+//#ifdef PAIRED_END
+//#include "inserts.h"
+//#endif
 
 using namespace std;
 using namespace seqan;
@@ -73,7 +73,7 @@ void print_splice(const Junction& junction,
 	int half_splice_len = read_len - min_anchor_len;
 
 	size_t left_start, right_start;
-	uint32_t left_end, right_end;
+	size_t left_end, right_end;
 	
 	left_start = (int)junction.left - half_splice_len + 1 >= 0 ? (int)junction.left - half_splice_len + 1 : 0;
 	left_end = left_start + half_splice_len;
@@ -159,7 +159,7 @@ void driver(const vector<FILE*>& splice_coords_files,
 			ifstream& ref_stream)
 {
 	char splice_buf[2048];
-	SequenceTable rt(true);
+	RefSequenceTable rt(true);
 	JunctionSet junctions;
 	for (size_t i = 0; i < splice_coords_files.size(); ++i)
 	{
@@ -187,7 +187,7 @@ void driver(const vector<FILE*>& splice_coords_files,
 				fprintf(stderr,"Error: malformed splice coordinate record\n");
 				exit(1);
 			}
-			uint32_t ref_id = rt.get_id(ref_name);
+			uint32_t ref_id = rt.get_id(ref_name, NULL);
 			uint32_t left_coord = atoi(scan_left_coord);
 			uint32_t right_coord = atoi(scan_right_coord);
 			bool antisense = *orientation == '-';
@@ -205,7 +205,7 @@ void driver(const vector<FILE*>& splice_coords_files,
 		readMeta(ref_stream, name, Fasta());
 		read(ref_stream, ref_str, Fasta());
 		
-		uint32_t refid = rt.get_id(name);
+		uint32_t refid = rt.get_id(name, NULL);
 		Junction dummy_left(refid, 0, 0, true);
 		Junction dummy_right(refid, 0xFFFFFFFF, 0xFFFFFFFF, true);
 		
@@ -235,7 +235,7 @@ int main(int argc, char** argv)
 		return 1;
 	}
 	
-	min_anchor_len = parseInt(3, argv[optind++], "read length must be at least 3");
+	min_anchor_len = parseInt(3, argv[optind++], "anchor length must be at least 3");
 	
 	if(optind >= argc) 
 	{

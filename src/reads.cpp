@@ -15,6 +15,7 @@
 #include <string>
 #include <cstring>
 #include "reads.h"
+#include "bwt_map.h"
 
 using namespace std;
 
@@ -22,9 +23,10 @@ bool next_fasta_record(FILE* fp,
 					   string& defline, 
 					   string& seq)
 {
-	char buf[2048];
+	static int buf_size = 2048;
+	char buf[buf_size];
 	
-	while (!feof(fp) && fgets(buf, sizeof(buf), fp)) 
+	while (!feof(fp) && fgets(buf, buf_size, fp)) 
 	{
 		// Chomp the newline
 		char* nl = strrchr(buf, '\n');
@@ -58,12 +60,17 @@ bool next_fasta_record(FILE* fp,
 	return !(seq.empty());
 }
 
-bool next_fastq_record(FILE* fp, string& defline, string& seq, string& qual)
+bool next_fastq_record(FILE* fp, 
+					   string& defline, 
+					   string& seq, 
+					   string& alt_name,
+					   string& qual)
 {
-	char buf[2048];
+	static int buf_size = 2048;
+	char buf[buf_size];
 	
 	// Put the name of the record into defline
-	while (!feof(fp) && fgets(buf, sizeof(buf), fp)) 
+	while (!feof(fp) && fgets(buf, buf_size, fp)) 
 	{
 		// Chomp the newline
 		char* nl = strrchr(buf, '\n');
@@ -100,10 +107,15 @@ bool next_fastq_record(FILE* fp, string& defline, string& seq, string& qual)
 		return false;
 	
 	// Discard the optional secondary name (the one on the "+" line)
-	while (!feof(fp) && fgets(buf, sizeof(buf), fp))
+	while (!feof(fp) && fgets(buf, buf_size, fp))
 	{
+		// Chomp the newline
+		char* nl = strrchr(buf, '\n');
+		if (nl) *nl = 0;
+		
 		if (buf[0] == '+')
 		{
+			alt_name = buf + 1;
 			break;
 		}	
 	}
@@ -124,7 +136,8 @@ bool next_fastq_record(FILE* fp, string& defline, string& seq, string& qual)
 		// Only accept quality chars in the Sanger-scaled (but printable) range
 		//else if (c >= '!' && c <= 'I')
 		//{
-		qual.push_back(c);
+		if (qual.length() < seq.length())
+			qual.push_back(c);
 		//}
 	}
 	
@@ -148,6 +161,57 @@ void reverse_complement(string& seq)
 	}
 	reverse(seq.begin(), seq.end());
 	//fprintf(stderr, "rev: %s\n", seq.c_str());
+}
+
+bool get_read_from_stream(uint64_t insert_id,
+						  ReadTable& it,
+						  FILE* reads_file,
+						  ReadFormat reads_format,
+						  bool strip_slash,
+						  char read_name [], 
+						  char read_seq  [],
+						  char read_alt_name [], 
+						  char read_qual [])
+{
+	
+	Read read;
+	while(!feof(reads_file))
+	{
+		read.clear();
+		
+		// Get the next read from the file
+		if (reads_format == FASTA)
+		{
+			if (!next_fasta_record(reads_file, read.name, read.seq))
+				break;
+		}
+		else if (reads_format == FASTQ)
+		{
+			if (!next_fastq_record(reads_file, read.name, read.seq, read.alt_name, read.qual))
+				break;
+		}
+		
+		
+		if (strip_slash)
+		{
+			string::size_type slash = read.name.rfind("/");
+			if (slash != string::npos)
+				read.name.resize(slash);
+		}
+		
+		if (it.get_id(read.name) == insert_id)
+		{
+			if (read_name) strcpy(read_name, read.name.c_str());
+			if (read_seq) strcpy(read_seq, read.seq.c_str());
+			if (read_alt_name) strcpy(read_alt_name, read.alt_name.c_str());
+			if (read_qual) strcpy(read_qual, read.qual.c_str());
+			return true;
+		}
+		
+        //rt.get_id(read.name, ref_str);
+    }	
+	
+	return false;
 }
 
 

@@ -11,6 +11,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <seqan/sequence.h>
 
 using namespace std;
 
@@ -23,165 +24,325 @@ using namespace std;
  *
  */
 
+
+enum CigarOpCode { MATCH, INS, DEL, REF_SKIP, SOFT_CLIP, HARD_CLIP, PAD };
+
+struct CigarOp
+{
+	CigarOp(CigarOpCode o, uint32_t l) : opcode(o), length(l) {}
+	CigarOpCode opcode : 3;
+	uint32_t length : 29;
+	
+	bool operator==(const CigarOp& rhs) const { return opcode == rhs.opcode && length == rhs.length; }
+	
+};
+
+typedef uint32_t ReadID;
+
 /*  Stores the information from a single record of the bowtie map. A given read
-    may have many of these.  Reads up to 255bp are supported.
- 
-	TODO: this struct takes up 20 bytes, but it could be as small as 16 and 
-	still be word aligned.  
+    may have many of these.  Reads up to 255bp are supported. 
 */
 struct BowtieHit
 {
-	BowtieHit() : accepted(false) {}
+	BowtieHit() : 
+		_ref_id(0),
+		_insert_id(0),
+		_accepted(false) {}
 	
-	BowtieHit(uint16_t _ref_id,
-			  uint32_t _insert_id, 
-			  uint32_t _left, 
-			  uint32_t read_len, 
-			  bool _antisense) :
-		ref_id(_ref_id),
-		antisense_aln(_antisense),
-		insert_id(_insert_id), 
-		left(_left), 
-		antisense_splice(false),
-		right(_left + read_len),
-		accepted(false),
-		splice_pos_left(-1),
-		splice_pos_right(-1) {}
+	BowtieHit(uint32_t ref_id,
+			  ReadID insert_id, 
+			  int left, 
+			  int read_len, 
+			  bool antisense) :
+		_ref_id(ref_id),
+		_insert_id(insert_id), 
+		_left(left), 
+		_cigar(vector<CigarOp>(1,CigarOp(MATCH,read_len))),
+		_antisense_splice(false),
+		_antisense_aln(antisense),
+		_accepted(false)
+	{
+		assert(_cigar.capacity() == _cigar.size());
+	}
 	
-	BowtieHit(uint16_t _ref_id,
-			  uint32_t _insert_id, 
-			  uint32_t _left, 
-			  uint32_t _right, 
-			  uint32_t _sp_left,
-			  uint32_t _sp_right,
-			  uint32_t read_len, 
-			  bool _antisense_aln,
-			  bool _antisense_splice) : 
-		ref_id(_ref_id),
-		antisense_aln(_antisense_aln),	
-		insert_id(_insert_id), 	
-		left(_left), 
-		antisense_splice(_antisense_splice),
-		right(_right),
-		accepted(false),
-		splice_pos_left(_sp_left),
-		splice_pos_right(_sp_right) {}
+	BowtieHit(uint32_t ref_id,
+			  ReadID insert_id, 
+			  int left,  
+			  const vector<CigarOp>& cigar,
+			  bool antisense_aln,
+			  bool antisense_splice) : 
+		_ref_id(ref_id),
+		_insert_id(insert_id), 	
+		_left(left),
+		_cigar(cigar),
+		_antisense_splice(antisense_splice),
+		_antisense_aln(antisense_aln),
+		_accepted(false)
+	{
+		assert(_cigar.capacity() == _cigar.size());
+	}
 	
 	uint8_t read_len() const
 	{
-		if (splice_pos_left == -1 || splice_pos_right == -1)
+		uint32_t len = 0;
+		for (size_t i = 0; i < _cigar.size(); ++i)
 		{
-			return right - left;
+			const CigarOp& op = _cigar[i];
+			switch(op.opcode)
+			{
+				case MATCH:
+				case INS:
+				case SOFT_CLIP:
+					len += op.length;
+					break;
+				default:
+					break;
+			}
 		}
-		else
-		{
-			return splice_pos_left + splice_pos_right;
-		}
+		
+		return len;
 	}
 	
-	bool operator==(const BowtieHit& rhs)
+	bool operator==(const BowtieHit& rhs) const
 	{
-	    return (insert_id == rhs.insert_id &&
-	            ref_id == rhs.ref_id &&
-	            antisense_aln == rhs.antisense_aln &&
-	            left == rhs.left && 
-	            right == rhs.right &&
-	            antisense_splice == rhs.antisense_splice &&
+	    return (_insert_id == rhs._insert_id &&
+	            _ref_id == rhs._ref_id &&
+	            _antisense_aln == rhs._antisense_aln &&
+	            _left == rhs._left && 
+	            _antisense_splice == rhs._antisense_splice &&
 	            /* DO NOT USE ACCEPTED IN COMPARISON */
-	            splice_pos_left == rhs.splice_pos_left &&
-                splice_pos_right == rhs.splice_pos_right);
+	            _cigar == rhs._cigar);
     }
 	
-	uint16_t ref_id : 15;
-	bool antisense_aln : 1;       // Whether the alignment is to the reverse strand
-	uint32_t insert_id;   // Id of the sequencing insert
-	
-	uint32_t left : 31;        // Position in the reference of the left side of the alignment
-	bool antisense_splice : 1;    // Whether the junction spanned is on the reverse strand
-	uint32_t right : 31;       // Position in the reference of the right side of the alignment
-	bool accepted : 1;
-	int8_t splice_pos_left; // Offset from left where the splice begins, or -1 for unspliced alignments (ADD to left)
-	int8_t splice_pos_right;// Offset from right where the splice begins, or -1 for unspliced alignments (SUBTRACT from right)
-	
-	//uint16_t packing : 13;
-} __attribute__((packed));
-
-class SequenceTable
-{
-public:
-	
-	typedef map<string, uint32_t> TableType;
-	typedef map<uint32_t, string> InvertedTableType;
-	typedef TableType::iterator iterator;
-	typedef TableType::const_iterator const_iterator;
-	
-	SequenceTable(bool keep_names) : _next_id(0), _keep_names(keep_names) {}
-	
-	uint32_t get_id(const string& seq_name)
+	uint32_t ref_id() const				{ return _ref_id;			}
+	ReadID insert_id() const			{ return _insert_id;		}
+	int left() const				{ return _left;				}
+	int right() const	
 	{
-		if (_keep_names)
+		int r = _left;
+		for (size_t i = 0; i < _cigar.size(); ++i)
 		{
-			pair<TableType::iterator, bool> ret = 
-			_sequences_by_name.insert(make_pair(seq_name, _next_id));
-			if (ret.second == true)
+			const CigarOp& op = _cigar[i];
+			
+			switch(op.opcode)
 			{
-				++_next_id;
+				case MATCH:
+				case REF_SKIP:
+				case DEL:
+					r += op.length;
+					break;
+				default:
+					break;
 			}
-			return ret.first->second;
 		}
-		else
+		return r;			
+	}
+	bool antisense_splice()	const	{ return _antisense_splice; }
+	bool antisense_align() const	{ return _antisense_aln;	}
+	bool accepted()	const			{ return _accepted;			}
+	
+	void accepted(bool accept)		{ _accepted = accept; }
+	
+	// For convenience, if you just want a copy of the gap intervals
+	// for this hit.
+	void gaps(vector<pair<int,int> >& gaps_out) const
+	{
+		gaps_out.clear();
+		int pos = _left;
+		for (size_t i = 0; i < _cigar.size(); ++i)
 		{
-			return hash_string(seq_name.c_str());
+			const CigarOp& op = _cigar[i];
+			
+			switch(op.opcode)
+			{
+				case REF_SKIP:
+					gaps_out.push_back(make_pair(pos, pos + op.length - 1));
+					pos += op.length;
+					break;
+				case MATCH:
+					pos += op.length;
+					break;
+				default:
+					break;
+			}
 		}
 	}
 	
-	// You must call invert() before using this function
-	const string* get_name(uint32_t ID) const
-	{
-		InvertedTableType::const_iterator i = _sequences_by_id.find(ID);
-		if (i != _sequences_by_id.end())
-			return &(i->second);
-		return NULL;
-	}
+	const vector<CigarOp>& cigar() const { return _cigar; }
 	
-	iterator begin() { return _sequences_by_name.begin(); }
-	iterator end() { return _sequences_by_name.end(); }
-	
-	const_iterator begin() const { return _sequences_by_name.begin(); }
-	const_iterator end() const { return _sequences_by_name.end(); }
-	
-	size_t size() const { return _sequences_by_name.size(); }
-	
-	void invert()
-	{
-		for (TableType::const_iterator i = _sequences_by_name.begin();
-			 i != _sequences_by_name.end();
-			 ++i)
-		{
-			_sequences_by_id[i->second] = i->first;
-		}
-	}
-	
-	void clear()
-	{
-		_sequences_by_name.clear();
-		_sequences_by_id.clear();
+	bool contiguous() const 
+	{ 
+		return _cigar.size() == 1 && _cigar[0].opcode == MATCH;
 	}
 	
 private:
 	
-	inline uint32_t hash_string(const char* __s)
+	uint32_t _ref_id;
+	ReadID _insert_id;   // Id of the sequencing insert
+	int _left;        // Position in the reference of the left side of the alignment
+	
+	vector<CigarOp> _cigar;
+	
+	bool _antisense_splice;    // Whether the junction spanned is on the reverse strand
+	bool _antisense_aln;       // Whether the alignment is to the reverse strand
+	bool _accepted;
+};
+
+class ReadTable
+{
+public:
+	
+	typedef seqan::Dna5String Sequence;
+	
+	ReadTable() : 
+		_next_id(1) {}
+	
+	// This function should NEVER return zero
+	ReadID get_id(const string& name)
 	{
-		unsigned long __h = 0;
-		for ( ; *__s; ++__s)
-			__h = __h*5 + *__s;
-		return uint32_t(__h);
+		uint32_t _id = atoi(name.c_str());
+		assert(_id);
+		_next_id = max(_next_id, (size_t)_id);
+		return _id;
 	}
 	
-	TableType _sequences_by_name;
+	
+	uint32_t observation_order(ReadID ID)
+	{
+		if (ID == 0)
+			return 0xFFFFFFFF;
+		return ID;
+	}
+	
+	
+	size_t size() const { return _next_id - 1; }
+	
+private:
+	size_t _next_id;
+};
+
+class RefSequenceTable
+{
+public:
+	
+	typedef seqan::Dna5String Sequence;
+	
+	struct SequenceInfo
+	{
+		SequenceInfo(uint32_t _order, 
+					 char* _name, 
+					 Sequence* _seq) :
+		observation_order(_order),
+		name(_name),
+		seq(_seq) {}
+		uint32_t observation_order;
+		char* name;
+		Sequence* seq;
+	};
+	
+	typedef map<string, uint64_t> IDTable;
+	typedef map<uint32_t, SequenceInfo> InvertedIDTable;
+	typedef InvertedIDTable::iterator iterator;
+	typedef InvertedIDTable::const_iterator const_iterator;
+	
+	RefSequenceTable(bool keep_names, bool keep_seqs = false) : 
+	_next_id(1), 
+	_keep_names(keep_names) {}
+	
+	// This function should NEVER return zero
+	uint32_t get_id(const string& name,
+					Sequence* seq)
+	{
+		uint32_t _id = hash_string(name.c_str());
+		pair<InvertedIDTable::iterator, bool> ret = 
+		_by_id.insert(make_pair(_id, SequenceInfo(_next_id, NULL, NULL)));
+		if (ret.second == true)
+		{			
+			char* _name = NULL;
+			if (_keep_names)
+				_name = strdup(name.c_str());
+			ret.first->second.name = _name;
+			ret.first->second.seq	= seq;
+			++_next_id;
+		}
+		assert (_id);
+		return _id;
+	}
+	
+	// You must call invert() before using this function
+	const char* get_name(uint32_t ID)
+	{
+		InvertedIDTable::iterator itr = _by_id.find(ID);
+		if (itr != _by_id.end())
+			return itr->second.name;
+		else
+			return NULL;
+	}
+
+	Sequence* get_seq(uint32_t ID) 
+	{
+		InvertedIDTable::iterator itr = _by_id.find(ID);
+		if (itr != _by_id.end())
+			return itr->second.seq;
+		else
+			return NULL;
+	}
+
+	const SequenceInfo* get_info(uint32_t ID)
+	{
+		
+		InvertedIDTable::iterator itr = _by_id.find(ID);
+		if (itr != _by_id.end())
+		{
+			return &(itr->second);
+		}
+		else
+			return NULL;
+	}
+	
+	int observation_order(uint32_t ID)
+	{
+		InvertedIDTable::iterator itr = _by_id.find(ID);
+		if (itr != _by_id.end())
+		{
+			return itr->second.observation_order;
+		}
+		else
+			return -1;
+	}
+	
+	iterator begin() { return _by_id.begin(); }
+	iterator end() { return _by_id.end(); }
+	
+	const_iterator begin() const { return _by_id.begin(); }
+	const_iterator end() const { return _by_id.end(); }
+	
+	size_t size() const { return _by_id.size(); }
+	
+	void clear()
+	{
+		//_by_name.clear();
+		_by_id.clear();
+	}
+	
+private:
+	
+	// This is FNV-1, see http://en.wikipedia.org/wiki/Fowler_Noll_Vo_hash
+	inline uint32_t hash_string(const char* __s)
+	{
+		uint32_t hash = 0x811c9dc5;
+		for ( ; *__s; ++__s)
+		{
+			hash *= 16777619;
+			hash ^= *__s;
+		}
+		return hash;
+	}
+	
+	//IDTable _by_name;
 	uint32_t _next_id;
 	bool _keep_names;
-	InvertedTableType _sequences_by_id;
+	InvertedIDTable _by_id;
 };
 
 bool hit_insert_id_lt(const BowtieHit& h1, const BowtieHit& h2);
@@ -197,7 +358,7 @@ class HitTable
 {
 public:
 
-	typedef map<uint32_t, HitList> RefHits;
+	typedef map<uint64_t, HitList> RefHits;
 	typedef RefHits::const_iterator const_iterator;
 	typedef RefHits::iterator iterator;
 	
@@ -221,7 +382,7 @@ public:
 		}
 	}
 	
-	HitList* get_hits(uint32_t ref_id)
+	HitList* get_hits(uint64_t ref_id)
 	{
 		RefHits::iterator i = _hits_for_ref.find(ref_id);
 		if (i == _hits_for_ref.end())
@@ -237,20 +398,20 @@ private:
     uint32_t _total_hits;
 };
 
+
 class HitFactory
 {
 public:
-	HitFactory(SequenceTable& insert_table, 
-			 SequenceTable& reference_table) : 
+	HitFactory(ReadTable& insert_table, 
+			   RefSequenceTable& reference_table) : 
 	_insert_table(insert_table), _ref_table(reference_table) {}
+	
+	virtual ~HitFactory() {}
 	
 	BowtieHit create_hit(const string& insert_name, 
 						 const string& ref_name,
-						 uint32_t left,
-						 uint32_t right,
-						 uint32_t sp_left,
-						 uint32_t sp_right,
-						 uint32_t read_len,
+						 int left,
+						 const vector<CigarOp>& cigar,
 						 bool antisense_aln,
 						 bool antisense_splice);
 	
@@ -260,13 +421,149 @@ public:
 						 uint32_t read_len,
 						 bool antisense_aln);
 	
-	bool get_hit_from_buf(const char* bwt_buf, 
-						  bool spliced,
-						  BowtieHit& bh);
+	virtual bool get_hit_from_buf(const char* bwt_buf, 
+								  BowtieHit& bh,
+								  bool strip_slash,
+								  char* name_out = NULL,
+								  char* name_tags = NULL) = 0;
 	
 private:
-	SequenceTable& _insert_table;
-	SequenceTable& _ref_table;
+	ReadTable& _insert_table;
+	RefSequenceTable& _ref_table;
+};
+
+class BowtieHitFactory : public HitFactory
+{
+public:
+	BowtieHitFactory(ReadTable& insert_table, 
+					 RefSequenceTable& reference_table) : 
+		HitFactory(insert_table, reference_table) {}
+	//virtual ~BowtieHitFactory() {}
+	
+	bool get_hit_from_buf(const char* bwt_buf, 
+						  BowtieHit& bh,
+						  bool strip_slash,
+						  char* name_out = NULL,
+						  char* name_tags = NULL);
+};
+
+class SplicedBowtieHitFactory : public HitFactory
+{
+public:
+	SplicedBowtieHitFactory(ReadTable& insert_table, 
+							RefSequenceTable& reference_table,
+							bool filter_anchor_mismatches) : 
+	HitFactory(insert_table, reference_table),
+	_filter_anchor_mismatches(filter_anchor_mismatches) {}
+	
+	//virtual ~SplicedBowtieHitFactory() {}
+	
+	bool get_hit_from_buf(const char* bwt_buf, 
+						  BowtieHit& bh,
+						  bool strip_slash,
+						  char* name_out = NULL,
+						  char* name_tags = NULL);
+private:
+	bool _filter_anchor_mismatches;
+};
+
+class SAMHitFactory : public HitFactory
+{
+public:
+	SAMHitFactory(ReadTable& insert_table, 
+				  RefSequenceTable& reference_table) : 
+	HitFactory(insert_table, reference_table) {}
+	
+	bool get_hit_from_buf(const char* bwt_buf, 
+						  BowtieHit& bh,
+						  bool strip_slash,
+						  char* name_out = NULL,
+						  char* name_tags = NULL);
+};
+
+struct HitsForRead
+{
+	HitsForRead() : insert_id(0) {}
+	uint64_t insert_id;
+	vector<BowtieHit> hits;
+	
+//	HitsForRead& operator=(const HitsForRead& rhs)
+//	{
+//		insert_id = rhs.insert_id;
+//		hits = rhs.hits;
+//		return *this;
+//	}
+};
+
+class HitStream
+{
+	
+public:
+	HitStream(FILE* hit_file, HitFactory* hit_factory, bool spliced, bool strip_slash) : 
+	_hit_file(hit_file),
+	_factory(hit_factory),
+	_spliced(spliced),
+	_strip_slash(strip_slash),
+	buffered_hit(BowtieHit())
+	{
+		// Prime the stream by reading a single hit into the buffered_hit
+		HitsForRead dummy = HitsForRead();
+		next_read_hits(dummy);
+	}
+	
+	bool next_read_hits(HitsForRead& hits_for_read)
+	{
+		hits_for_read.hits.clear();
+		hits_for_read.insert_id = 0; 
+		
+		if (feof(_hit_file))
+		{
+			buffered_hit = BowtieHit();
+			return false;
+		}
+		char bwt_buf[2048];
+		
+		hits_for_read.insert_id = buffered_hit.insert_id();
+		hits_for_read.hits.push_back(buffered_hit);
+		
+		while (fgets(bwt_buf, 2048, _hit_file))
+		{
+			// Chomp the newline
+			char* nl = strrchr(bwt_buf, '\n');
+			if (nl) *nl = 0;
+			string clean_buf = bwt_buf;
+			// Get a new record from the tab-delimited Bowtie map
+			BowtieHit bh;
+			
+			if (!_factory->get_hit_from_buf(bwt_buf, bh, _strip_slash))
+				continue;
+			if (bh.insert_id() == hits_for_read.insert_id)
+			{
+				hits_for_read.hits.push_back(bh);
+			}
+			else
+			{
+				buffered_hit = bh;
+				break;
+			}
+		}	
+		if (feof(_hit_file))
+			buffered_hit = BowtieHit();
+		
+		return (!hits_for_read.hits.empty() && hits_for_read.insert_id != 0);
+	}
+	
+	uint64_t next_group_id() const 
+	{
+		return buffered_hit.insert_id();
+	}
+	
+private:
+	FILE* _hit_file;
+	HitFactory* _factory;
+	bool _spliced;
+	bool _strip_slash;
+	BowtieHit buffered_hit;
 };
 
 typedef uint32_t MateStatusMask;
@@ -274,7 +571,7 @@ typedef uint32_t MateStatusMask;
 void get_mapped_reads(FILE* bwtf, 
 					  HitTable& hits,
 					  HitFactory& hit_factory,
-					  bool spliced, 
+					  bool strip_slash,
 					  bool verbose = false);
 
 //bool left_status_better(MateStatusMask left, MateStatusMask right);
@@ -287,5 +584,12 @@ AlignStatus status(const BowtieHit* align);
 void add_hits_to_coverage(const HitList& hits, vector<short>& DoC);
 
 void accept_all_hits(HitTable& hits);
+
+void print_hit(FILE* fout, 
+			   const char* read_name,
+			   const BowtieHit& bh,
+			   const char* ref_name,
+			   const char* sequence,
+			   const char* qualities);
 
 #endif

@@ -10,6 +10,7 @@
  */
 
 #include <string>
+#include "common.h"
 
 using std::string;
 
@@ -26,6 +27,7 @@ struct Read
 	
 	string name;
 	string seq;
+	string alt_name;
 	string qual;
 	
 	bool lengths_equal() { return seq.length() == qual.length(); }
@@ -34,11 +36,24 @@ struct Read
 		name.clear(); 
 		seq.clear(); 
 		qual.clear(); 
+		alt_name.clear();
 	}
 };
 
 bool next_fasta_record(FILE* fp, string& defline, string& seq);
-bool next_fastq_record(FILE* fp, string& defline, string& seq, string& qual);
+bool next_fastq_record(FILE* fp, string& defline, string& seq, string& alt_name, string& qual);
 void reverse_complement(string& seq);
+
+class ReadTable;
+
+bool get_read_from_stream(uint64_t insert_id,
+						  ReadTable& it,
+						  FILE* reads_file,
+						  ReadFormat reads_format,
+						  bool strip_slash,
+						  char read_name [], 
+						  char read_seq  [],
+						  char read_alt_name [],
+						  char read_qual []);
 
 #endif

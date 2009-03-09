@@ -19,5 +19,11 @@ extern uint32_t min_anchor_len;
 extern uint32_t min_intron_length;
 extern uint32_t max_intron_length;
 extern uint32_t min_exon_length;
+extern int island_extension;
+
+enum ReadFormat {FASTA, FASTQ};
+extern ReadFormat reads_format;
+
+int parseInt(int lower, const char *errmsg, void (*print_usage)());
 
 #endif

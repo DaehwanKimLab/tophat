@@ -38,6 +38,7 @@ Options:
     -p/--num-threads               <int>       [ default: 1            ]
     -D/--min-norm-depth            <0-1000>    [ default: 300          ]
     -G/--GFF                       <filename>
+    -r/--raw-juncs                 <filename>
     --no-novel-juncs                           [ default: off          ]
     --no-gff-juncs                             [ default: off          ]
 '''
@@ -343,17 +344,19 @@ def filter_garbage(reads_list, reads_format):
 
     
     #filter_cmd = ["filter_garbage"]
-    if reads_format == "-f":
-        reads_suffix = ".fa"
-    else:
-        reads_suffix = ".fq"
-        
+    # if reads_format == "-f":
+    #     reads_suffix = ".fa"
+    # else:
+    #     reads_suffix = ".fq"
+    reads_suffix = ".fq"
+    
     kept_reads_filename = output_dir + "kept_reads" + reads_suffix
     kept_reads = open(kept_reads_filename, "w")
     
     filter_log = open(logging_dir + "filter_garbage.log", "w")
     
     filter_cmd = ["filter_garbage",
+                  "-Q",
                   reads_format]   
     #print "\t executing: `%s'" % " ".join(bowtie_cmd)    
     files = reads_list.split(',')
@@ -748,7 +751,7 @@ def align_spliced_reads(islands_fasta,
     return spliced_reads_name
     
 
-def compile_reports(maps, min_isoform_fraction, gff_annotation):
+def compile_reports(maps, kept_reads, min_isoform_fraction, gff_annotation):
     print >> sys.stderr, "[%s] Reporting output tracks" % right_now()
     
     maps = [x for x in maps if (os.path.exists(x) and os.path.getsize(x) > 0)]
@@ -767,7 +770,8 @@ def compile_reports(maps, min_isoform_fraction, gff_annotation):
     report_cmd.extend([coverage,
                        junctions,
 					   accepted_hits,
-                       maps])            
+                       maps,
+                       kept_reads])            
     try:    
        retcode = subprocess.call(report_cmd, 
                                  stderr=report_log)
@@ -820,7 +824,7 @@ def exclude_reads(reads_file, reads_format, read_ids):
     return reads_file
 
 def get_version():
-   return "0.8.2"
+   return "0.8.3"
     
 def main(argv=None):
     
@@ -845,7 +849,6 @@ def main(argv=None):
                                          "island-gap=",
                                          "extend-islands=",
                                          "GFF=",
-                                         "raw-juncs=",
                                          "no-novel-juncs",
                                          "no-gff-juncs",
                                          "skip-check-reads",
@@ -992,7 +995,7 @@ def main(argv=None):
         
         (bwt_map, unmapped_reads) = bowtie(bwt_idx_prefix, 
                                            kept_reads,
-                                           format_flag, 
+                                           "-q", 
                                            "unspliced_map.bwtout",
                                            "unmapped.fa",
                                            bowtie_threads,
@@ -1046,7 +1049,8 @@ def main(argv=None):
         maps = [bwt_map]
         maps.extend(spliced_reads)
             
-        compile_reports(maps, 
+        compile_reports(maps,
+                        kept_reads,
                         min_isoform_fraction, 
                         gff_annotation)
         

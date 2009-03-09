@@ -15,21 +15,24 @@
 #include "bwt_map.h"
 #include "fragments.h"
 
-void best_fragment_mappings(uint32_t refid,
+void best_fragment_mappings(uint64_t refid,
 							const string& name,
 							HitList& hits_in_ref,
+							ReadTable& it, 
 							BestFragmentAlignmentTable& best_status_for_fragments)
 {	
 	for (size_t i = 0; i < hits_in_ref.size(); ++i)
 	{
 		BowtieHit& h1 = hits_in_ref[i];
 		
-		uint32_t fragment_id = h1.insert_id;
+		uint64_t fragment_id = h1.insert_id();
+		
+		uint32_t obs_order = it.observation_order(fragment_id);
 		
 		FragmentAlignmentGrade s(h1);
 		
 		pair<FragmentAlignmentGrade, vector<FragmentAlignment*> >& fragment_best
-		= best_status_for_fragments[fragment_id];
+		= best_status_for_fragments[obs_order];
 		FragmentAlignmentGrade& current = fragment_best.first;
 		// Is the new status better than the current best one?
 		if (current < s)
@@ -66,7 +69,7 @@ void accept_unique_hits(BestFragmentAlignmentTable& best_status_for_fragments)
 			for (size_t j = 0; j < fragment_best.second.size(); ++j)
 			{
 				FragmentAlignment& a = *(fragment_best.second[j]);
-				a.accepted = true;
+				a.accepted(true);
 			}
 			for (size_t j = 0; j < fragment_best.second.size(); ++j)
 			{
@@ -75,11 +78,11 @@ void accept_unique_hits(BestFragmentAlignmentTable& best_status_for_fragments)
 				{
 					FragmentAlignment& b = *(fragment_best.second[k]);
 					if (k != j && 
-						(a.left == b.left || 
-						 a.right == b.right))
+						(a.left() == b.left() || 
+						 a.right() == b.right()))
 					{
-						a.accepted = false;
-						b.accepted = false;
+						a.accepted(false);
+						b.accepted(false);
 					}
 				}
 			}
@@ -89,8 +92,8 @@ void accept_unique_hits(BestFragmentAlignmentTable& best_status_for_fragments)
 			for (size_t j = 0; j < fragment_best.second.size(); ++j)
 			{
 				FragmentAlignment& a = *(fragment_best.second[j]);
-				assert (a.splice_pos_left == -1);
-				a.accepted = true;
+				assert (a.contiguous());
+				a.accepted(true);
 			}
 		}
 	}
@@ -107,7 +110,7 @@ void accept_valid_hits(BestFragmentAlignmentTable& best_status_for_fragments)
 		{
 			FragmentAlignment& a = *(fragment_best.second[j]);
 			bool valid = valid_fragment_alignment(fragment_best.first, a);
-			a.accepted = valid;
+			a.accepted(valid);
 		}
 	}
 }

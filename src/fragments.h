@@ -20,7 +20,7 @@ struct FragmentAlignmentGrade
 	
 	FragmentAlignmentGrade(const BowtieHit& h1) 
 	{
-		if (h1.splice_pos_left != -1)
+		if (!h1.contiguous())
 		{
 			status = SPLICED;
 		}
@@ -48,9 +48,10 @@ struct FragmentAlignmentGrade
 
 typedef vector<pair<FragmentAlignmentGrade, vector<FragmentAlignment*> > > BestFragmentAlignmentTable;
 
-void best_fragment_mappings(uint32_t refid,
+void best_fragment_mappings(uint64_t refid,
 							const string& name,
 							HitList& hits1_in_ref,
+							ReadTable& it,
 							BestFragmentAlignmentTable& best_status_for_fragments);
 
 void accept_valid_hits(BestFragmentAlignmentTable& best_status_for_fragments);

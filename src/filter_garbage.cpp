@@ -15,13 +15,13 @@
 #include <cassert>
 #include "reads.h"
 
-enum Format {FASTA, FASTQ};
-Format format = FASTA;
+ReadFormat format = FASTA;
+bool fastq_db = false;
 
 void filter_garbage_reads(FILE *fa)
 {
 	int num_reads_chucked = 0, num_reads = 0;
-	 
+	int next_id = 1;
 	Read read;
 	while(!feof(fa))
 	{
@@ -35,11 +35,9 @@ void filter_garbage_reads(FILE *fa)
 		}
 		else if (format == FASTQ)
 		{
-			if (!next_fastq_record(fa, read.name, read.seq, read.qual))
+			if (!next_fastq_record(fa, read.name, read.seq, read.alt_name, read.qual))
 				break;
 		}
-		
-		
 		
 		
 		++num_reads;
@@ -73,12 +71,34 @@ void filter_garbage_reads(FILE *fa)
 		} 
 		else
 		{
-			if (format == FASTA)
-				printf(">%s\n%s\n", read.name.c_str(), read.seq.c_str());
-			else if (format == FASTQ)
-				printf("@%s\n%s\n+\n%s\n", 
-					   read.name.c_str(), read.seq.c_str(),read.qual.c_str());
-					   
+			if (!fastq_db)
+			{
+				if (format == FASTA)
+					printf(">%s\n%s\n", read.name.c_str(), read.seq.c_str());
+				else if (format == FASTQ)
+					printf("@%s\n%s\n+\n%s\n", 
+						   read.name.c_str(), read.seq.c_str(),read.qual.c_str());
+			}
+			else
+			{
+				if (format == FASTA)
+				{
+					printf("@%d\n%s\n+%s\n%s\n",
+						   next_id++,
+						   read.seq.c_str(),
+						   read.name.c_str(),
+						   string(read.seq.length(), 'I').c_str());
+				}
+				else if (format == FASTQ)
+				{
+					printf("@%d\n%s\n+%s\n%s\n",
+						   next_id++,
+						   read.seq.c_str(),
+						   read.name.c_str(),
+						   read.qual.c_str());
+				}
+				
+			}
 		}
 	}
 	
@@ -94,7 +114,7 @@ int main(int argc, char *argv[])
 	int c;
 	
 	// Parse command line options
-	while ((c = getopt(argc, argv, "hqf")) >= 0) {
+	while ((c = getopt(argc, argv, "hqfQ")) >= 0) {
 		switch (c) {
 			case 'h': 
 			{
@@ -111,6 +131,8 @@ int main(int argc, char *argv[])
 				format = FASTA;
 				break;
 			}
+			case 'Q':
+				fastq_db = true;
 			default: break;
 		}
 	}
