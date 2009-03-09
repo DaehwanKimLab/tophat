@@ -34,11 +34,10 @@
 #include "tokenize.h"
 #include "genes.h"
 #include "FSA/gff.h"
+#include "reads.h"
 #include "FSA/sequence.h"
 
-#ifdef PAIRED_END
-#include "inserts.h"
-#endif
+//#include "inserts.h"
 
 using namespace std;
 using namespace seqan;
@@ -49,7 +48,7 @@ using std::set;
 
 
 static bool filter_junctions = true;
-static float min_isoform_fraction = 0.15;
+static float min_isoform_fraction = 0.15f;
 static bool accept_all = true;
 string gff_file = "";
 string ref_fasta = "";
@@ -57,57 +56,13 @@ string gene_filter = "";
 string output_dir = "tophat_out";
 bool verbose = false;
 
-void print_usage()
-{
-#ifdef PAIRED_END
-    fprintf(stderr, "Usage:   tophat_reports <coverage.wig> <junctions.bed> <accepted_hits.sam> <map1.bwtout> [splice_map1.sbwtout] [map2.bwtout] [splice_map2.sbwtout]\n");
-#else
-    fprintf(stderr, "Usage:   tophat_reports <coverage.wig> <junctions.bed> <accepted_hits.sam> <map1.bwtout> [splice_map1.sbwtout]\n");
-#endif
-}
 
-#ifdef PAIRED_END
-void insert_best_pairings(SequenceTable& rt,
-                          HitTable& hits1,
-                          HitTable& hits2,
-                          BestInsertAlignmentTable& best_pairings)
-{
-    for(SequenceTable::const_iterator ci = rt.begin();
-        ci != rt.end();
-        ++ci)
-    {
-
-        // Tracks the number of singleton ALIGNMENTS, not the number of singleton
-        // READS in each Bowtie map.
-        vector<size_t> map1_singletons;
-        vector<size_t> map2_singletons;
-        vector<pair<size_t, size_t> > happy_mates;
-
-        string name = ci->first;
-        uint32_t ref_id = rt.get_id(name);
-        HitList* hits1_in_ref = hits1.get_hits(ref_id);
-        HitList* hits2_in_ref = hits2.get_hits(ref_id);
-
-        if (!hits1_in_ref || !hits2_in_ref)
-            continue;
-
-        if (verbose)
-            fprintf(stderr, "Looking for best insert mappings in %s\n", name.c_str());
-
-        best_insert_mappings(ref_id,
-                             name,
-                             *hits1_in_ref,
-                             *hits2_in_ref,
-                             best_pairings);
-    }
-}
-#endif
-
-void fragment_best_alignments(SequenceTable& rt,
+void fragment_best_alignments(RefSequenceTable& rt,
+							  ReadTable& it,
                               HitTable& hits1,
                               BestFragmentAlignmentTable& best_alignments)
 {
-    for(SequenceTable::const_iterator ci = rt.begin();
+    for(RefSequenceTable::const_iterator ci = rt.begin();
         ci != rt.end();
         ++ci)
     {
@@ -115,8 +70,8 @@ void fragment_best_alignments(SequenceTable& rt,
         // Tracks the number of singleton ALIGNMENTS, not the number of singleton
         // READS in each Bowtie map.
 
-        string name = ci->first;
-        uint32_t ref_id = rt.get_id(name);
+        string name = ci->second.name;
+        uint64_t ref_id = ci->first;
         HitList* hits_in_ref = hits1.get_hits(ref_id);
 
         if (!hits_in_ref)
@@ -128,6 +83,7 @@ void fragment_best_alignments(SequenceTable& rt,
         best_fragment_mappings(ref_id,
                                name,
                                *hits_in_ref,
+							   it,
                                best_alignments);
     }
 }
@@ -139,14 +95,29 @@ bool is_masked_char(char c)
     return false;
 }
 
-void load_hits(HitFactory& hit_factory,
-			   const vector<string>& filenames,
+void load_hits(const vector<string>& filenames,
+			   RefSequenceTable& rt,
+			   ReadTable& it,
                HitTable& hits)
 {
     for (size_t i = 0; i < filenames.size(); ++i)
     {
         const string& filename = filenames[i];
-        bool spliced = (filename.rfind(".sbwtout") != string::npos);
+		HitFactory* hit_factory = NULL;
+		
+        if (filename.rfind(".sbwtout") != string::npos)
+		{
+			hit_factory = new SplicedBowtieHitFactory(it,rt, i == 0 || i == filenames.size() - 1);
+		}
+		else if (filename.rfind(".sam") != string::npos)
+		{
+			hit_factory = new SAMHitFactory(it,rt);
+		}
+		else
+		{
+			hit_factory = new BowtieHitFactory(it,rt);
+		}
+		
         FILE* map = fopen(filename.c_str(), "r");
 
         if (map == NULL)
@@ -156,14 +127,16 @@ void load_hits(HitFactory& hit_factory,
         }
         fprintf(stderr, "Loading hits from %s\n", filename.c_str());
         size_t num_hits_before_load = hits.total_hits();
-        get_mapped_reads(map, hits, hit_factory, spliced);
+        get_mapped_reads(map, hits, *hit_factory, true);
         fprintf(stderr, "Loaded %d hits from %s\n", 
                 (int)hits.total_hits() - (int)num_hits_before_load, 
                 filename.c_str());
+		delete hit_factory;
     }
 }
 
-void load_hits(HitFactory& hit_factory,
+void load_hits(RefSequenceTable& rt,
+			   ReadTable& it,
 			   const string& left_read_maplist,
                HitTable& left_hits,
                const string* right_read_maplist,
@@ -171,16 +144,17 @@ void load_hits(HitFactory& hit_factory,
 {
     vector<string> left_filenames;
     tokenize(left_read_maplist, ",", left_filenames);
-    load_hits(hit_factory, left_filenames, left_hits);
+    load_hits(left_filenames, rt, it, left_hits);
     if (right_read_maplist && right_hits)
     {
         vector<string> right_filenames;
         tokenize(*right_read_maplist, ",", right_filenames);
-        load_hits(hit_factory, right_filenames, *right_hits);
+        load_hits(right_filenames, rt, it, *right_hits);
     }
 }
 
-void print_sam_for_hit(FILE* fout, 
+void print_sam_for_hit(FILE* fout,
+					   char* alt_name,
 					   const char* bwt_buf, 
 					   bool spliced)
 {
@@ -230,7 +204,7 @@ void print_sam_for_hit(FILE* fout,
 	{
 		*slash = 0;
 	}
-	int read_len = strlen(sequence);
+	int read_len = (int)strlen(sequence);
 	
 	// Add this alignment to the table of hits for this half of the
 	// Bowtie map
@@ -241,7 +215,7 @@ void print_sam_for_hit(FILE* fout,
 		
 		tokenize_strict(text_name, "|", toks);
 		
-		int num_extra_toks = toks.size() - 6;
+		int num_extra_toks = (int)toks.size() - 6;
 		
 		if (num_extra_toks >= 0)
 		{
@@ -266,7 +240,7 @@ void print_sam_for_hit(FILE* fout,
 			
 			sam_pos = left + 1;
 			
-			uint32_t spliced_read_len = strlen(sequence);
+			uint32_t spliced_read_len = (uint32_t)strlen(sequence);
 			uint32_t left_splice_coord = atoi(splice_toks[0].c_str());
 			uint32_t right_splice_coord = atoi(splice_toks[1].c_str());
 			int8_t left_splice_overhang = left_splice_coord - left + 1;
@@ -313,7 +287,7 @@ void print_sam_for_hit(FILE* fout,
 	
 	fprintf(fout,
 			"%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\n",
-			read_name,
+			alt_name ? alt_name : read_name,
 			sam_flag,
 			text_name,
 			sam_pos,
@@ -326,17 +300,34 @@ void print_sam_for_hit(FILE* fout,
 			qualities);
 }
 
-
-
 void print_sam_for_accepted_hits(FILE* fout,
-								 HitFactory& hit_factory,
+								 RefSequenceTable& rt,
+								 ReadTable& it,
 								 const vector<string>& filenames,
-								 HitTable& hits)
+								 HitTable& hits,
+								 FILE* reads_file)
 {
+	HitFactory* hit_factory = NULL;
     for (size_t i = 0; i < filenames.size(); ++i)
     {
+		rewind(reads_file);
+		
         const string& filename = filenames[i];
-        bool spliced = (filename.rfind(".sbwtout") != string::npos);
+		bool sam = (filename.rfind(".sam") != string::npos);
+		bool spliced_bowtie = (filename.rfind(".sbwtout") != string::npos); 
+        if (spliced_bowtie)
+		{
+			hit_factory = new SplicedBowtieHitFactory(it, rt, i == 0 || i == filenames.size() - 1);
+		}
+		else if (sam)
+		{
+			hit_factory = new SAMHitFactory(it, rt);
+		}
+		else
+		{
+			hit_factory = new BowtieHitFactory(it, rt);
+		}
+		
         FILE* map = fopen(filename.c_str(), "r");
 		
         if (map == NULL)
@@ -344,67 +335,102 @@ void print_sam_for_accepted_hits(FILE* fout,
             fprintf(stderr, "Error: could not open %s\n", filename.c_str());
             exit(1);
         }
+
         //fprintf(stderr, "Loading hits from %s\n", filename.c_str());
         //size_t num_hits_before_load = hits.total_hits();
 		
-		char bwt_buf[2048];
+		static int buf_size = 2048;
+		char bwt_buf[buf_size];
 		uint32_t reads_extracted = 0;
 		
+		char read_name[buf_size];
+		char read_seq[buf_size];
+		char read_alt_name[buf_size];
+		char read_quals[buf_size];
+		
+		ReadID last_id = 0;
 		while (fgets(bwt_buf, 2048, map))
 		{
 			// Chomp the newline
 			char* nl = strrchr(bwt_buf, '\n');
 			if (nl) *nl = 0;
+			
+			if (*bwt_buf == 0)
+				continue;
+			
 			string clean_buf = bwt_buf;
 			// Get a new record from the tab-delimited Bowtie map
 			BowtieHit bh;
-			if (hit_factory.get_hit_from_buf(bwt_buf, spliced, bh))
+			
+			if (hit_factory->get_hit_from_buf(bwt_buf, bh, true))
 			{
+				if (bh.insert_id() != last_id)
+				{
+					get_read_from_stream(bh.insert_id(), 
+										 it, 
+										 reads_file,
+										 reads_format,
+										 false,
+										 read_name, 
+										 read_seq,
+										 read_alt_name,
+										 read_quals);
+					last_id = bh.insert_id();
+				}
 				// Only check uniqueness if these hits are spliced
 				// hits.add_hit(bh, spliced);
-				const HitList* hit_list = hits.get_hits(bh.ref_id);
+				const HitList* hit_list = hits.get_hits(bh.ref_id());
 				if (!hit_list ||
 					!binary_search(hit_list->begin(), hit_list->end(), bh, hit_insert_id_lt))
 					continue;
 				//fprintf(fout, "%s\n", clean_buf.c_str());
-				print_sam_for_hit(fout, clean_buf.c_str(), spliced);
 				
+				if (sam)
+				{
+					char* first_tab = strchr(bwt_buf, '\t');
+					if (!first_tab)
+						continue;
+					
+					fprintf(fout, "%s\t%s\n", read_alt_name, first_tab);
+				}
+				else
+				{
+					print_sam_for_hit(fout, read_alt_name, clean_buf.c_str(), spliced_bowtie);
+				}
 			}
 			reads_extracted++;
 		}
-		
-		// This will sort the map by insert id.
-		
-//		if (verbose)
-//		{
-//			fprintf(stderr, "Extracted %d alignments from Bowtie map\n", reads_extracted);
-//		}
-//        fprintf(stderr, "Loaded %d hits from %s\n", 
-//                (int)hits.total_hits() - (int)num_hits_before_load, 
-//                filename.c_str());
     }
 }
 
 void print_sam_for_accepted_hits(FILE* fout, 
-								 HitFactory& hit_factory,
+								 RefSequenceTable& rt,
+								 ReadTable& it,
 								 const string& left_read_maplist,
 								 HitTable& left_hits,
+								 FILE* left_reads_file,
 								 const string* right_read_maplist,
-								 HitTable* right_hits)
+								 HitTable* right_hits,
+								 FILE* right_reads_file)
 {
     vector<string> left_filenames;
     tokenize(left_read_maplist, ",", left_filenames);
-    print_sam_for_accepted_hits(fout, hit_factory, left_filenames, left_hits);
+
+    print_sam_for_accepted_hits(fout, rt, it, left_filenames, left_hits, left_reads_file);
+
     if (right_read_maplist && right_hits)
     {
         vector<string> right_filenames;
         tokenize(*right_read_maplist, ",", right_filenames);
-        print_sam_for_accepted_hits(fout, hit_factory, right_filenames, *right_hits);
+
+        print_sam_for_accepted_hits(fout, rt, it, right_filenames, *right_hits, right_reads_file);
     }
 }
 
 void driver(const string& left_maps,
+			FILE* left_reads_file,
             const string* right_maps,
+			FILE* right_reads_file,
             FILE* coverage_out,
             FILE* junctions_out,
 			FILE* accepted_hits_out,
@@ -419,20 +445,22 @@ void driver(const string& left_maps,
 
     uint32_t total_map_depth = 0;
 
-    while(ref_stream.good() &&
-          !ref_stream.eof())
-    {
-        Reference ref_str;
-        string name;
-        readMeta(ref_stream, name, Fasta());
-//        ifstream::pos_type offset = ref_stream.tellg();
-//        ref_file_offsets[name] = offset;
-        read(ref_stream, ref_str, Fasta());
-        fsa::Sequence* ref_seq = new fsa::Sequence("", string(toCString(ref_str)));
-        ref_seq->init_hardmasking(1, is_masked_char);
-        ref_seq->seq.clear();
-        masks[name] = ref_seq;
-    }
+
+	
+//    while(ref_stream.good() &&
+//          !ref_stream.eof())
+//    {
+//        Reference ref_str;
+//        string name;
+//        readMeta(ref_stream, name, Fasta());
+////        ifstream::pos_type offset = ref_stream.tellg();
+////        ref_file_offsets[name] = offset;
+//        read(ref_stream, ref_str, Fasta());
+//        fsa::Sequence* ref_seq = new fsa::Sequence("", string(toCString(ref_str)));
+//        ref_seq->init_hardmasking(1, is_masked_char);
+//        ref_seq->seq.clear();
+//        masks[name] = ref_seq;
+//    }
     
     std::set<string>* gene_filter = NULL;
     if (gene_filter_file)
@@ -450,24 +478,22 @@ void driver(const string& left_maps,
     ref_stream.clear();
     ref_stream.seekg(0, ios::beg);
 
-    bool paired_end = right_maps != NULL;
-
     // Load the set of left maps, and if provided, the set of right maps
-    SequenceTable it(false);
-    SequenceTable rt(true);
+
+    ReadTable it;
+    RefSequenceTable rt(true);
 	
-	HitFactory hit_factory(it,rt);
+	//HitFactory hit_factory(it,rt);
 	
     HitTable left_hits;
+
     HitTable* right_hits = NULL;
     if (right_maps != NULL)
     {
-        // FIXME: verify that it's ok to toss the read ids for PE mode.
-        // we should still just be able to hash
         right_hits = new HitTable();
     }
 
-    load_hits(hit_factory, left_maps, left_hits, right_maps, right_hits);
+    load_hits(rt, it, left_maps, left_hits, right_maps, right_hits);
 
     JunctionSet junctions;
 
@@ -475,116 +501,92 @@ void driver(const string& left_maps,
 
     GeneFactory gene_factory;
     map<string, Expression*> gene_expression;
-    
-    if (!paired_end)
-    {
-        fprintf(stderr, "Finished reading alignments\n");
 
-        if (accept_all)
-        {
-            accept_all_hits(left_hits);
-        }
-        else
-        {
-            BestFragmentAlignmentTable best_alignments(it.size());
-            fragment_best_alignments(rt, left_hits, best_alignments);
+	fprintf(stderr, "Finished reading alignments\n");
 
-            accept_unique_hits(best_alignments);
-        }
-        junctions_from_alignments(left_hits, junctions);
-        
-        for (SequenceTable::const_iterator ci = rt.begin();
-             ci != rt.end();
-             ++ci)
-        {
-            vector<short> DoC;
-            fsa::Sequence* ref_seq = NULL;
-            map<string, fsa::Sequence*>::iterator seq_itr = masks.find(ci->first);
-            if (seq_itr != masks.end())
-                ref_seq = seq_itr->second;
-            
-            const HitList* h1 = left_hits.get_hits(ci->second);
-            if (h1)
-                add_hits_to_coverage(*h1, DoC);
+	if (accept_all)
+	{
+		accept_all_hits(left_hits);
+	}
+	else
+	{
+		BestFragmentAlignmentTable best_alignments(it.size());
+		fragment_best_alignments(rt, it, left_hits, best_alignments);
+	
+		accept_unique_hits(best_alignments);
+	}
+	junctions_from_alignments(left_hits, junctions);
+	
+	
+	fprintf (stderr, "Building coverage wiggles...");
+	
+	for (RefSequenceTable::const_iterator ci = rt.begin();
+		 ci != rt.end();
+		 ++ci)
+	{
+		vector<short> DoC;
+		fsa::Sequence* ref_seq = NULL;
+		map<string, fsa::Sequence*>::iterator seq_itr = masks.find(ci->second.name);
+		if (seq_itr != masks.end())
+			ref_seq = seq_itr->second;
+		
+		const HitList* h1 = left_hits.get_hits(ci->first);
+		if (h1)
+			add_hits_to_coverage(*h1, DoC);
+		
+		if (filter_junctions)
+			accept_valid_junctions(junctions, ci->first, DoC, min_isoform_fraction);
+		else
+			accept_all_junctions(junctions, ci->first);
 
-            if (filter_junctions)
-                accept_valid_junctions(junctions, ci->second, DoC, min_isoform_fraction);
-            else
-                accept_all_junctions(junctions, ci->second);
+		print_wiggle_for_ref(coverage_out, ci->second.name, DoC);
 
-            print_wiggle_for_ref(coverage_out, ci->first, DoC);
+		//GeneExonTable gene_exons;
+		GeneTable ref_genes;
+		gene_factory.get_genes(ci->second.name, gff_db, ref_genes, gene_filter);
+		total_map_depth += total_exonic_depth(ref_genes,DoC, ref_seq);
+	}
 
-            //GeneExonTable gene_exons;
-            GeneTable ref_genes;
-            gene_factory.get_genes(ci->first, gff_db, ref_genes, gene_filter);
-            total_map_depth += total_exonic_depth(ref_genes,DoC, ref_seq);
-        }
+	fprintf (stderr, "done\n");
+	fprintf (stderr, "Calculating RPKMs...");
+	for (RefSequenceTable::const_iterator ci = rt.begin();
+		 ci != rt.end();
+		 ++ci)
+	{
+		vector<short> DoC;
+		fsa::Sequence* ref_seq = NULL;
 
-        for (SequenceTable::const_iterator ci = rt.begin();
-             ci != rt.end();
-             ++ci)
-        {
-            vector<short> DoC;
-            fsa::Sequence* ref_seq = NULL;
 
-            map<string, fsa::Sequence*>::iterator seq_itr = masks.find(ci->first);
-            if (seq_itr != masks.end())
-                ref_seq = seq_itr->second;
+		map<string, fsa::Sequence*>::iterator seq_itr = masks.find(ci->second.name);
+		if (seq_itr != masks.end())
+			ref_seq = seq_itr->second;
 
-            const HitList* h1 = left_hits.get_hits(ci->second);
-            if (h1)
-                add_hits_to_coverage(*h1, DoC);
+		const HitList* h1 = left_hits.get_hits(ci->first);
+		if (h1)
+			add_hits_to_coverage(*h1, DoC);
 
-            if (quant_expression_out)
-            {
-                GeneTable ref_genes;
-                gene_factory.get_genes(ci->first, gff_db, ref_genes, gene_filter);
-                calculate_gene_expression(ref_genes,
-                                          DoC,
-                                          ref_seq,
-                                          total_map_depth,
-                                          gene_expression);
-            }
-            delete ref_seq;
-        }
-        
-        if (quant_expression_out)
-            print_gene_expression(quant_expression_out, gene_expression);
-        print_junctions(junctions_out, junctions, rt);
-    }
-#ifdef PAIRED_END
-    else
-    {
-        get_mapped_reads(map2, hits2, false);
-        get_mapped_reads(splice_map2, hits2, true);
-
-        BestInsertAlignmentTable best_pairings(it.size());
-        insert_best_pairings(rt, hits1, hits2, best_pairings);
-
-        accept_valid_hits(best_pairings);
-
-        junctions_from_alignments(hits1, junctions);
-        junctions_from_alignments(hits2, junctions);
-
-        print_junctions(junctions_out, junctions, rt);
-
-        for (SequenceTable::const_iterator ci = rt.begin();
-             ci != rt.end();
-             ++ci)
-        {
-            vector<short> DoC;
-            const HitList* h1 = hits1.get_hits(ci->second);
-            if (h1)
-                add_hits_to_coverage(*h1, DoC);
-
-            const HitList* h2 = hits2.get_hits(ci->second);
-            if (h2)
-                add_hits_to_coverage(*h2, DoC);
-
-            print_wiggle_for_ref(coverage_out, ci->first, DoC);
-        }
-    }
-#endif
+		if (quant_expression_out)
+		{
+			GeneTable ref_genes;
+			gene_factory.get_genes(ci->second.name, gff_db, ref_genes, gene_filter);
+			calculate_gene_expression(ref_genes,
+									  DoC,
+									  ref_seq,
+									  total_map_depth,
+									  gene_expression);
+		}
+		delete ref_seq;
+	}
+	
+	
+	if (quant_expression_out)
+		print_gene_expression(quant_expression_out, gene_expression);
+	
+	fprintf (stderr, "done\n");
+	
+	fprintf (stderr, "Printing junction BED track...");
+	print_junctions(junctions_out, junctions, rt);
+	fprintf (stderr, "done\n");
 
     uint32_t accepted_junctions = 0;
     for (JunctionSet::iterator itr = junctions.begin(); itr != junctions.end(); ++itr)
@@ -600,18 +602,23 @@ void driver(const string& left_maps,
 				 hi != s.supporting_hits.end();
 				 ++hi)
 			{
-				(*hi)->accepted = false;
+				(*hi)->accepted(false);
 			}
 		}
     }
-	
+
+	fprintf (stderr, "Reporting final accepted alignments...");
 	print_sam_for_accepted_hits(accepted_hits_out, 
-								hit_factory, 
+								rt, 
+								it,
 								left_maps, 
-								left_hits, 
+								left_hits,
+								left_reads_file,
 								right_maps, 
-								right_hits);
+								right_hits,
+								right_reads_file);
 	
+	fprintf (stderr, "done\n");
     fprintf(stderr, "Found %d junctions from happy spliced reads\n", accepted_junctions);
 }
 
@@ -620,9 +627,8 @@ const char *short_options = "r:I:d:s:va:AF:G:o:R:f:";
 #define USE_RPKM 260
 
 static struct option long_options[] = {
-    {"insert-len",      required_argument,       0,            'I'},
     {"insert-stddev",      required_argument,       0,            's'},
-    {"read-len",       required_argument,       0,            'r'},
+    {"insert-len",       required_argument,       0,            'r'},
     {"max-dist",       required_argument,       0,            'd'},
     {"min-anchor",       required_argument,       0,            'a'},
     {"min-intron",       required_argument,       0,            'i'},
@@ -636,29 +642,14 @@ static struct option long_options[] = {
     {0, 0, 0, 0} // terminator
 };
 
-/**
- * Parse an int out of optarg and enforce that it be at least 'lower';
- * if it is less than 'lower', than output the given error message and
- * exit with an error and a usage message.
- */
 
-static int parseInt(int lower, const char *errmsg) {
-    long l;
-    char *endPtr= NULL;
-    l = strtol(optarg, &endPtr, 10);
-    if (endPtr != NULL) {
-        if (l < lower) {
-            cerr << errmsg << endl;
-            print_usage();
-            exit(1);
-        }
-        return (int32_t)l;
-    }
-    cerr << errmsg << endl;
-    print_usage();
-    exit(1);
-    return -1;
+void print_usage()
+{
+    fprintf(stderr, "Usage:   tophat_reports <coverage.wig> <junctions.bed> <accepted_hits.sam> <left_map1,...,left_mapN> <left_reads.fq>\n");
+	
+	//    fprintf(stderr, "Usage:   tophat_reports <coverage.wig> <junctions.bed> <accepted_hits.sam> <map1.bwtout> [splice_map1.sbwtout]\n");
 }
+
 
 /**
  * Parse an int out of optarg and enforce that it be at least 'lower';
@@ -667,7 +658,7 @@ static int parseInt(int lower, const char *errmsg) {
  */
 static float parseFloat(float lower, float upper, const char *errmsg) {
     float l;
-    l = atof(optarg);
+    l = (float)atof(optarg);
 
     if (l < lower) {
         cerr << errmsg << endl;
@@ -698,25 +689,25 @@ int parse_options(int argc, char** argv)
         next_option = getopt_long(argc, argv, short_options, long_options, &option_index);
         switch (next_option) {
         case 'd':
-            max_mate_inner_dist = (uint32_t)parseInt(0, "-d/--max-dist arg must be at least 0");
+            max_mate_inner_dist = (uint32_t)parseInt(0, "-d/--max-dist arg must be at least 0", print_usage);
             break;
-        case 'I':
-            insert_len = (uint32_t)parseInt(1, "-I/--insert-len arg must be at least 1");
+        case 'r':
+            insert_len = (uint32_t)parseInt(1, "-I/--insert-len arg must be at least 1", print_usage);
             break;
         case 's':
-            insert_len_std_dev = (uint32_t)parseInt(1, "-s/--insert-stddev arg must be at least 1");
+            insert_len_std_dev = (uint32_t)parseInt(1, "-s/--insert-stddev arg must be at least 1", print_usage);
             break;
         case 'v':
             verbose = true;
             break;
         case 'a':
-            min_anchor_len = (uint32_t)parseInt(4, "-a/--min-anchor arg must be at least 4");
+            min_anchor_len = (uint32_t)parseInt(4, "-a/--min-anchor arg must be at least 4", print_usage);
             break;
         case 'i':
-            min_intron_length = (uint32_t)parseInt(1, "-a/--min-intron arg must be at least 1");
+            min_intron_length = (uint32_t)parseInt(1, "-a/--min-intron arg must be at least 1", print_usage);
             break;
         case 'F':
-            min_isoform_fraction = parseFloat(0.0, 1.0, "-a/--min-isoform-fraction arg must be [0.0,1.0]");
+            min_isoform_fraction = parseFloat(0.0f, 1.0f, "-a/--min-isoform-fraction arg must be [0.0,1.0]");
             if (min_isoform_fraction == 0.0)
             {
                 filter_junctions = false;
@@ -751,6 +742,8 @@ int parse_options(int argc, char** argv)
 
 int main(int argc, char** argv)
 {
+	reads_format = FASTQ;
+	
     int parse_ret = parse_options(argc,argv);
     if (parse_ret)
         return parse_ret;
@@ -786,17 +779,25 @@ int main(int argc, char** argv)
     }
 
     string left_maps = argv[optind++];
+	
+	if(optind >= argc)
+    {
+        print_usage();
+        return 1;
+    }
+	
+    string left_reads_filename = argv[optind++];
+	
     string* right_maps = NULL;
-
-    if (optind < argc)
-        right_maps = new string(argv[optind++]);
+	string* right_reads_filename = NULL;
+	FILE* right_reads_file = NULL;
 
     // Open the approppriate files
 
     FILE* coverage_file = fopen((output_dir + "/" + coverage_file_name).c_str(), "w");
     if (coverage_file == NULL)
     {
-        fprintf(stderr, "Error: cannot open %s for writing\n",
+        fprintf(stderr, "Error: cannot open WIG file %s for writing\n",
                 coverage_file_name.c_str());
         exit(1);
     }
@@ -804,7 +805,7 @@ int main(int argc, char** argv)
     FILE* junctions_file = fopen((output_dir + "/" + junctions_file_name).c_str(), "w");
     if (junctions_file == NULL)
     {
-        fprintf(stderr, "Error: cannot open %s for writing\n",
+        fprintf(stderr, "Error: cannot open BED file %s for writing\n",
                 junctions_file_name.c_str());
         exit(1);
     }
@@ -812,10 +813,19 @@ int main(int argc, char** argv)
     FILE* accepted_hits_file = fopen((output_dir + "/" + accepted_hits_file_name).c_str(), "w");
     if (accepted_hits_file == NULL)
     {
-        fprintf(stderr, "Error: cannot open %s for writing\n",
+        fprintf(stderr, "Error: cannot open SAM file %s for writing\n",
                 accepted_hits_file_name.c_str());
         exit(1);
     }
+	
+	FILE* left_reads_file = fopen(left_reads_filename.c_str(), "r");
+    if (!left_reads_file)
+    {
+        fprintf(stderr, "Error: cannot open reads file %s for reading\n",
+                left_reads_filename.c_str());
+        exit(1);
+    }
+	
 	
     GFF_database gff_db;
     
@@ -857,7 +867,9 @@ int main(int argc, char** argv)
     ifstream ref_stream(ref_fasta.c_str(), ifstream::in);;
 
     driver(left_maps,
+		   left_reads_file,
            right_maps,
+		   right_reads_file,
            coverage_file,
            junctions_file,
 		   accepted_hits_file,

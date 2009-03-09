@@ -1,6 +1,13 @@
-[ 0.8.2 release - 1/30/2009 ] 
+[ 0.8.2 release - 3/1/2009 ] 
 
-TODO 
+ * TopHat now reports the alignments it finds in the SAM format
+   (http://samtools.sourceforge.net). The SAM tools were written primarily by
+   Heng Li at Sanger, and will allow TopHat users to call expressed SNPs from
+   their RNA-Seq reads. The SAM tools themselves are still under development,
+   so TopHat's SAM support should be considered experimental.
+
+*  You can now specify a list of junctions for TopHat to check in a raw format,
+   without using a GFF file of genes
 
 [ 0.8.1 release - 1/30/2009 ] 
 

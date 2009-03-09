@@ -87,8 +87,9 @@ void print_junction(FILE* junctions_out,
 
 
 
-void junction_from_alignment(BowtieHit& spliced_alignment,
-							 uint32_t refid,
+
+void junctions_from_alignment(BowtieHit& spliced_alignment,
+
 							 JunctionSet& junctions);
 
 void junctions_from_alignments(HitTable& hits,
@@ -97,14 +98,14 @@ void junctions_from_alignments(HitTable& hits,
 void accept_valid_junctions(JunctionSet& junctions,
 							const uint32_t refid,
 							const vector<short>& DoC,
-							float min_isoform_fraction);
+							double min_isoform_fraction);
 
 void accept_all_junctions(JunctionSet& junctions,
 							const uint32_t refid);
 
 void print_junctions(FILE* junctions_out, 
 					 const JunctionSet& junctions,
-					 SequenceTable& ref_sequences);
+					 RefSequenceTable& ref_sequences);
 
 #endif
 

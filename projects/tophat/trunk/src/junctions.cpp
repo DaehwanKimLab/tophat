@@ -16,37 +16,62 @@
 
 extern bool verbose;
 
-// This routine DOES NOT set the real refid!  
-pair<Junction, JunctionStats> junction_from_spliced_hit(BowtieHit& h)
+
+void junctions_from_spliced_hit(BowtieHit& h, 
+								vector<pair<Junction, JunctionStats> >& new_juncs)
+
 {
+	assert (!h.contiguous()); 
+	const vector<CigarOp>& cigar = h.cigar();
+	int j = h.left();
 	
-	assert (h.splice_pos_left != -1 && h.splice_pos_right != -1); 
-	Junction junc;
-	junc.refid = 0xFFFFFFFF;
-	junc.left = h.left + h.splice_pos_left;
-	junc.right = h.right - h.splice_pos_right;
-	junc.antisense = h.antisense_splice;
-	
-	JunctionStats stats;
-	stats.left_extent = h.splice_pos_left;
-	stats.right_extent = h.splice_pos_right;
-	stats.supporting_hits.insert(&h);
-	return make_pair(junc, stats);
+	for (size_t c = 0 ; c < cigar.size(); ++c)
+	{
+		Junction junc;
+		JunctionStats stats;
+		switch(cigar[c].opcode)
+		{
+			case REF_SKIP:
+				
+				junc.refid = h.ref_id();
+				junc.left = j;
+				junc.right = junc.left + cigar[c].length;
+				junc.antisense = h.antisense_splice();
+				
+				
+				assert (c > 0 && c < cigar.size() - 1); 
+				
+				stats.left_extent = cigar[c - 1].length;
+				stats.right_extent = cigar[c + 1].length;
+				
+				stats.supporting_hits.insert(&h);
+				new_juncs.push_back(make_pair(junc, stats));
+				//fall through this case to MATCH is intentional
+			case MATCH:
+				j += cigar[c].length;
+				break;
+			default:
+				break;
+		}
+	}
+
 }
 
 void print_junction(FILE* junctions_out, 
-					const string& name, 
+					const char* name, 
 					const Junction& j, 
 					const JunctionStats& s, 
-					uint32_t junc_id)
+					uint64_t junc_id)
 {
 	fprintf(junctions_out,
 			"%s\t%d\t%d\tJUNC%08d\t%d\t%c\t%d\t%d\t255,0,0\t2\t%d,%d\t0,%d\n",
-			name.c_str(),
+			name,
 			j.left - s.left_extent,
 			j.right + s.right_extent,
-			junc_id,
+
+			(int)junc_id,
 			(int)(s.supporting_hits.size()),
+
 			j.antisense ? '-' : '+',
 			j.left - s.left_extent,
 			j.right + s.right_extent,
@@ -55,26 +80,31 @@ void print_junction(FILE* junctions_out,
 			j.right - (j.left - s.left_extent));
 }
 
-void junction_from_alignment(BowtieHit& spliced_alignment,
-							 uint32_t refid,
+
+void junctions_from_alignment(BowtieHit& spliced_alignment,
+
 							 JunctionSet& junctions)
 {
-	pair<Junction, JunctionStats> junc;
-	junc = junction_from_spliced_hit(spliced_alignment);
-	junc.first.refid = refid;
-	JunctionSet::iterator itr = junctions.find(junc.first);
+	vector<pair<Junction, JunctionStats> > juncs;
+	junctions_from_spliced_hit(spliced_alignment, juncs);
 	
-	if (itr != junctions.end())
+	for (size_t i = 0; i < juncs.size(); ++i)
 	{
-		JunctionStats& j = itr->second;
-		j.left_extent = max(j.left_extent, junc.second.left_extent);
-		j.right_extent = max(j.right_extent, junc.second.right_extent);
-		j.supporting_hits.insert(&spliced_alignment);
-	}
-	else
-	{
-		assert(junc.first.refid != 0xFFFFFFFF);
-		junctions[junc.first] = junc.second;
+		pair<Junction, JunctionStats>& junc = juncs[i];
+		JunctionSet::iterator itr = junctions.find(junc.first);
+		
+		if (itr != junctions.end())
+		{
+			JunctionStats& j = itr->second;
+			j.left_extent = max(j.left_extent, junc.second.left_extent);
+			j.right_extent = max(j.right_extent, junc.second.right_extent);
+			j.supporting_hits.insert(&spliced_alignment);
+		}
+		else
+		{
+			assert(junc.first.refid != 0xFFFFFFFF);
+			junctions[junc.first] = junc.second;
+		}
 	}
 	
 }
@@ -113,11 +143,12 @@ void junctions_from_alignments(HitTable& hits,
 			continue;
 		for (size_t i = 0; i < rh.size(); ++i)
 		{
-			AlignStatus s = status(&rh[i]);
+			BowtieHit& bh = rh[i];
+			AlignStatus s = status(&bh);
 			total++;
 			if (s == SPLICED)
 				total_spliced++;
-			if (!rh[i].accepted)
+			if (!bh.accepted())
 			{
 				rejected++;
 				if (s == SPLICED)
@@ -127,7 +158,7 @@ void junctions_from_alignments(HitTable& hits,
 			
 			if (s == SPLICED)
 			{
-				junction_from_alignment(rh[i], ci->first, junctions); 
+				junctions_from_alignment(bh, junctions); 
 			}
 		}
 	}
@@ -138,7 +169,7 @@ void junctions_from_alignments(HitTable& hits,
 bool accept_if_valid(const Junction& j, 
 					 JunctionStats& s, 
 					 const vector<short>& DoC,
-					 float min_isoform_fraction)
+					 double min_isoform_fraction)
 {
 	uint32_t left_junc_doc = 0;
 	uint32_t right_junc_doc = 0;
@@ -165,7 +196,7 @@ bool accept_if_valid(const Junction& j,
 		extent = s.right_extent;
 	}
 	
-	float avg_junc_doc = junc_doc / (float)(extent);
+	double avg_junc_doc = junc_doc / (double)(extent);
 	
 	//if (avg_junc_doc / (float) s.num_reads > 100.0)
 	if (s.supporting_hits.size() / avg_junc_doc < min_isoform_fraction)
@@ -182,7 +213,7 @@ bool accept_if_valid(const Junction& j,
 void accept_valid_junctions(JunctionSet& junctions,
 							const uint32_t refid,
 							const vector<short>& DoC,
-							float min_isoform_fraction)
+							double min_isoform_fraction)
 {
 	Junction dummy_left(refid, 0, 0, true);
 	Junction dummy_right(refid, 0xFFFFFFFF, 0xFFFFFFFF, true);
@@ -211,10 +242,9 @@ void accept_all_junctions(JunctionSet& junctions,
 
 void print_junctions(FILE* junctions_out, 
 					 const JunctionSet& junctions,
-					 SequenceTable& ref_sequences)
+					 RefSequenceTable& ref_sequences)
 {
-	uint32_t junc_id = 1;
-	ref_sequences.invert();
+	uint64_t junc_id = 1;
 	fprintf(junctions_out, "track name=junctions description=\"TopHat junctions\"\n");
 	for (JunctionSet::const_iterator i = junctions.begin();
 		 i != junctions.end();
@@ -229,7 +259,7 @@ void print_junctions(FILE* junctions_out,
 		//fprintf(stdout,"%d\t%d\t%d\t%c\n", j.refid, j.left, j.right, j.antisense ? '-' : '+');
 		
 		print_junction(junctions_out, 
-					   *(ref_sequences.get_name(j.refid)),
+					   ref_sequences.get_name(j.refid),
 					   j,
 					   s, 
 					   junc_id++);

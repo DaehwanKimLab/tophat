@@ -14,11 +14,11 @@
 #include <string>
 #include <cassert>
 #include "reads.h"
+#include "common.h"
 
 using namespace std;
 
-enum Format {FASTA, FASTQ};
-Format format = FASTA;
+ReadFormat format = FASTA;
 
 bool invert_selection = false;
 
@@ -51,7 +51,7 @@ void extract_reads(FILE *fa, const READSET& selected_reads)
 		}
 		else if (format == FASTQ)
 		{
-			if (!next_fastq_record(fa, read.name, read.seq, read.qual))
+			if (!next_fastq_record(fa, read.name, read.seq, read.alt_name, read.qual))
 				break;
 		}
 		reads_examined++;
@@ -74,10 +74,11 @@ void get_next_chunk(FILE* fp,
 					READSET& selected_reads, 
 					unsigned int chunk_size)
 {
-	char buf[2048];
+	static int buf_size = 2048;
+	char buf[buf_size];
 	
 	unsigned int id_count = 0;
-	while (!feof(fp) && fgets(buf, sizeof(buf), fp)) 
+	while (!feof(fp) && fgets(buf, buf_size, fp)) 
 	{
 		// Chomp trailing newline
 		char* nl = strrchr(buf, '\n');
@@ -107,32 +108,6 @@ static void print_usage()
 	cerr << "\nSelects reads listed in read_ids from the standard input" << endl;
 }
 
-
-
-/**
- * Parse an int out of optarg and enforce that it be at least 'lower';
- * if it is less than 'lower', than output the given error message and
- * exit with an error and a usage message.
- */
-static int parseInt(int lower, const char *errmsg) {
-	long l;
-	char *endPtr= NULL;
-	l = strtol(optarg, &endPtr, 10);
-	if (endPtr != NULL) {
-		if (l < lower) {
-			fprintf(stderr,"%s\n",errmsg);
-			print_usage();
-			exit(1);
-		}
-		return (int32_t)l;
-	}
-	fprintf(stderr,"%s\n",errmsg);
-	print_usage();
-	exit(1);
-	return -1;
-}
-
-
 int main(int argc, char *argv[])
 {
 	FILE *fp;
@@ -158,7 +133,7 @@ int main(int argc, char *argv[])
 			}
 			case 'r':
 			{
-				chunk_size = parseInt(1,"-r arg must be at least 1");
+				chunk_size = parseInt(1,"-r arg must be at least 1", print_usage);
 				break;
 			}
 			case 'v':

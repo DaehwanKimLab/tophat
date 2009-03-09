@@ -113,7 +113,7 @@ void read_exons(FILE* exon_fasta, FILE* exon_gff)
 			break;	
 		}
 		
-		total_exon_length += e->seq.length();
+		total_exon_length += (int)(e->seq.length());
 		num_exons++;
 		
 		RefID ref = 0u;
@@ -160,7 +160,7 @@ void read_exons(FILE* exon_fasta, FILE* exon_gff)
 	char buf[2048];
 	
 	// Throw out the track header
-	fgets(buf, sizeof(buf), exon_gff);
+	fgets(buf, 2048, exon_gff);
 	int single_junc_islands = 0;
 	int single_junc_island_length = 0;
 	while(!feof(exon_gff))
@@ -183,7 +183,7 @@ void read_exons(FILE* exon_fasta, FILE* exon_gff)
 			itr->second->score = score;
 			if (score > single_island_juncs_above)
 			{
-				single_junc_island_length += itr->second->seq.length();
+				single_junc_island_length += (int)(itr->second->seq.length());
 				single_junc_islands++;
 			}
 		}
@@ -369,7 +369,7 @@ PackedSplice pack_splice(const Splice& s, unsigned int key_len)
 		++r;
 	}
 	
-	return PackedSplice(left,seed,right);
+	return PackedSplice((uint32_t)left,seed,(uint32_t)right);
 }
 
 /** Returns the number of characters in strings w1 and w2 that match,
@@ -454,7 +454,7 @@ size_t index_read(const string& seq, unsigned int read_num, bool reverse_complem
 	bitset<256> right = 0;
 	const char* p = seq.c_str();
 	
-	unsigned int seq_len = seq.length();
+	unsigned int seq_len = (int)seq.length();
 	const char* seq_end = p + seq_len;
 	
 	// Build the first seed
@@ -482,7 +482,7 @@ size_t index_read(const string& seq, unsigned int read_num, bool reverse_complem
 	
 	// This loop will construct successive seed, along with 32-bit words 
 	// containing the left and right remainders for each seed
-	size_t i = 0;
+	uint32_t i = 0;
 	size_t new_hits = 0;
 	do 
 	{
@@ -494,20 +494,20 @@ size_t index_read(const string& seq, unsigned int read_num, bool reverse_complem
 		
 		// How many base pairs exist in the right remainder beyond what we have
 		// space for ?
-		int extra_right_bp = (seq.length() - (i + 2*seq_key_len)) - 16;
+		int extra_right_bp = ((int)seq.length() - (i + 2*seq_key_len)) - 16;
 		
 		uint32_t hit_right;
 		if (extra_right_bp > 0)
 		{
 			//bitset<32> tmp_hit_right = (right >> (extra_right_bp << 1));
-			hit_right = (right >> (extra_right_bp << 1)).to_ulong();
+			hit_right = (uint32_t)(right >> (extra_right_bp << 1)).to_ulong();
 		}
 		else
 		{
-			hit_right = right.to_ulong();
+			hit_right = (uint32_t)right.to_ulong();
 		}
 		
-		uint32_t hit_left = ((left << (256 - 32)) >> (256 - 32)).to_ulong();
+		uint32_t hit_left = (uint32_t)((left << (256 - 32)) >> (256 - 32)).to_ulong();
 		
 		size_t prev_cap = mer_table[seed].capacity();
 		
@@ -756,14 +756,6 @@ void lookup_splice_in_read_index(RefID ref_ctg_id,
 												pos,
 												max_span_mismatches);
 			
-			
-			if (filter_debug)
-			{
-				//cerr << u32ToDna(read_left, pos) << " " << u32ToDna(splice_left, pos)  << " " << left_mismatches << endl;
-				ref += u32ToDna(splice_left, min(16, (int)pos)) + " ";
-				ref += u32ToDna(p.seed, 2*seq_key_len) + " ";
-			}
-			
 			if (left_mismatches > max_span_mismatches)
 			{
 				continue;
@@ -790,13 +782,6 @@ void lookup_splice_in_read_index(RefID ref_ctg_id,
 															right_read_bases,
 															max_span_mismatches - left_mismatches);
 			
-			if (filter_debug)
-			{
-				//cerr << u32ToDna(read_right, right_read_bases) << " " << u32ToDna(splice_right, right_read_bases) << " " << right_mismatches << endl;
-				ref += u32ToDna(splice_right, right_read_bases);
-
-			}
-			
 			if (right_mismatches > max_span_mismatches - left_mismatches)
 			{
 				continue;
@@ -821,14 +806,6 @@ void lookup_splice_in_read_index(RefID ref_ctg_id,
 		string seed = u32ToDna(p.seed, 2 * seq_key_len);
 		string right_str = u32ToDna(rh.right, min(16, (int)seed_size - (int)(2 * seq_key_len) - (int)pos));
 		string seq =  left_str + seed + right_str;
-		
-		if (filter_debug)
-		{
-			//cerr << u32ToDna(read_right, right_read_bases) << " " << u32ToDna(splice_right, right_read_bases) << " " << right_mismatches << endl;
-			//ref += u32ToDna(splice_right, right_read_bases);
-			cerr << ref << endl;
-			cerr << left_str + " " + seed + " " + right_str << endl;
-		}
 		
 		int left_splice_coord = (int)left->pos_in_ref + (int)pos_in_l + seq_key_len - 1;
 		int right_splice_coord = (int)right->pos_in_ref + (int)pos_in_r - seq_key_len;

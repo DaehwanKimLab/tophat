@@ -2,12 +2,12 @@
 
 # initialize
 AC_PREREQ(2.61)
-AC_INIT([TopHat],[0.8.2],[cole@cs.umd.edu],[tophat])
+AC_INIT([TopHat],[0.8.3],[cole@cs.umd.edu],[tophat])
 AC_PREFIX_DEFAULT([`pwd`])
 AC_CONFIG_SRCDIR([src/reads.h])
 AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_HEADERS([config.h])
-AM_INIT_AUTOMAKE([-Wall gnits])
+AM_INIT_AUTOMAKE([-Wall foreign])
 
 AC_ARG_ENABLE(debug,
 	AC_HELP_STRING([--enable-debug],[build debug library (default=no)]),,enable_debug=no)
@@ -35,26 +35,54 @@ AM_PATH_PYTHON([2.4])
 # Debug and profile
 # ---------------------------------------------------------------------
 
-# these are first because the SET AM_C.*FLAGS, not just append
-if test x$enable_debug = xyes; then
-  GCJFLAGS="-g -O0"
-  if test x$ac_cv_prog_cc_g = xyes; then
-    AM_CFLAGS="-g3 -O0 -Wall"
-  else
-    AM_CFLAGS="-O0 -Wall"
-  fi
-  if test x$ac_cv_prog_cxx_g = xyes; then
-    AM_CXXFLAGS="-g3 -O0 -Wall"
-  else
-    AM_CXXFLAGS="-O0 -Wall"
-  fi
-else
-  AM_CFLAGS="-O3"
-  AM_CXXFLAGS="-O3"
-fi
+# set CFLAGS and CXXFLAGS
+user_CFLAGS=${CFLAGS}
+generic_CFLAGS="-Wall -g3"
+ext_CFLAGS=""
+debug_CFLAGS=""
+echo "${host_cpu}-${host_os}"
+case "${host_cpu}-${host_os}" in
+  i386-darwin*)
+    AC_ARG_ENABLE(universal, [  --enable-universal      enable universal binary (Intel Apple only)],
+				  [is_uni=1], [is_uni=0])
+	case $is_uni in
+	  1) CFLAGS="-m64"
+	     AC_COMPILE_IFELSE([AC_LANG_PROGRAM],
+						   [ext_CFLAGS="-arch x86_64 -arch i386 -arch ppc64 -arch ppc"],
+						   [ext_CFLAGS="-arch i386 -arch ppc"]);;
+	  0) CFLAGS="-m64"
+	  	 AC_COMPILE_IFELSE([AC_LANG_PROGRAM], [ext_CFLAGS="-arch x86_64"], []);;
+	esac;;
+  *)
+    AC_MSG_CHECKING([if gcc accepts -m64])
+    CFLAGS="-m64"
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM], [ext_CFLAGS="-m64"; AC_MSG_RESULT([yes])],
+					  [ext_CFLAGS="-D_FILE_OFFSET_BITS=64"; AC_MSG_RESULT([no])]);;
+esac
 
+AC_ARG_ENABLE(intel64,      [  --enable-intel64        optimize for Intel64 CPU such as Xeon and Core2],
+			  [ext_CFLAGS="${ext_CFLAGS} -mtune=nocona"], [])
 
-AM_CXXFLAGS="$AM_CXXFLAGS -I./SeqAn-1.1"
+AC_ARG_ENABLE([debug],
+              [AS_HELP_STRING([--enable-debug],
+	                      [enable debugging info (default is no)])],
+              [], [enable_debug=no])
+AC_ARG_ENABLE([optim],
+              [AS_HELP_STRING([--enable-optim@<:@=0|1|2|3@:>@],
+	                      [set optimization level (default is 3)])],
+              [if test "x$enable_optim" = xyes; then enable_optim=3; fi],
+              [enable_optim=3])
+
+AS_IF([test "x$enable_optim" != xno], [ext_CFLAGS="$ext_CFLAGS -O$enable_optim"])	
+AS_IF([test "x$enable_debug" = xyes],
+      [debug_CFLAGS="-DDEBUG"; ext_CFLAGS="-arch i386"],
+      [debug_CFLAGS="-DNDEBUG"])
+	  
+CFLAGS="${generic_CFLAGS} ${ext_CFLAGS} ${user_CFLAGS} ${debug_CFLAGS}"
+CXXFLAGS="$CFLAGS"
+
+AM_CXXFLAGS="$CXXFLAGS -I./SeqAn-1.1"
+
 
 # Checks for libraries.
 AC_CHECK_LIB([z], [gzread])
@@ -82,6 +110,7 @@ AC_CANONICAL_HOST
 
 AC_SUBST(CC)
 AC_SUBST(AM_CXXFLAGS)
+AC_SUBST(AM_CFLAGS)
 
 # makefiles to configure
 AC_CONFIG_FILES([Makefile src/Makefile])

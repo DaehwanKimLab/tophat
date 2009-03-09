@@ -56,7 +56,7 @@ def main(argv=None):
             strand = cols[2]
             start = cols[3]
             stop = cols[4]
-            print chrom, strand, start, stop
+            #print chrom, strand, start, stop
             juncs.add((chrom, strand, start, stop))
             
         num_predicted = 0
