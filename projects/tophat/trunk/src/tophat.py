@@ -368,12 +368,12 @@ def filter_garbage(reads_list, reads_format):
                                   stderr=filter_log)
                                   # Bowtie reported an error
             if ret != 0:
-                print >> sys.stderr, fail_str, "Error: could not execute Bowtie"
+                print >> sys.stderr, fail_str, "Error: could not execute filter_garbage"
                 exit(1)
         # filter_garbage not found
         except OSError, o:
             if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
-                print >> sys.stderr, fail_str, "Error: Bowtie not found on this system.  Did you forget to include it in your PATH?"
+                print >> sys.stderr, fail_str, "Error: filter_garbage not found on this system.  Did you forget to include it in your PATH?"
     
     return kept_reads_filename
 
@@ -412,7 +412,7 @@ def bowtie(bwt_idx_prefix,
                        "--unfa", unmapped_reads_fasta_name,
                        "-l", str(seed_length),
                        "-k", str(max_hits),
-                       "-m", str(max_hits + 1),
+                       "-m", str(max_hits),
                        "--maxfa", unmapped_repeat_fasta_name,
                        bwt_idx_prefix, 
                        reads_list, 
@@ -812,12 +812,12 @@ def exclude_reads(reads_file, reads_format, read_ids):
        
        # spanning_reads returned an error 
        if retcode > 0:
-           print >> sys.stderr, fail_str, "Error: Report generation failed"
+           print >> sys.stderr, fail_str, "Error: Read exclusion generation failed"
            exit(1)
     # cvg_islands not found
     except OSError, o:
        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
-           print >> sys.stderr, fail_str, "Error: tophat_reports not found on this system"
+           print >> sys.stderr, fail_str, "Error: exclude_reads not found on this system"
        exit(1)
        
     os.remove(tmp_read_ids_name)
@@ -833,7 +833,7 @@ def main(argv=None):
         argv = sys.argv
     try:
         try:
-            opts, args = getopt.getopt(argv[1:], "hvXp:s:m:M:F:a:i:I:e:b:G:D:o:j:", 
+            opts, args = getopt.getopt(argv[1:], "hvXp:s:m:M:F:a:i:I:e:b:G:D:o:j:g:", 
                                         ["version",
                                          "help",  
                                          "solexa-quals",

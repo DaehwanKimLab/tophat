@@ -19,6 +19,10 @@ AC_ARG_VAR(TOPHAT_SHELL, [bash program])
 
 CFLAGS=" $CFLAGS"
 CXXFLAGS=" $CXXFLAGS"
+
+# check the platform
+AC_CANONICAL_HOST
+
 # Checks for programs.
 AC_LANG(C++)
 AC_PROG_CC
@@ -40,7 +44,6 @@ user_CFLAGS=${CFLAGS}
 generic_CFLAGS="-Wall -g3"
 ext_CFLAGS=""
 debug_CFLAGS=""
-echo "${host_cpu}-${host_os}"
 case "${host_cpu}-${host_os}" in
   i386-darwin*)
     AC_ARG_ENABLE(universal, [  --enable-universal      enable universal binary (Intel Apple only)],
@@ -104,9 +107,6 @@ AC_SYS_LARGEFILE
 # Checks for library functions.
 AC_FUNC_MALLOC
 AC_CHECK_FUNCS([memset strdup strrchr strtol strsep])
-
-# check the platform
-AC_CANONICAL_HOST
 
 AC_SUBST(CC)
 AC_SUBST(AM_CXXFLAGS)
