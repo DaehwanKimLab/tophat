@@ -484,7 +484,7 @@ public:
 struct HitsForRead
 {
 	HitsForRead() : insert_id(0) {}
-	uint64_t insert_id;
+	ReadID insert_id;
 	vector<BowtieHit> hits;
 	
 //	HitsForRead& operator=(const HitsForRead& rhs)
