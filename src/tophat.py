@@ -49,6 +49,8 @@ class Usage(Exception):
 
 output_dir = "./tophat_out/"
 logging_dir = output_dir + "logs/"
+
+exec_transcript = None
 bin_dir = sys.path[0] + "/"
 
 #ok_str = "\t\t\t\t[OK]\n"
@@ -70,7 +72,10 @@ def prepare_output_dir():
         pass
     else:        
         os.mkdir(logging_dir)
-
+    exec_transcript_name = logging_dir + "run.log"
+    global exec_transcript
+    exec_transcript = open(exec_transcript_name, "w")
+    
 def check_bowtie_index(idx_prefix):
     print >> sys.stderr, "[%s] Checking for Bowtie index files" % right_now()
     
@@ -116,7 +121,7 @@ def bowtie_idx_to_fa(idx_prefix):
 
         inspect_cmd = ["bowtie-inspect",
                        idx_prefix]
-        #print >> sys.stderr, "Executing: " + " ".join(inspect_cmd) + " > " + tmp_fasta_file_name   
+        print >> exec_transcript, " ".join(inspect_cmd) + " > " + tmp_fasta_file_name   
         ret = subprocess.call(inspect_cmd, 
                               stdout=tmp_fasta_file,
                               stderr=inspect_log)
@@ -147,7 +152,7 @@ def bowtie_idx_to_bfa(idx_prefix, ref_fasta_file_name):
                          "fasta2bfa",
                          ref_fasta_file_name,
                          idx_bfa]
-                          
+        print >> exec_transcript,  " ".join(fasta2bfa_cmd)                 
         ret = subprocess.call(fasta2bfa_cmd, 
                               stderr=fasta2bfa_log)
         # Maq reported an error
@@ -361,7 +366,9 @@ def filter_garbage(reads_list, reads_format):
     #print "\t executing: `%s'" % " ".join(bowtie_cmd)    
     files = reads_list.split(',')
     for reads_file in files:
-        try:       
+        try:      
+            print >> exec_transcript, " ".join(filter_cmd)
+             
             ret = subprocess.call(filter_cmd, 
                                   stdin=open(reads_file),
                                   stdout=kept_reads,
@@ -417,7 +424,8 @@ def bowtie(bwt_idx_prefix,
                        bwt_idx_prefix, 
                        reads_list, 
                        bwt_map]   
-        #print "\t executing: `%s'" % " ".join(bowtie_cmd)           
+        
+        print >> exec_transcript, " ".join(bowtie_cmd)
         ret = subprocess.call(bowtie_cmd, 
                               stdout=open("/dev/null"), 
                               stderr=bwt_log)
@@ -452,7 +460,8 @@ def convert_chunk_to_maq(use_long_maq_maps, bwt_map, maq_map, idx_bfa, convert_l
                         idx_bfa, 
                         bwt_map])            
     print >> convert_log, "Converting %s to %s" % (bwt_map, maq_map)
-    try:    
+    try:
+        print >> exec_transcript, " ".join(convert_cmd)    
         retcode = subprocess.call(convert_cmd, stderr=convert_log)
         # bowtie-maqconvert reported an error
         if retcode > 0:
@@ -529,7 +538,8 @@ def convert_to_maq(use_long_maq_maps, bwt_map, idx_bfa, alignments_per_chunk=100
                    
         convert_cmd.extend(tmp_maps)            
         print >> convert_log, " ".join(convert_cmd)
-        try:    
+        try:
+            print >> exec_transcript, " ".join(convert_cmd)    
             retcode = subprocess.call(convert_cmd, stderr=convert_log)
             # bowtie-maqconvert reported an error
             if retcode > 0:
@@ -539,7 +549,9 @@ def convert_to_maq(use_long_maq_maps, bwt_map, idx_bfa, alignments_per_chunk=100
         except OSError, o:
             if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
                 print >> sys.stderr, fail_str, "Error: maq not found on this system"
-                exit(1)
+            else:
+                print >> sys.stderr, fail_str, "Error: Conversion to Maq map format failed"
+            exit(1)
 
         # Bowtie reported an error
         except subprocess.CalledProcessError:
@@ -569,18 +581,21 @@ def assemble_islands(maq_map, idx_bfa):
                maq_cns,
                idx_bfa,
                maq_map]            
-    try:    
-       retcode = subprocess.call(asm_cmd, stderr=asm_log)
+    try:
+        print >> exec_transcript, " ".join(asm_cmd)    
+        retcode = subprocess.call(asm_cmd, stderr=asm_log)
        
-       # Maq assembler returned an error 
-       if retcode > 0:
-           print >> sys.stderr, fail_str, "Error: Maq assembly failed"
-           exit(1)
+        # Maq assembler returned an error 
+        if retcode > 0:
+            print >> sys.stderr, fail_str, "Error: Maq assembly failed"
+            exit(1)
     # Maq not found
     except OSError, o:
-       if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
-           print >> sys.stderr, fail_str, "Error: Maq not found on this system"
-       exit(1)
+        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
+            print >> sys.stderr, fail_str, "Error: Maq not found on this system"
+        else:
+            print >> sys.stderr, fail_str, "Error: Maq assembly failed"
+        exit(1)
     return maq_cns
 
 def extract_islands(maq_cns, island_gap, extend_islands):
@@ -598,16 +613,19 @@ def extract_islands(maq_cns, island_gap, extend_islands):
                    island_fasta,
                    island_gff]            
     try:    
-       retcode = subprocess.call(extract_cmd, stderr=extract_log)
+        print >> exec_transcript, " ".join(extract_cmd)    
+        retcode = subprocess.call(extract_cmd, stderr=extract_log)
        
-       # cvg_islands returned an error 
-       if retcode > 0:
-           print >> sys.stderr, fail_str, "Error: Islands extraction failed"
-           exit(1)
+        # cvg_islands returned an error 
+        if retcode > 0:
+            print >> sys.stderr, fail_str, "Error: Islands extraction failed"
+            exit(1)
     # cvg_islands not found
     except OSError, o:
        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
            print >> sys.stderr, fail_str, "Error: cvg_islands not found on this system"
+       else:
+           print >> sys.stderr, fail_str, "Error: Islands extraction failed"
        exit(1)
     return (island_fasta, island_gff)
 
@@ -622,23 +640,26 @@ def get_gff_juncs(gff_annotation):
     gff_juncs_out = open(gff_juncs_out_name, "w")
     
     gff_juncs_cmd = [bin_dir + "gff_juncs", gff_annotation]            
-    try:    
-       retcode = subprocess.call(gff_juncs_cmd, 
+    try:
+        print >> exec_transcript, " ".join(gff_juncs_cmd)        
+        retcode = subprocess.call(gff_juncs_cmd, 
                                  stderr=gff_juncs_log,
                                  stdout=gff_juncs_out)
        
-       # cvg_islands returned an error
-       if retcode == 1:
-           print >> sys.stderr, "\tWarning: TopHat did not find any junctions in GFF file"
-           return (False, gff_juncs_out_name) 
-       elif retcode > 1:
-           print >> sys.stderr, fail_str, "Error: GFF junction extraction failed"
-           exit(1)
+        # cvg_islands returned an error
+        if retcode == 1:
+            print >> sys.stderr, "\tWarning: TopHat did not find any junctions in GFF file"
+            return (False, gff_juncs_out_name) 
+        elif retcode > 1:
+            print >> sys.stderr, fail_str, "Error: GFF junction extraction failed"
+            exit(1)
     # cvg_islands not found
     except OSError, o:
-       if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
-           print >> sys.stderr, fail_str, "Error: gff_juncs not found on this system"
-       exit(1)
+        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
+            print >> sys.stderr, fail_str, "Error: gff_juncs not found on this system"
+        else:
+            print >> sys.stderr, fail_str, "Error: GFF junction extraction failed"
+        exit(1)
     return (True, gff_juncs_out_name)
 
 
@@ -651,19 +672,22 @@ def build_juncs_bwt_index(user_splice_fasta):
     bowtie_build_cmd = ["bowtie-build", 
                         user_splice_fasta,
                         user_splices_out_prefix]            
-    try:    
-       retcode = subprocess.call(bowtie_build_cmd, 
-                                 stdout=bowtie_build_log)
+    try:
+        print >> exec_transcript, " ".join(bowtie_build_cmd)      
+        retcode = subprocess.call(bowtie_build_cmd, 
+                                  stdout=bowtie_build_log)
        
-       # cvg_islands returned an error 
-       if retcode > 0:
-           print >> sys.stderr, fail_str, "Error: Splice sequence indexing failed"
-           exit(1)
-    # cvg_islands not found
+        # bowtie-build returned an error 
+        if retcode > 0:
+            print >> sys.stderr, fail_str, "Error: Splice sequence indexing failed"
+            exit(1)
+    # bowtie-build not found
     except OSError, o:
-       if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
-           print >> sys.stderr, fail_str, "Error: bowtie-build not found on this system"
-       exit(1)
+        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
+            print >> sys.stderr, fail_str, "Error: bowtie-build not found on this system"
+        else:
+            print >> sys.stderr, fail_str, "Error: Splice sequence indexing failed"
+        exit(1)
     return user_splices_out_prefix
     
 def build_juncs_index(user_supplied_juncs, min_anchor, read_len, reference_fasta):
@@ -680,19 +704,22 @@ def build_juncs_index(user_supplied_juncs, min_anchor, read_len, reference_fasta
                     str(read_len),
                     juncs_file_list,
                     reference_fasta]            
-    try:    
-       retcode = subprocess.call(juncs_db_cmd, 
-                                 stderr=juncs_db_log,
-                                 stdout=user_splices_out)
+    try:   
+        print >> exec_transcript, " ".join(juncs_db_cmd) 
+        retcode = subprocess.call(juncs_db_cmd, 
+                                  stderr=juncs_db_log,
+                                  stdout=user_splices_out)
        
-       # cvg_islands returned an error 
-       if retcode > 0:
-           print >> sys.stderr, fail_str, "Error: Splice sequence retrieval failed"
-           exit(1)
+        # cvg_islands returned an error 
+        if retcode > 0:
+            print >> sys.stderr, fail_str, "Error: Splice sequence retrieval failed"
+            exit(1)
     # cvg_islands not found
     except OSError, o:
        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
-           print >> sys.stderr, fail_str, "Error: juncs_db not found on this system"
+            print >> sys.stderr, fail_str, "Error: juncs_db not found on this system"
+       else:
+            print >> sys.stderr, fail_str, "Error: Splice sequence retrieval failed"
        exit(1)
        
     user_splices_idx_prefix = build_juncs_bwt_index(user_splices_out_name)
@@ -730,20 +757,23 @@ def align_spliced_reads(islands_fasta,
                   islands_gff,
                   unmapped_reads]   
     #print "\n"," ".join(splice_cmd)         
-    try:    
-       retcode = subprocess.call(splice_cmd, 
-                                 stderr=splice_log,
-                                 stdout=spliced_reads)
+    try: 
+        print >> exec_transcript, " ".join(splice_cmd)  
+        retcode = subprocess.call(splice_cmd, 
+                                  stderr=splice_log,
+                                  stdout=spliced_reads)
        
-       # spanning_reads returned an error 
-       if retcode > 0:
-           print >> sys.stderr, fail_str, "Error: Spliced read alignment failed"
-           exit(1)
+        # spanning_reads returned an error 
+        if retcode > 0:
+            print >> sys.stderr, fail_str, "Error: Spliced read alignment failed"
+            exit(1)
     # cvg_islands not found
     except OSError, o:
-       if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
-           print >> sys.stderr, fail_str, "Error: spanning_reads not found on this system"
-       exit(1)
+        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
+            print >> sys.stderr, fail_str, "Error: spanning_reads not found on this system"
+        else:
+            print >> sys.stderr, fail_str, "Error: Spliced read alignment failed"
+        exit(1)
        
     finish_time = datetime.now()
     duration = finish_time - start_time
@@ -773,17 +803,20 @@ def compile_reports(maps, kept_reads, min_isoform_fraction, gff_annotation):
                        maps,
                        kept_reads])            
     try:    
-       retcode = subprocess.call(report_cmd, 
-                                 stderr=report_log)
+        print >> exec_transcript, " ".join(report_cmd)
+        retcode = subprocess.call(report_cmd, 
+                                  stderr=report_log)
        
-       # spanning_reads returned an error 
-       if retcode > 0:
-           print >> sys.stderr, fail_str, "Error: Report generation failed"
-           exit(1)
+        # spanning_reads returned an error 
+        if retcode > 0:
+            print >> sys.stderr, fail_str, "Error: Report generation failed"
+            exit(1)
     # cvg_islands not found
     except OSError, o:
        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
            print >> sys.stderr, fail_str, "Error: tophat_reports not found on this system"
+       else:
+           print >> sys.stderr, fail_str, "Error: Report generation failed"
        exit(1)
     return (coverage, junctions)
 
@@ -802,29 +835,32 @@ def exclude_reads(reads_file, reads_format, read_ids):
                  reads_format,
                  "-v",
                  tmp_read_ids_name]          
-    try:    
-       retcode = subprocess.call(extract_cmd, 
-                                 stderr=open("/dev/null", "w"),
-                                 stdout=tmp_unmapped_reads,
-                                 stdin=open(reads_file,"r"))
-       tmp_unmapped_reads.close()
-       shutil.move(tmp_unmapped_reads_name, reads_file)
+    try: 
+        print >> exec_transcript, " ".join(extract_cmd)   
+        retcode = subprocess.call(extract_cmd, 
+                                  stderr=open("/dev/null", "w"),
+                                  stdout=tmp_unmapped_reads,
+                                  stdin=open(reads_file,"r"))
+        tmp_unmapped_reads.close()
+        shutil.move(tmp_unmapped_reads_name, reads_file)
        
-       # spanning_reads returned an error 
-       if retcode > 0:
-           print >> sys.stderr, fail_str, "Error: Read exclusion generation failed"
-           exit(1)
-    # cvg_islands not found
+        # extract_reads returned an error 
+        if retcode > 0:
+            print >> sys.stderr, fail_str, "Error: Read exclusion generation failed"
+            exit(1)
+    # extract_reads not found
     except OSError, o:
        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
            print >> sys.stderr, fail_str, "Error: exclude_reads not found on this system"
+       else:
+           print >> sys.stderr, fail_str, "Error: Read exclusion generation failed"
        exit(1)
        
     os.remove(tmp_read_ids_name)
     return reads_file
 
 def get_version():
-   return "0.8.3"
+   return "0.8.4"
     
 def main(argv=None):
     
