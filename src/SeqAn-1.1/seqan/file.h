@@ -1,6 +1,6 @@
  /*==========================================================================
                 SeqAn - The Library for Sequence Analysis
-                          http://www.seqan.de 
+                          http://www.seqan.de
  ============================================================================
   Copyright (C) 2007
 
@@ -15,7 +15,7 @@
   Lesser General Public License for more details.
 
  ============================================================================
-  $Id: file.h,v 1.1 2008/08/25 16:20:06 langmead Exp $
+  $Id: file.h,v 1.4 2009/03/13 14:51:00 langmead Exp $
  ==========================================================================*/
 
 #ifndef SEQAN_HEADER_FILE_H
@@ -46,9 +46,6 @@
 #include <seqan/file/cstream.h>
 #include <seqan/file/stream.h>
 
-#include <seqan/file/file_filereaderiterator.h>
-#include <seqan/file/file_filereader.h>
-
 #include <seqan/file/chunk_collector.h>
 #include <seqan/file/meta.h>
 
@@ -62,8 +59,8 @@
 //file formats for sequences
 #include <seqan/file/file_format_raw.h>
 #include <seqan/file/file_format_fasta.h>
-#include <seqan/file/file_format_embl.h>
-#include <seqan/file/file_format_genbank.h>
+//#include <seqan/file/file_format_embl.h>
+//#include <seqan/file/file_format_genbank.h>
 
 //file formats for alignments
 #include <seqan/file/file_format_fasta_align.h>
@@ -79,19 +76,14 @@
 // files
 
 #include <seqan/file/file_base.h>
-#include <seqan/file/file_cstyle.h>
 #include <seqan/file/file_array.h>
 
-#include <seqan/system.h>	// async file (default file type of File<>)
+//#include <seqan/system.h>	// async file (default file type of File<>)
 /*#include <seqan/system/file_sync.h>
 #include <seqan/system/system_event.h>
 #include <seqan/system/file_async.h>
 */
 //____________________________________________________________________________
 // external string
-
-#include <seqan/file/file_page.h>
-#include <seqan/file/file_page_raid0.h>
-#include <seqan/file/string_external.h>
 
 #endif //#ifndef SEQAN_HEADER_...

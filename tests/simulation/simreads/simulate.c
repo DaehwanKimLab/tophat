@@ -8,6 +8,11 @@
 #include "seq.h"
 #include "genran.h"
 #include "const.h"
+
+#include <string>
+#include <map>
+
+using namespace std;
 //#include "maqmap.h"
 
 #ifndef MAX_READLEN
@@ -25,6 +30,8 @@
 #define PAIRFLAG_SW      0x80
 
 static double ERR_RATE = 0.02;
+
+static float coverage = 0.0;
 
 typedef struct
 {
@@ -101,33 +108,18 @@ int maq_simutrain(int argc, char *argv[])
 	return 0;
 }
 
-static void gen_qual(fqc_t *fqc, char str[], int size)
+static void gen_qual(char str[], int size)
 {
-	double ran = ran_uniform();
-	double *p = fqc->fqual_count[0];
-	double sum;
-	int i, k, prev;
-	for (k = 0, sum = 0.0; k <= fqc->q_max; ++k) {
-		sum += p[k]; // precalculate this sum will be more effficient, but this is not critical...
-		if (sum >= ran) break;
-	}
-	str[0] = 33 + k;
-	prev = k;
-	for (i = 1; i != size; ++i) {
-		double ran = ran_uniform();
-		p = fqc->fmarkov_count[i][prev];
-		for (k = 0, sum = 0.0; k <= fqc->q_max; ++k) {
-			sum += p[k];
-			if (sum >= ran) break;
-		}
-		str[i] = 33 + k;
-		prev = k;
-	}
-	str[size] = 0; // end of a string
+    for (int i = 0; i < size; ++i)
+    {
+        str[i] = 'I';
+    }
+    str[size] = 0;
 }
 
 static double MUT_RATE = 0.001;
-static double INDEL_FRAC = 0.1;
+static double INDEL_FRAC = 0.0;
+static int DEFAULT_READ_LENGTH = 75;
 
 void maq_mut_diref(const seq_t *seq, int is_hap, seq_t *hap1, seq_t *hap2)
 {
@@ -207,34 +199,32 @@ void maq_print_mutref(const char *name, const seq_t *seq, seq_t *hap1, seq_t *ha
 void maq_simulate_core(FILE *fpout1, 
 					   FILE *fpout2, 
 					   FILE *fp_fa, 
-					   gzFile fp_par, 
 					   int is_hap, 
 					   bit64_t N,
 					   int dist, 
 					   int std_dev, 
 					   int size_l, 
 					   int size_r,
-					   float coverage,
+					   const map<string, double>& coverages,
 					   bool paired_end)
 {
-	fqc_t *fqc;
 	seq_t seq, rseq[2];
 	bit64_t tot_len, ii;
-	int i, l, n_ref, k;
+	int i, n_ref, k;
 	char name[256], qstr[256], str[1024];
 	double Q_table[MAX_QUAL+1];
 	int size[2];
+    int l;
 	bit8_t tmp_seq[2][256], *target;
-	fqc = (fqc_t*)malloc(sizeof(fqc_t));
-	l = gzread(fp_par, fqc, sizeof(fqc_t));
+	//l = gzread(fp_par, fqc, sizeof(fqc_t));
 	for (i = 0; i <= MAX_QUAL; ++i)
 		Q_table[i] = exp(-log(10.0) * i / 10.0);
 	INIT_SEQ(seq);
 	ran_seed();
 	seq_set_block_size(0x1000000);
-	assert(size_l <= fqc->l_max && size_r <= fqc->l_max);
-	if (size_l == 0) size_l = fqc->l_max;
-	if (size_r == 0) size_r = fqc->l_max;
+	//assert(size_l <= fqc->l_max && size_r <= fqc->l_max);
+	if (size_l == 0) size_l = DEFAULT_READ_LENGTH;
+	if (size_r == 0) size_r = DEFAULT_READ_LENGTH;
 	size[0] = size_l; size[1] = size_r;
 	tot_len = n_ref = 0;
 	while ((l = seq_read_fasta(fp_fa, &seq, name, 0)) >= 0) {
@@ -246,20 +236,33 @@ void maq_simulate_core(FILE *fpout1,
 	while ((l = seq_read_fasta(fp_fa, &seq, name, 0)) >= 0) {
 		
 		bit64_t n_pairs;
-		if (coverage < 0.0)
+		
+        double rec_coverage = 0;
+        
+        map<string, double>::const_iterator cov_itr = coverages.find(name);
+        if (cov_itr == coverages.end())
+            rec_coverage = coverage;
+        else
+        {
+            rec_coverage = cov_itr->second;
+        }
+		
+        fprintf(stderr, "Assigning %s %f-fold coverage\n", name, rec_coverage);
+		
+		if (rec_coverage < 0.0)
 		{
 			n_pairs = (bit64_t)((long double)l / tot_len * N + 0.5);
 		}
 		else
 		{
 			if (paired_end)
-				n_pairs = ((long double)l / (size_l + size_r)) * coverage;
+				n_pairs = ((long double)l / (size_l + size_r)) * rec_coverage;
 			else
-				n_pairs = ((long double)l / (size_l)) * coverage;
+				n_pairs = ((long double)l / (size_l)) * rec_coverage;
 		}
 		if (paired_end && l < dist + 2 * std_dev) {
-			fprintf(stderr, "[maq_simulate_core] Each reference sequence should be longer than dist+2*stddev. Abort!\n");
-			exit(1);
+			fprintf(stderr, "[maq_simulate_core] Each reference sequence should be longer than dist+2*stddev. skipping!\n");
+            continue;
 		}
 		maq_mut_diref(&seq, is_hap, rseq, rseq+1);
 		maq_print_mutref(name, &seq, rseq, rseq+1);
@@ -270,7 +273,7 @@ void maq_simulate_core(FILE *fpout1,
 			do {
 				ran = ran_normal();
 				ran = ran * std_dev + dist;
-				if (ran < fqc->l_max) ran = fqc->l_max;
+				if (ran < DEFAULT_READ_LENGTH) ran = DEFAULT_READ_LENGTH;
 				d = (int)(ran + 0.5);
 				int pos_range;
 				if (paired_end)
@@ -293,8 +296,11 @@ void maq_simulate_core(FILE *fpout1,
 			}
 			else
 			{
-				fpo[0] = fpout1; 
-				s[0] = size[0];
+			    fpo[0] = fpout1;
+			    s[0] = size[0];
+				if (ran_uniform() < 0.5) {
+					is_flip = 1;
+				}
 			}
 			
 			// generate the read sequences
@@ -332,7 +338,7 @@ void maq_simulate_core(FILE *fpout1,
 			else sprintf(str, "%s_%u_%u_%llx", name, begin+1, end+1, ii);
 			// print forward read
 			fprintf(fpo[0], "@%s/%d\n", str, is_flip+1);
-			gen_qual(fqc, qstr, s[0]); // generate qual
+			gen_qual(qstr, s[0]); // generate qual
 			for (i = 0; i < s[0]; ++i) {
 				int c = tmp_seq[0][i];
 				if (c > 4) c = 4;
@@ -350,7 +356,7 @@ void maq_simulate_core(FILE *fpout1,
 			if (paired_end)
 			{
 				fprintf(fpo[1], "@%s/%d\n", str, 2-is_flip);
-				gen_qual(fqc, qstr, s[1]);
+				gen_qual(qstr, s[1]);
 				
 				for (i = 0; i < s[1]; ++i) {
 					int c = tmp_seq[1][i];
@@ -371,18 +377,18 @@ void maq_simulate_core(FILE *fpout1,
 		free(rseq[1].s);
 	}
 	free(seq.s);
-	free(fqc);
 }
 
 static int simu_usage()
 {
 	fprintf(stderr, "\n");
-	fprintf(stderr, "Usage:   simreads [options] <reads.out> <ref.fasta> <simupar.dat>\n\n");
+	fprintf(stderr, "Usage:   simreads [options] <reads.out> <ref.fasta>\n\n");
 	fprintf(stderr, "Options: -d INT        outer distance between the two ends [170]\n");
 	fprintf(stderr, "         -P            generate paired end reads\n");
 	fprintf(stderr, "         -s INT        standard deviation [20]\n");
 	fprintf(stderr, "         -N INT        number of read pairs [1000000]\n");
 	fprintf(stderr, "         -1 INT        length of the first read\n");
+	fprintf(stderr, "         -2 INT        length of the second read\n");
 	fprintf(stderr, "         -r FLOAT      rate of mutations [0.001]\n");
 	fprintf(stderr, "         -R FLOAT      fraction of 1bp indels [0.1]\n");
 	fprintf(stderr, "         -c FLOAT      coverage at which to \"sequence\" each reference record\n");
@@ -396,12 +402,12 @@ int main(int argc, char *argv[])
 	bit64_t N;
 	int dist, std_dev, c, size_l, size_r, is_hap = 0;
 	FILE *fpout1, *fpout2, *fp_fa;
-	gzFile fp_par;
 	N = 1000000; dist = 170; std_dev = 20;
 	size_l = size_r = 0;
-	float coverage = 0.0;
+	
 	bool paired_end = false;
-	while ((c = getopt(argc, argv, "d:s:N:1:2:r:R:hc:P")) >= 0) {
+    string cov_file_name;
+	while ((c = getopt(argc, argv, "d:s:N:1:2:r:R:hc:Pe:C:")) >= 0) {
 		switch (c) {
 		case 'd': dist = atoi(optarg); break;
 		case 's': std_dev = atoi(optarg); break;
@@ -411,35 +417,59 @@ int main(int argc, char *argv[])
 		case 'r': MUT_RATE = atof(optarg); break;
 		case 'R': INDEL_FRAC = atof(optarg); break;
 		case 'c': coverage = atof(optarg); break;
+		case 'C': cov_file_name = optarg; break;
 		case 'P': paired_end = true;
 		case 'h': is_hap = 1; break;
+		case 'e': ERR_RATE = atof(optarg); break;
 		}
 	}
-	
-	
-	
+
+    map<string, double> coverages;
+    if (!cov_file_name.empty())
+    {
+        FILE* f_cov = fopen(cov_file_name.c_str(), "r");
+        char buf[2048];
+        
+        while (fgets(buf, 2048, f_cov))
+        {
+            const char* bwt_fmt_str = "%s %f";
+        	static const int buf_size = 256;
+
+        	char name[buf_size];
+            float cov = 0.0;
+            name[0] = 0;
+        	int bwtf_ret = 0;
+        
+        	// Get a new record from the tab-delimited Bowtie map
+        	bwtf_ret = sscanf(buf,
+        					  bwt_fmt_str,
+        					  name,
+                              &cov);
+            
+            coverages[name] = cov;
+        }
+        
+    }
+
 	char* reads2_filename = NULL;
 	char* ref_filename = NULL;
-	char* params_filename = NULL;
 	if (paired_end)
 	{
-		if (argc - optind < 4) return simu_usage();
+		if (argc - optind < 3) return simu_usage();
 		reads2_filename = argv[optind + 1];
 		ref_filename = argv[optind + 2];
-		params_filename = argv[optind + 3];
+		//params_filename = argv[optind + 3];
 		fpout2 = fopen(reads2_filename, "w");
 		fp_fa = (strcmp(ref_filename, "-") == 0)? stdin : fopen(ref_filename, "r");
-		fp_par = gzopen(params_filename, "r");
 		if (fpout2 == 0)
 			fprintf(stderr, "[simreads] cannot write to file '%s'", reads2_filename);
 	}
 	else
 	{
-		if (argc - optind < 3) return simu_usage();
+		if (argc - optind < 2) return simu_usage();
 		ref_filename = argv[optind + 1];
-		params_filename = argv[optind + 2];
+		//params_filename = argv[optind + 2];
 		fp_fa = (strcmp(ref_filename, "-") == 0)? stdin : fopen(ref_filename, "r");
-		fp_par = gzopen(params_filename, "r");
 	}
 	
 	char* reads1_filename = argv[optind + 0];
@@ -449,11 +479,11 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "[simreads] cannot write to file '%s'", reads1_filename);
 	if (fp_fa == 0)
 		fprintf(stderr, "[simreads] cannot open reference sequence file '%s'", ref_filename);
-	if (fp_par == 0)
-		fprintf(stderr, "[simreads] cannot open parameter file '%s'\n", params_filename);
+	//if (fp_par == 0)
+	//	fprintf(stderr, "[simreads] cannot open parameter file '%s'\n", params_filename);
 	
-	maq_simulate_core(fpout1, fpout2, fp_fa, fp_par, is_hap, N, dist, std_dev, size_l, size_r, coverage, paired_end);
-	fclose(fpout1); fclose(fp_fa); gzclose(fp_par);
+	maq_simulate_core(fpout1, fpout2, fp_fa, is_hap, N, dist, std_dev, size_l, size_r, coverages, paired_end);
+	fclose(fpout1); fclose(fp_fa);
 	
 	if (paired_end)
 		fclose(fpout2);

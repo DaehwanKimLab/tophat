@@ -13,6 +13,7 @@
 #include <iostream>
 #include <vector>
 #include <map>
+#include <stdint.h>
 
 #include "misc.h"
 
@@ -56,7 +57,7 @@ public:
      */
     GFF()
         : seqid (""), source (""), type (""),
-        score (-1.), strand ('.'), phase (3)
+        score (-1.f), strand ('.'), phase (3)
     {
     }
 

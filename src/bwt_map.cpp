@@ -42,7 +42,10 @@ void HitTable::add_hit(const BowtieHit& bh, bool check_uniqueness)
 		for (; lb != ub && lb != hl.end(); ++lb)
 		{
 			if (*lb == bh)
+			{
+				//fprintf(stderr, "Chucking duplicate read %d by identity\n", bh.insert_id());
 				return;
+			}
 			
 			if (lb->insert_id() == bh.insert_id() &&
 				lb->ref_id() == bh.ref_id() &&
@@ -65,6 +68,7 @@ void HitTable::add_hit(const BowtieHit& bh, bool check_uniqueness)
 						// One alignment is contained in the other, they agree on 
 						// where the gaps, if any, are, and they share an id
 						// => this is a redundant aligment, so toss it
+						//fprintf(stderr, "Chucking duplicate read %d by gap agreement\n", bh.insert_id());
 						return;
 					}
 				}
@@ -85,7 +89,9 @@ BowtieHit HitFactory::create_hit(const string& insert_name,
 								 int left,
 								 const vector<CigarOp>& cigar,
 								 bool antisense_aln,
-								 bool antisense_splice)
+								 bool antisense_splice,
+								 unsigned char edit_dist,
+								 unsigned char splice_mms)
 {
 	uint64_t insert_id = _insert_table.get_id(insert_name);
 	uint32_t reference_id = _ref_table.get_id(ref_name, NULL);
@@ -95,14 +101,17 @@ BowtieHit HitFactory::create_hit(const string& insert_name,
 					 left, 
 					 cigar, 
 					 antisense_aln,
-					 antisense_splice);	
+					 antisense_splice,
+					 edit_dist,
+					 splice_mms);	
 }
 
 BowtieHit HitFactory::create_hit(const string& insert_name, 
 								 const string& ref_name,
 								 uint32_t left,
 								 uint32_t read_len,
-								 bool antisense_aln)
+								 bool antisense_aln,
+								 unsigned char edit_dist)
 {
 	uint64_t insert_id = _insert_table.get_id(insert_name);
 	uint32_t reference_id = _ref_table.get_id(ref_name, NULL);
@@ -111,47 +120,56 @@ BowtieHit HitFactory::create_hit(const string& insert_name,
 					 insert_id, 
 					 left,
 					 read_len,
-					 antisense_aln);	
+					 antisense_aln,
+					 edit_dist);	
 }
 
-bool BowtieHitFactory::get_hit_from_buf(const char* bwt_buf, 
+bool BowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf, 
 										BowtieHit& bh,
 										bool strip_slash,
 										char* name_out,
 										char* name_tags)
 {
-	const char* bwt_fmt_str = "%s %c %s %d %s %s %d %s";
-	static const int buf_size = 256;
+	if (!orig_bwt_buf || !*orig_bwt_buf)
+		return false;
+	
+	static const int buf_size = 2048;
+	
+	char bwt_buf[buf_size];
+	strcpy(bwt_buf, orig_bwt_buf);
+	//const char* bwt_fmt_str = "%s %c %s %d %s %s %d %s";
+
 	char orientation;
-	char name[buf_size];
-	int bwtf_ret = 0;
+	
+	//int bwtf_ret = 0;
 	//uint32_t seqid = 0;
+	
 	char text_name[buf_size];
 	unsigned int text_offset;
-	char sequence[buf_size];
 	
-	char qualities[buf_size];
-	unsigned int other_occs;
+	
+	//unsigned int other_occs;
 	char mismatches[buf_size];
-	memset(mismatches, 0, sizeof(mismatches));
-	// Get a new record from the tab-delimited Bowtie map
-	bwtf_ret = sscanf(bwt_buf,
-					  bwt_fmt_str,
-					  name,
-					  &orientation,
-					  text_name,   // name of reference sequence
-					  &text_offset,
-					  sequence,
-					  qualities,
-					  &other_occs,
-					  mismatches);
+	//memset(mismatches, 0, sizeof(mismatches));
 	
-	// If we didn't get enough fields, this record is bad, so skip it
-	if (bwtf_ret > 0 && bwtf_ret < 6)
-	{
-		//fprintf(stderr, "Warning: found malformed record, skipping\n");
-		return false;
-	}
+	const char* buf = bwt_buf;
+	char* name = strsep((char**)&buf,"\t");
+	char* orientation_str = strsep((char**)&buf,"\t");
+	char* text_name_str = strsep((char**)&buf,"\t");
+	
+	strcpy(text_name, text_name_str);
+	
+	char* text_offset_str = strsep((char**)&buf,"\t");
+	char* seq_str = strsep((char**)&buf,"\t");
+	/*const char* qual_str = */strsep((char**)&buf,"\t");
+	/*const char* other_occs_str =*/ strsep((char**)&buf, "\t");
+	mismatches[0] = 0;
+	char* mismatches_str = strsep((char**)&buf, "\t");
+	if (mismatches_str)
+		strcpy(mismatches, mismatches_str);
+	
+	orientation = orientation_str[0];
+	text_offset = atoi(text_offset_str);
 
 	// Copy the tag out of the name field before we might wipe it out
 	char* pipe = strrchr(name, '|');
@@ -166,66 +184,97 @@ bool BowtieHitFactory::get_hit_from_buf(const char* bwt_buf,
 	if (strip_slash && slash)
 		*slash = 0;
 	
-	size_t read_len = strlen(sequence);
+	size_t read_len = strlen(seq_str);
 	
 	// Add this alignment to the table of hits for this half of the
 	// Bowtie map
 
+	//vector<string> mismatch_toks;
+	char* pch = strtok (mismatches,",");
+	unsigned char num_mismatches = 0;
+	while (pch != NULL)
+	{
+		char* colon = strchr(pch, ':');
+		if (colon) 
+		{
+			num_mismatches++;
+		}
+		//mismatch_toks.push_back(pch);
+		pch = strtok (NULL, ",");
+	}
+	
 	bh = create_hit(name,
-					 text_name,
-					 text_offset, 
-					 (int)read_len, 
-					 orientation == '-');
+					text_name,
+					text_offset, 
+					(int)read_len, 
+					orientation == '-',
+					num_mismatches);
+	
 	return true;
 }
 
 int anchor_mismatch = 0;
 
-bool SplicedBowtieHitFactory::get_hit_from_buf(const char* bwt_buf, 
+bool SplicedBowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf, 
 											   BowtieHit& bh,
 											   bool strip_slash,
 											   char* name_out,
 											   char* name_tags)
 {
-	const char* bwt_fmt_str = "%s %c %s %d %s %s %d %s";
-	static const int buf_size = 256;
+	if (!orig_bwt_buf || !*orig_bwt_buf)
+		return false;
+	
+	static const int buf_size = 2048;
+	
+	char bwt_buf[buf_size];
+	strcpy(bwt_buf, orig_bwt_buf);
+	//const char* bwt_fmt_str = "%s %c %s %d %s %s %d %s";
+
 	char orientation;
-	char name[buf_size];
-	int bwtf_ret = 0;
+	
+	//int bwtf_ret = 0;
 	//uint32_t seqid = 0;
+	
 	char text_name[buf_size];
 	unsigned int text_offset;
-	char sequence[buf_size];
 	
-	char qualities[buf_size];
-	unsigned int other_occs;
+	
+	//unsigned int other_occs;
 	char mismatches[buf_size];
-	memset(mismatches, 0, sizeof(mismatches));
-	// Get a new record from the tab-delimited Bowtie map
-	bwtf_ret = sscanf(bwt_buf,
-					  bwt_fmt_str,
-					  name,
-					  &orientation,
-					  text_name,   // name of reference sequence
-					  &text_offset,
-					  sequence,
-					  qualities,
-					  &other_occs,
-					  mismatches);
-	
+	//memset(mismatches, 0, sizeof(mismatches));
 
-	// If we didn't get enough fields, this record is bad, so skip it
-	if (bwtf_ret > 0 && bwtf_ret < 6)
-	{
-		//fprintf(stderr, "Warning: found malformed record, skipping\n");
-		return false;
-	}
+	char* buf = bwt_buf;
+	char* name = strsep((char**)&buf,"\t");
+	char* orientation_str = strsep((char**)&buf,"\t");
+	char* text_name_str = strsep((char**)&buf,"\t");
+	strcpy(text_name, text_name_str);
+	
+	char* text_offset_str = strsep((char**)&buf,"\t");
+	char* seq_str = strsep((char**)&buf,"\t");
+	/*const char* qual_str = */strsep((char**)&buf,"\t");
+	/*const char* other_occs_str =*/ strsep((char**)&buf, "\t");
+	mismatches[0] = 0;
+	char* mismatches_str = strsep((char**)&buf, "\t");
+	if (mismatches_str)
+		strcpy(mismatches, mismatches_str);
+	
+	orientation = orientation_str[0];
+	text_offset = atoi(text_offset_str);
+	
+	int seg_offset = 0;
 	// Copy the tag out of the name field before we might wipe it out
 	char* pipe = strrchr(name, '|');
 	if (pipe)
 	{
 		if (name_tags)
 			strcpy(name_tags, pipe);
+		char* tag_buf = pipe + 1;
+		char* colon = strchr(tag_buf, ':');
+		if (colon)
+		{
+			*colon = 0;
+			seg_offset = atoi(tag_buf);
+		}
 		*pipe = 0;
 	}
 	// Stripping the slash and number following it gives the insert name
@@ -243,7 +292,7 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* bwt_buf,
 	
 	tokenize_strict(text_name, "|", toks);
 	
-	size_t num_extra_toks = toks.size() - 6;
+	int num_extra_toks = (int)toks.size() - 6;
 	
 	if (num_extra_toks >= 0)
 	{
@@ -254,7 +303,7 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* bwt_buf,
 		static const uint8_t strand_field = 5;
 		
 		string contig = toks[0];
-		for (size_t t = 1; t <= num_extra_toks; ++t)
+		for (int t = 1; t <= num_extra_toks; ++t)
 		{
 			contig += "|";
 			contig += toks[t];
@@ -264,15 +313,25 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* bwt_buf,
 		tokenize(toks[num_extra_toks + splice_field], "-", splice_toks);
 		if (splice_toks.size() != 2)
 		{			
-			//fprintf(stderr, "Warning: found malformed splice record, skipping\n");
+			fprintf(stderr, "Warning: found malformed splice record, skipping\n");
 			return false;			       
 		}
 		
 		uint32_t left = atoi(toks[num_extra_toks + left_window_edge_field].c_str()) + text_offset;
-		uint64_t spliced_read_len = strlen(sequence);
+		int spliced_read_len = strlen(seq_str);
 		int8_t left_splice_pos = atoi(splice_toks[0].c_str()) - left + 1;
 		int8_t right_splice_pos = spliced_read_len - left_splice_pos;
 		
+		if (orientation == '+')
+		{
+			if (left_splice_pos + seg_offset < _anchor_length)
+				return false;
+		}
+		else
+		{
+			if (right_splice_pos + seg_offset < _anchor_length)
+				return false;
+		}
 		//uint32_t right = atoi(splice_toks[1].c_str()) + right_splice_pos;
 		//atoi(toks[right_window_edge_field].c_str());
 		int gap_len = atoi(splice_toks[1].c_str()) - atoi(splice_toks[0].c_str()) - 1;
@@ -281,23 +340,25 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* bwt_buf,
 		if (!(junction_strand == "rev" || junction_strand == "fwd")||
 			!(orientation == '-' || orientation == '+'))
 		{
-			//fprintf(stderr, "Warning: found malformed splice record, skipping\n");
+			fprintf(stderr, "Warning: found malformed splice record, skipping\n");
 			return false;
 		}
 		
 		//vector<string> mismatch_toks;
 		char* pch = strtok (mismatches,",");
-		bool mismatch_in_anchor = false;
+		int mismatches_in_anchor = 0;
+		unsigned char num_mismatches = 0;
 		while (pch != NULL)
 		{
 			char* colon = strchr(pch, ':');
 			if (colon) 
 			{
 				*colon = 0;
+				num_mismatches++;
 				int mismatch_pos = atoi(pch);
-				if ((orientation == '+' && abs(mismatch_pos - left_splice_pos) < min_anchor_len) ||
-					(orientation == '-' && abs(((int)spliced_read_len - left_splice_pos + 1) - mismatch_pos)) < min_anchor_len)
-					mismatch_in_anchor = true;
+				if ((orientation == '+' && abs(mismatch_pos - left_splice_pos) < (int)min_anchor_len) ||
+					(orientation == '-' && abs(((int)spliced_read_len - left_splice_pos + 1) - mismatch_pos)) < (int)min_anchor_len)
+					mismatches_in_anchor++;
 			}
 			//mismatch_toks.push_back(pch);
 			pch = strtok (NULL, ",");
@@ -305,29 +366,23 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* bwt_buf,
 		
 		// FIXME: we probably should exclude these hits somewhere, but this
 		// isn't the right place
-		if (!_filter_anchor_mismatches || !mismatch_in_anchor)
-		{
-			vector<CigarOp> cigar;
-			cigar.push_back(CigarOp(MATCH, left_splice_pos));
-			cigar.push_back(CigarOp(REF_SKIP, gap_len));
-			cigar.push_back(CigarOp(MATCH, right_splice_pos));
-			bh = create_hit(name,
-							contig,
-							left, 
-							cigar,
-							orientation == '-', 
-							junction_strand == "rev" );
-			return true;
-		}
-		else
-		{
-			anchor_mismatch++;
-			return false;
-		}
+		vector<CigarOp> cigar;
+		cigar.push_back(CigarOp(MATCH, left_splice_pos));
+		cigar.push_back(CigarOp(REF_SKIP, gap_len));
+		cigar.push_back(CigarOp(MATCH, right_splice_pos));
+		bh = create_hit(name,
+						contig,
+						left, 
+						cigar,
+						orientation == '-', 
+						junction_strand == "rev",
+						num_mismatches,
+						mismatches_in_anchor);
+		return true;
 	}
 	else
 	{
-		//			fprintf(stderr, "Warning: found malformed splice record, skipping\n");
+					fprintf(stderr, "Warning: found malformed splice record, skipping\n");
 		//			continue;
 		return false;
 	}
@@ -335,55 +390,52 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* bwt_buf,
 	return false;
 }
 
-bool SAMHitFactory::get_hit_from_buf(const char* bwt_buf, 
+bool SAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf, 
 									 BowtieHit& bh,
 									 bool strip_slash,
 									 char* name_out,
 									 char* name_tags)
 {
+	if (!orig_bwt_buf || !*orig_bwt_buf)
+		return false;
+	char bwt_buf[2048];
+	strcpy(bwt_buf, orig_bwt_buf);
 	// Are we still in the header region?
 	if (bwt_buf[0] == '@')
 		return false;
 	
-	const char* bwt_fmt_str = "%s %d %s %d %d %s %s %d %d %s %s %s";
-	static const int buf_size = 256;
-	int sam_flag;
-	int map_qual;
-	char name[buf_size];
-	int bwtf_ret = 0;
-	//uint32_t seqid = 0;
-	char text_name[buf_size];
-	unsigned int text_offset;
-	char sequence[buf_size];
-	char cigar_str[buf_size];
-	char qualities[buf_size];
-	char mate_ref_name[buf_size];
-	int inferred_insert_sz;
-	int mate_pos;
-	char strand_tag_buf[256];
+	char* buf = bwt_buf;
+	char* name = strsep((char**)&buf,"\t");
+	char* sam_flag_str = strsep((char**)&buf,"\t");
+	char* text_name = strsep((char**)&buf,"\t");
+	char* text_offset_str = strsep((char**)&buf,"\t");
+	const char* map_qual_str = strsep((char**)&buf,"\t");
+	char* cigar_str = strsep((char**)&buf,"\t");
+	const char* mate_ref_str =  strsep((char**)&buf,"\t");
+	const char* mate_pos_str =  strsep((char**)&buf,"\t");
+	const char* inferred_insert_sz_str =  strsep((char**)&buf,"\t");
+	const char* seq_str =  strsep((char**)&buf,"\t");
+	const char* qual_str =  strsep((char**)&buf,"\t");
 	
-	// Get a new record from the tab-delimited Bowtie map
-	bwtf_ret = sscanf(bwt_buf,
-					  bwt_fmt_str,
-					  name,
-					  &sam_flag,
-					  text_name,   // name of reference sequence
-					  &text_offset,
-					  &map_qual,
-					  cigar_str,
-					  mate_ref_name,
-					  &mate_pos,
-					  &inferred_insert_sz,
-					  sequence,
-					  qualities,
-					  strand_tag_buf);
-	
-	// If we didn't get enough fields, this record is bad, so skip it
-	if (bwtf_ret > 0 && bwtf_ret < 11)
+	if (!name ||
+		!sam_flag_str ||
+		!text_name ||
+		!text_offset_str ||
+		!map_qual_str ||
+		!cigar_str ||
+		!mate_ref_str ||
+		!mate_pos_str ||
+		!inferred_insert_sz_str ||
+		!seq_str ||
+		!qual_str)
 	{
-		//fprintf(stderr, "Warning: found malformed record, skipping\n");
+		// truncated or malformed SAM record
 		return false;
 	}
+	
+	
+	int sam_flag = atoi(sam_flag_str);
+	int text_offset = atoi(text_offset_str);
 	
 	// Copy the tag out of the name field before we might wipe it out
 	char* pipe = strrchr(name, '|');
@@ -401,18 +453,29 @@ bool SAMHitFactory::get_hit_from_buf(const char* bwt_buf,
 	char* p_cig = cigar_str;
 	//int len = strlen(sequence);
 	vector<CigarOp> cigar;
-	
+	bool spliced_alignment = false;
 	// Mostly pilfered direct from the SAM tools:
 	while (*p_cig) 
 	{
 		char* t;
 		int length = (int)strtol(p_cig, &t, 10);
+		if (length <= 0)
+		{
+			//fprintf (stderr, "CIGAR op has zero length\n");
+			return false;
+		}
 		char op_char = toupper(*t);
 		CigarOpCode opcode;
 		if (op_char == 'M') opcode = MATCH;
 		else if (op_char == 'I') opcode = INS;
 		else if (op_char == 'D') opcode = DEL;
-		else if (op_char == 'N') opcode = REF_SKIP;
+		else if (op_char == 'N')
+		{
+			if (length > max_report_intron_length)
+				return false;
+			opcode = REF_SKIP;
+			spliced_alignment = true;
+		}
 		else if (op_char == 'S') opcode = SOFT_CLIP;
 		else if (op_char == 'H') opcode = HARD_CLIP;
 		else if (op_char == 'P') opcode = PAD;
@@ -431,31 +494,98 @@ bool SAMHitFactory::get_hit_from_buf(const char* bwt_buf,
 		return false;
 	}
 	
-	vector<string> toks;
-	tokenize(strand_tag_buf, ":", toks);
-	if (toks.size() != 3)
+	//vector<string> attributes;
+	//tokenize(tag_buf, " \t",attributes);
+	
+	bool antisense_splice = false;
+	unsigned char num_mismatches = 0;
+	unsigned char num_splice_anchor_mismatches = 0;
+	const char* tag_buf = buf;
+	
+//	while((tag_buf = strsep((char**)&buf,"\t")))
+//	{
+//		vector<string> tuple_fields;
+//		tokenize(tag_buf,":", tuple_fields);
+//		if (tuple_fields.size() == 3)
+//		{
+//			if (tuple_fields[0] == "XS")
+//			{
+//				if (tuple_fields[2] == "-")
+//					antisense_splice = true;
+//			}
+//			else if (tuple_fields[0] == "NM")
+//			{
+//				num_mismatches = atoi(tuple_fields[2].c_str());
+//			}
+//			else if (tuple_fields[0] == "NS")
+//			{
+//				num_splice_anchor_mismatches = atoi(tuple_fields[2].c_str());
+//			}
+//			else
+//			{
+//				fprintf(stderr, "%s attribute not supported\n", tuple_fields[0].c_str());
+//				return false;
+//			}
+//		}
+//	}
+	
+	while((tag_buf = strsep((char**)&buf,"\t")))
 	{
-		if (cigar.size() == 1 && cigar[0].opcode == MATCH)
+		vector<string> tuple_fields;
+		tokenize(tag_buf,":", tuple_fields);
+		if (tuple_fields.size() == 3)
 		{
-			bh = create_hit(name,
-							text_name,
-							text_offset - 1, // SAM files are 1-indexed 
-							cigar[0].length, 
-							sam_flag & 0x0010);
-			return true;
+			if (tuple_fields[0] == "XS")
+			{
+				if (tuple_fields[2] == "-")
+					antisense_splice = true;
+			}
+			else if (tuple_fields[0] == "NM")
+			{
+				num_mismatches = atoi(tuple_fields[2].c_str());
+			}
+			else if (tuple_fields[0] == "NS")
+			{
+				//ignored for now
+			}
+			else
+			{
+				//fprintf(stderr, "%s attribute not supported\n", tuple_fields[0].c_str());
+				//return false;
+			}
 		}
-		return false;
 	}
-	else
+	
+	
+//	vector<string> toks;
+//	tokenize(tag_buf, ":", toks);
+	if (spliced_alignment)
 	{
 		bh = create_hit(name,
 						text_name,
 						text_offset - 1, 
 						cigar,
 						sam_flag & 0x0010,
-						toks[2] == "-");
+						antisense_splice,
+						num_mismatches,
+						num_splice_anchor_mismatches
+						);
+		return true;
+
+	}
+	else
+	{		
+		//assert(cigar.size() == 1 && cigar[0].opcode == MATCH);
+
+		bh = create_hit(name,
+						text_name,
+						text_offset - 1, // SAM files are 1-indexed 
+						cigar[0].length, 
+						sam_flag & 0x0010,
+						num_mismatches);
 		return true;
 	}
+		
 	return false;
 }
 
@@ -503,22 +633,7 @@ AlignStatus status(const BowtieHit* align)
 	return SPLICED;
 }
 
-void accept_all_hits(HitTable& hits)
-{
-	for (HitTable::iterator i = hits.begin(); 
-		 i != hits.end();
-		 ++i)
-	{
-		for (size_t j = 0;
-			 j != i->second.size();
-			 ++j)
-		{
-			i->second[j].accepted(true);
-		}
-	}
-}
-
-void add_hits_to_coverage(const HitList& hits, vector<short>& DoC)
+void add_hits_to_coverage(const HitList& hits, vector<unsigned short>& DoC)
 {
 	int max_hit_pos = -1;
 	for (size_t i = 0; i < hits.size(); ++i)
@@ -533,8 +648,6 @@ void add_hits_to_coverage(const HitList& hits, vector<short>& DoC)
 	{
 		const BowtieHit& bh = hits[i];
 		
-		if (!bh.accepted())
-			continue;
 		// split up the coverage contibution for this reads
 		size_t j = bh.left();
 		const vector<CigarOp>& cigar = bh.cigar();
@@ -545,7 +658,10 @@ void add_hits_to_coverage(const HitList& hits, vector<short>& DoC)
 			{
 				case MATCH:
 					for (size_t m = 0; m < cigar[c].length; ++m)
-						DoC[j + m]++;
+					{
+						if (DoC[j + m] < 0xFFFF)
+							DoC[j + m]++;
+					}
 				//fall through this case to REF_SKIP is intentional
 				case REF_SKIP:
 					j += cigar[c].length;
@@ -555,6 +671,36 @@ void add_hits_to_coverage(const HitList& hits, vector<short>& DoC)
 			}
 			 
 		}
+	}
+}
+
+void add_hit_to_coverage(const BowtieHit& bh, vector<unsigned int>& DoC)
+{
+	if ((int)DoC.size() < bh.right())
+		DoC.resize(bh.right());
+			
+	// split up the coverage contibution for this reads
+	size_t j = bh.left();
+	const vector<CigarOp>& cigar = bh.cigar();
+	
+	for (size_t c = 0 ; c < cigar.size(); ++c)
+	{
+		switch(cigar[c].opcode)
+		{
+			case MATCH:
+				for (size_t m = 0; m < cigar[c].length; ++m)
+				{
+					if (DoC[j + m] < 0xFFFFFFFF)
+						DoC[j + m]++;
+				}
+				//fall through this case to REF_SKIP is intentional
+			case REF_SKIP:
+				j += cigar[c].length;
+				break;
+			default:
+				break;
+		}
+		
 	}
 }
 
@@ -569,7 +715,32 @@ void print_hit(FILE* fout,
 	//char text_name[buf_size];
 	//char sequence[buf_size];
 	
-	string seq = sequence ? sequence : "*";
+	string seq;
+	string quals;
+	if (sequence)
+	{
+		seq = sequence;
+		quals = qualities;
+		seq.resize(bh.read_len());
+		quals.resize(bh.read_len());
+		//if (bh.antisense_align())
+		//	reverse_complement(seq);
+	}
+	else
+	{
+		seq = "*";
+	}
+	
+	
+	if (qualities)
+	{
+		quals = qualities;
+		quals.resize(bh.read_len());
+	}
+	else
+	{
+		quals = "*";	
+	}
 	
 	uint32_t sam_flag = 0;
 	if (bh.antisense_align())
@@ -578,6 +749,7 @@ void print_hit(FILE* fout,
 		if (sequence)
 		{
 			reverse_complement(seq);
+			reverse(quals.begin(), quals.end());
 		}
 	}
 	
@@ -610,7 +782,7 @@ void print_hit(FILE* fout,
 		}
 	}
 	
-	string q = string(bh.read_len(), '!');
+	//string q = string(bh.read_len(), '!');
 	//string s = string(bh.read_len(), 'N');
 	
 	fprintf(fout,
@@ -625,15 +797,20 @@ void print_hit(FILE* fout,
 			mate_pos,
 			insert_size,
 			seq.c_str(),
-			//qualities ? qualities : "*"
-			//s.c_str(),
-			q.c_str());
+			quals.c_str());
+	
+	fprintf(fout,
+			"\tNM:i:%d",
+			bh.edit_dist());
 	
 	if (!bh.contiguous())
 	{
 		fprintf(fout,
 				"\tXS:A:%c",
 				bh.antisense_splice() ? '-' : '+');
+		fprintf(fout,
+				"\tNS:i:%d",
+				bh.splice_mms());
 	}
 	
 	fprintf(fout, "\n");

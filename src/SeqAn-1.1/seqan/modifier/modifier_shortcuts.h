@@ -15,7 +15,7 @@
   Lesser General Public License for more details.
 
  ============================================================================
-  $Id: modifier_shortcuts.h,v 1.1 2008/08/25 16:20:07 langmead Exp $
+  $Id: modifier_shortcuts.h 1448 2007-12-20 15:56:43Z doering@PCPOOL.MI.FU-BERLIN.DE $
  ==========================================================================*/
 
 #ifndef SEQAN_HEADER_MODIFIER_SHORTCUTS_H

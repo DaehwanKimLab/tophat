@@ -113,7 +113,7 @@ void read_exons(FILE* exon_fasta, FILE* exon_gff)
 			break;	
 		}
 		
-		total_exon_length += (int)(e->seq.length());
+		total_exon_length += e->seq.length();
 		num_exons++;
 		
 		RefID ref = 0u;
@@ -160,7 +160,7 @@ void read_exons(FILE* exon_fasta, FILE* exon_gff)
 	char buf[2048];
 	
 	// Throw out the track header
-	fgets(buf, 2048, exon_gff);
+	fgets(buf, sizeof(buf), exon_gff);
 	int single_junc_islands = 0;
 	int single_junc_island_length = 0;
 	while(!feof(exon_gff))
@@ -183,7 +183,7 @@ void read_exons(FILE* exon_fasta, FILE* exon_gff)
 			itr->second->score = score;
 			if (score > single_island_juncs_above)
 			{
-				single_junc_island_length += (int)(itr->second->seq.length());
+				single_junc_island_length += itr->second->seq.length();
 				single_junc_islands++;
 			}
 		}
@@ -369,7 +369,7 @@ PackedSplice pack_splice(const Splice& s, unsigned int key_len)
 		++r;
 	}
 	
-	return PackedSplice((uint32_t)left,seed,(uint32_t)right);
+	return PackedSplice(left,seed,right);
 }
 
 /** Returns the number of characters in strings w1 and w2 that match,
@@ -454,7 +454,7 @@ size_t index_read(const string& seq, unsigned int read_num, bool reverse_complem
 	bitset<256> right = 0;
 	const char* p = seq.c_str();
 	
-	unsigned int seq_len = (int)seq.length();
+	unsigned int seq_len = seq.length();
 	const char* seq_end = p + seq_len;
 	
 	// Build the first seed
@@ -482,7 +482,7 @@ size_t index_read(const string& seq, unsigned int read_num, bool reverse_complem
 	
 	// This loop will construct successive seed, along with 32-bit words 
 	// containing the left and right remainders for each seed
-	uint32_t i = 0;
+	size_t i = 0;
 	size_t new_hits = 0;
 	do 
 	{
@@ -494,25 +494,25 @@ size_t index_read(const string& seq, unsigned int read_num, bool reverse_complem
 		
 		// How many base pairs exist in the right remainder beyond what we have
 		// space for ?
-		int extra_right_bp = ((int)seq.length() - (i + 2*seq_key_len)) - 16;
+		int extra_right_bp = (seq.length() - (i + 2*seq_key_len)) - 16;
 		
 		uint32_t hit_right;
 		if (extra_right_bp > 0)
 		{
 			//bitset<32> tmp_hit_right = (right >> (extra_right_bp << 1));
-			hit_right = (uint32_t)(right >> (extra_right_bp << 1)).to_ulong();
+			hit_right = (right >> (extra_right_bp << 1)).to_ulong();
 		}
 		else
 		{
-			hit_right = (uint32_t)right.to_ulong();
+			hit_right = right.to_ulong();
 		}
 		
-		uint32_t hit_left = (uint32_t)((left << (256 - 32)) >> (256 - 32)).to_ulong();
+		uint32_t hit_left = ((left << (256 - 32)) >> (256 - 32)).to_ulong();
 		
-		size_t prev_cap = mer_table[seed].capacity();
+		size_t prev_cap = mer_table[(size_t)seed].capacity();
 		
-		mer_table[seed].push_back(ReadHit(hit_left, hit_right,i, read_num, reverse_complement));
-		cap_increase += (mer_table[seed].capacity() - prev_cap) * sizeof (ReadHit);
+		mer_table[(size_t)seed].push_back(ReadHit(hit_left, hit_right,i, read_num, reverse_complement));
+		cap_increase += (mer_table[(size_t)seed].capacity() - prev_cap) * sizeof (ReadHit);
 		new_hits++;
 		
 		// Take the leftmost base of the seed and stick it into bp
@@ -756,6 +756,14 @@ void lookup_splice_in_read_index(RefID ref_ctg_id,
 												pos,
 												max_span_mismatches);
 			
+			
+			if (filter_debug)
+			{
+				//cerr << u32ToDna(read_left, pos) << " " << u32ToDna(splice_left, pos)  << " " << left_mismatches << endl;
+				ref += u32ToDna(splice_left, min(16, (int)pos)) + " ";
+				ref += u32ToDna(p.seed, 2*seq_key_len) + " ";
+			}
+			
 			if (left_mismatches > max_span_mismatches)
 			{
 				continue;
@@ -782,6 +790,13 @@ void lookup_splice_in_read_index(RefID ref_ctg_id,
 															right_read_bases,
 															max_span_mismatches - left_mismatches);
 			
+			if (filter_debug)
+			{
+				//cerr << u32ToDna(read_right, right_read_bases) << " " << u32ToDna(splice_right, right_read_bases) << " " << right_mismatches << endl;
+				ref += u32ToDna(splice_right, right_read_bases);
+
+			}
+			
 			if (right_mismatches > max_span_mismatches - left_mismatches)
 			{
 				continue;
@@ -806,6 +821,14 @@ void lookup_splice_in_read_index(RefID ref_ctg_id,
 		string seed = u32ToDna(p.seed, 2 * seq_key_len);
 		string right_str = u32ToDna(rh.right, min(16, (int)seed_size - (int)(2 * seq_key_len) - (int)pos));
 		string seq =  left_str + seed + right_str;
+		
+		if (filter_debug)
+		{
+			//cerr << u32ToDna(read_right, right_read_bases) << " " << u32ToDna(splice_right, right_read_bases) << " " << right_mismatches << endl;
+			//ref += u32ToDna(splice_right, right_read_bases);
+			cerr << ref << endl;
+			cerr << left_str + " " + seed + " " + right_str << endl;
+		}
 		
 		int left_splice_coord = (int)left->pos_in_ref + (int)pos_in_l + seq_key_len - 1;
 		int right_splice_coord = (int)right->pos_in_ref + (int)pos_in_r - seq_key_len;
@@ -1052,29 +1075,6 @@ void map_possible_exon_juncs(FILE* reads_file)
 	}
 }
 
-/**
- * Parse an int out of optarg and enforce that it be at least 'lower';
- * if it is less than 'lower', than output the given error message and
- * exit with an error and a usage message.
- */
-static int parseInt(int lower, const char *errmsg) {
-	long l;
-	char *endPtr= NULL;
-	l = strtol(optarg, &endPtr, 10);
-	if (endPtr != NULL) {
-		if (l < lower) {
-			fprintf(stderr,"%s\n",errmsg);
-			print_usage();
-			exit(1);
-		}
-		return (int32_t)l;
-	}
-	fprintf(stderr,"%s\n",errmsg);
-	print_usage();
-	exit(1);
-	return -1;
-}
-
 void destroy_exons()
 {
 	for (EXONS_FOR_REFS::iterator j = exons_for_reference.begin();
@@ -1102,25 +1102,25 @@ int main(int argc, char** argv)
 				verbose = true;
 				break;
 			case 'a':
-				seq_key_len = parseInt(1, "-a arg must be at least 1");
+				seq_key_len = parseInt(1, "-a arg must be at least 1", print_usage);
 				break;
 			case 'm':
-				max_span_mismatches = parseInt(0,"-m arg must be at least 0");
+				max_span_mismatches = parseInt(0,"-m arg must be at least 0", print_usage);
 				break;
 			case 's':
-				seed_size = parseInt(1,"-s arg must be at least 1");
+				seed_size = parseInt(1,"-s arg must be at least 1", print_usage);
 				break;
 			case 'I':
-				max_intron_length = parseInt(1,"-I arg must be at least 1");
+				max_intron_length = parseInt(1,"-I arg must be at least 1", print_usage);
 				break;
 			case 'i':
-				min_intron_length = parseInt(1,"-i arg must be at least 1");
+				min_intron_length = parseInt(1,"-i arg must be at least 1", print_usage);
 				break;
 			case 'M':
-				max_memory_megs = parseInt(50,"-M arg must be at least 50");
+				max_memory_megs = parseInt(50,"-M arg must be at least 50", print_usage);
 				break;
 			case 'S':
-				single_island_juncs_above = parseInt(0,"-S arg must be at least 0");
+				single_island_juncs_above = parseInt(0,"-S arg must be at least 0", print_usage);
 				break;
 			case -1: /* Done with options. */
 				break;

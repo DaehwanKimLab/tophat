@@ -2,12 +2,11 @@
 
 # initialize
 AC_PREREQ(2.61)
-AC_INIT([TopHat],[0.8.4],[cole@cs.umd.edu],[tophat])
+AC_INIT([TopHat],[1.0.13],[cole@cs.umd.edu],[tophat])
 AC_PREFIX_DEFAULT([`pwd`])
 AC_CONFIG_SRCDIR([src/reads.h])
 AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_HEADERS([config.h])
-AM_INIT_AUTOMAKE([-Wall foreign])
 
 AC_ARG_ENABLE(debug,
 	AC_HELP_STRING([--enable-debug],[build debug library (default=no)]),,enable_debug=no)
@@ -17,8 +16,8 @@ AC_ARG_VAR(PYTHON, [python program])
 AC_ARG_VAR(PERL, [perl program])
 AC_ARG_VAR(TOPHAT_SHELL, [bash program])
 
-CFLAGS=" $CFLAGS"
-CXXFLAGS=" $CXXFLAGS"
+CFLAGS="$CFLAGS"
+CXXFLAGS="$CXXFLAGS"
 
 # check the platform
 AC_CANONICAL_HOST
@@ -40,12 +39,13 @@ AM_PATH_PYTHON([2.4])
 # ---------------------------------------------------------------------
 
 # set CFLAGS and CXXFLAGS
-user_CFLAGS=${CFLAGS}
-generic_CFLAGS="-Wall -g3"
+user_CFLAGS="${CXXFLAGS}"
+generic_CFLAGS="-Wall -g"
 ext_CFLAGS=""
 debug_CFLAGS=""
+#echo "${host_cpu}-${host_os}"
 case "${host_cpu}-${host_os}" in
-  i386-darwin*)
+   i*86-darwin*)
     AC_ARG_ENABLE(universal, [  --enable-universal      enable universal binary (Intel Apple only)],
 				  [is_uni=1], [is_uni=0])
 	case $is_uni in
@@ -86,7 +86,6 @@ CXXFLAGS="$CFLAGS"
 
 AM_CXXFLAGS="$CXXFLAGS -I./SeqAn-1.1"
 
-
 # Checks for libraries.
 AC_CHECK_LIB([z], [gzread])
 
@@ -111,6 +110,8 @@ AC_CHECK_FUNCS([memset strdup strrchr strtol strsep])
 AC_SUBST(CC)
 AC_SUBST(AM_CXXFLAGS)
 AC_SUBST(AM_CFLAGS)
+
+AM_INIT_AUTOMAKE([-Wall foreign])
 
 # makefiles to configure
 AC_CONFIG_FILES([Makefile src/Makefile])

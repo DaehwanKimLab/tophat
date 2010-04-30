@@ -13,7 +13,9 @@
 
 #include <cassert>
 #include <string>
+#include <algorithm>
 #include <cstring>
+#include <cstdlib>
 #include "reads.h"
 #include "bwt_map.h"
 
@@ -35,6 +37,11 @@ bool next_fasta_record(FILE* fp,
 		if (buf[0] == '>')
 		{
 			defline = buf + 1;
+			string::size_type space_pos = defline.find_first_of(" \t\r");
+			if (space_pos != string::npos)
+			{
+				defline.resize(space_pos);
+			}
 			break;
 		}
 	}
@@ -68,7 +75,10 @@ bool next_fastq_record(FILE* fp,
 {
 	static int buf_size = 2048;
 	char buf[buf_size];
-	
+	defline.clear();
+	seq.clear();
+	alt_name.clear();
+	qual.clear();
 	// Put the name of the record into defline
 	while (!feof(fp) && fgets(buf, buf_size, fp)) 
 	{
@@ -80,6 +90,11 @@ bool next_fastq_record(FILE* fp,
 		if (buf[0] == '@')
 		{
 			defline = buf + 1;
+			string::size_type space_pos = defline.find_first_of(" \t\r");
+			if (space_pos != string::npos)
+			{
+				defline.resize(space_pos);
+			}
 			break;
 		}
 	}
@@ -106,7 +121,6 @@ bool next_fastq_record(FILE* fp,
 	if (c == EOF)
 		return false;
 	
-	// Discard the optional secondary name (the one on the "+" line)
 	while (!feof(fp) && fgets(buf, buf_size, fp))
 	{
 		// Chomp the newline
@@ -164,7 +178,6 @@ void reverse_complement(string& seq)
 }
 
 bool get_read_from_stream(uint64_t insert_id,
-						  ReadTable& it,
 						  FILE* reads_file,
 						  ReadFormat reads_format,
 						  bool strip_slash,
@@ -199,7 +212,7 @@ bool get_read_from_stream(uint64_t insert_id,
 				read.name.resize(slash);
 		}
 		
-		if (it.get_id(read.name) == insert_id)
+		if ((uint64_t)atoi(read.name.c_str()) == insert_id)
 		{
 			if (read_name) strcpy(read_name, read.name.c_str());
 			if (read_seq) strcpy(read_seq, read.seq.c_str());

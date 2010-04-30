@@ -15,7 +15,7 @@
   Lesser General Public License for more details.
 
  ============================================================================
-  $Id: modifier_iterator.h,v 1.1 2008/08/25 16:20:07 langmead Exp $
+  $Id: modifier_iterator.h 1293 2007-11-12 09:24:57Z weese@PCPOOL.MI.FU-BERLIN.DE $
  ==========================================================================*/
 
 #ifndef SEQAN_HEADER_MODIFIER_ITERATOR_H

@@ -371,7 +371,7 @@ namespace fsa {
     if (forward)
       orig_pos = (3 * pos + frame);
     else
-      orig_pos = (orig_seq.length() - 1) - (3 * pos + frame); // - 1 because 0-based coordinates
+      orig_pos = ((int)orig_seq.length() - 1) - (3 * pos + frame); // - 1 because 0-based coordinates
 
     assert (orig_pos < orig_seq.length());
     return orig_pos;

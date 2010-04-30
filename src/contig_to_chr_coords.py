@@ -13,9 +13,9 @@ import getopt
 
 help_message = '''
 Takes the NCBI seq_contig file and maps contig coords to whole chromosome 
-coords in a BED-formatted list of junctions
+coords in a GTF, GFF, or BED file
 
-    contig_to_chr_coords.py <seq_contig.md> <junctions.bed|islands.gff>
+    contig_to_chr_coords.py <format_flag> <seq_contig.md> <junctions.bed|transcripts.gff|transcripts.gtf>
 '''
 
 

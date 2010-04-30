@@ -12,6 +12,7 @@
 #include <set>
 #include <algorithm>
 #include <string>
+#include <cstring>
 #include <cassert>
 #include "reads.h"
 #include "common.h"
@@ -21,6 +22,7 @@ using namespace std;
 ReadFormat format = FASTA;
 
 bool invert_selection = false;
+bool use_alt_name = false;
 
 struct r_to_l_lexcompare
 {
@@ -55,15 +57,16 @@ void extract_reads(FILE *fa, const READSET& selected_reads)
 				break;
 		}
 		reads_examined++;
-		bool read_in_set = selected_reads.find(read.name) != selected_reads.end();
+		const string& name_selected = use_alt_name ? read.alt_name : read.name;
+		bool read_in_set = selected_reads.find(name_selected) != selected_reads.end();
 		if ((read_in_set && !invert_selection) || (!read_in_set && invert_selection))
 		{
 			++num_reads;
 			if (format == FASTA)
 				printf(">%s\n%s\n", read.name.c_str(), read.seq.c_str());
 			else if (format == FASTQ)
-				printf("@%s\n%s\n+\n%s\n", 
-					   read.name.c_str(), read.seq.c_str(),read.qual.c_str());
+				printf("@%s\n%s\n+%s\n%s\n", 
+					   read.name.c_str(), read.seq.c_str(),read.alt_name.c_str(),read.qual.c_str());
 
 		}
 	}
@@ -103,6 +106,7 @@ static void print_usage()
 	cerr << "Usage: extract_reads [options] read_ids < reads.f*" << endl;
 	cerr << "    -f       reads are in FASTA format" << endl;
 	cerr << "    -q       reads are in FASTQ format" << endl;
+	cerr << "    -a       Select reads based on alternate name field (FASTQ only)" << endl;
 	cerr << "    -r <int> select reads in ARG sized chunks to reduce peak memory." << endl;
 	cerr << "    -v       invert the selection (i.e. select reads NOT in <read_ids>." << endl;
 	cerr << "\nSelects reads listed in read_ids from the standard input" << endl;
@@ -114,7 +118,7 @@ int main(int argc, char *argv[])
 	int c;
 	unsigned int chunk_size = 0xFFFFFFFF;
 	// Parse command line options
-	while ((c = getopt(argc, argv, "hqfr:v")) >= 0) {
+	while ((c = getopt(argc, argv, "hqfr:va")) >= 0) {
 		switch (c) {
 			case 'h': 
 			{
@@ -124,6 +128,11 @@ int main(int argc, char *argv[])
 			case 'q':
 			{
 				format = FASTQ;
+				break;
+			}
+			case 'a':
+			{
+				use_alt_name = true;
 				break;
 			}
 			case 'f':

@@ -47,7 +47,6 @@ void reverse_complement(string& seq);
 class ReadTable;
 
 bool get_read_from_stream(uint64_t insert_id,
-						  ReadTable& it,
 						  FILE* reads_file,
 						  ReadFormat reads_format,
 						  bool strip_slash,

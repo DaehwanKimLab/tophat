@@ -8,6 +8,7 @@
 #include <fstream>
 #include <sstream>
 #include <cmath>
+#include <algorithm>
 
 #include "regexp.h"
 #include "gff.h"
@@ -50,7 +51,7 @@ void GFF::from_string (const std::string& str) {
     // sanity checks
     if (tokens.size() != 9) {
         cerr << "Not a GFF-format line: " << str << endl;
-        exit (1);
+		return;
     }
 
     seqid = tokens[0];
@@ -58,7 +59,7 @@ void GFF::from_string (const std::string& str) {
     type = tokens[2];
     start = static_cast<unsigned> (atoi (tokens[3].c_str()));
     end = static_cast<unsigned> (atoi (tokens[4].c_str()));
-    score = (tokens[5] != "" && tokens[5] != GFF::undef_char) ? atof (tokens[5].c_str()) : -1.;
+    score = (tokens[5] != "" && tokens[5] != GFF::undef_char) ? (float)atof (tokens[5].c_str()) : -1.f;
     strand = (tokens[6])[0];
     phase = (tokens[7] != "" && tokens[7] != GFF::undef_char) ? static_cast<unsigned> (atoi (tokens[7].c_str())) : 3;
 
@@ -145,12 +146,20 @@ void GFF_database::from_file (const std::string& filename) {
     std::string line;
     while (!filestream.eof()) {
         getline (filestream, line);
+		
+		std::string::size_type cr_ret = line.rfind('\r');
+		if (cr_ret != std::string::npos)
+			line.resize(cr_ret);
+		
         Util::chomp (line);
         // skip lines which don't seem to be in GFF format
         if (!line.length() || !re_gff.Match (line.c_str()))
             continue;
         GFF gff;
+		
         gff.from_string (line);
+		if (gff.seqid == "")
+			continue;
         store_entry (gff);
         __maxlen = (gff.end - gff.start + 1 > __maxlen) ? gff.end - gff.start + 1 : __maxlen;
     }

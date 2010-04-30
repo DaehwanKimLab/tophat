@@ -124,12 +124,4 @@ extern uint8_t rcCharToDna5[];
 extern uint8_t dna4Cat[];
 extern uint8_t charToDna5[];
 extern uint8_t rcCharToDna5[];
-
-// Maq alphabet tables for reading Maq binary consensus files
-extern uint8_t nst_nt4_table[];
-extern char nst_nt4_rev_table[];
-extern uint8_t nst_nt16_table[];
-extern char nst_nt16_rev_table[];
-extern uint8_t nst_nt16_nt4_table[];
-extern int nst_nt16_count_table[];
 #endif /*ALPHABETS_H_*/

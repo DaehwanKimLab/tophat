@@ -13,6 +13,7 @@
 
 #include <getopt.h>
 #include <string>
+#include <cstdio>
 
 #include "common.h"
 #include "FSA/gff.h"
@@ -20,39 +21,38 @@
 using namespace std;
 using namespace fsa;
 
-static bool verbose = false;
 void print_usage()
 {
     fprintf(stderr, "Usage:   gff_juncs <genes.gff>\n");
 }
 
-const char *short_options = "v";
-
-static struct option long_options[] = {
-{"verbose",		no_argument,	0,	'v'},
-{0, 0, 0, 0} // terminator
-};
-
-int parse_options(int argc, char** argv)
-{
-	int option_index = 0;
-	int next_option; 
-	do { 
-		next_option = getopt_long(argc, argv, short_options, long_options, &option_index);		
-		switch (next_option) {
-			case 'v':
-				verbose = true;
-				break;
-			case -1: /* Done with options. */
-				break;
-			default: 
-				print_usage();
-				return 1;
-		}
-	} while(next_option != -1);
-	
-	return 0;
-}
+//const char *short_options = "v";
+//
+//static struct option long_options[] = {
+//{"verbose",		no_argument,	0,	'v'},
+//{0, 0, 0, 0} // terminator
+//};
+//
+//int parse_options(int argc, char** argv)
+//{
+//	int option_index = 0;
+//	int next_option; 
+//	do { 
+//		next_option = getopt_long(argc, argv, short_options, long_options, &option_index);		
+//		switch (next_option) {
+//			case 'v':
+//				verbose = true;
+//				break;
+//			case -1: /* Done with options. */
+//				break;
+//			default: 
+//				print_usage();
+//				return 1;
+//		}
+//	} while(next_option != -1);
+//	
+//	return 0;
+//}
 
 uint32_t get_junctions_from_gff(const GFF_database& gff_db)
 {
@@ -167,7 +167,7 @@ uint32_t get_junctions_from_gff(const GFF_database& gff_db)
 
 int main(int argc, char** argv)
 {
-	int parse_ret = parse_options(argc,argv);
+	int parse_ret = parse_options(argc, argv, print_usage);
 	if (parse_ret)
 		return parse_ret;
 	
@@ -186,6 +186,9 @@ int main(int argc, char** argv)
 		print_usage();
 		exit(2);
 	}
+	
+	fprintf(stderr, "gff_juncs v%s\n", PACKAGE_VERSION); 
+	fprintf(stderr, "---------------------------\n");
 	
 	gff_db.from_file(gff_filename);
     gff_db.sort_entries();

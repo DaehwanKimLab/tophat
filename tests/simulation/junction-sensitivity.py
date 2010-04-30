@@ -15,7 +15,7 @@ help_message = '''
 Takes output from ASTD/transcript-junctions.py and a UCSC Bed track produced
 by TopHat, reports sensitivity and specificity
 
-Usage: <ground> <predicted>
+Usage: <ground> <predicted> <# true negatives>
 '''
 
 
@@ -52,11 +52,11 @@ def main(argv=None):
             line = line.strip()
             cols = line.split()
             chrom = cols[0]
-            #chrom = chrom
+            chrom = chrom[3:]
             strand = cols[2]
             start = cols[3]
             stop = cols[4]
-            #print chrom, strand, start, stop
+            
             juncs.add((chrom, strand, start, stop))
             
         num_predicted = 0
@@ -75,7 +75,6 @@ def main(argv=None):
             right_offset = int(cols[11].split(',')[1])
             start = str(int(cols[1]) + left_overhang)
             stop = str(int(cols[1]) + right_offset + 1)
-            #print  chrom, strand, start, stop
             strand  = cols[5]
             #print chrom, strand, start, stop
             if (chrom, strand, start, stop) in juncs:

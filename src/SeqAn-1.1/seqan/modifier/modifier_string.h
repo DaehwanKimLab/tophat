@@ -15,7 +15,7 @@
   Lesser General Public License for more details.
 
  ============================================================================
-  $Id: modifier_string.h,v 1.1 2008/08/25 16:20:07 langmead Exp $
+  $Id: modifier_string.h 2215 2008-05-28 23:10:56Z doering@PCPOOL.MI.FU-BERLIN.DE $
  ==========================================================================*/
 
 #ifndef SEQAN_HEADER_MODIFIER_STRING_H

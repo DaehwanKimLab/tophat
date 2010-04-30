@@ -21,6 +21,7 @@
 #include <cassert>
 #include "alphabet.h"
 #include "islands.h"
+#include "common.h"
 
 #define LINE_LEN 60
 
@@ -445,30 +446,6 @@ static void print_usage()
 	cerr << "Fasta header is >REF_SOURCE_{ISLAND_ID,POS_IN_SOURCE,AVG_COV}" << endl;
 }
 
-
-/**
- * Parse an int out of optarg and enforce that it be at least 'lower';
- * if it is less than 'lower', than output the given error message and
- * exit with an error and a usage message.
- */
-static int parseInt(int lower, const char *errmsg) {
-	long l;
-	char *endPtr= NULL;
-	l = strtol(optarg, &endPtr, 10);
-	if (endPtr != NULL) {
-		if (l < lower) {
-			cerr << errmsg << endl;
-			print_usage();
-			exit(1);
-		}
-		return (int32_t)l;
-	}
-	cerr << errmsg << endl;
-	print_usage();
-	exit(1);
-	return -1;
-}
-
 /**
  * Parse an int out of optarg and enforce that it be at least 'lower';
  * if it is less than 'lower', than output the given error message and
@@ -476,7 +453,7 @@ static int parseInt(int lower, const char *errmsg) {
  */
 static float parseFloat(float lower, const char *errmsg) {
 	float l;
-	l = atof(optarg);
+	l = (float)atof(optarg);
 	
 	if (l < lower) {
 		cerr << errmsg << endl;
@@ -495,7 +472,7 @@ int main(int argc, char** argv)
 {
 	string cns_filename;
 	const char *short_options = "vd:b:e:q:c:R";
-	float min_depth = 0.0;
+	float min_depth = 0.0f;
 	unsigned int break_length = 4;
 	char qual_thresh = 33;
 	unsigned int extend_exons = 30;
@@ -512,13 +489,13 @@ int main(int argc, char** argv)
 				min_depth = parseFloat(0, "-d arg must be at least 0");
 				break;
 			case 'b':
-				break_length = parseInt(0, "-b arg must be at least 0");
+				break_length = parseInt(0, "-b arg must be at least 0", print_usage);
 				break;
 			case 'e':
-				extend_exons = parseInt(0, "-e arg must be at least 0");;
+				extend_exons = parseInt(0, "-e arg must be at least 0", print_usage);
 				break;
 			case 'c':
-				clear_bases = parseInt(0, "-c arg must be at least 1");;
+				clear_bases = parseInt(0, "-c arg must be at least 1", print_usage);
 				break;
 			case 'R':
 				use_ref_seq = true;

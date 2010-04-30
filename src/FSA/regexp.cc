@@ -72,6 +72,7 @@
 
 #include <cassert>
 #include <iostream>
+#include <cstring>
 
 #include "regexp.h"
 
@@ -184,7 +185,7 @@ enum
 struct regErr
 {
 	int m_id;
-	char* m_err;
+	const char* m_err;
 } errors[] = {
 	{ REGERR_NULLARG,					"NULL argument to regexec" },
 	{ REGERR_CORRUPTED,					"corrupted regexp" },
@@ -228,10 +229,10 @@ class CRegErrorHandler
 {
 	friend class Regexp;
 	mutable std::string m_szError;
-	static char* FindErr( int id );
+	static const char* FindErr( int id );
 protected:
 	void ClearErrorString() const;
-	void regerror( char* s ) const;
+	void regerror( const char* s ) const;
 	void regerror( int id ) const;
 public:
 	CRegErrorHandler() { }
@@ -240,7 +241,7 @@ public:
 	const std::string & GetErrorString() const;
 };
 
-void CRegErrorHandler::regerror( char* s ) const
+void CRegErrorHandler::regerror( const char* s ) const
 {
   std::cerr << "regerror: " << s << "\n";
   m_szError = s;
@@ -261,7 +262,7 @@ void CRegErrorHandler::ClearErrorString() const
 	m_szError.clear();
 }
 
-char* CRegErrorHandler::FindErr( int id )
+const char* CRegErrorHandler::FindErr( int id )
 {
   struct regErr * perr;
   for (perr = errors; perr->m_id != REGERR_SENTINEL_VALUE; perr++ )
@@ -310,8 +311,8 @@ class regexp_internal : public CRegProgramAccessor
 	friend class Regexp;
 	
 	int m_programSize;
-	char* startp[Regexp::NSUBEXP];
-	char* endp[Regexp::NSUBEXP];
+	char* startp[Regexp::NSUBEXP + 1];
+	char* endp[Regexp::NSUBEXP + 1];
 	char regstart;		// Internal use only.
 	char reganch;		// Internal use only.
 	char* regmust;		// Internal use only.

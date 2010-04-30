@@ -16,7 +16,9 @@ typedef BowtieHit FragmentAlignment;
 struct FragmentAlignmentGrade
 {
 	FragmentAlignmentGrade() : 
-	status(UNALIGNED) {}
+	status(UNALIGNED),
+	edit_dist(0),
+	num_alignments(0) {}
 	
 	FragmentAlignmentGrade(const BowtieHit& h1) 
 	{
@@ -28,11 +30,16 @@ struct FragmentAlignmentGrade
 		{
 			status = CONTIGUOUS;
 		}
+		edit_dist = h1.edit_dist(); 
+		num_alignments = 1;
 	}
 	
 	FragmentAlignmentGrade& operator=(const FragmentAlignmentGrade& rhs)
 	{
 		status = rhs.status;
+		edit_dist = rhs.edit_dist;
+		num_alignments = rhs.num_alignments;
+		
 		return *this;
 	}
 	
@@ -40,10 +47,15 @@ struct FragmentAlignmentGrade
 	// than this InsertStatus.
 	bool operator<(const FragmentAlignmentGrade& rhs)
 	{
-		return status < rhs.status;
+		if (status != rhs.status)
+			return status < rhs.status;
+		
+		return rhs.edit_dist < edit_dist;
 	}
 	
-	uint8_t status;
+	int status;
+	int edit_dist;
+	int num_alignments; // number of equally good alignments for this fragment 
 };
 
 typedef vector<pair<FragmentAlignmentGrade, vector<FragmentAlignment*> > > BestFragmentAlignmentTable;
@@ -54,7 +66,7 @@ void best_fragment_mappings(uint64_t refid,
 							ReadTable& it,
 							BestFragmentAlignmentTable& best_status_for_fragments);
 
-void accept_valid_hits(BestFragmentAlignmentTable& best_status_for_fragments);
+void accept_best_hits(BestFragmentAlignmentTable& best_status_for_fragments);
 void accept_unique_hits(BestFragmentAlignmentTable& best_status_for_fragments);
 
 #endif

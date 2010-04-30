@@ -5,6 +5,7 @@
  * \author Source code in this file was written by Robert Bradley.
  */
 
+#include <cstdlib>
 #include "misc.h"
 
 using namespace fsa;

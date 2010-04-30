@@ -73,12 +73,12 @@ struct Gene
     //std::string ref_name;
     std::map<std::string, Transcript*> transcripts;
     
-    Expression* expression(const std::vector<short>& DoC, 
+    Expression* expression(const std::vector<unsigned short>& DoC, 
                            uint32_t total_map_depth,
                            const fsa::Sequence* ref_str) const;
     
     uint32_t exonic_length(const fsa::Sequence* ref_str) const;
-    uint32_t exonic_depth(const std::vector<short>& DoC, 
+    uint32_t exonic_depth(const std::vector<unsigned short>& DoC, 
                           const fsa::Sequence* ref_str) const;
     
     std::pair<uint32_t, uint32_t> coords() const;
@@ -100,14 +100,14 @@ struct GeneFactory
 };
 
 uint32_t total_exonic_depth(const GeneTable& genes,
-                            const std::vector<short>& DoC,
+                            const std::vector<unsigned short>& DoC,
                             const fsa::Sequence* ref_str);
 
 void print_gene_expression(FILE* expr_out, 
                            const std::map<std::string, Expression*>& gene_expression);
 
 void calculate_gene_expression(const GeneTable& genes,
-                               const std::vector<short>& DoC,
+                               const std::vector<unsigned short>& DoC,
                                const fsa::Sequence* ref_seq,
                                uint32_t total_map_depth,
                                std::map<std::string, Expression*>& gene_expression);

@@ -50,128 +50,47 @@ SeqAn-1.1/seqan/basic/basic_transport.h \
 SeqAn-1.1/seqan/basic/basic_type.h \
 SeqAn-1.1/seqan/basic/basic_volatile_ptr.h \
 SeqAn-1.1/seqan/basic.h \
+SeqAn-1.1/seqan/modifier/modifier_generated_forwards.h \
+SeqAn-1.1/seqan/modifier/modifier_shortcuts.h \
+SeqAn-1.1/seqan/modifier/modifier_functors.h \
+SeqAn-1.1/seqan/modifier/modifier_iterator.h \
+SeqAn-1.1/seqan/modifier/modifier_reverse.h \
+SeqAn-1.1/seqan/modifier/modifier_string.h \
+SeqAn-1.1/seqan/modifier/modifier_view.h \
+SeqAn-1.1/seqan/modifier.h \
 SeqAn-1.1/seqan/file/chunk_collector.h \
 SeqAn-1.1/seqan/file/cstream.h \
 SeqAn-1.1/seqan/file/file_array.h \
 SeqAn-1.1/seqan/file/file_base.h \
-SeqAn-1.1/seqan/file/file_cstyle.h \
-SeqAn-1.1/seqan/file/file_filereader.h \
-SeqAn-1.1/seqan/file/file_filereaderiterator.h \
 SeqAn-1.1/seqan/file/file_format.h \
 SeqAn-1.1/seqan/file/file_format_cgviz.h \
-SeqAn-1.1/seqan/file/file_format_embl.h \
 SeqAn-1.1/seqan/file/file_format_fasta.h \
 SeqAn-1.1/seqan/file/file_format_fasta_align.h \
-SeqAn-1.1/seqan/file/file_format_genbank.h \
 SeqAn-1.1/seqan/file/file_format_guess.h \
 SeqAn-1.1/seqan/file/file_format_raw.h \
 SeqAn-1.1/seqan/file/file_forwards.h \
 SeqAn-1.1/seqan/file/file_generated_forwards.h \
-SeqAn-1.1/seqan/file/file_page.h \
-SeqAn-1.1/seqan/file/file_page_raid0.h \
 SeqAn-1.1/seqan/file/meta.h \
 SeqAn-1.1/seqan/file/stream.h \
 SeqAn-1.1/seqan/file/stream_algorithms.h \
-SeqAn-1.1/seqan/file/string_external.h \
 SeqAn-1.1/seqan/file.h \
-SeqAn-1.1/seqan/find/find_abndm.h \
-SeqAn-1.1/seqan/find/find_ahocorasick.h \
 SeqAn-1.1/seqan/find/find_base.h \
-SeqAn-1.1/seqan/find/find_bndm.h \
-SeqAn-1.1/seqan/find/find_bom.h \
 SeqAn-1.1/seqan/find/find_generated_forwards.h \
 SeqAn-1.1/seqan/find/find_horspool.h \
 SeqAn-1.1/seqan/find/find_multi.h \
 SeqAn-1.1/seqan/find/find_multiple_shiftand.h \
-SeqAn-1.1/seqan/find/find_myers_ukkonen.h \
-SeqAn-1.1/seqan/find/find_pex.h \
-SeqAn-1.1/seqan/find/find_quasar.h \
 SeqAn-1.1/seqan/find/find_score.h \
 SeqAn-1.1/seqan/find/find_set_horspool.h \
-SeqAn-1.1/seqan/find/find_shiftand.h \
-SeqAn-1.1/seqan/find/find_shiftor.h \
-SeqAn-1.1/seqan/find/find_swift.h \
-SeqAn-1.1/seqan/find/find_wild_shiftand.h \
-SeqAn-1.1/seqan/find/find_wumanber.h \
 SeqAn-1.1/seqan/find.h \
 SeqAn-1.1/seqan/index/index_base.h \
-SeqAn-1.1/seqan/index/index_bwt.h \
-SeqAn-1.1/seqan/index/index_childtab.h \
-SeqAn-1.1/seqan/index/index_dfi.h \
-SeqAn-1.1/seqan/index/index_esa_algs.h \
-SeqAn-1.1/seqan/index/index_esa_algs_multi.h \
-SeqAn-1.1/seqan/index/index_esa_base.h \
-SeqAn-1.1/seqan/index/index_esa_drawing.h \
-SeqAn-1.1/seqan/index/index_esa_find.h \
-SeqAn-1.1/seqan/index/index_esa_stree.h \
 SeqAn-1.1/seqan/index/index_find.h \
 SeqAn-1.1/seqan/index/index_generated_forwards.h \
-SeqAn-1.1/seqan/index/index_lcp.h \
-SeqAn-1.1/seqan/index/index_lcp_tree.h \
 SeqAn-1.1/seqan/index/index_manual_forwards.h \
-SeqAn-1.1/seqan/index/index_pizzachili.h \
-SeqAn-1.1/seqan/index/index_pizzachili_find.h \
-SeqAn-1.1/seqan/index/index_pizzachili_string.h \
-SeqAn-1.1/seqan/index/index_qgram.h \
-SeqAn-1.1/seqan/index/index_qgram_find.h \
-SeqAn-1.1/seqan/index/index_sa_btree.h \
 SeqAn-1.1/seqan/index/index_sa_lss.h \
-SeqAn-1.1/seqan/index/index_sa_mm.h \
-SeqAn-1.1/seqan/index/index_sa_qsort.h \
-SeqAn-1.1/seqan/index/index_shawarma.h \
-SeqAn-1.1/seqan/index/index_shims.h \
-SeqAn-1.1/seqan/index/index_skew3.h \
-SeqAn-1.1/seqan/index/index_skew7.h \
-SeqAn-1.1/seqan/index/index_skew7_multi.h \
-SeqAn-1.1/seqan/index/index_wotd.h \
-SeqAn-1.1/seqan/index/pipe_merger3.h \
-SeqAn-1.1/seqan/index/pipe_merger7.h \
-SeqAn-1.1/seqan/index/pizzachili_api.h \
-SeqAn-1.1/seqan/index/pump_extender3.h \
-SeqAn-1.1/seqan/index/pump_extender7.h \
-SeqAn-1.1/seqan/index/pump_lcp_core.h \
-SeqAn-1.1/seqan/index/pump_separator7.h \
-SeqAn-1.1/seqan/index/radix.h \
-SeqAn-1.1/seqan/index/repeat_base.h \
 SeqAn-1.1/seqan/index/shape_base.h \
 SeqAn-1.1/seqan/index/shape_gapped.h \
 SeqAn-1.1/seqan/index/shape_predefined.h \
 SeqAn-1.1/seqan/index.h \
-SeqAn-1.1/seqan/misc/edit_environment.h \
-SeqAn-1.1/seqan/misc/misc_base.h \
-SeqAn-1.1/seqan/misc/misc_cmdparser.h \
-SeqAn-1.1/seqan/misc/misc_generated_forwards.h \
-SeqAn-1.1/seqan/misc/misc_map.h \
-SeqAn-1.1/seqan/misc/misc_random.h \
-SeqAn-1.1/seqan/misc/misc_set.h \
-SeqAn-1.1/seqan/misc/priority_type_base.h \
-SeqAn-1.1/seqan/misc/priority_type_heap.h \
-SeqAn-1.1/seqan/modifier/modifier_functors.h \
-SeqAn-1.1/seqan/modifier/modifier_generated_forwards.h \
-SeqAn-1.1/seqan/modifier/modifier_iterator.h \
-SeqAn-1.1/seqan/modifier/modifier_reverse.h \
-SeqAn-1.1/seqan/modifier/modifier_shortcuts.h \
-SeqAn-1.1/seqan/modifier/modifier_string.h \
-SeqAn-1.1/seqan/modifier/modifier_view.h \
-SeqAn-1.1/seqan/modifier.h \
-SeqAn-1.1/seqan/pipe/pipe_base.h \
-SeqAn-1.1/seqan/pipe/pipe_caster.h \
-SeqAn-1.1/seqan/pipe/pipe_counter.h \
-SeqAn-1.1/seqan/pipe/pipe_echoer.h \
-SeqAn-1.1/seqan/pipe/pipe_edit_environment.h \
-SeqAn-1.1/seqan/pipe/pipe_filter.h \
-SeqAn-1.1/seqan/pipe/pipe_generated_forwards.h \
-SeqAn-1.1/seqan/pipe/pipe_iterator.h \
-SeqAn-1.1/seqan/pipe/pipe_joiner.h \
-SeqAn-1.1/seqan/pipe/pipe_namer.h \
-SeqAn-1.1/seqan/pipe/pipe_sampler.h \
-SeqAn-1.1/seqan/pipe/pipe_shifter.h \
-SeqAn-1.1/seqan/pipe/pipe_source.h \
-SeqAn-1.1/seqan/pipe/pipe_tupler.h \
-SeqAn-1.1/seqan/pipe/pool_base.h \
-SeqAn-1.1/seqan/pipe/pool_mapper.h \
-SeqAn-1.1/seqan/pipe/pool_sorter.h \
-SeqAn-1.1/seqan/pipe.h \
 SeqAn-1.1/seqan/platform.h \
 SeqAn-1.1/seqan/sequence/lexical.h \
 SeqAn-1.1/seqan/sequence/segment_base.h \
@@ -192,35 +111,30 @@ SeqAn-1.1/seqan/sequence/string_packed.h \
 SeqAn-1.1/seqan/sequence/string_pointer.h \
 SeqAn-1.1/seqan/sequence/string_stack.h \
 SeqAn-1.1/seqan/sequence/string_value_expand.h \
-SeqAn-1.1/seqan/sequence.h \
-SeqAn-1.1/seqan/system/file_async.h \
-SeqAn-1.1/seqan/system/file_manual_forwards.h \
-SeqAn-1.1/seqan/system/file_sync.h \
-SeqAn-1.1/seqan/system/system_base.h \
-SeqAn-1.1/seqan/system/system_event.h \
-SeqAn-1.1/seqan/system/system_generated_forwards.h \
-SeqAn-1.1/seqan/system/system_manual_forwards.h \
-SeqAn-1.1/seqan/system/system_mutex.h \
-SeqAn-1.1/seqan/system/system_sema.h \
-SeqAn-1.1/seqan/system/system_thread.h \
-SeqAn-1.1/seqan/system.h 
+SeqAn-1.1/seqan/sequence.h 
 
 
 #-- progs to be installed in $prefix/bin
 bin_PROGRAMS = \
-	cvg_islands \
-	filter_garbage \
-	spanning_reads \
+	prep_reads \
 	tophat_reports \
 	juncs_db \
 	gff_juncs \
-	extract_reads
+	extract_reads \
+    segment_juncs \
+	closure_juncs \
+	long_spanning_reads \
+	fix_map_ordering \
+	library_stats \
+	mask_sam \
+	wiggles
  
 
 #-- scripts to be installed in $prefix/bin
 dist_bin_SCRIPTS = \
 	contig_to_chr_coords.py \
-	tophat.py
+	tophat.py \
+	bed_to_juncs.py
 
 
 #-- tophat library for linking convienence
@@ -236,17 +150,6 @@ noinst_HEADERS = \
 	alphabet.h \
 	timer.h \
 	closures.h \
-	samtools/bam.h \
-	samtools/bam_endian.h \
-	samtools/bam_maqcns.h \
-	samtools/bgzf.h \
-	samtools/faidx.h \
-	samtools/glf.h \
-	samtools/khash.h \
-	samtools/kseq.h \
-	samtools/ksort.h \
-	samtools/razf.h \
-	samtools/zutil.h \
 	FSA/regexp.h \
 	FSA/gff.h \
 	FSA/misc.h \
@@ -254,7 +157,10 @@ noinst_HEADERS = \
 	FSA/fsa_alphabet.h \
 	tokenize.h \
 	fragments.h \
-    genes.h 
+	inserts.h \
+	segments.h \
+    genes.h \
+	qual.h
 
 	
 libtophat_a_SOURCES = \
@@ -262,7 +168,6 @@ libtophat_a_SOURCES = \
 	alphabet.c \
 	bwt_map.cpp \
 	common.cpp \
-	wiggles.cpp \
 	junctions.cpp \
 	FSA/regexp.cc \
 	FSA/gff.cc \
@@ -271,18 +176,20 @@ libtophat_a_SOURCES = \
 	FSA/fsa_alphabet.cc \
 	fragments.cpp \
 	tokenize.cpp \
-	gff_juncs.cpp \
-    genes.cpp
+	inserts.cpp \
+    genes.cpp \
+	qual.cpp
 
 #-- program sources
-cvg_islands_SOURCES = cvg_islands.cpp
-cvg_islands_LDADD = -lz $(top_builddir)/src/libtophat.a
 
-filter_garbage_SOURCES = filter_garbage.cpp
-filter_garbage_LDADD = $(top_builddir)/src/libtophat.a
+prep_reads_SOURCES = prep_reads.cpp
+prep_reads_LDADD = $(top_builddir)/src/libtophat.a
 
-spanning_reads_SOURCES = spanning_reads.cpp
-spanning_reads_LDADD = -lz $(top_builddir)/src/libtophat.a
+segment_juncs_SOURCES = segment_juncs.cpp
+segment_juncs_LDADD = $(top_builddir)/src/libtophat.a 
+
+long_spanning_reads_SOURCES = long_spanning_reads.cpp
+long_spanning_reads_LDADD = $(top_builddir)/src/libtophat.a
 
 gff_juncs_SOURCES = gff_juncs.cpp
 gff_juncs_LDADD = $(top_builddir)/src/libtophat.a
@@ -290,8 +197,23 @@ gff_juncs_LDADD = $(top_builddir)/src/libtophat.a
 juncs_db_SOURCES = juncs_db.cpp
 juncs_db_LDADD = $(top_builddir)/src/libtophat.a
 
+library_stats_SOURCES = library_stats.cpp
+library_stats_LDADD = $(top_builddir)/src/libtophat.a
+
 tophat_reports_SOURCES = tophat_reports.cpp
 tophat_reports_LDADD = $(top_builddir)/src/libtophat.a 
 
 extract_reads_SOURCES = extract_reads.cpp
 extract_reads_LDADD = $(top_builddir)/src/libtophat.a
+
+fix_map_ordering_SOURCES = fix_map_ordering.cpp
+fix_map_ordering_LDADD = $(top_builddir)/src/libtophat.a
+
+closure_juncs_SOURCES = closures.cpp
+closure_juncs_LDADD = $(top_builddir)/src/libtophat.a
+
+mask_sam_SOURCES = mask_sam.cpp
+mask_sam_LDADD = $(top_builddir)/src/libtophat.a
+
+wiggles_SOURCES = wiggles.cpp
+wiggles_LDADD = $(top_builddir)/src/libtophat.a

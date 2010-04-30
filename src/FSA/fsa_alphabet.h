@@ -17,6 +17,7 @@
 #include <fstream>
 #include <vector>
 #include <map>
+#include <stdint.h>
 
 #include "misc.h"
 
@@ -231,11 +232,11 @@ namespace fsa {
       // else if degenerate
       else if (is_degen_char (c)) {
 	const std::vector<char>& nondegen = __degen_char_map.find (__case_sensitive ? c : tolower (c))->second;
-	return toupper (nondegen[Util::rand (nondegen.size() - 1)]);
+	return toupper (nondegen[Util::rand ((uint32_t)(nondegen.size() - 1))]);
       }
       // else we don't know anything about it, so treat as unknown
       else
-	return toupper (__char_list[Util::rand (__size - 1)]);
+	return toupper (__char_list[Util::rand ((uint32_t)(__size - 1))]);
 
     }
 
@@ -249,11 +250,11 @@ namespace fsa {
       // else if degenerate
       else if (is_degen_char (c)) {
 	const std::vector<char>& nondegen = __degen_char_map.find (c)->second;
-	return tolower (nondegen[Util::rand (nondegen.size() - 1)]);
+	return tolower (nondegen[Util::rand ((uint32_t)(nondegen.size() - 1))]);
       }
       // else we don't know anything about it, so treat as unknown
       else {
-	return tolower (__char_list[Util::rand (__size - 1)]);
+	return tolower (__char_list[Util::rand ((uint32_t)(__size - 1))]);
       }
 
     }

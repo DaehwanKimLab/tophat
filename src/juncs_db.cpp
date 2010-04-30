@@ -14,6 +14,7 @@
 
 #include <cassert>
 #include <cstdio>
+#include <cstring>
 #include <vector>
 #include <string>
 #include <map>
@@ -44,7 +45,6 @@ using std::set;
 
 // Length of the outer dimension of a single insert from the paired-end library
 
-static bool verbose = false;
 static int read_length = -1;
 void print_usage()
 {
@@ -75,41 +75,42 @@ void print_splice(const Junction& junction,
 	size_t left_start, right_start;
 	size_t left_end, right_end;
 	
-	left_start = (int)junction.left - half_splice_len + 1 >= 0 ? (int)junction.left - half_splice_len + 1 : 0;
-	left_end = left_start + half_splice_len;
-	
-	right_start = junction.right;
-	right_end = right_start + half_splice_len < length(ref_str) ? right_start + half_splice_len : length(ref_str) - right_start;
-	
-	
-	
-	Infix<String<Dna5, Alloc<> > >::Type left_splice = infix(ref_str,
-															 left_start, 
-															 left_end);
-	Infix<String<Dna5, Alloc<> > >::Type right_splice = infix(ref_str, 
-															  right_start, 
-															  right_end);
-	
-	splice_db << ">" << ref_name << "|" << left_start << "|" << junction.left <<
-		"-" << junction.right << "|" << right_end << "|" << tag << endl;
+	if (junction.left >= 0 && junction.left <= length(ref_str) &&
+		junction.right >= 0 && junction.right <= length(ref_str))
+	{
+		left_start = (int)junction.left - half_splice_len + 1 >= 0 ? (int)junction.left - half_splice_len + 1 : 0;
+		left_end = left_start + half_splice_len;
+		
+		right_start = junction.right;
+		right_end = right_start + half_splice_len < length(ref_str) ? right_start + half_splice_len : length(ref_str) - right_start;
+		
+		Infix<RefSequenceTable::Sequence>::Type left_splice = infix(ref_str,
+																 left_start, 
+																 left_end);
+		Infix<RefSequenceTable::Sequence>::Type right_splice = infix(ref_str, 
+																  right_start, 
+																  right_end);
+		
+		splice_db << ">" << ref_name << "|" << left_start << "|" << junction.left <<
+			"-" << junction.right << "|" << right_end << "|" << tag << endl;
 
-	splice_db << left_splice << right_splice << endl;
+		splice_db << left_splice << right_splice << endl;
+	}
 		
 }
 
 
-//const char *short_options = "r:I:d:s:va:e:i:";
-const char *short_options = "v";
-
-static struct option long_options[] = {
-{"verbose",		no_argument,	0,							'v'},
-//{"insert-len",      required_argument,       0,            'I'},
-//{"insert-stddev",      required_argument,       0,            's'},
-//{"max-dist",       required_argument,       0,            'd'},
-//{"min-intron",       required_argument,       0,            'i'},
-//{"min-exon",       required_argument,       0,            'e'},
-{0, 0, 0, 0} // terminator
-};
+//const char *short_options = "v";
+//
+//static struct option long_options[] = {
+//{"verbose",		no_argument,	0,							'v'},
+////{"insert-len",      required_argument,       0,            'I'},
+////{"insert-stddev",      required_argument,       0,            's'},
+////{"max-dist",       required_argument,       0,            'd'},
+////{"min-intron",       required_argument,       0,            'i'},
+////{"min-exon",       required_argument,       0,            'e'},
+//{0, 0, 0, 0} // terminator
+//};
 
 /**
  * Parse an int out of optarg and enforce that it be at least 'lower';
@@ -133,37 +134,39 @@ static int parseInt(int lower, char* arg, const char *errmsg) {
 	exit(1);
 	return -1;
 }
-
-int parse_options(int argc, char** argv)
-{
-	int option_index = 0;
-	int next_option; 
-	do { 
-		next_option = getopt_long(argc, argv, short_options, long_options, &option_index);		
-		switch (next_option) {
-			case 'v':
-				verbose = true;
-				break;
-			case -1: /* Done with options. */
-				break;
-			default: 
-				print_usage();
-				return 1;
-		}
-	} while(next_option != -1);
-	
-	return 0;
-}
+//
+//int parse_options(int argc, char** argv)
+//{
+//	int option_index = 0;
+//	int next_option; 
+//	do { 
+//		next_option = getopt_long(argc, argv, short_options, long_options, &option_index);		
+//		switch (next_option) {
+//			case 'v':
+//				verbose = true;
+//				break;
+//			case -1: /* Done with options. */
+//				break;
+//			default: 
+//				print_usage();
+//				return 1;
+//		}
+//	} while(next_option != -1);
+//	
+//	return 0;
+//}
 
 void driver(const vector<FILE*>& splice_coords_files, 
 			ifstream& ref_stream)
-{
+{	
 	char splice_buf[2048];
 	RefSequenceTable rt(true);
 	JunctionSet junctions;
 	for (size_t i = 0; i < splice_coords_files.size(); ++i)
 	{
 		FILE* splice_coords = splice_coords_files[i];
+		if (!splice_coords)
+			continue;
 		while (fgets(splice_buf, 2048, splice_coords))
 		{
 			char* nl = strrchr(splice_buf, '\n');
@@ -195,14 +198,21 @@ void driver(const vector<FILE*>& splice_coords_files,
 		}
 	}
 	
-	typedef String< Dna5, Alloc<> > Reference;
+	typedef RefSequenceTable::Sequence Reference;
 	
 	while(ref_stream.good() && 
 		  !ref_stream.eof()) 
 	{
 		Reference ref_str;
 		string name;
+
 		readMeta(ref_stream, name, Fasta());
+		string::size_type space_pos = name.find_first_of(" \t\r");
+		if (space_pos != string::npos)
+		{
+			name.resize(space_pos);
+		}
+		
 		read(ref_stream, ref_str, Fasta());
 		
 		uint32_t refid = rt.get_id(name, NULL);
@@ -225,7 +235,10 @@ void driver(const vector<FILE*>& splice_coords_files,
 
 int main(int argc, char** argv)
 {
-	int parse_ret = parse_options(argc,argv);
+	fprintf(stderr, "juncs_db v%s\n", PACKAGE_VERSION); 
+	fprintf(stderr, "---------------------------\n");
+	
+	int parse_ret = parse_options(argc, argv, print_usage);
 	if (parse_ret)
 		return parse_ret;
 	
@@ -243,7 +256,7 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	read_length = parseInt(20, argv[optind++], "read length must be at least 20");
+	read_length = parseInt(4, argv[optind++], "read length must be at least 4");
 	
 	if(optind >= argc) 
 	{
@@ -262,9 +275,9 @@ int main(int argc, char** argv)
 		
 		if (!coords_file)
 		{
-			fprintf(stderr, "Error: cannot open %s for reading\n",
+			fprintf(stderr, "Warning: cannot open %s for reading\n",
 					splice_coords_file_names[s].c_str());
-			exit(1);
+			continue;
 		}
 		coords_files.push_back(coords_file);
 	}

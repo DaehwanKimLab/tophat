@@ -10,6 +10,7 @@
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
+#include <algorithm>
 
 #include "genes.h"
 #include "FSA/gff.h"
@@ -48,7 +49,11 @@ uint32_t Gene::exonic_length(const fsa::Sequence* ref_str) const
              ++exon_itr)
         {
             const Exon* exon = *exon_itr;
-            assert (exon->start() >= start);
+			if (exon->start() < start || exon->end() > end)
+			{
+				fprintf(stderr, "Warning: exon of transcript %s has boundaries beyond transcripts', skipping\n", mRNA.ID.c_str());
+				continue;	
+			}
             for (uint32_t i = exon->start();
                  i <= exon->end();
                  ++i)
@@ -88,7 +93,7 @@ pair<uint32_t, uint32_t> Gene::coords() const
     return make_pair<uint32_t, uint32_t>(start, end);
 }
 
-uint32_t Gene::exonic_depth(const vector<short>& DoC,
+uint32_t Gene::exonic_depth(const vector<unsigned short>& DoC,
                             const fsa::Sequence* ref_str) const
 {
     uint32_t gene_DoC = 0;
@@ -108,7 +113,11 @@ uint32_t Gene::exonic_depth(const vector<short>& DoC,
              ++exon_itr)
         {
             const Exon* exon = *exon_itr;
-            assert (exon->start() >= start);
+            if (exon->start() < start || exon->end() > end)
+			{
+				fprintf(stderr, "Warning: exon of transcript %s has boundaries beyond transcripts', skipping\n", mRNA.ID.c_str());
+				continue;	
+			}
             for (uint32_t i = exon->start();
                  i <= exon->end();
                  ++i)
@@ -129,7 +138,7 @@ uint32_t Gene::exonic_depth(const vector<short>& DoC,
     return gene_DoC;
 }
 
-Expression* Gene::expression(const vector<short>& DoC, 
+Expression* Gene::expression(const vector<unsigned short>& DoC, 
                              uint32_t total_map_depth,
                              const fsa::Sequence* ref_str) const 
 {
@@ -196,9 +205,6 @@ void GeneFactory::get_genes(const GFF_database& gffdb,
                 gene_name_filter->find(short_name) != gene_name_filter->end())
                 genes[id] = gene;
         }
-        
-        //    GFF::AttributeTable::const_iterator att_itr;
-
     }
     
     for(GFF_database::const_iterator gff_itr = gffdb.begin();
@@ -261,15 +267,6 @@ void GeneFactory::get_genes(const GFF_database& gffdb,
             }
             const string& mRNA_id = att_itr->second.front();
             
-            att_itr = gff_rec.attributes.find("ID");
-            if (att_itr == gff_rec.attributes.end() ||
-                att_itr->second.size() != 1)
-            {
-                cerr << "Malformed transcript record " << gff_rec << endl;
-                continue;
-            }
-            //const string& id = att_itr->second.front();
-            
             map<string, Transcript*>::iterator mRNA_itr = mRNAs.find(mRNA_id);
             if (mRNA_itr != mRNAs.end())
             {
@@ -308,7 +305,7 @@ void GeneFactory::get_genes(const GFF_database& gffdb,
 }
 
 uint32_t total_exonic_depth(const GeneTable& genes,
-                            const vector<short>& DoC,
+                            const vector<unsigned short>& DoC,
                             const fsa::Sequence* ref_str)
 {
     uint32_t total_depth = 0;
@@ -323,7 +320,7 @@ uint32_t total_exonic_depth(const GeneTable& genes,
 }
 
 void calculate_gene_expression(const GeneTable& genes,
-                               const vector<short>& DoC,
+                               const vector<unsigned short>& DoC,
                                const fsa::Sequence* ref_str,
                                uint32_t total_map_depth,
                                map<string, Expression*>& gene_expression)
@@ -348,6 +345,6 @@ void print_gene_expression(FILE* expr_out,
          ++itr)
     {
         Expression* expr = itr->second;
-        fprintf(expr_out, "%s\t%lf\n", itr->first.c_str(), expr->rpkm/*, expr->mend*/);
+        fprintf(expr_out, "%s\t%lf\n", itr->first.c_str(), expr->rpkm);
     }
 }

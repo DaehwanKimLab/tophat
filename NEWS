@@ -1,13 +1,34 @@
-[ 0.8.2 release - 3/1/2009 ] 
+[ 1.0 (BETA) release - 5/4/2009 ] 
 
- * TopHat now reports the alignments it finds in the SAM format
-   (http://samtools.sourceforge.net). The SAM tools were written primarily by
-   Heng Li at Sanger, and will allow TopHat users to call expressed SNPs from
-   their RNA-Seq reads. The SAM tools themselves are still under development,
-   so TopHat's SAM support should be considered experimental.
+* TopHat has been almost entirely redesigned and rewritten to handle
+  "second-generation" RNA-Seq data. Reads longer than 50bp and paired end
+  reads are substantially more powerful for finding splice junctions, and
+  TopHat needed new algorithms to take advantage of them. While this release
+  should be considered a beta, and still contains bugs, it has been under
+  development for several months and has been tested by several groups on both
+  first- and second-generation RNA-Seq data in multiple organisms. Longer
+  and/or paired end reads provide a dramatic leap in sensitivity and
+  specificity. 
+  Notable improvements include: 
+	- Paired-end RNA-Seq read support
+  	- Long read support 
+	- Improved SAM output 
+	- No longer depends on Maq 
+	- Mismatches near splicing anchors now allowed 
+	- Much more of the pipeline is multithreaded, yielding a massive performance boost
+	- Compiles under GCC 4.3
+	
+[ 0.8.3 release - 3/12/2009 ]
+This release contains the following enhancements and fixes:
+	- Reporting now has a smaller memory footprint
+	- A possible source of erroneous alignments due to hashing collisions has been eliminated
+	- The install scripts now correctly detect whether to build TopHat with 64-bit compiler flags.
 
-*  You can now specify a list of junctions for TopHat to check in a raw format,
-   without using a GFF file of genes
+[ 0.8.2 release - 3/1/2009 ]
+This release contains the following enhancements and fixes:
+	- TopHat now reports the alignments it finds in the SAM format. The SAM tools were written primarily by Heng Li at Sanger, and will allow TopHat users to call expressed SNPs from their RNA-Seq reads. The SAM tools themselves are still under development, so TopHat's SAM support should be considered experimental.
+	- You can now specify a list of junctions for TopHat to check in a raw format, without using a GFF file of genes
+	- The new -o option allows you to change where TopHat puts its output, instead of always writing to "./tophat_out"
 
 [ 0.8.1 release - 1/30/2009 ] 
 
