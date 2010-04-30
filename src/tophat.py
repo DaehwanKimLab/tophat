@@ -1362,6 +1362,8 @@ def spliced_alignment(params,
     maps = { left_reads : [], right_reads : [] }
     #single_segments = False
     
+    # This class collects spliced and unspliced alignments for each of the 
+    # left and right read files provided by the user.
     class Maps:
         def __init__(self, 
                      unspliced_bwt,
@@ -1374,7 +1376,9 @@ def spliced_alignment(params,
             self.seg_maps = seg_maps
             self.unmapped_segs = unmapped_segs
             self.segs = segs
-                  
+    
+    # Perform the first part of the TopHat work flow on the left and right 
+    # reads of paired ends separately - we'll use the pairing information later
     for reads in [left_reads, right_reads]:
         if reads == None:
             continue
@@ -1393,6 +1397,8 @@ def spliced_alignment(params,
         unmapped_unspliced = tmp_dir + reads[tmp:extension] + "_missing.fq"
         num_segs = read_len / segment_len
         phred_thresh = 70 * num_segs
+        
+        # Perform the initial Bowtie mapping of the full lenth reads
         (unspliced_map, unmapped) = bowtie(params,
                                            bwt_idx_prefix, 
                                            reads,
@@ -1402,6 +1408,10 @@ def spliced_alignment(params,
                                            reads,
                                            phred_thresh)  
         unspliced_sam = tmp_name()
+        
+        # Convert the initial Bowtie maps into SAM format.  
+        # TODO: this step should be removable now that Bowtie supports SAM 
+        # format
         join_mapped_segments(params,
                              reads,
                              ref_fasta,
@@ -1409,10 +1419,14 @@ def spliced_alignment(params,
                              [unspliced_map],
                              [],
                              unspliced_sam)
-            
+        
+        # Using the num_segs value returned by check_reads(), decide which 
+        # junction discovery strategy to use
         if num_segs == 1:
             segment_len = read_len
         elif num_segs >= 3:
+            # if we have at least three segments, just use split segment search,
+            # which is the most sensitive and specific, fastest, and lightest-weight.
             if params.closure_search != True:
                 params.closure_search = False
             if params.coverage_search != True:
@@ -1422,18 +1436,18 @@ def spliced_alignment(params,
         if params.closure_search != True:
             params.closure_search = False
                                                        
-
-        
-        #print spliced_params.read_params.seed_len
         seg_maps = []
         unmapped_segs = []
         segs = []
         if num_segs > 1:
+            # split up the IUM reads into segments
             read_segments = split_reads(unmapped_unspliced,
                                         output_dir + "/tmp/" + prefix, 
                                         False,
                                         read_len, 
                                         segment_len)
+                                        
+            # Map each segment file independently with Bowtie
             for seg in read_segments:
                 extension = seg.rfind(".")
                 assert extension != -1
@@ -1452,11 +1466,16 @@ def spliced_alignment(params,
                 unmapped_segs.append(unmapped)
                 segs.append(seg)
             
+            # Collect the segment maps for left and right reads together
             maps[reads] = Maps(unspliced_map, unspliced_sam, seg_maps, unmapped_segs, segs) 
         else:
+            # if there's only one segment, just collect the initial map as the only
+            # map to be used downstream for coverage-based junction discovery
             read_segments = [reads]
             maps[reads] = Maps(unspliced_map, unspliced_sam, [unspliced_map], [unmapped_unspliced], read_segments)
     
+    # Unless the user asked not to discover new junctions, start that process
+    # here
     if params.find_novel_juncs:    
         left_seg_maps = maps[left_reads].seg_maps
         unmapped_reads = maps[left_reads].unmapped_segs
@@ -1465,6 +1484,9 @@ def spliced_alignment(params,
             unmapped_reads.extend(maps[right_reads].unmapped_segs)
         else:
             right_seg_maps = None
+        
+        # Call segment_juncs to infer a list of possible splice junctions from
+        # the regions of the genome covered in the initial and segment maps
         juncs = junctions_from_segments(params, 
                                         left_reads, 
                                         left_seg_maps, 
@@ -1476,6 +1498,8 @@ def spliced_alignment(params,
         if os.path.getsize(juncs[0]) != 0:
             possible_juncs.extend(juncs)
     
+        # Optionally, and for paired reads only, use a closure search to 
+        # discover addtional junctions
         if params.closure_search and left_reads != None and right_reads != None:
             juncs = junctions_from_closures(params,
                                             maps[left_reads].seg_maps[-1], 
@@ -1489,13 +1513,16 @@ def spliced_alignment(params,
         junc_idx_prefix = None
         print >> sys.stderr, "Warning: junction database is empty!"
     else:  
+        # index the junction sequences with bowtie-build
         junc_idx_prefix = "tmp/segment_juncs"
         build_juncs_index(3,
                           segment_len,
                           junc_idx_prefix, 
                           possible_juncs,
                           ref_fasta)
-                          
+    
+    # Now map read segments (or whole IUM reads, if num_segs == 1) to the splice
+    # index with Bowtie
     for reads in [left_reads, right_reads]:
         spliced_seg_maps = []
         if reads == None or reads not in maps:
@@ -1522,7 +1549,9 @@ def spliced_alignment(params,
                 spliced_seg_maps.append(seg_map)
                 i += 1
 
-
+        
+        # Join the contigous and spliced segment hits into full length read 
+        # alignments
         mapped_reads = reads +".candidate_hits.sam"
         join_mapped_segments(params,
                              reads,
@@ -1532,6 +1561,14 @@ def spliced_alignment(params,
                              spliced_seg_maps,
                              mapped_reads)
         if num_segs > 1:
+            # Merge the spliced and unspliced full length alignments into a 
+            # single SAM file.
+            # FIXME: we ought to be able to do this much more efficiently,
+            # since the individual SAM files are all already sorted in 
+            # increasing read ID order.  We should just be able to merge these
+            # NOTE: We also should be able to address bug #134 here, by replacing
+            # contiguous alignments that poke into an intron by a small amount by
+            # the correct spliced alignment.
             merged_map = tmp_name()
             merge_sort_cmd =["sort",
                              "-k 1,1n",
@@ -1553,6 +1590,7 @@ def spliced_alignment(params,
         maps[reads] = [mapped_reads]
     return maps
 
+# FIXME: this should get set during the make dist autotools phase of the build
 def get_version():
    return "1.0.13"
 
