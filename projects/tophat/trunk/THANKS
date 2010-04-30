@@ -1,0 +1,30 @@
+TopHat THANKS file
+
+TopHat was originally written by Cole Trapnell, with substantial creative
+input from Lior Pachter and Steven Salzberg. Many people further contributed
+to TopHat by reporting problems, suggesting various improvements, donating
+test data or submitting actual code. Here is a list of these people. Help me
+keep it complete and exempt of errors.
+
+Robert Bradley		rbradley@math.berkeley.edu
+Steven Brenner		brenner@compbio.berkeley.edu
+Angela Brooks		angelabrooks@berkeley.edu
+Mark Diekhans		markd@soe.ucsc.edu
+Mike Duff			moduff@gmail.com
+Steffen Durinck		sdurinck@illumina.com
+Matthew Fitzgibbon	mfitzgib@fhcrc.org
+Brenton Graveley	graveley@neuron.uchc.edu
+Kasper Hansen		khansen@stat.berkeley.edu
+Rachel Harte		hartera@soe.ucsc.edu
+Ben Langmead		langmead@cs.umd.edu
+Richard McCombie	mccombie@cshl.edu
+Ali Mortazavi		alim@caltech.edu
+Adam Phillippy		amp@umiacs.umd.edu
+Mike Schatz			mschatz@umiacs.umd.edu
+Gary Schroth		gschroth@illumina.com
+Gavin Sherlock		sherlock@genome.stanford.edu
+Diane Trout			diane@caltech.edu
+Svilen Tzonev		stzonev@illumina.com
+Jeltje Van Baren	jeltje@wustl.edu
+Barbara Wold		wold@caltech.edu
+

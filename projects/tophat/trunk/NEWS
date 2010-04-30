@@ -1,0 +1,141 @@
+[ 1.0 (BETA) release - 5/4/2009 ] 
+
+* TopHat has been almost entirely redesigned and rewritten to handle
+  "second-generation" RNA-Seq data. Reads longer than 50bp and paired end
+  reads are substantially more powerful for finding splice junctions, and
+  TopHat needed new algorithms to take advantage of them. While this release
+  should be considered a beta, and still contains bugs, it has been under
+  development for several months and has been tested by several groups on both
+  first- and second-generation RNA-Seq data in multiple organisms. Longer
+  and/or paired end reads provide a dramatic leap in sensitivity and
+  specificity. 
+  Notable improvements include: 
+	- Paired-end RNA-Seq read support
+  	- Long read support 
+	- Improved SAM output 
+	- No longer depends on Maq 
+	- Mismatches near splicing anchors now allowed 
+	- Much more of the pipeline is multithreaded, yielding a massive performance boost
+	- Compiles under GCC 4.3
+	
+[ 0.8.3 release - 3/12/2009 ]
+This release contains the following enhancements and fixes:
+	- Reporting now has a smaller memory footprint
+	- A possible source of erroneous alignments due to hashing collisions has been eliminated
+	- The install scripts now correctly detect whether to build TopHat with 64-bit compiler flags.
+
+[ 0.8.2 release - 3/1/2009 ]
+This release contains the following enhancements and fixes:
+	- TopHat now reports the alignments it finds in the SAM format. The SAM tools were written primarily by Heng Li at Sanger, and will allow TopHat users to call expressed SNPs from their RNA-Seq reads. The SAM tools themselves are still under development, so TopHat's SAM support should be considered experimental.
+	- You can now specify a list of junctions for TopHat to check in a raw format, without using a GFF file of genes
+	- The new -o option allows you to change where TopHat puts its output, instead of always writing to "./tophat_out"
+
+[ 0.8.1 release - 1/30/2009 ] 
+
+* New experimental support for user-supplied annotations. TopHat will accept a
+  GFF file, and will look for junctions contained in the GFF file. TopHat will
+  also perform a basic RPKM calculation on the regions in the annotation,
+  normalized to those annotations only (rather than the whole map). The file
+  must contain "gene", "exon" and "mRNA" records, in the normal record ID,
+  Parent heirarchy. Users are encouraged to treat GFF support as unstable and
+  interpret their results with caution.
+
+  TopHat 0.8.1 uses some code kindly provided by Robert Bradley. The
+  code originally came from Rob's statistical alignment package FSA. 
+
+* Several minor bugfixes.
+		 
+	 
+[ 0.8.0 release - 1/19/2009 ] 
+
+* Dramatic reduction in false positives. 
+
+* TopHat now estimates a minor isoform frequency for each splice junction, and
+  filters infrequent events to cut down dramatically on the false positives.
+  By default, minor isoforms must occur at at least 15 percent of the major
+  isoform.
+       
+* The new output file coverage.wig is a UCSC wigglegram of alignment coverage. 
+
+* TopHat supports multithreading, though not all stages of the pipeline use
+  multiple threads. 
+
+* TopHat now allows reads to have multiple alignments, and it suppresses
+  alignments for reads that have more than a user-specified number (10, by
+  default).
+
+* The memory exhaustion problem associated with converting Bowtie alignments
+  to Maq has been fixed.
+
+* You are no longer required to concatenate your reads into a single input file.
+
+* TopHat will attempt to automatically determine seed length, quality scale,
+  and FASTA/FASTQ format from your input reads.
+
+* If you are missing a Maq binary fasta file for your reference, one will be
+  created in the output directory using bowtie-inspect. You can copy this file
+  to the location of your bowtie index to avoid this step in your next run.
+	 
+[ 0.7.2 release - 12/05/2008 ] 
+	  
+* Bowtie 0.9.8 renamed bowtie-convert to bowtie-maqconvert, and TopHat is now
+  compatible with both the new and old name.
+
+* Minor cosmetic improvements in the TopHat output log. 
+
+* Improved checking in the installer to emit sensible error messages when
+  compiling on Solaris. Solaris is currently not supported, but hopefully will
+  be in the next release.
+
+Known issues:
+	 
+* TopHat can exhaust memory when run with many (> 50 million) reads on some
+  machines. This will be fixed in the next release.
+	 
+[ 0.7.1 release - 11/08/2008 ] 
+  The following issues have been fixed:
+	 
+* Maq 0.7.0 changed the Maq map file format. Bowtie 0.9.7 now supports both
+  the new and old mapping format, and thus so now does TopHat. TopHat now
+  checks the version of Maq on the system and uses the correct format.  
+
+* Minor command line interface improvements 
+
+* The -X option has been added to allow the use of FASTQ files that are scaled
+  on the Solexa quality scale, as opposed to Phred (the default). Note that
+  TopHat doesn't support FASTQ-int, only ASCII-encoded qualities are used.
+
+* The -D option has been added, allowing users to specify when to look for
+  junctions within single islands, as opposed to just between two distinct
+  islands
+
+* The -Q option allows the user to specify a Phred quality character below
+  which the island consensus caller will use the reference base call. That is,
+  TopHat will not allow SNPs to be called where base quality drops below a
+  certain threshold.
+	
+* TopHat now includes Heng Li's fq_all2std.pl format conversion script to make
+  installation easier.
+	 
+  
+
+[ 0.7.0 release - 10/27/08 ] 
+
+The first public release of TopHat is now available for download. To use
+TopHat, you will need to install Bowtie and Maq. Both are open source and
+freely available under the Artistic license. When you install Bowtie, you
+should also install the Bowtie index for the genome in your RNA-Seq
+experiment, if one is available. If there is no pre-built index for the
+organism you're interested in, you can follow the Bowtie manual's section on
+how to build one yourself.
+
+Because this is the first release, the manual is very limited. Only the basic
+options have been described. However, we will be updating it frequently, so
+please check back. If you find something unclear, or have questions about how
+TopHat works, please email Cole Trapnell. We will be posting a list of
+frequently asked questions soon.  
+
+In this release, TopHat does not consider mate pairing between reads. You can
+analyze paired-end RNA-Seq data with TopHat, but the program won't make use of
+the mate information. Yet. Use of mate pair information is our top development
+priority. Check back soon for a release with full paired-end support
