@@ -140,7 +140,6 @@ dist_bin_SCRIPTS = \
 #-- tophat library for linking convienence
 noinst_LIBRARIES = libtophat.a
 noinst_HEADERS = \
-	islands.h \
 	reads.h \
 	common.h \
 	bwt_map.h \
