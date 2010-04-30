@@ -25,33 +25,6 @@ import shutil
 import copy
 from datetime import datetime, date, time
 
-# use_message = '''
-# TopHat maps short sequences from spliced transcripts to whole genomes.
-# 
-# Usage:
-#     tophat [options] <bowtie_index> <reads1[,reads2,...,readsN]> [reads1[,reads2,...,readsN]]
-#     
-# Options:
-#     -o/--output-dir                <string>    [ default: ./tophat_out ]
-#     -a/--min-anchor                <int>       [ default: 8     ]
-#     -m/--splice-mismatches         <0-2>       [ default: 0     ]
-#     -i/--min-intron                <int>       [ default: 50    ]
-#     -I/--max-intron                <int>       [ default: 20000 ]
-#     -g/--max-gene-family           <int>       [ default: 40    ]
-#     -F/--min-isoform-fraction      <float>     [ default: 0.15  ]
-#     -X/--solexa-quals                          
-#     -p/--num-threads               <int>       [ default: 1     ]
-#     -G/--GFF                       <filename>
-#     -j/--raw-juncs                 <filename>
-#     -r/--mate-inner-dist           <int>       [ default: 75    ]
-#     --mate-std-dev                 <int>       [ default: 20    ]
-#     --no-novel-juncs                           
-#     --no-gff-juncs                             
-#     --no-coverage-search                       
-#     --no-closure-search
-#     --fill-gaps                        
-# '''
-
 use_message = '''
 TopHat maps short sequences from spliced transcripts to whole genomes.
 
@@ -126,7 +99,18 @@ bin_dir = sys.path[0] + "/"
 fail_str = "\t[FAILED]\n"
 
 
+# TopHatParams captures all of the runtime paramaters used by TopHat, and many
+# of these are passed as command line options to exectubles run by the pipeline
+
+# This class and its nested classes also do options parsing through parse_options()
+# and option validation via the member function check()
+
 class TopHatParams:
+
+    # SpliceConstraints is a group of runtime parameters that specify what 
+    # constraints to put on junctions discovered by the program.  These constraints
+    # are used to filter out spurious/false positive junctions.
+    
     class SpliceConstraints:
         def __init__(self, 
                      min_anchor_length,
@@ -169,7 +153,11 @@ class TopHatParams:
             if self.max_intron_length <= 0:
                 print >> sys.stderr, "Error: arg to --max-intron-length must be greater than 0"
                 exit(1)
-        
+    
+    # SystemParams is a group of runtime parameters that determine how to handle
+    # temporary files produced during a run and how many threads to use for threaded
+    # stages of the pipeline (e.g. Bowtie)
+    
     class SystemParams:
         def __init__(self,
                      bowtie_threads,
@@ -187,6 +175,10 @@ class TopHatParams:
         def check(self):
             pass
         
+    
+    # ReadParams is a group of runtime parameters that specify various properties
+    # of the user's reads (e.g. which quality scale their are on, how long the 
+    # fragments are, etc).
     
     class ReadParams:
         def __init__(self,
@@ -258,7 +250,10 @@ class TopHatParams:
             if (not self.read_group_id and self.sample_id) or (self.read_group_id and not self.sample_id):
                 print >> sys.stderr, "Error: --rg-id and --rg-sample must be specified or omitted together"
                 exit(1)
-                
+    
+    # SearchParams is a group of runtime parameters that specify how TopHat will
+    # search for splice junctions
+    
     class SearchParams:
         def __init__(self,
                      min_closure_exon,
@@ -420,7 +415,10 @@ class TopHatParams:
         if self.read_params.phred64_quals == True:
             cmd.append("--phred64-quals")
         return cmd
-        
+    
+    # This is the master options parsing routine, which calls parse_options for
+    # the delegate classes (e.g. SpliceConstraints) that handle certain groups
+    # of options.
     def parse_options(self, argv):
         try:
             opts, args = getopt.getopt(argv[1:], "hvp:m:F:a:i:I:G:r:o:j:g:", 
@@ -526,10 +524,13 @@ class TopHatParams:
             raise Usage(use_message)
         return args
 
+# Returns the current time in a nice format
 def right_now():
     curr_time = datetime.now()
     return curr_time.strftime("%c")
 
+# Ensures that the output, logging, and temp directories are present. If not, 
+# they are created
 def prepare_output_dir():
     
     print >> sys.stderr, "[%s] Preparing output location %s" % (right_now(), output_dir)
@@ -548,6 +549,8 @@ def prepare_output_dir():
     else:        
         os.mkdir(tmp_dir)
 
+# Check that the Bowtie index specified by the user is present and all files
+# are there.
 def check_bowtie_index(idx_prefix):
     print >> sys.stderr, "[%s] Checking for Bowtie index files" % right_now()
     
@@ -581,6 +584,8 @@ def check_bowtie_index(idx_prefix):
             print >> sys.stderr, "Error: Could not find Bowtie index files " + idx_prefix + ".*"
             exit(1)
 
+# Reconstructs the multifasta file from which the Bowtie index was created, if 
+# it's not already there.
 def bowtie_idx_to_fa(idx_prefix):
     idx_name = idx_prefix.split('/')[-1]
     print >> sys.stderr, "[%s] Reconstituting reference FASTA file from Bowtie index" % (right_now())
@@ -610,6 +615,8 @@ def bowtie_idx_to_fa(idx_prefix):
   
     return tmp_fasta_file_name
 
+# Checks whether the multifasta file for the genome is present alongside the 
+# Bowtie index files for it.
 def check_fasta(idx_prefix):
     print >> sys.stderr, "[%s] Checking for reference FASTA file" % right_now()
     idx_fasta = idx_prefix + ".fa"
@@ -629,12 +636,15 @@ def check_fasta(idx_prefix):
         #print >> sys.stderr, "Error: Could not find Maq binary fasta file " + idx_bfa
         #exit(1)
     
+# Check that both the Bowtie index and the genome's fasta file are present
 def check_index(idx_prefix):
     check_bowtie_index(idx_prefix)
     ref_fasta_file = check_fasta(idx_prefix)
     
     return (ref_fasta_file, None)
 
+# Retrive a tuple containing the system's version of Bowtie.  Parsed from 
+# `bowtie --version`
 def get_bowtie_version():
     try:
         # Launch Bowtie to capture its version info
@@ -659,6 +669,7 @@ def get_bowtie_version():
            print >> sys.stderr, fail_str, "Error: bowtie not found on this system"
        exit(1)
 
+# Make sure Bowtie is installed and is recent enough to be useful
 def check_bowtie():
     print >> sys.stderr, "[%s] Checking for Bowtie" % right_now()
     bowtie_version = get_bowtie_version()
@@ -670,7 +681,14 @@ def check_bowtie():
         exit(1)
     print >> sys.stderr, "\tBowtie version:\t\t %s" % ".".join([str(x) for x in bowtie_version])
         
-        
+
+# NEEDS REFACTORING
+# check_reads() has several jobs.  It examines the user's reads, one file at a 
+# time, and determines the file format, read length, and other properties that 
+# are used to set the junction search strategy later on.  The FASTA/Q parser in
+# this routine is AWFUL, and needs rewriting.  Furthermore, when we add support 
+# for mixed read lengths, this routine will need to set the seed length 
+# differently. 
 def check_reads(params, reads_files):
     print >> sys.stderr, "[%s] Checking reads" % right_now()
     bowtie_version = get_bowtie_version()
@@ -758,12 +776,18 @@ def check_reads(params, reads_files):
                                    params.seq_run_date,
                                    params.seq_platform)
 
+# Format a DateTime as a pretty string.  
+# FIXME: Currently doesn't support days!
 def formatTD(td):
   hours = td.seconds // 3600
   minutes = (td.seconds % 3600) // 60
   seconds = td.seconds % 60
   return '%02d:%02d:%02d' % (hours, minutes, seconds) 
 
+# Calls the prep_reads executable, which prepares an internal read library.
+# The read library features reads with monotonically increasing integer IDs.
+# prep_reads also filters out very low complexy or garbage reads as well as 
+# polyA reads.
 def prep_reads(params, reads_list, output_name):    
     #filter_cmd = ["prep_reads"]
         
@@ -804,6 +828,7 @@ def prep_reads(params, reads_list, output_name):
         
     return kept_reads_filename
 
+# Call bowtie
 def bowtie(params,
            bwt_idx_prefix,
            reads_list,
@@ -881,14 +906,16 @@ def bowtie(params,
     #print >> sys.stderr, "\t\t\t[%s elapsed]" %  formatTD(duration)
     return (bwt_map, unmapped_reads_fasta_name)
 
+# Generate a new temporary filename in the user's tmp directory
 def tmp_name():
-    tmp_root = output_dir + "tmp/"
+    tmp_root = tmp_dir
     if os.path.exists(tmp_root):
         pass
     else:        
         os.mkdir(tmp_root)
     return tmp_root + os.tmpnam().split('/')[-1] 
 
+# Retrieve a .juncs file from a GFF file by calling the gff_juncs executable
 def get_gff_juncs(gff_annotation):
     print >> sys.stderr, "[%s] Reading known junctions from GFF file" % (right_now())
     gff_juncs_log = open(logging_dir + "gff_juncs.log", "w")
@@ -918,7 +945,7 @@ def get_gff_juncs(gff_annotation):
        exit(1)
     return (True, gff_juncs_out_name)
 
-
+# Call bowtie-build on the FASTA file of sythetic splice junction sequences
 def build_juncs_bwt_index(external_splice_prefix):
     print >> sys.stderr, "[%s] Indexing splices" % (right_now())
     bowtie_build_log = open(logging_dir + "bowtie_build.log", "w")
@@ -941,7 +968,9 @@ def build_juncs_bwt_index(external_splice_prefix):
             print >> sys.stderr, fail_str, "Error: bowtie-build not found on this system"
         exit(1)
     return external_splice_prefix
-    
+
+# Build a splice index from a .juncs file, suitable for use with specified read
+# (or read segment) lengths
 def build_juncs_index(min_anchor_length, 
                       read_length,
                       juncs_prefix, 
@@ -971,16 +1000,17 @@ def build_juncs_index(min_anchor_length,
         if retcode != 0:
             print >> sys.stderr, fail_str, "Error: Splice sequence retrieval failed with err =", retcode
             exit(1)
-    # cvg_islands not found
+    # juncs_db not found
     except OSError, o:
        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
            print >> sys.stderr, fail_str, "Error: juncs_db not found on this system"
        exit(1)
        
     external_splices_out_prefix = build_juncs_bwt_index(external_splices_out_prefix)
-       
     return external_splices_out_prefix
 
+# Print out the sam header, embedding the user's specified library properties.
+# FIXME: also needs SQ dictionary lines
 def write_sam_header(read_params, sam_file):
     print >> sam_file, "@HD\tVN:1.0\tSO:sorted"
     
@@ -1005,8 +1035,7 @@ def write_sam_header(read_params, sam_file):
         print >> sam_file, rg_str
     print >> sam_file, "@PG\tID:TopHat\tVN:%s\tCL:%s" % (get_version(), run_cmd)
             
-    
-    
+# Write final TopHat output, via tophat_reports and wiggles
 def compile_reports(params, left_maps, left_reads, right_maps, right_reads, gff_annotation):
     print >> sys.stderr, "[%s] Reporting output tracks" % right_now()
     
@@ -1076,6 +1105,9 @@ def compile_reports(params, left_maps, left_reads, right_maps, right_reads, gff_
         exit(1)
     return (coverage, junctions)
 
+# Split up each read in a FASTQ file into multiple segments. Creates a FASTQ file
+# for each segment  This function needs to be fixed to support mixed read length
+# inputs
 def split_reads(reads_filename, 
                 prefix, 
                 fasta, 
@@ -1161,6 +1193,8 @@ def split_reads(reads_filename,
         f.close()
     return [o.name for o in output_files]
 
+# Find possible splice junctions using the "closure search" strategy, and report
+# them in closures.juncs.  Calls the executable closure_juncs
 def junctions_from_closures(params,
                             left_maps, 
                             right_maps, 
@@ -1206,6 +1240,9 @@ def junctions_from_closures(params,
         exit(1)
     return [juncs_out]
 
+# Find possible junctions by examining coverage and split segments in the initial
+# map and segment maps.  Report junctions in segment.juncs.  Calls the executable
+# segment_juncs
 def junctions_from_segments(params,
                             left_reads, 
                             left_seg_maps, 
@@ -1256,6 +1293,8 @@ def junctions_from_segments(params,
 
     return [juncs_out]
 
+# Joins mapped segments into full-length read alignments via the executable
+# long_spanning_reads
 def join_mapped_segments(params,
                          reads,
                          ref_fasta,
@@ -1302,7 +1341,10 @@ def join_mapped_segments(params,
             print >> sys.stderr, fail_str, "Error: long_spanning_reads not found on this system"
         exit(1)
       
-    
+
+# The main aligment routine of TopHat.  This function executes most of the 
+# workflow producing a set of candidate alignments for each cDNA fragment in a 
+# pair of SAM alignment files (for paired end reads).
 def spliced_alignment(params,
                       bwt_idx_prefix,
                       ref_fasta,
