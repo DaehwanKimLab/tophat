@@ -1,0 +1,185 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 42;
+	objects = {
+
+/* Begin PBXFileReference section */
+		ED6D622D118B5B5800A682F4 /* alphabet.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = alphabet.c; path = src/alphabet.c; sourceTree = "<group>"; };
+		ED6D622E118B5B5800A682F4 /* alphabet.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = alphabet.h; path = src/alphabet.h; sourceTree = "<group>"; };
+		ED6D622F118B5B5800A682F4 /* assert_helpers.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = assert_helpers.h; path = src/assert_helpers.h; sourceTree = "<group>"; };
+		ED6D6230118B5B5800A682F4 /* bed_to_juncs.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; name = bed_to_juncs.py; path = src/bed_to_juncs.py; sourceTree = "<group>"; };
+		ED6D6231118B5B5800A682F4 /* bwt_map.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = bwt_map.cpp; path = src/bwt_map.cpp; sourceTree = "<group>"; };
+		ED6D6232118B5B5800A682F4 /* bwt_map.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = bwt_map.h; path = src/bwt_map.h; sourceTree = "<group>"; };
+		ED6D6233118B5B5800A682F4 /* closures.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = closures.cpp; path = src/closures.cpp; sourceTree = "<group>"; };
+		ED6D6234118B5B5800A682F4 /* closures.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = closures.h; path = src/closures.h; sourceTree = "<group>"; };
+		ED6D6235118B5B5800A682F4 /* common.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = common.cpp; path = src/common.cpp; sourceTree = "<group>"; };
+		ED6D6236118B5B5800A682F4 /* common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = common.h; path = src/common.h; sourceTree = "<group>"; };
+		ED6D6237118B5B5800A682F4 /* contig_to_chr_coords.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; name = contig_to_chr_coords.py; path = src/contig_to_chr_coords.py; sourceTree = "<group>"; };
+		ED6D6238118B5B5800A682F4 /* extract_reads.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = extract_reads.cpp; path = src/extract_reads.cpp; sourceTree = "<group>"; };
+		ED6D6239118B5B5800A682F4 /* fix_map_ordering.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = fix_map_ordering.cpp; path = src/fix_map_ordering.cpp; sourceTree = "<group>"; };
+		ED6D623A118B5B5800A682F4 /* fragments.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = fragments.cpp; path = src/fragments.cpp; sourceTree = "<group>"; };
+		ED6D623B118B5B5800A682F4 /* fragments.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = fragments.h; path = src/fragments.h; sourceTree = "<group>"; };
+		ED6D623C118B5B6300A682F4 /* genes.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = genes.cpp; path = src/genes.cpp; sourceTree = "<group>"; };
+		ED6D623D118B5B6300A682F4 /* genes.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = genes.h; path = src/genes.h; sourceTree = "<group>"; };
+		ED6D623E118B5B6300A682F4 /* gff_juncs.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = gff_juncs.cpp; path = src/gff_juncs.cpp; sourceTree = "<group>"; };
+		ED6D623F118B5B6300A682F4 /* inserts.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = inserts.cpp; path = src/inserts.cpp; sourceTree = "<group>"; };
+		ED6D6240118B5B6300A682F4 /* inserts.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = inserts.h; path = src/inserts.h; sourceTree = "<group>"; };
+		ED6D6241118B5B6300A682F4 /* juncs_db.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = juncs_db.cpp; path = src/juncs_db.cpp; sourceTree = "<group>"; };
+		ED6D6242118B5B6300A682F4 /* junctions.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = junctions.cpp; path = src/junctions.cpp; sourceTree = "<group>"; };
+		ED6D6243118B5B6300A682F4 /* junctions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = junctions.h; path = src/junctions.h; sourceTree = "<group>"; };
+		ED6D6244118B5B6300A682F4 /* library_stats.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = library_stats.cpp; path = src/library_stats.cpp; sourceTree = "<group>"; };
+		ED6D6245118B5B6300A682F4 /* long_spanning_reads.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = long_spanning_reads.cpp; path = src/long_spanning_reads.cpp; sourceTree = "<group>"; };
+		ED6D6246118B5B6300A682F4 /* mask_sam.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mask_sam.cpp; path = src/mask_sam.cpp; sourceTree = "<group>"; };
+		ED6D6247118B5B6300A682F4 /* prep_reads.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = prep_reads.cpp; path = src/prep_reads.cpp; sourceTree = "<group>"; };
+		ED6D6248118B5B6300A682F4 /* qual.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = qual.cpp; path = src/qual.cpp; sourceTree = "<group>"; };
+		ED6D6249118B5B6300A682F4 /* qual.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = qual.h; path = src/qual.h; sourceTree = "<group>"; };
+		ED6D624A118B5B6300A682F4 /* reads.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = reads.cpp; path = src/reads.cpp; sourceTree = "<group>"; };
+		ED6D624B118B5B6300A682F4 /* reads.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = reads.h; path = src/reads.h; sourceTree = "<group>"; };
+		ED6D624C118B5B6300A682F4 /* segment_juncs.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = segment_juncs.cpp; path = src/segment_juncs.cpp; sourceTree = "<group>"; };
+		ED6D624D118B5B6300A682F4 /* segments.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = segments.h; path = src/segments.h; sourceTree = "<group>"; };
+		ED6D624E118B5B6B00A682F4 /* timer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = timer.h; path = src/timer.h; sourceTree = "<group>"; };
+		ED6D624F118B5B6B00A682F4 /* tokenize.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = tokenize.cpp; path = src/tokenize.cpp; sourceTree = "<group>"; };
+		ED6D6250118B5B6B00A682F4 /* tokenize.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = tokenize.h; path = src/tokenize.h; sourceTree = "<group>"; };
+		ED6D6251118B5B6B00A682F4 /* tophat_reports.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = tophat_reports.cpp; path = src/tophat_reports.cpp; sourceTree = "<group>"; };
+		ED6D6252118B5B6B00A682F4 /* tophat.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; name = tophat.py; path = src/tophat.py; sourceTree = "<group>"; };
+		ED6D6253118B5B6B00A682F4 /* wiggles.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = wiggles.cpp; path = src/wiggles.cpp; sourceTree = "<group>"; };
+		ED6D6254118B5B6B00A682F4 /* wiggles.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = wiggles.h; path = src/wiggles.h; sourceTree = "<group>"; };
+		ED6D6255118B5B7300A682F4 /* Makefile.am */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = Makefile.am; path = src/Makefile.am; sourceTree = "<group>"; };
+		ED6D6256118B5B8C00A682F4 /* AUTHORS */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = AUTHORS; sourceTree = "<group>"; };
+		ED6D6257118B5B8C00A682F4 /* bootstrap */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = bootstrap; sourceTree = "<group>"; };
+		ED6D6258118B5B8C00A682F4 /* ChangeLog */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = ChangeLog; sourceTree = "<group>"; };
+		ED6D6259118B5B8C00A682F4 /* configure.ac */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = configure.ac; sourceTree = "<group>"; };
+		ED6D625A118B5B8C00A682F4 /* COPYING */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = COPYING; sourceTree = "<group>"; };
+		ED6D625B118B5B8C00A682F4 /* INSTALL */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = INSTALL; sourceTree = "<group>"; };
+		ED6D625C118B5B8C00A682F4 /* NEWS */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = NEWS; sourceTree = "<group>"; };
+		ED6D625D118B5B8C00A682F4 /* README */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README; sourceTree = "<group>"; };
+		ED6D625E118B5B8C00A682F4 /* THANKS */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = THANKS; sourceTree = "<group>"; };
+		ED6D625F118B5B8C00A682F4 /* unbootstrap */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = unbootstrap; sourceTree = "<group>"; };
+		ED6D6260118B5B9300A682F4 /* tophat.mk */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = tophat.mk; path = config/tophat.mk; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		ED5C74D9118B5B0700397B5E = {
+			isa = PBXGroup;
+			children = (
+				ED6D622B118B5B3600A682F4 /* Source */,
+			);
+			sourceTree = "<group>";
+		};
+		ED6D622B118B5B3600A682F4 /* Source */ = {
+			isa = PBXGroup;
+			children = (
+				ED6D622D118B5B5800A682F4 /* alphabet.c */,
+				ED6D622E118B5B5800A682F4 /* alphabet.h */,
+				ED6D622F118B5B5800A682F4 /* assert_helpers.h */,
+				ED6D6230118B5B5800A682F4 /* bed_to_juncs.py */,
+				ED6D6231118B5B5800A682F4 /* bwt_map.cpp */,
+				ED6D6232118B5B5800A682F4 /* bwt_map.h */,
+				ED6D6233118B5B5800A682F4 /* closures.cpp */,
+				ED6D6234118B5B5800A682F4 /* closures.h */,
+				ED6D6235118B5B5800A682F4 /* common.cpp */,
+				ED6D6236118B5B5800A682F4 /* common.h */,
+				ED6D6237118B5B5800A682F4 /* contig_to_chr_coords.py */,
+				ED6D6238118B5B5800A682F4 /* extract_reads.cpp */,
+				ED6D6239118B5B5800A682F4 /* fix_map_ordering.cpp */,
+				ED6D623A118B5B5800A682F4 /* fragments.cpp */,
+				ED6D623B118B5B5800A682F4 /* fragments.h */,
+				ED6D623C118B5B6300A682F4 /* genes.cpp */,
+				ED6D623D118B5B6300A682F4 /* genes.h */,
+				ED6D623E118B5B6300A682F4 /* gff_juncs.cpp */,
+				ED6D623F118B5B6300A682F4 /* inserts.cpp */,
+				ED6D6240118B5B6300A682F4 /* inserts.h */,
+				ED6D6241118B5B6300A682F4 /* juncs_db.cpp */,
+				ED6D6242118B5B6300A682F4 /* junctions.cpp */,
+				ED6D6243118B5B6300A682F4 /* junctions.h */,
+				ED6D6244118B5B6300A682F4 /* library_stats.cpp */,
+				ED6D6245118B5B6300A682F4 /* long_spanning_reads.cpp */,
+				ED6D6246118B5B6300A682F4 /* mask_sam.cpp */,
+				ED6D6247118B5B6300A682F4 /* prep_reads.cpp */,
+				ED6D6248118B5B6300A682F4 /* qual.cpp */,
+				ED6D6249118B5B6300A682F4 /* qual.h */,
+				ED6D624A118B5B6300A682F4 /* reads.cpp */,
+				ED6D624B118B5B6300A682F4 /* reads.h */,
+				ED6D624C118B5B6300A682F4 /* segment_juncs.cpp */,
+				ED6D624D118B5B6300A682F4 /* segments.h */,
+				ED6D624E118B5B6B00A682F4 /* timer.h */,
+				ED6D624F118B5B6B00A682F4 /* tokenize.cpp */,
+				ED6D6250118B5B6B00A682F4 /* tokenize.h */,
+				ED6D6251118B5B6B00A682F4 /* tophat_reports.cpp */,
+				ED6D6252118B5B6B00A682F4 /* tophat.py */,
+				ED6D6253118B5B6B00A682F4 /* wiggles.cpp */,
+				ED6D6254118B5B6B00A682F4 /* wiggles.h */,
+				ED6D622C118B5B4000A682F4 /* Autotools */,
+			);
+			name = Source;
+			sourceTree = "<group>";
+		};
+		ED6D622C118B5B4000A682F4 /* Autotools */ = {
+			isa = PBXGroup;
+			children = (
+				ED6D6260118B5B9300A682F4 /* tophat.mk */,
+				ED6D6255118B5B7300A682F4 /* Makefile.am */,
+				ED6D6256118B5B8C00A682F4 /* AUTHORS */,
+				ED6D6257118B5B8C00A682F4 /* bootstrap */,
+				ED6D6258118B5B8C00A682F4 /* ChangeLog */,
+				ED6D6259118B5B8C00A682F4 /* configure.ac */,
+				ED6D625A118B5B8C00A682F4 /* COPYING */,
+				ED6D625B118B5B8C00A682F4 /* INSTALL */,
+				ED6D625C118B5B8C00A682F4 /* NEWS */,
+				ED6D625D118B5B8C00A682F4 /* README */,
+				ED6D625E118B5B8C00A682F4 /* THANKS */,
+				ED6D625F118B5B8C00A682F4 /* unbootstrap */,
+			);
+			name = Autotools;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXProject section */
+		ED5C74DB118B5B0700397B5E /* Project object */ = {
+			isa = PBXProject;
+			buildConfigurationList = ED5C74DE118B5B0700397B5E /* Build configuration list for PBXProject "TopHat" */;
+			compatibilityVersion = "Xcode 2.4";
+			hasScannedForEncodings = 0;
+			mainGroup = ED5C74D9118B5B0700397B5E;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+			);
+		};
+/* End PBXProject section */
+
+/* Begin XCBuildConfiguration section */
+		ED5C74DC118B5B0700397B5E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COPY_PHASE_STRIP = NO;
+			};
+			name = Debug;
+		};
+		ED5C74DD118B5B0700397B5E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COPY_PHASE_STRIP = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		ED5C74DE118B5B0700397B5E /* Build configuration list for PBXProject "TopHat" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				ED5C74DC118B5B0700397B5E /* Debug */,
+				ED5C74DD118B5B0700397B5E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = ED5C74DB118B5B0700397B5E /* Project object */;
+}
