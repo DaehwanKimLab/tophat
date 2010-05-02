@@ -1,0 +1,157 @@
+// !$*UTF8*$!
+{
+	ED5C74DB118B5B0700397B5E /* Project object */ = {
+		activeBuildConfigurationName = Debug;
+		addToTargets = (
+		);
+		codeSenseManager = ED5C74E0118B5B0700397B5E /* Code sense */;
+		ignoreBreakpointsInProjectsDict = {
+		};
+		perUserDictionary = {
+			PBXConfiguration.PBXFileTableDataSource3.PBXFileTableDataSource = {
+				PBXFileTableDataSourceColumnSortingDirectionKey = "-1";
+				PBXFileTableDataSourceColumnSortingKey = PBXFileDataSource_Filename_ColumnID;
+				PBXFileTableDataSourceColumnWidthsKey = (
+					20,
+					709,
+					20,
+					48,
+					43,
+					43,
+					20,
+				);
+				PBXFileTableDataSourceColumnsKey = (
+					PBXFileDataSource_FiletypeID,
+					PBXFileDataSource_Filename_ColumnID,
+					PBXFileDataSource_Built_ColumnID,
+					PBXFileDataSource_ObjectSize_ColumnID,
+					PBXFileDataSource_Errors_ColumnID,
+					PBXFileDataSource_Warnings_ColumnID,
+					PBXFileDataSource_Target_ColumnID,
+				);
+			};
+			PBXPerProjectTemplateStateSaveDate = 294454826;
+			PBXWorkspaceStateSaveDate = 294454826;
+		};
+		perUserProjectItems = {
+			ED6D62FC118B81AB00A682F4 /* PBXTextBookmark */ = ED6D62FC118B81AB00A682F4 /* PBXTextBookmark */;
+			ED6D62FD118B81AB00A682F4 /* PBXTextBookmark */ = ED6D62FD118B81AB00A682F4 /* PBXTextBookmark */;
+			ED6D62FE118B81AB00A682F4 /* PBXTextBookmark */ = ED6D62FE118B81AB00A682F4 /* PBXTextBookmark */;
+			ED6D67E5118D0ED000A682F4 /* PBXTextBookmark */ = ED6D67E5118D0ED000A682F4 /* PBXTextBookmark */;
+			ED6D67E6118D0ED000A682F4 /* PBXTextBookmark */ = ED6D67E6118D0ED000A682F4 /* PBXTextBookmark */;
+			ED6D67E7118D0ED000A682F4 /* PBXTextBookmark */ = ED6D67E7118D0ED000A682F4 /* PBXTextBookmark */;
+		};
+		sourceControlManager = ED5C74DF118B5B0700397B5E /* Source Control */;
+		userBuildSettings = {
+		};
+	};
+	ED5C74DF118B5B0700397B5E /* Source Control */ = {
+		isa = PBXSourceControlManager;
+		fallbackIsa = XCSourceControlManager;
+		isSCMEnabled = 0;
+		scmConfiguration = {
+			repositoryNamesForRoots = {
+				"" = "";
+			};
+		};
+	};
+	ED5C74E0118B5B0700397B5E /* Code sense */ = {
+		isa = PBXCodeSenseManager;
+		indexTemplatePath = "";
+	};
+	ED6D6251118B5B6B00A682F4 /* tophat_reports.cpp */ = {
+		uiCtxt = {
+			sepNavIntBoundsRect = "{{0, 0}, {887, 13637}}";
+			sepNavSelRange = "{6392, 158}";
+			sepNavVisRange = "{4672, 694}";
+		};
+	};
+	ED6D6252118B5B6B00A682F4 /* tophat.py */ = {
+		uiCtxt = {
+			sepNavIntBoundsRect = "{{0, 0}, {887, 22984}}";
+			sepNavSelRange = "{68040, 0}";
+			sepNavVisRange = "{67445, 2424}";
+		};
+	};
+	ED6D6255118B5B7300A682F4 /* Makefile.am */ = {
+		uiCtxt = {
+			sepNavIntBoundsRect = "{{0, 0}, {887, 3068}}";
+			sepNavSelRange = "{5046, 0}";
+			sepNavVisRange = "{4457, 699}";
+		};
+	};
+	ED6D6259118B5B8C00A682F4 /* configure.ac */ = {
+		uiCtxt = {
+			sepNavIntBoundsRect = "{{0, 0}, {887, 1937}}";
+			sepNavSelRange = "{3045, 0}";
+			sepNavVisRange = "{2570, 1294}";
+		};
+	};
+	ED6D6260118B5B9300A682F4 /* tophat.mk */ = {
+		uiCtxt = {
+			sepNavIntBoundsRect = "{{0, 0}, {887, 962}}";
+			sepNavSelRange = "{0, 0}";
+			sepNavVisRange = "{0, 2744}";
+		};
+	};
+	ED6D62FC118B81AB00A682F4 /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = ED6D6260118B5B9300A682F4 /* tophat.mk */;
+		name = "tophat.mk: 1";
+		rLen = 0;
+		rLoc = 0;
+		rType = 0;
+		vrLen = 2744;
+		vrLoc = 0;
+	};
+	ED6D62FD118B81AB00A682F4 /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = ED6D6252118B5B6B00A682F4 /* tophat.py */;
+		name = "tophat.py: 1593";
+		rLen = 0;
+		rLoc = 68040;
+		rType = 0;
+		vrLen = 2424;
+		vrLoc = 67445;
+	};
+	ED6D62FE118B81AB00A682F4 /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = ED6D6259118B5B8C00A682F4 /* configure.ac */;
+		name = "configure.ac: 103";
+		rLen = 0;
+		rLoc = 3045;
+		rType = 0;
+		vrLen = 1294;
+		vrLoc = 2570;
+	};
+	ED6D67E5118D0ED000A682F4 /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = ED6D6255118B5B7300A682F4 /* Makefile.am */;
+		name = "Makefile.am: 142";
+		rLen = 0;
+		rLoc = 5046;
+		rType = 0;
+		vrLen = 699;
+		vrLoc = 4457;
+	};
+	ED6D67E6118D0ED000A682F4 /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = ED6D6251118B5B6B00A682F4 /* tophat_reports.cpp */;
+		name = "tophat_reports.cpp: 1";
+		rLen = 0;
+		rLoc = 0;
+		rType = 0;
+		vrLen = 663;
+		vrLoc = 0;
+	};
+	ED6D67E7118D0ED000A682F4 /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = ED6D6251118B5B6B00A682F4 /* tophat_reports.cpp */;
+		name = "tophat_reports.cpp: 317";
+		rLen = 158;
+		rLoc = 6392;
+		rType = 0;
+		vrLen = 694;
+		vrLoc = 4672;
+	};
+}
