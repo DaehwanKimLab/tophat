@@ -40,11 +40,13 @@ AM_PATH_PYTHON([2.4])
 
 # set CFLAGS and CXXFLAGS
 user_CFLAGS="${CXXFLAGS}"
-generic_CFLAGS="-Wall -g"
+generic_CFLAGS="-Wall"
 ext_CFLAGS=""
-debug_CFLAGS=""
+debug_CFLAGS="-g"
 #echo "${host_cpu}-${host_os}"
 case "${host_cpu}-${host_os}" in
+   i*86-*linux*)
+    ext_CFLAGS="-march=i686";;
    i*86-darwin*)
     AC_ARG_ENABLE(universal, [  --enable-universal      enable universal binary (Intel Apple only)],
 				  [is_uni=1], [is_uni=0])
