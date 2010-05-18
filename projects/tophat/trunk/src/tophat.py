@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 # encoding: utf-8
 """
 tophat.py
@@ -91,13 +92,12 @@ output_dir = "./tophat_out/"
 logging_dir = output_dir + "logs/"
 run_log = None
 run_cmd = None
-
+fasta_linebuf  = "" # buffer for fa_ungetline(), checked by fa_getline() before reading from file
+fasta_lastline = "" # last line read by fa_getline()
 tmp_dir = output_dir + "tmp/"
 bin_dir = sys.path[0] + "/"
-
 #ok_str = "\t\t\t\t[OK]\n"
 fail_str = "\t[FAILED]\n"
-
 
 # TopHatParams captures all of the runtime paramaters used by TopHat, and many
 # of these are passed as command line options to exectubles run by the pipeline
@@ -682,6 +682,116 @@ def check_bowtie():
     print >> sys.stderr, "\tBowtie version:\t\t %s" % ".".join([str(x) for x in bowtie_version])
         
 
+
+def fq_next(f, fname):
+   '''
+   basic fastq record iterator  
+   as a function returning a tuple: (seqID, sequence_string, qv_string, seq_len)
+   '''
+   seqid,seqstr,qstr,seq_len='','','',0
+   fline=f.readline #shortcut to save a bit of time
+   line=fline()
+   if not line : return (seqid, seqstr,qstr,seq_len)
+   while len(line.rstrip())==0: # skip empty lines
+      line=fline()
+      if not line : return (seqid, seqstr,qstr,seq_len)
+   try:
+       if line[0] != "@":
+          raise ValueError("Records in Fastq files should start with '@' character")
+       seqid = line[1:].rstrip()
+       seqstr = fline().rstrip()
+       #There may now be more sequence lines, or the "+" quality marker line:
+       while True:
+          line = fline()
+          if not line:
+             raise ValueError("Premature end of file (missing quality values for "+seqid+")")
+          if line[0] == "+":
+             #sequence string ended  
+             qtitle = line[1:].rstrip()
+             if qtitle and qtitle != seqid:
+                raise ValueError("Different read ID for sequence and quality (%s vs %s)" \
+                                 % (seqid, qtitle))
+             break
+          seqstr += line.rstrip() #removes trailing newlines
+          #loop until + found
+       seq_len = len(seqstr)
+       #at least one line of quality data should follow  
+       qstrlen=0  
+       #now read next lines as quality values until seq_len is reached  
+       while True:
+          line=fline()
+          if not line : break #end of file  
+          qstr += line.rstrip()
+          qstrlen=len(qstr)  
+          if qstrlen >= seq_len:  
+               break # qv string has reached the length of seq string
+          #loop until qv has the same length as seq  
+       if seq_len != qstrlen:
+          raise ValueError("Length mismatch between sequence and quality strings "+ \
+                           "for %s (%i vs %i)." \
+                           % (seqid, seq_len, qstrlen))
+   except ValueError, err:
+        print >> sys.stderr, "\nError encountered parsing file "+fname+":\n "+str(err)
+        sys.exit(1)
+   #return the record  
+   return (seqid, seqstr, qstr, seq_len)
+
+def fa_getline(fline):
+    global fasta_linebuf, fasta_lastline
+    if fasta_linebuf:
+        fasta_lastline=fasta_linebuf
+        fasta_linebuf=''
+        return fasta_lastline
+    fasta_lastline=fline()
+    return fasta_lastline
+
+def fa_ungetline():
+    global fasta_linebuf, fasta_lastline
+    fasta_linebuf=fasta_lastline;
+    return fasta_lastline
+
+def fa_init(f):
+    global fasta_linebuf, fasta_lastline
+    f.seek(0)
+    fasta_linebuf=''
+    fasta_lastline=''
+    
+def fa_next(f, fname):
+   '''
+   basic fasta record iterator  
+   implemented as a function returning a tuple: (seqID, sequence_string, seq_len)
+   '''
+   seqid,seqstr,seq_len='','',0
+   fline=f.readline # shortcut to readline function of f
+   line=fa_getline(fline) # this will use the buffer line if it's there
+   if not line : return (seqid, seqstr, seq_len)
+   while len(line.rstrip())==0: # skip empty lines
+      line=fline()
+      if not line : return (seqid, seqstr,qstr,seq_len)
+   try:
+       if line[0] != ">":
+          raise ValueError("Records in Fasta files should start with '>' character")
+       seqid = line[1:].split()[0]
+       #more sequence lines, or the ">" quality marker line:
+       while True:
+          line = fa_getline(fline)
+          if not line: break
+          if line[0] == '>':
+             #next sequence starts here  
+             fa_ungetline()
+             break
+          seqstr += line.rstrip()
+          #loop until '>' found
+       seq_len = len(seqstr)
+       if seq_len < 3:
+          raise ValueError("Read %s too short (%i)." \
+                           % (seqid, seq_len))
+   except ValueError, err:
+        print >> sys.stderr, "\nError encountered parsing fasta file "+fname+":\n "+str(err)
+        sys.exit(1)
+   #Return the record and then continue...  
+   return (seqid, seqstr, seq_len)
+
 # NEEDS REFACTORING
 # check_reads() has several jobs.  It examines the user's reads, one file at a 
 # time, and determines the file format, read length, and other properties that 
@@ -719,27 +829,24 @@ def check_reads(params, reads_files):
         f.seek(0)
         line_num = 0
         if format == "fastq":
-            for line in f:
-                if line_num % 4 == 1:
-                    seq_len = len(line) - 1
-                    if seq_len < 20:
-                        print >> sys.stderr, "Warning: found a read < 20bp in", f_name
-                    else:
-                        min_seed_len = min(seq_len, min_seed_len)                
-                elif line_num % 4 == 3:
-                    max_line_qual = max([ord(x) for x in list(line.strip())])
-                    max_qual = max(max_line_qual, max_qual)
-                line_num += 1
-
+            while True:
+              seqid, seqstr, qstr, seq_len = fq_next(f, f_name)
+              if not seqid: break
+              if seq_len < 20:
+                  print >> sys.stderr, "Warning: found a read < 20bp in", f_name
+              else:
+                  min_seed_len = min(seq_len, min_seed_len)
+              max_line_qual = max([ord(x) for x in list(qstr)])
+              max_qual = max(max_line_qual, max_qual)   
         elif format == "fasta":
-            for line in f:
-                if line_num % 2 == 1:
-                    seq_len = len(line) - 1
-                    if seq_len < 20:
-                        print >> sys.stderr, "Warning: found a read < 20bp in", f_name
-                    else:
-                        min_seed_len = min(seq_len, min_seed_len)
-                line_num += 1
+            fa_init(f)
+            while True:
+                seqid, seqstr, seq_len = fa_next(f,f_name)
+                if not seqid: break
+                if seq_len < 20:
+                     print >> sys.stderr, "Warning: found a read < 20bp in", f_name
+                else:
+                     min_seed_len = min(seq_len, min_seed_len)
             
     if len(observed_formats) > 1:
         print >> sys.stderr, "Error: TopHat requires all reads be either FASTQ or FASTA.  Mixing formats is not supported."
@@ -800,7 +907,8 @@ def prep_reads(params, reads_list, output_name):
     
     filter_log = open(logging_dir + "prep_reads.log", "w")
     
-    filter_cmd = [bin_dir + "prep_reads"]
+    # filter_cmd = [bin_dir + "prep_reads"]
+    filter_cmd = [prog_path("prep_reads")]
     filter_cmd.extend(params.cmd())
     if params.read_params.reads_format == "fastq":
         filter_cmd += ["--fastq"]
@@ -872,8 +980,8 @@ def bowtie(params,
         
         bowtie_proc = subprocess.Popen(bowtie_cmd, stdout=subprocess.PIPE, stderr=bwt_log)
         
-        fix_map_cmd = [bin_dir + "fix_map_ordering"]
-        
+        # fix_map_cmd = [bin_dir + "fix_map_ordering"]
+        fix_map_cmd = [prog_path("fix_map_ordering")]
         if reads_format == "fastq":
             fix_map_cmd += ["--fastq"]
         elif reads_format == "fasta":
@@ -925,7 +1033,8 @@ def get_gff_juncs(gff_annotation):
     gff_juncs_out_name  = output_dir + gff_prefix + ".juncs"
     gff_juncs_out = open(gff_juncs_out_name, "w")
     
-    gff_juncs_cmd = [bin_dir + "gff_juncs", gff_annotation]            
+    #gff_juncs_cmd = [bin_dir + "gff_juncs", gff_annotation]
+    gff_juncs_cmd=[prog_path("gff_juncs"), gff_annotation]                 
     try:    
         print >> run_log, " ".join(gff_juncs_cmd)
         retcode = subprocess.call(gff_juncs_cmd, 
@@ -985,8 +1094,8 @@ def build_juncs_index(min_anchor_length,
     external_splices_out_name = external_splices_out_prefix + ".fa"
     
     external_splices_out = open(external_splices_out_name, "w")
-    
-    juncs_db_cmd = [bin_dir + "juncs_db", 
+    # juncs_db_cmd = [bin_dir + "juncs_db",
+    juncs_db_cmd = [prog_path("juncs_db"), 
                     str(min_anchor_length),
                     str(read_length),
                     juncs_file_list,
@@ -1050,7 +1159,11 @@ def compile_reports(params, left_maps, left_reads, right_maps, right_reads, gff_
     junctions = "junctions.bed"
     coverage =  "coverage.wig"
     accepted_hits = "accepted_hits.sam"
-    report_cmd = [bin_dir + "tophat_reports"]
+    report_cmdpath = which("tophat_reports")
+    if report_cmdpath == None:
+        print >> sys.stderr, err_find_prog+"tophat_reports"
+        sys.exit(1)
+    report_cmd = [report_cmdpath]
     report_cmd.extend(params.cmd())
         
     report_cmd.extend([junctions,
@@ -1093,7 +1206,7 @@ def compile_reports(params, left_maps, left_reads, right_maps, right_reads, gff_
         print >> run_log, "mv %s %s" % (sorted_map, output_dir + accepted_hits)
         os.rename(sorted_map_name, output_dir + accepted_hits) 
         
-        wig_cmd = [bin_dir + "wiggles", output_dir + accepted_hits, output_dir + coverage]
+        wig_cmd = [prog_path("wiggles"), output_dir + accepted_hits, output_dir + coverage]
         print >> run_log, " ".join(wig_cmd)
         subprocess.call(wig_cmd,
                         stderr=open("/dev/null"))
@@ -1212,7 +1325,8 @@ def junctions_from_closures(params,
     juncs_out += "closure.juncs"
 
     juncs_log = open(logging_dir + "closure.log", "w")
-    juncs_cmd = [bin_dir + "closure_juncs"]
+    juncs_cmdpath=prog_path("closure_juncs")
+    juncs_cmd = [juncs_cmdpath]
 
     # if reads_format == "fastq":
     #     align_cmd += ["-q"]
@@ -1264,7 +1378,7 @@ def junctions_from_segments(params,
     
     left_maps = ','.join(left_seg_maps)
     align_log = open(logging_dir + "segment_juncs.log", "w")
-    align_cmd = [bin_dir + "segment_juncs"]
+    align_cmd = [prog_path("segment_juncs")]
     
     align_cmd.extend(params.cmd())
     
@@ -1307,7 +1421,7 @@ def join_mapped_segments(params,
     possible_juncs = ','.join(possible_juncs)
     
     align_log = open(logging_dir + "long_spanning_reads.log", "w")
-    align_cmd = [bin_dir + "long_spanning_reads"]
+    align_cmd = [prog_path("long_spanning_reads")]
     
     # if params.read_params.reads_format == "fastq":
     #     align_cmd += ["-q"]
@@ -1589,6 +1703,32 @@ def spliced_alignment(params,
                           
         maps[reads] = [mapped_reads]
     return maps
+
+# rough equivalent of the 'which' command to find external programs
+# (current script path is tested first, then PATH envvar)
+def which(program):
+    def is_executable(fpath):
+        return os.path.exists(fpath) and os.access(fpath, os.X_OK)
+    fpath, fname = os.path.split(program)
+    if fpath:
+        if is_executable(program):
+            return program
+    else:
+        progpath = os.path.join(bin_dir, program); 
+        if is_executable(progpath):
+           return progpath
+        for path in os.environ["PATH"].split(os.pathsep):
+           progpath = os.path.join(path, program)
+           if is_executable(progpath):
+              return progpath
+    return None
+
+def prog_path(program):
+    progpath=which(program)
+    if progpath == None:
+        print >> sys.stderr, "Error locating program: ", program
+        sys.exit(1)
+    return progpath
 
 # FIXME: this should get set during the make dist autotools phase of the build
 def get_version():
