@@ -41,19 +41,21 @@ void extract_reads(FILE *fa, const READSET& selected_reads)
 	int num_reads = 0;
 	int reads_examined = 0;
 	Read read;
-	while(!feof(fa))
+	FLineReader fr(fa);
+	//while(!feof(fa))
+	while(!fr.isEof())
 	{
 		read.clear();
 		
 		// Get the next read from the file
 		if (format == FASTA)
 		{
-			if (!next_fasta_record(fa, read.name, read.seq))
+			if (!next_fasta_record(fr, read.name, read.seq))
 				break;
 		}
 		else if (format == FASTQ)
 		{
-			if (!next_fastq_record(fa, read.name, read.seq, read.alt_name, read.qual))
+			if (!next_fastq_record(fr, read.name, read.seq, read.alt_name, read.qual))
 				break;
 		}
 		reads_examined++;

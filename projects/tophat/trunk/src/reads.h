@@ -40,8 +40,6 @@ struct Read
 	}
 };
 
-bool next_fasta_record(FILE* fp, string& defline, string& seq);
-bool next_fastq_record(FILE* fp, string& defline, string& seq, string& alt_name, string& qual);
 void reverse_complement(string& seq);
 
 class ReadTable;
@@ -54,5 +52,43 @@ bool get_read_from_stream(uint64_t insert_id,
 						  char read_seq  [],
 						  char read_alt_name [],
 						  char read_qual []);
+
+class FLineReader { //simple text line reader class, buffering last line read
+  int len;
+  int allocated;
+  char* buf;
+  bool isEOF;
+  FILE* file;
+  bool pushed; //pushed back
+  int lcount; //counting all lines read by the object
+public:
+  char* chars() { return buf; }
+  char* line() { return buf; }
+  int readcount() { return lcount; } //number of lines read
+  int length() { return len; } //length of the last line read
+  bool isEof() {return isEOF; }
+  char* nextLine();
+  void pushBack() { if (lcount>0) pushed=true; } // "undo" the last getLine request
+           // so the next call will in fact return the same line
+  FLineReader(FILE* stream=NULL) {
+    len=0;
+    isEOF=false;
+    allocated=512;
+    buf=(char*)malloc(allocated);
+    lcount=0;
+    buf[0]=0;
+    file=stream;
+    pushed=false;
+    }
+  ~FLineReader() {
+    free(buf);
+    }
+};
+/*
+bool next_fasta_record(FILE* fp, string& defline, string& seq);
+bool next_fastq_record(FILE* fp, string& defline, string& seq, string& alt_name, string& qual);
+*/
+bool next_fasta_record(FLineReader& fr, string& defline, string& seq);
+bool next_fastq_record(FLineReader& fr, string& defline, string& seq, string& alt_name, string& qual);
 
 #endif

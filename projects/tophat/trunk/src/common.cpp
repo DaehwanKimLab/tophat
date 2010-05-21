@@ -300,3 +300,17 @@ int parse_options(int argc, char** argv, void (*print_usage)())
 	
     return 0;
 }
+
+
+// Error routine (prints error message and exits!)
+void err_exit(const char* format,...){
+    va_list arguments;
+    va_start(arguments,format);
+    vfprintf(stderr,format,arguments);
+    va_end(arguments);
+    #ifdef DEBUG
+     // trigger a core dump for later inspection
+     abort();
+    #endif
+    exit(1);
+  }

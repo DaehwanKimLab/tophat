@@ -477,20 +477,21 @@ void count_read_mers(FILE* reads_file, size_t half_splice_mer_len)
 	size_t splice_mer_len = 2 * half_splice_mer_len;
 	size_t mer_table_size = 1 << ((splice_mer_len)<<1);
 	extension_counts.resize(mer_table_size);
-
-	while(!feof(reads_file))
+    FLineReader fr(reads_file);
+	//while(!feof(reads_file))
+    while (!fr.isEof())
 	{
 		read.clear();
 		
 		// Get the next read from the file
 		if (reads_format == FASTA)
 		{
-			if (!next_fasta_record(reads_file, read.name, read.seq))
+			if (!next_fasta_record(fr, read.name, read.seq))
 				break;
 		}
 		else if (reads_format == FASTQ)
 		{
-			if (!next_fastq_record(reads_file, read.name, read.seq, read.alt_name, read.qual))
+			if (!next_fastq_record(fr, read.name, read.seq, read.alt_name, read.qual))
 				break;
 		}
 		
@@ -560,20 +561,21 @@ void store_read_mers(FILE* reads_file, size_t half_splice_mer_len)
 	extensions.resize(mer_table_size);
 	
 	size_t num_indexed_reads = 0;
-	
-	while(!feof(reads_file))
+	FLineReader fr(reads_file);
+	//while(!feof(reads_file))
+	while(!fr.isEof())
 	{
 		read.clear();
 		
 		// Get the next read from the file
 		if (reads_format == FASTA)
 		{
-			if (!next_fasta_record(reads_file, read.name, read.seq))
+			if (!next_fasta_record(fr, read.name, read.seq))
 				break;
 		}
 		else if (reads_format == FASTQ)
 		{
-			if (!next_fastq_record(reads_file, read.name, read.seq, read.alt_name, read.qual))
+			if (!next_fastq_record(fr, read.name, read.seq, read.alt_name, read.qual))
 				break;
 		}
 		

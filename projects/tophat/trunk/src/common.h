@@ -63,5 +63,7 @@ extern bool phred64_quals;
 int parseInt(int lower, const char *errmsg, void (*print_usage)());
 int parse_options(int argc, char** argv, void (*print_usage)());
 
+void err_exit(const char* format,...); // exit with an error
+
 
 #endif
