@@ -46,20 +46,22 @@ void filter_garbage_reads(vector<FILE*> reads_files)
 	{
 		Read read;
 		FILE* fa = reads_files[fi];
-		while(!feof(fa))
+		FLineReader fr(fa);
+		//while(!feof(fa))
+		while (!fr.isEof())
 		{
 			read.clear();
 			
 			// Get the next read from the file
 			if (reads_format == FASTA)
 			{
-				if (!next_fasta_record(fa, read.name, read.seq))
+				if (!next_fasta_record(fr, read.name, read.seq))
 					break;
 			}
 			else if (reads_format == FASTQ)
 			{
 				string orig_qual;
-				if (!next_fastq_record(fa, read.name, read.seq, read.alt_name, orig_qual))
+				if (!next_fastq_record(fr, read.name, read.seq, read.alt_name, orig_qual))
 					break;
 				format_qual_string(orig_qual, read.qual);
 			}
@@ -176,6 +178,7 @@ int main(int argc, char *argv[])
     }
 	
 	// Only print to standard out the good reads
+    //TODO: a better, more generic read filtering protocol
 	filter_garbage_reads(reads_files);
 	
 	return 0;
