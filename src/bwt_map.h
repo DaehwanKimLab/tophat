@@ -313,29 +313,28 @@ public:
 		return _id;
 	}
 	
-	// You must call invert() before using this function
-	const char* get_name(uint32_t ID)
+	const char* get_name(uint32_t ID) const
 	{
-		InvertedIDTable::iterator itr = _by_id.find(ID);
+		InvertedIDTable::const_iterator itr = _by_id.find(ID);
 		if (itr != _by_id.end())
 			return itr->second.name;
 		else
 			return NULL;
 	}
 	
-	Sequence* get_seq(uint32_t ID) 
+	Sequence* get_seq(uint32_t ID) const
 	{
-		InvertedIDTable::iterator itr = _by_id.find(ID);
+		InvertedIDTable::const_iterator itr = _by_id.find(ID);
 		if (itr != _by_id.end())
 			return itr->second.seq;
 		else
 			return NULL;
 	}
 	
-	const SequenceInfo* get_info(uint32_t ID)
+	const SequenceInfo* get_info(uint32_t ID) const
 	{
 		
-		InvertedIDTable::iterator itr = _by_id.find(ID);
+		InvertedIDTable::const_iterator itr = _by_id.find(ID);
 		if (itr != _by_id.end())
 		{
 			return &(itr->second);
@@ -344,9 +343,9 @@ public:
 			return NULL;
 	}
 	
-	int observation_order(uint32_t ID)
+	int observation_order(uint32_t ID) const
 	{
-		InvertedIDTable::iterator itr = _by_id.find(ID);
+		InvertedIDTable::const_iterator itr = _by_id.find(ID);
 		if (itr != _by_id.end())
 		{
 			return itr->second.observation_order;
