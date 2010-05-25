@@ -1,0 +1,6 @@
+gene_id	transcript_id	FPKM	rho	read_cov	phys_cov
+CUFF.1	isoformA	0	0.145406	0	0
+CUFF.1	isoformB	0	0.127172	0	0
+CUFF.3	isoformC	0	0.172819	0	0
+CUFF.1	isoformA	990099	0.334161	0	0.0049505
+CUFF.1	isoformB	793651	0.220441	0	0.00396825
