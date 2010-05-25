@@ -6,6 +6,25 @@
 	objectVersion = 42;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		ED74232B11AC6617007FBF56 /* alphabet.c in Sources */ = {isa = PBXBuildFile; fileRef = ED6D622D118B5B5800A682F4 /* alphabet.c */; };
+		ED74232C11AC6617007FBF56 /* bwt_map.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D6231118B5B5800A682F4 /* bwt_map.cpp */; };
+		ED74232D11AC6617007FBF56 /* common.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D6235118B5B5800A682F4 /* common.cpp */; };
+		ED74232E11AC6617007FBF56 /* fragments.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D623A118B5B5800A682F4 /* fragments.cpp */; };
+		ED74232F11AC6617007FBF56 /* inserts.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D623F118B5B6300A682F4 /* inserts.cpp */; };
+		ED74233011AC6617007FBF56 /* junctions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D6242118B5B6300A682F4 /* junctions.cpp */; };
+		ED74233111AC6617007FBF56 /* qual.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D6248118B5B6300A682F4 /* qual.cpp */; };
+		ED74233211AC6617007FBF56 /* reads.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D624A118B5B6300A682F4 /* reads.cpp */; };
+		ED74233311AC6617007FBF56 /* tophat_reports.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D6251118B5B6B00A682F4 /* tophat_reports.cpp */; };
+		ED74233411AC6637007FBF56 /* genes.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D623C118B5B6300A682F4 /* genes.cpp */; };
+		ED74236F11AC6948007FBF56 /* fsa_alphabet.cc in Sources */ = {isa = PBXBuildFile; fileRef = ED74236511AC692C007FBF56 /* fsa_alphabet.cc */; };
+		ED74237011AC6948007FBF56 /* gff.cc in Sources */ = {isa = PBXBuildFile; fileRef = ED74236711AC692C007FBF56 /* gff.cc */; };
+		ED74237111AC6948007FBF56 /* misc.cc in Sources */ = {isa = PBXBuildFile; fileRef = ED74236911AC692C007FBF56 /* misc.cc */; };
+		ED74237211AC6948007FBF56 /* regexp.cc in Sources */ = {isa = PBXBuildFile; fileRef = ED74236B11AC692C007FBF56 /* regexp.cc */; };
+		ED74237311AC6948007FBF56 /* sequence.cc in Sources */ = {isa = PBXBuildFile; fileRef = ED74236D11AC692C007FBF56 /* sequence.cc */; };
+		ED74237611AC6953007FBF56 /* tokenize.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D624F118B5B6B00A682F4 /* tokenize.cpp */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		ED6D622D118B5B5800A682F4 /* alphabet.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = alphabet.c; path = src/alphabet.c; sourceTree = "<group>"; };
 		ED6D622E118B5B5800A682F4 /* alphabet.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = alphabet.h; path = src/alphabet.h; sourceTree = "<group>"; };
@@ -59,21 +78,44 @@
 		ED6D625E118B5B8C00A682F4 /* THANKS */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = THANKS; sourceTree = "<group>"; };
 		ED6D625F118B5B8C00A682F4 /* unbootstrap */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = unbootstrap; sourceTree = "<group>"; };
 		ED6D6260118B5B9300A682F4 /* tophat.mk */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = tophat.mk; path = config/tophat.mk; sourceTree = "<group>"; };
+		ED74232511AC65E1007FBF56 /* tophat_reports */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = tophat_reports; sourceTree = BUILT_PRODUCTS_DIR; };
+		ED74236511AC692C007FBF56 /* fsa_alphabet.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = fsa_alphabet.cc; sourceTree = "<group>"; };
+		ED74236611AC692C007FBF56 /* fsa_alphabet.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fsa_alphabet.h; sourceTree = "<group>"; };
+		ED74236711AC692C007FBF56 /* gff.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = gff.cc; sourceTree = "<group>"; };
+		ED74236811AC692C007FBF56 /* gff.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = gff.h; sourceTree = "<group>"; };
+		ED74236911AC692C007FBF56 /* misc.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = misc.cc; sourceTree = "<group>"; };
+		ED74236A11AC692C007FBF56 /* misc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = misc.h; sourceTree = "<group>"; };
+		ED74236B11AC692C007FBF56 /* regexp.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = regexp.cc; sourceTree = "<group>"; };
+		ED74236C11AC692C007FBF56 /* regexp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = regexp.h; sourceTree = "<group>"; };
+		ED74236D11AC692C007FBF56 /* sequence.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = sequence.cc; sourceTree = "<group>"; };
+		ED74236E11AC692C007FBF56 /* sequence.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = sequence.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		ED74232311AC65E1007FBF56 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		ED5C74D9118B5B0700397B5E = {
 			isa = PBXGroup;
 			children = (
 				ED6D622B118B5B3600A682F4 /* Source */,
+				ED74232611AC65E1007FBF56 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
 		ED6D622B118B5B3600A682F4 /* Source */ = {
 			isa = PBXGroup;
 			children = (
-				ED6D622D118B5B5800A682F4 /* alphabet.c */,
+				ED74236411AC692C007FBF56 /* FSA */,
 				ED6D622E118B5B5800A682F4 /* alphabet.h */,
+				ED6D622D118B5B5800A682F4 /* alphabet.c */,
 				ED6D622F118B5B5800A682F4 /* assert_helpers.h */,
 				ED6D6230118B5B5800A682F4 /* bed_to_juncs.py */,
 				ED6D6231118B5B5800A682F4 /* bwt_map.cpp */,
@@ -136,7 +178,52 @@
 			name = Autotools;
 			sourceTree = "<group>";
 		};
+		ED74232611AC65E1007FBF56 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				ED74232511AC65E1007FBF56 /* tophat_reports */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		ED74236411AC692C007FBF56 /* FSA */ = {
+			isa = PBXGroup;
+			children = (
+				ED74236511AC692C007FBF56 /* fsa_alphabet.cc */,
+				ED74236611AC692C007FBF56 /* fsa_alphabet.h */,
+				ED74236711AC692C007FBF56 /* gff.cc */,
+				ED74236811AC692C007FBF56 /* gff.h */,
+				ED74236911AC692C007FBF56 /* misc.cc */,
+				ED74236A11AC692C007FBF56 /* misc.h */,
+				ED74236B11AC692C007FBF56 /* regexp.cc */,
+				ED74236C11AC692C007FBF56 /* regexp.h */,
+				ED74236D11AC692C007FBF56 /* sequence.cc */,
+				ED74236E11AC692C007FBF56 /* sequence.h */,
+			);
+			name = FSA;
+			path = src/FSA;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		ED74232411AC65E1007FBF56 /* tophat_reports */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = ED74232A11AC65E3007FBF56 /* Build configuration list for PBXNativeTarget "tophat_reports" */;
+			buildPhases = (
+				ED74232211AC65E1007FBF56 /* Sources */,
+				ED74232311AC65E1007FBF56 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = tophat_reports;
+			productName = tophat_reports;
+			productReference = ED74232511AC65E1007FBF56 /* tophat_reports */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
 		ED5C74DB118B5B0700397B5E /* Project object */ = {
@@ -145,12 +232,40 @@
 			compatibilityVersion = "Xcode 2.4";
 			hasScannedForEncodings = 0;
 			mainGroup = ED5C74D9118B5B0700397B5E;
+			productRefGroup = ED74232611AC65E1007FBF56 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				ED74232411AC65E1007FBF56 /* tophat_reports */,
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		ED74232211AC65E1007FBF56 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				ED74237611AC6953007FBF56 /* tokenize.cpp in Sources */,
+				ED74236F11AC6948007FBF56 /* fsa_alphabet.cc in Sources */,
+				ED74237011AC6948007FBF56 /* gff.cc in Sources */,
+				ED74237111AC6948007FBF56 /* misc.cc in Sources */,
+				ED74237211AC6948007FBF56 /* regexp.cc in Sources */,
+				ED74237311AC6948007FBF56 /* sequence.cc in Sources */,
+				ED74233411AC6637007FBF56 /* genes.cpp in Sources */,
+				ED74232B11AC6617007FBF56 /* alphabet.c in Sources */,
+				ED74232C11AC6617007FBF56 /* bwt_map.cpp in Sources */,
+				ED74232D11AC6617007FBF56 /* common.cpp in Sources */,
+				ED74232E11AC6617007FBF56 /* fragments.cpp in Sources */,
+				ED74232F11AC6617007FBF56 /* inserts.cpp in Sources */,
+				ED74233011AC6617007FBF56 /* junctions.cpp in Sources */,
+				ED74233111AC6617007FBF56 /* qual.cpp in Sources */,
+				ED74233211AC6617007FBF56 /* reads.cpp in Sources */,
+				ED74233311AC6617007FBF56 /* tophat_reports.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
 		ED5C74DC118B5B0700397B5E /* Debug */ = {
@@ -167,6 +282,42 @@
 			};
 			name = Release;
 		};
+		ED74232811AC65E3007FBF56 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COPY_PHASE_STRIP = NO;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_FIX_AND_CONTINUE = YES;
+				GCC_MODEL_TUNING = G5;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				HEADER_SEARCH_PATHS = (
+					./src/FSA,
+					./src/,
+					"./src/Seqan-1.1",
+				);
+				INSTALL_PATH = /usr/local/bin;
+				PREBINDING = NO;
+				PRODUCT_NAME = tophat_reports;
+				USER_HEADER_SEARCH_PATHS = "";
+			};
+			name = Debug;
+		};
+		ED74232911AC65E3007FBF56 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_ENABLE_FIX_AND_CONTINUE = NO;
+				GCC_MODEL_TUNING = G5;
+				INSTALL_PATH = /usr/local/bin;
+				PREBINDING = NO;
+				PRODUCT_NAME = tophat_reports;
+				ZERO_LINK = NO;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -175,6 +326,15 @@
 			buildConfigurations = (
 				ED5C74DC118B5B0700397B5E /* Debug */,
 				ED5C74DD118B5B0700397B5E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		ED74232A11AC65E3007FBF56 /* Build configuration list for PBXNativeTarget "tophat_reports" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				ED74232811AC65E3007FBF56 /* Debug */,
+				ED74232911AC65E3007FBF56 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

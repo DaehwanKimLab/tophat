@@ -9,7 +9,10 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
+#else
+#define PACKAGE_VERSION "INTERNAL"
 #endif
+
 
 #include <cassert>
 #include <cstdio>
@@ -114,12 +117,15 @@ void insert_best_alignments(const HitsForRead& left_hits,
 
 enum FragmentType {FRAG_UNPAIRED, FRAG_LEFT, FRAG_RIGHT};
 
-bool rewrite_sam_hit(const BowtieHit& bh,
+bool rewrite_sam_hit(const RefSequenceTable& rt,
+                     const BowtieHit& bh,
 					 const char* bwt_buf,
 					 char* rebuf, 
 					 char* read_alt_name,
 					 const FragmentAlignmentGrade& grade,
-					 FragmentType insert_side)
+					 FragmentType insert_side,
+                     int num_hits,
+                     const BowtieHit* next_hit)
 {
 	// Rewrite this hit, filling in the alt name, mate mapping
 	// and setting the pair flag
@@ -188,19 +194,47 @@ bool rewrite_sam_hit(const BowtieHit& bh,
 		strcat (rebuf, sam_toks[t].c_str());
 		if (t != sam_toks.size() - 1)
 			strcat(rebuf, "\t");
-		else
-			strcat(rebuf, "\n");
 	}
+    
+    char nh_buf[2048];
+    
+    sprintf(nh_buf, 
+            "\tNH:i:%d", 
+            num_hits);
+    
+    strcat(rebuf, nh_buf);
+    
+    if (next_hit)
+    {
+        const char* nh_ref_name = rt.get_name(next_hit->ref_id());
+        assert (nh_ref_name != NULL);
+        const char* curr_ref_name = rt.get_name(bh.ref_id());
+        assert (curr_ref_name != NULL);
+        
+        char mate_buf[2048];
+        bool same_contig = !strcmp(curr_ref_name, nh_ref_name);
+        
+        sprintf(mate_buf, 
+                "\tCC:Z:%s\tCP:i:%d", 
+                same_contig ? "=" : nh_ref_name, 
+                next_hit->left() + 1);
+        strcat(rebuf, mate_buf);
+    }
+    strcat(rebuf, "\n");
+    
 	return true;
 }
 
-bool rewrite_sam_hit(const BowtieHit& bh,
+bool rewrite_sam_hit(const RefSequenceTable& rt,
+                     const BowtieHit& bh,
 					 const char* bwt_buf,
 					 char* rebuf, 
 					 char* read_alt_name,
 					 const InsertAlignmentGrade& grade,
 					 FragmentType insert_side,
-					 const BowtieHit* partner)
+					 const BowtieHit* partner,
+                     int num_hits,
+                     const BowtieHit* next_hit)
 {
 	// Rewrite this hit, filling in the alt name, mate mapping
 	// and setting the pair flag
@@ -308,13 +342,43 @@ bool rewrite_sam_hit(const BowtieHit& bh,
 		strcat (rebuf, sam_toks[t].c_str());
 		if (t != sam_toks.size() - 1)
 			strcat(rebuf, "\t");
-		else
-			strcat(rebuf, "\n");
 	}
+    
+    char nh_buf[2048];
+    
+    sprintf(nh_buf, 
+            "\tNH:i:%d", 
+            num_hits);
+    
+    strcat(rebuf, nh_buf);
+    
+    
+    if (next_hit)
+    {
+        const char* nh_ref_name = rt.get_name(next_hit->ref_id());
+        assert (nh_ref_name != NULL);
+        const char* curr_ref_name = rt.get_name(bh.ref_id());
+        assert (curr_ref_name != NULL);
+        
+        char mate_buf[2048];
+        bool same_contig = !strcmp(curr_ref_name, nh_ref_name);
+        
+        assert (num_hits > 1);
+        
+        sprintf(mate_buf, 
+                "\tCC:Z:%s\tCP:i:%d",
+                same_contig ? "=" : nh_ref_name, 
+                next_hit->left() + 1);
+        
+        strcat(rebuf, mate_buf);
+    }
+    strcat(rebuf, "\n");
+    
 	return true;
 }
 
-void print_sam_for_hits(const HitsForRead& hits,
+void print_sam_for_hits(const RefSequenceTable& rt,
+                        const HitsForRead& hits,
 						const FragmentAlignmentGrade& grade,
 						FragmentType frag_type,
 						FILE* reads_file,
@@ -327,7 +391,10 @@ void print_sam_for_hits(const HitsForRead& hits,
 	char read_quals[buf_size];
 	
 	char rebuf[buf_size];
-	
+    
+	HitsForRead sorted_hits = hits;
+    sort(sorted_hits.hits.begin(), sorted_hits.hits.end());
+    
 	bool got_read = get_read_from_stream(hits.insert_id, 
 										 reads_file,
 										 reads_format,
@@ -339,15 +406,26 @@ void print_sam_for_hits(const HitsForRead& hits,
 	
 	assert (got_read);
 	
-	for (size_t i = 0; i < hits.hits.size(); ++i)
+	for (size_t i = 0; i < sorted_hits.hits.size(); ++i)
 	{
-		const BowtieHit& bh = hits.hits[i];
-		if (rewrite_sam_hit(bh, bh.hitfile_rec().c_str(), rebuf, read_alt_name, grade, frag_type))
+		const BowtieHit& bh = sorted_hits.hits[i];
+		if (rewrite_sam_hit(rt, 
+                            bh, 
+                            bh.hitfile_rec().c_str(), 
+                            rebuf, 
+                            read_alt_name, 
+                            grade, 
+                            frag_type,
+                            sorted_hits.hits.size(),
+                            (i < sorted_hits.hits.size() - 1) ? &(sorted_hits.hits[i+1]) : NULL))
+        {
 			fprintf(fout, "%s", rebuf);
+        }
 	}
 }
 
-void print_sam_for_hits(const HitsForRead& left_hits,
+void print_sam_for_hits(const RefSequenceTable& rt,
+                        const HitsForRead& left_hits,
 						const HitsForRead& right_hits,
 						const InsertAlignmentGrade& grade,
 						FILE* left_reads_file,
@@ -369,7 +447,13 @@ void print_sam_for_hits(const HitsForRead& left_hits,
 	char right_read_quals[buf_size];
 	char right_rebuf[buf_size];
 	
-	bool got_left_read = get_read_from_stream(left_hits.insert_id, 
+    HitsForRead left_sorted_hits = left_hits;
+    sort(left_sorted_hits.hits.begin(), left_sorted_hits.hits.end());
+    
+    HitsForRead right_sorted_hits = right_hits;
+    sort(right_sorted_hits.hits.begin(), right_sorted_hits.hits.end());
+    
+	bool got_left_read = get_read_from_stream(left_sorted_hits.insert_id, 
 											  left_reads_file,
 											  reads_format,
 											  false,
@@ -378,7 +462,7 @@ void print_sam_for_hits(const HitsForRead& left_hits,
 											  left_read_alt_name,
 											  left_read_quals);
 	
-	bool got_right_read = get_read_from_stream(right_hits.insert_id, 
+	bool got_right_read = get_read_from_stream(right_sorted_hits.insert_id, 
 											   right_reads_file,
 											   reads_format,
 											   false,
@@ -387,66 +471,78 @@ void print_sam_for_hits(const HitsForRead& left_hits,
 											   right_read_alt_name,
 											   right_read_quals);
 	
-	assert (left_hits.hits.size() == right_hits.hits.size() ||
-			(left_hits.hits.empty() || right_hits.hits.empty()));
+	assert (left_sorted_hits.hits.size() == right_sorted_hits.hits.size() ||
+			(left_sorted_hits.hits.empty() || right_sorted_hits.hits.empty()));
 	
-	if (left_hits.hits.size() == right_hits.hits.size())
+	if (left_sorted_hits.hits.size() == right_sorted_hits.hits.size())
 	{
 		assert (got_left_read && got_right_read);
-		for (size_t i = 0; i < right_hits.hits.size(); ++i)
+		for (size_t i = 0; i < right_sorted_hits.hits.size(); ++i)
 		{
-			const BowtieHit& right_bh = right_hits.hits[i];
-			if (rewrite_sam_hit(right_bh, 
+			const BowtieHit& right_bh = right_sorted_hits.hits[i];
+			if (rewrite_sam_hit(rt,
+                                right_bh, 
 								right_bh.hitfile_rec().c_str(), 
 								right_rebuf, 
 								right_read_alt_name, 
 								grade, 
 								FRAG_RIGHT, 
-								&left_hits.hits[i]))
-			{
+								&left_sorted_hits.hits[i],
+                                right_sorted_hits.hits.size(),
+                                (i < right_sorted_hits.hits.size() - 1) ? &(right_sorted_hits.hits[i+1]) : NULL))
+            {
 				fprintf(fout, "%s", right_rebuf);
 			}
 			
-			const BowtieHit& left_bh = left_hits.hits[i];
-			if (rewrite_sam_hit(left_bh, 
+			const BowtieHit& left_bh = left_sorted_hits.hits[i];
+			if (rewrite_sam_hit(rt,
+                                left_bh, 
 								left_bh.hitfile_rec().c_str(), 
 								left_rebuf, 
 								left_read_alt_name, 
 								grade, 
 								FRAG_LEFT, 
-								&right_hits.hits[i]))
+								&right_sorted_hits.hits[i],
+                                left_sorted_hits.hits.size(),
+                                (i < left_sorted_hits.hits.size() - 1) ? &(left_sorted_hits.hits[i+1]) : NULL))
 			{
 				fprintf(fout, "%s", left_rebuf);
 			}
 		}
 	}
-	else if (left_hits.hits.empty())
+	else if (left_sorted_hits.hits.empty())
 	{
-		for (size_t i = 0; i < right_hits.hits.size(); ++i)
+		for (size_t i = 0; i < right_sorted_hits.hits.size(); ++i)
 		{
-			const BowtieHit& bh = right_hits.hits[i];
-			if (rewrite_sam_hit(bh, 
+			const BowtieHit& bh = right_sorted_hits.hits[i];
+			if (rewrite_sam_hit(rt,
+                                bh, 
 								bh.hitfile_rec().c_str(), 
 								right_rebuf, 
 								right_read_alt_name, 
 								grade, 
 								FRAG_RIGHT, 
-								NULL))
+								NULL,
+                                right_sorted_hits.hits.size(),
+                                (i < right_sorted_hits.hits.size() - 1) ? &(right_sorted_hits.hits[i+1]) : NULL))
 				fprintf(fout, "%s", right_rebuf);
 		}
 	}
-	else if (right_hits.hits.empty())
+	else if (right_sorted_hits.hits.empty())
 	{
-		for (size_t i = 0; i < left_hits.hits.size(); ++i)
+		for (size_t i = 0; i < left_sorted_hits.hits.size(); ++i)
 		{
-			const BowtieHit& bh = left_hits.hits[i];
-			if (rewrite_sam_hit(bh, 
+			const BowtieHit& bh = left_sorted_hits.hits[i];
+			if (rewrite_sam_hit(rt,
+                                bh, 
 								bh.hitfile_rec().c_str(), 
 								left_rebuf, 
 								left_read_alt_name, 
 								grade, 
 								FRAG_LEFT, 
-								NULL))
+								NULL,
+                                left_sorted_hits.hits.size(),
+                                (i < left_sorted_hits.hits.size() - 1) ? &(left_sorted_hits.hits[i+1]) : NULL))
 				fprintf(fout, "%s", left_rebuf);
 		}
 	}
@@ -721,7 +817,8 @@ void driver(FILE* left_map,
 			
 			update_junctions(best_hits, final_junctions);
 			
-			print_sam_for_hits(best_hits, 
+			print_sam_for_hits(rt,
+                               best_hits, 
 							   grade,
 							   right_map ? FRAG_LEFT : FRAG_UNPAIRED,
 							   left_reads, 
@@ -747,7 +844,8 @@ void driver(FILE* left_map,
 			
 			update_junctions(best_hits, final_junctions);
 			
-			print_sam_for_hits(best_hits, 
+			print_sam_for_hits(rt,
+                               best_hits, 
 							   grade, 
 							   FRAG_RIGHT,
 							   right_reads, 
@@ -776,7 +874,8 @@ void driver(FILE* left_map,
 				
 				update_junctions(right_best_hits, final_junctions);
 				
-				print_sam_for_hits(right_best_hits, 
+				print_sam_for_hits(rt,
+                                   right_best_hits, 
 								   grade, 
 								   FRAG_RIGHT,
 								   right_reads, 
@@ -793,7 +892,8 @@ void driver(FILE* left_map,
 				
 				update_junctions(left_best_hits, final_junctions);
 				
-				print_sam_for_hits(left_best_hits, 
+				print_sam_for_hits(rt,
+                                   left_best_hits, 
 								   grade,
 								   FRAG_LEFT,
 								   left_reads, 
@@ -816,7 +916,8 @@ void driver(FILE* left_map,
 				update_junctions(left_best_hits, final_junctions);
 				update_junctions(right_best_hits, final_junctions);
 				
-				print_sam_for_hits(left_best_hits,
+				print_sam_for_hits(rt,
+                                   left_best_hits,
 								   right_best_hits,
 								   grade,
 								   left_reads, 

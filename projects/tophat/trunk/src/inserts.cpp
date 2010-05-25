@@ -40,7 +40,7 @@ bool InsertAlignmentGrade::operator<(const InsertAlignmentGrade& rhs)
 			return true;
 		
 		// Prefer closer mates
-		if (inner_dist < rhs.inner_dist)
+		if (rhs.inner_dist < inner_dist)
 			return true;
 		
 		// Prefer shorter introns
@@ -57,18 +57,18 @@ bool InsertAlignmentGrade::operator<(const InsertAlignmentGrade& rhs)
 		// We prefer a singleton mapping to an insert with neither end mapped
 		if (num_mapped != rhs.num_mapped)
 		{
-			return num_mapped < rhs.num_mapped;
+			return num_mapped < rhs.num_mapped; // if RHS has MORE READS, RHS is BETTER (lhs < rhs)
 		}
 		else
 		{
 			if (rhs.num_spliced != num_spliced)
-				return rhs.num_spliced < num_spliced;
+				return rhs.num_spliced < num_spliced;// if RHS is LESS SPLICED, RHS is BETTER (lhs < rhs)
 			
 			// Prefer shorter introns
 			if (longest_ref_skip != rhs.longest_ref_skip)
-				return rhs.longest_ref_skip < longest_ref_skip;
+				return rhs.longest_ref_skip < longest_ref_skip; // if RHS intron is SHORTER, RHS is BETTER (lhs < rhs)
 			
-			return rhs.edit_dist < edit_dist;
+			return rhs.edit_dist < edit_dist; // if RHS edit is LOWER, RHS is BETTER (lhs < rhs)
 		}
 	}
 	return false;

@@ -808,9 +808,6 @@ void print_hit(FILE* fout,
 		fprintf(fout,
 				"\tXS:A:%c",
 				bh.antisense_splice() ? '-' : '+');
-		fprintf(fout,
-				"\tNS:i:%d",
-				bh.splice_mms());
 	}
 	
 	fprintf(fout, "\n");
