@@ -12,9 +12,11 @@
 #endif
 
 #include <iostream>
-
+#include <stdarg.h>
 #include <getopt.h>
+
 #include "common.h"
+
 
 using namespace std;
 
