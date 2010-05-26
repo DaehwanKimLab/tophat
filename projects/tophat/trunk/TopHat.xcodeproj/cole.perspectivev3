@@ -279,13 +279,12 @@
 							<key>PBXSmartGroupTreeModuleOutlineStateSelectionKey</key>
 							<array>
 								<array>
-									<integer>18</integer>
 									<integer>1</integer>
 									<integer>0</integer>
 								</array>
 							</array>
 							<key>PBXSmartGroupTreeModuleOutlineStateVisibleRectKey</key>
-							<string>{{0, 177}, {185, 664}}</string>
+							<string>{{0, 384}, {185, 664}}</string>
 						</dict>
 						<key>PBXTopSmartGroupGIDs</key>
 						<array/>
@@ -332,12 +331,11 @@
 										<key>_historyCapacity</key>
 										<integer>0</integer>
 										<key>bookmark</key>
-										<string>ED7423F411AC79A8007FBF56</string>
+										<string>ED74241311ACB874007FBF56</string>
 										<key>history</key>
 										<array>
 											<string>ED6D62FC118B81AB00A682F4</string>
 											<string>EDBBE79311A87E1D006AC14A</string>
-											<string>ED74233A11AC663B007FBF56</string>
 											<string>ED74233B11AC663B007FBF56</string>
 											<string>ED74233D11AC663B007FBF56</string>
 											<string>ED74234211AC66B7007FBF56</string>
@@ -347,7 +345,9 @@
 											<string>ED7423CC11AC7443007FBF56</string>
 											<string>ED7423F111AC79A8007FBF56</string>
 											<string>ED7423F211AC79A8007FBF56</string>
-											<string>ED7423F311AC79A8007FBF56</string>
+											<string>ED7423F911ACAEF4007FBF56</string>
+											<string>ED74240911ACB7F9007FBF56</string>
+											<string>ED74240A11ACB7F9007FBF56</string>
 										</array>
 									</dict>
 									<key>SplitCount</key>
@@ -664,7 +664,6 @@
 	<integer>5</integer>
 	<key>WindowOrderList</key>
 	<array>
-		<string>ED7423F511AC79A8007FBF56</string>
 		<string>ED7423C511AC7170007FBF56</string>
 		<string>ED7423C611AC7170007FBF56</string>
 		<string>/Users/cole/Data/Documents/CBCB/sr_mapping/RNA-seq/tophat/TopHat.xcodeproj</string>

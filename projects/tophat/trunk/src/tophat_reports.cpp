@@ -377,6 +377,18 @@ bool rewrite_sam_hit(const RefSequenceTable& rt,
 	return true;
 }
 
+struct lex_hit_sort
+{
+    lex_hit_sort(const RefSequenceTable& rt) : _rt(rt) {}
+    
+    bool operator()(const BowtieHit& lhs, const BowtieHit& rhs) const
+    {
+        return (strcmp(_rt.get_name(lhs.ref_id()), _rt.get_name(rhs.ref_id())) < 0);
+    }
+    
+    const RefSequenceTable& _rt;
+};
+
 void print_sam_for_hits(const RefSequenceTable& rt,
                         const HitsForRead& hits,
 						const FragmentAlignmentGrade& grade,
@@ -393,7 +405,8 @@ void print_sam_for_hits(const RefSequenceTable& rt,
 	char rebuf[buf_size];
     
 	HitsForRead sorted_hits = hits;
-    sort(sorted_hits.hits.begin(), sorted_hits.hits.end());
+    lex_hit_sort s(rt);
+    sort(sorted_hits.hits.begin(), sorted_hits.hits.end(), s);
     
 	bool got_read = get_read_from_stream(hits.insert_id, 
 										 reads_file,
@@ -447,11 +460,13 @@ void print_sam_for_hits(const RefSequenceTable& rt,
 	char right_read_quals[buf_size];
 	char right_rebuf[buf_size];
 	
+    lex_hit_sort s(rt);
+    
     HitsForRead left_sorted_hits = left_hits;
-    sort(left_sorted_hits.hits.begin(), left_sorted_hits.hits.end());
+    sort(left_sorted_hits.hits.begin(), left_sorted_hits.hits.end(), s);
     
     HitsForRead right_sorted_hits = right_hits;
-    sort(right_sorted_hits.hits.begin(), right_sorted_hits.hits.end());
+    sort(right_sorted_hits.hits.begin(), right_sorted_hits.hits.end(), s);
     
 	bool got_left_read = get_read_from_stream(left_sorted_hits.insert_id, 
 											  left_reads_file,
