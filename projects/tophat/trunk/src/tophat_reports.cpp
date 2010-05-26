@@ -383,7 +383,11 @@ struct lex_hit_sort
     
     bool operator()(const BowtieHit& lhs, const BowtieHit& rhs) const
     {
-        return (strcmp(_rt.get_name(lhs.ref_id()), _rt.get_name(rhs.ref_id())) < 0);
+        uint32_t l_id = lhs.ref_id();
+        uint32_t r_id = rhs.ref_id();
+        if (l_id != r_id)
+            return (strcmp(_rt.get_name(lhs.ref_id()), _rt.get_name(rhs.ref_id())) < 0);
+        return lhs.left() < rhs.left();
     }
     
     const RefSequenceTable& _rt;
