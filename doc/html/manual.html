@@ -1,0 +1,617 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>TopHat :: Center for Bioinformatics and Computational Biology</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<link rel="stylesheet" type="text/css" href="css/style.css" media="screen" />
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <div class="lefts">
+    <table width="100%" cellpadding="2">
+      <tr><td>
+        <a href="./index.html"><h1>TopHat</h1></a>
+        <h2>A spliced read mapper for RNA-Seq</h2>
+      </td><td align="right" valign="middle">
+        <h1><a href="http://www.cbcb.umd.edu/"><img border=0 src="images/cbcblogo.gif"></img></a>&nbsp;&nbsp;</h1>
+      </td></tr>
+    </table>
+    </div>
+  </div>
+  
+  <div id="main">
+    <div id="rightside">
+		<h2>Site Map</h2>
+		  <div class="box">
+		    <ul>
+		      <li><a href="index.html">Home</a></li>
+		      <li><a href="tutorial.html">Getting started</a></li>
+		      <li><a href="manual.html">Manual</a></li>
+		    </ul>
+		  </div>
+		
+		  <h2><u>News and updates</u></h2>
+		  <div class="box">
+		    <ul>
+		      <table width="100%">
+				<tr><td>New releases and related tools will be announced through the <a href="https://lists.sourceforge.net/lists/listinfo/bowtie-bio-announce"><b>mailing list</b></a></td></tr>
+			  </table>
+		    </ul>
+		  </div>
+		
+		  <a href="./downloads"><h2><u>Releases</u></h2></a>
+		  <div class="box">
+		    <ul>
+		      <table width="100%"><tr>
+		      <td>
+		      	<a href="./downloads/tophat-1.0.13.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">
+					TopHat 1.0.13 (BETA)</a>
+		         </td><td align="right">
+		           2/5/2010
+		      </td>
+		      </tr>
+			  </table>
+		    </ul>
+		  </div>
+		  <h2>Related Tools</h2>
+		  <div class="box">
+		    <ul>
+		      <li><a href="http://cufflinks.cbcb.umd.edu/">Cufflinks</a>: Isoform assembly and quantitation for RNA-Seq</li>
+		      <li><a href="http://bowtie.cbcb.umd.edu">Bowtie</a>: Ultrafast short read alignment</li>
+		    </ul>
+		  </div>
+		
+		  <a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/"><h2><u>Pre-built indexes</u></h2></a>
+		  <div class="box">
+		    <table width="100%">
+
+		      <!-- hg18 -->
+		      <tr>
+
+		        <td><a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/hg18.ebwt.zip"><i>H. sapiens</i>, UCSC hg18</a></td>
+		        <td align="right"><b>2.7 GB</b></td>
+		      </tr>
+
+		      <!-- hg19 -->
+		      <tr>
+		        <td><a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/hg19.ebwt.zip"><i>H. sapiens</i>, UCSC hg19</a></td>
+		        <td align="right"><b>2.7 GB</b></td>
+		      </tr>
+		     
+
+		      <!-- mm9 -->
+		      <tr>
+		        <td><a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/mm9.ebwt.zip"><i>M. musculus</i>, UCSC mm9</a></td>
+
+		        <td align="right"><b>2.4 GB</b></td>
+		      </tr>
+
+		  </table>
+		
+	    
+	    <p style="font-size: x-small; line-height: 130%">
+	    All indexes are for assemblies, not contigs.  Unplaced or unlocalized 
+		sequences and alternate haplotype assemblies are excluded.</p>
+	    <p style="font-size: x-small; line-height: 130%">
+	    Some unzip programs cannot handle archives >2 GB.  If you have
+	    problems downloading or unzipping a >2 GB index, try downloading
+	    in two parts.</p>
+	    <p style="font-size: x-small; line-height: 130%">Check .zip file 
+			integrity with <a href="./md5s.shtml">MD5s</a>.</p>
+		
+	    <p style="font-size: x-small; line-height: 130%">Pre-built indexes are
+		 compatible with Bowtie versions 0.9.8 and later.  For older indexes, please contact us.</p>
+		
+	  	  </div>
+	
+	
+		  <h2>Publications</h2>
+		  <div class="box">
+		    <ul>
+			  <li style="font-size: x-small; line-height: 130%"><p>Trapnell C, Pachter L, Salzberg SL. <a href="http://bioinformatics.oxfordjournals.org/cgi/content/abstract/btp120"><b>TopHat: discovering splice junctions with RNA-Seq</b></a>. <i><a href="http://bioinformatics.oxfordjournals.org">Bioinformatics</a></i>  doi:10.1093/bioinformatics/btp120</p><br/></li>
+		      <li style="font-size: x-small; line-height: 130%"><p>Langmead B, Trapnell C, Pop M, Salzberg SL. <a href="http://genomebiology.com/2009/10/3/R25"><b>Ultrafast and memory-efficient alignment of short DNA sequences to the human genome</b></a>. <i><a href="http://genomebiology.com">Genome Biology</a></i> <b>10</b>:R25.</li>
+		    </ul>
+		  </div>
+
+		  <h2>Contributors</h2>
+		  <div class="box">
+		    <ul>
+		      <li><a href="http://www.cs.umd.edu/~cole/">Cole Trapnell</a></li>
+		      <li><a href="http://www.math.berkeley.edu/~lpachter/">Lior Pachter</a></li>
+		      <li><a href="http://www.cbcb.umd.edu/~salzberg/">Steven Salzberg</a></li>
+		    </ul>
+		  </div>
+
+		  <h2>Links</h2>
+		  <div class="box">
+		    <ul>
+		      <li><a href="http://www.umd.edu/">University of Maryland</a></li>
+		      <li><a href="http://www.berkeley.edu/">University of California, Berkeley</a></li>
+		      <li><a href="http://www.cbcb.umd.edu/">UMD CBCB</a></li>
+		      <li><a href="http://www.cs.umd.edu/">UMD Computer Science</a></li>
+		      <li><a href="http://www.math.berkeley.edu/">Berkeley Mathematics</a></li>
+		      <li><a href="http://www.umiacs.umd.edu/">UMIACS</a></li>
+		    </ul>
+		  </div>          
+          
+    </div> <!-- End of "rightside" -->
+    <div id="leftside">
+  	  <table><tr><td cellpadding=7>
+  	  <h1>Manual</h1><br/>
+		<div id="subheader">
+		  <table width="100%"><tr>
+		  <td>
+		  <strong>Please Note</strong> If you have questions 
+		  about how to use TopHat or would like more information about 
+		  different parts of the software, please email 
+		  <a href="mailto:cole@cs.umd.edu">Cole Trapnell</a>.
+		  
+		  </table>
+		  </div>
+
+      <div id="toc">
+  	    <ul>
+  	    <li><a href="#whis">What is TopHat?</a></li>
+  	    <li><a href="#prer">Prerequisites</a></li>
+  	    <li><a href="#toph">Using TopHat</a></li>
+
+  	    </ul><br/>
+  	  </div>
+  	  <h2 id="whis">What is TopHat?</h2><br/>
+  	  <p> TopHat is a program that aligns RNA-Seq reads to a genome in order 
+		to identify exon-exon splice junctions.  It is built on the ultrafast
+	  short read mapping program <a href="http://bowtie-bio.sourceforge.net">Bowtie</a>.
+	  TopHat runs on <strong>Linux</strong> and <strong>OS X</strong>.
+	  </p> 
+  	  <br/>
+  	  <h2 id="whis">What types of reads can I use TopHat with?</h2><br/>
+  	  <p>TopHat was designed to work with reads produced by the Illumina Genome 
+	  Analyzer, although users have been successful in using TopHat with reads
+	  from other technologies.  The software has been extended longer reads and
+	  paired end reads from the latest Illumina machines, and is optimized for
+	  reads 75bp or longer.  
+	  </p> 
+	  <p>Currently, TopHat does <strong>not</strong> allow short (fewer than a 
+		few nucleotides) insertions and deletions in the alignments it reports. 
+		Support for insertions and deletions will eventually be added.  TopHat
+		also does not natively support Applied Biosystems' Colorspace format.
+	  </p>
+	  <p>Finally, current versions of TopHat expect the reads to be 
+		<strong>the same length</strong>, and mixing runs with paired- and single- 
+		end reads together is <strong>not</strong> supported.  If you have applied your own trimming
+		procedure to Illumina reads, or if you are using TopHat with a sequencing
+		technology that produces variable-length reads, please ensure that the reads
+		input to TopHat are the same length.  This limitation is an engineering 
+		rather than an algorithmic one and will be addressed in a future release.
+	</p>
+  	  <br/>
+	  <h2 id="whis">How does TopHat find junctions?</h2><br/>
+  	  <p> TopHat finds splice junctions without a reference annotation.  By 
+		first mapping RNA-Seq reads to the genome, TopHat identifies potential
+		exons, since many RNA-Seq reads will contiguously align to the genome.
+		Using this initial mapping, TopHat builds a database of possible splice
+		junctions, and then maps the reads against this junction to confirm
+		them.  
+	  </p> 
+	
+      <p> Short read sequencing machines can currently produce reads 100bp or 
+	  longer, but many exons are shorter than this, and so would be missed in
+	  the initial mapping.  TopHat solves this problem by splitting all input
+	  reads into smaller segments, and then mapping them independently.  The 
+	  segment alignments are "glued" back together in a final step of the 
+	  program to produce the end-to-end read alignments.
+	  </p>
+	
+	  <p> TopHat generates its database of possible splice junctions from three
+	  sources of evidence.  The first source is pairings of "coverage islands", 
+	  which are distinct regions of piled up reads in the initial mapping.  
+	  Neighboring islands are often spliced together in the transcriptome, so 
+	  TopHat looks for ways to join these with an intron.  The second
+	  source is only used when TopHat is run with paired end reads.  When reads 
+	  in a pair come from different exons of a transcript, they will generally
+	  be mapped far apart in the genome coordinate space.  When this happens,
+	  TopHat tries to "close" the gap between them by looking for subsequences
+	  of the genomic interval between mates with a total length about equal to
+	  the expected distance between mates.  The "introns" in this subsequence are added to 
+	  the database.  The third, and strongest, source of evidence for a splice
+	  junction is when two segments from the same read are mapped far apart, or
+	  when an internal segment fails to map. With long (>=75bp) reads, "GT-AG", 
+	  "GC-AG" and "AT-AC" introns be found ab initio.  With shorter reads, 
+	  TopHat only reports alignments across "GT-AG" introns</p>
+	
+  	  <br/>
+  	  <h2 id="bins">Prerequisites</h2><br/>
+	  <p> To use TopHat, you will need the following Bowtie in your <tt>PATH</tt>:
+      <ul>
+         <li><tt>bowtie</tt></li>
+         <li><tt>bowtie-inspect</tt></li>
+         <li><tt>bowtie-build</tt></li>
+      </ul>
+	  <p>You will also need Python <strong>version 2.4 or higher</strong>.
+      </p>
+  	  <br/>
+  	  <h2 id="bins">Obtaining and installing TopHat</h2><br/>
+	  <p> You can download the source release <a href="./downloads/">here</a>. </p>
+	  <p> To install TopHat, unpack the tarball and change to the package 
+		directory as follows: </p> <p>
+		<blockquote>tar zxvf tophat-1.0.7.tar.gz</blockquote> 
+		<blockquote>cd tophat-1.0.7/</blockquote>
+	  <p>Now build the package: </p> <p> 
+		<blockquote>./configure --prefix=/path/to/install/directory/</blockquote>
+		<blockquote>make</blockquote>
+	  <p>Finally, install TopHat:</p><p>
+		<blockquote>make install</blockquote>
+  	  </p>
+
+	  <p>Below, you will find a detailed list of command-line options you can
+		use to control TopHat.  Beginning users should take a look at the 
+		<a href="tutorial.html">Getting started</a> guide for a tutorial on
+		running TopHat.
+
+	  <br/>
+  	  
+	  <div id="subheader">
+	  <table width="100%"><tr> <td> <strong>Please Note</strong> TopHat has a number
+		of parameters and options, and their default values are tuned for processing
+		<strong>mammalian</strong> RNA-Seq reads. If you would like to use TopHat for
+		another class of organism, we recommend setting some of the parameters 
+		with more strict, conservative values than their defaults.  Usually, setting
+		the maximum intron size to 4 or 5 Kb is sufficient to discover most 
+		junctions while keeping the number of false positives low.
+
+ 		</table> </div><br/>
+	  <h2 id="algn">Using the <tt>tophat</tt> junction mapper</h2><br/>
+  	  
+	  <p>
+	  The following is a detailed description of the options used to control
+	  the <tt>tophat</tt> script:
+	  </p><br/>
+	  <blockquote>
+ 	   Usage: tophat [options]* &lt;index_base&gt; &lt;reads1_1[,...,readsN_1]&gt; [reads1_2,...readsN_2]
+	  </blockquote>
+		When running TopHat with paired ends, it is <strong>critical</strong> 
+		that the *_1 files an the *_2 files appear in separate comma separated
+		lists, and that the order of the files in the two lists is the same. 
+	
+	  <p><strong>NOTE:</strong> TopHat can align reads that are up to 1024 bp, 
+		and it handles paired end reads, but we <strong>do not recommend</strong> 
+		mixing several "types" of reads in the same TopHat run.  For example,
+		mixing 100bp single end reads and 2x27bp paired ends into the same TopHat
+		run will give bad results. If you'd like to combine results from several
+		"flavors" of RNA-Seq reads, you can run first with one of your sets,
+		and feed the junctions produced by that run into future TopHat runs as
+		externally supplied junctions with the <tt>-j</tt> option (see below)</p>
+	  <table CELLSPACING=15>
+	  <tr><td VALIGN=top>
+	  <b>Arguments:</b>
+	  </td><td VALIGN=top>
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>&lt;ebwt_base&gt;</tt>
+	  </td><td VALIGN=top>
+	  The basename of the index to be searched.  The
+      basename is the name of any of the five index
+      files up to but not including the first period.
+      bowtie first looks in the current directory for
+      the index files, then looks in the <tt>indexes</tt>
+      subdirectory under the directory where the
+      currently-running <tt>bowtie</tt> executable is located,
+      then looks in the directory specified in the
+      <tt>BOWTIE_INDEXES</tt> environment variable.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>&lt;reads1_1[,...,readsN_1]&gt;</tt>
+	  </td><td VALIGN=top>
+	  A comma-separated list of files containing reads in FASTQ or FASTA format.  
+	  When running TopHat with paired-end reads, this should be the *_1 ("left")
+	  set of files.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>&lt;[reads1_2,...readsN_2]&gt;</tt>
+	  </td><td VALIGN=top>
+	  A comma-separated list of files containing reads in FASTA or FASTA format.  
+	  Only used when running TopHat with paired end reads, and contains the 
+	  *_2 ("right") set of files.  The *_2 files <strong>MUST</strong> appear 
+	  in the same order as the *_1 files.
+	  </td></tr>
+	  <tr><td VALIGN=top>
+	  <b>Options:</b>
+	  </td><td VALIGN=top>
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>-h/--help</tt>
+	  </td><td VALIGN=top>
+	  Prints the help message and exits   
+	  </td></tr>
+	 <tr><td VALIGN=top nowrap>
+	  <tt>-v/--version</tt>
+	  </td><td VALIGN=top>
+	  Prints the TopHat version number and exits   
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>-o/--output-dir &lt;string&gt;</tt>
+	  </td><td VALIGN=top>
+	  Sets the name of the directory in which TopHat will write all of its 
+	  output.  The default is "./tophat_out".
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>-r/--mate-inner-dist &lt;int&gt;</tt>
+	  </td><td VALIGN=top>
+	  This is the expected (mean) inner distance between mate pairs.  For, 
+	  example, for paired end runs with fragments selected at 300bp, where each
+	  end is 50bp, you should set -r to be 200.  There is no default, and this
+	  parameter is required for paired end runs.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--mate-std-dev &lt;int&gt;</tt>
+	  </td><td VALIGN=top>
+	  The standard deviation for the distribution on inner distances between
+	  mate pairs.  The default is 20bp.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>-a/--min-anchor-length &lt;int&gt;</tt>
+	  </td><td VALIGN=top>
+	  The "anchor length".  TopHat will report junctions spanned by reads
+	  with at least this many bases on each side of the junction. Note that
+	  individual spliced alignments may span a junction with fewer than this 
+	  many bases on one side.  However, every junction involved in spliced 
+	  alignments is supported by at least one read with this many bases on each
+	  side.	  This must be at least 3 and the default is 8.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>-m/--splice-mismatches &lt;int&gt;</tt>
+	  </td><td VALIGN=top>
+	  The maximum number of mismatches that may appear in the "anchor" region
+	  of a spliced alignment.  The default is 0.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>-i/--min-intron-length &lt;int&gt;</tt>
+	  </td><td VALIGN=top>
+	  The minimum intron length.  TopHat will ignore donor/acceptor pairs 
+	  closer than this many bases apart.  The default is 70.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>-I/--max-intron-length &lt;int&gt;</tt>
+	  </td><td VALIGN=top>
+	  The maximum intron length.  When searching for junctions ab initio, 
+	  TopHat will ignore donor/acceptor pairs farther than this many bases 
+	  apart, except when such a pair is supported by a split segment alignment
+	  of a long read.  The default is 500000.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--solexa-quals</tt>
+	  </td><td VALIGN=top>
+	  Use the Solexa scale for quality values in FASTQ files.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--solexa1.3-quals</tt>
+	  </td><td VALIGN=top>
+	  As of the Illumina GA pipeline version 1.3, quality scores are encoded 
+	  in Phred-scaled base-64.  Use this option for FASTQ files from pipeline 1.3 or later.  
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>-F/--min-isoform-fraction &lt;0.0-1.0&gt;</tt>
+	  </td><td VALIGN=top>
+	  TopHat filters out junctions supported by too few alignments.  Suppose 
+	  a junction spanning two exons, is supported by S reads.  Let the average
+	  depth of coverage of exon A be D, and assume that it is higher than B.  
+	  If S / D is less than the minimum isoform fraction, the junction is 
+	  not reported.  A value of zero disables the filter. The default is 0.15.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>-p/--num-threads &lt;int&gt;</tt>
+	  </td><td VALIGN=top>
+	  Use this many threads to align reads. The default is 1.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>-g/--max-multihits &lt;int&gt;</tt>
+	  </td><td VALIGN=top>
+	  Instructs TopHat to allow up to this many alignments to the reference
+	  for a given read, and suppresses all alignments for reads with more than
+	  this many alignments. The default is 40.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--no-closure-search</tt>
+	  </td><td VALIGN=top>
+	  Disables the mate pair closure-based search for junctions.  Currently, 
+	  has no effect - closure search is off by default.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--closure-search</tt>
+	  </td><td VALIGN=top>
+	  Enables the mate pair closure-based search for junctions.  Closure-based
+	  search should only be used when the expected inner distance between mates
+	  is small (&lt;= 50bp)
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--no-coverage-search</tt>
+	  </td><td VALIGN=top>
+	  Disables the coverage based search for junctions.  
+	  </td></tr> 
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--coverage-search</tt>
+	  </td><td VALIGN=top>
+	  Enables the coverage based search for junctions.  Use when coverage search
+	  is disabled by default (such as for reads 75bp or longer), for maximum sensitivity.   
+	</td></tr>
+	  <tr><td VALIGN=top>
+	  <tt>--microexon-search</tt>
+	  </td><td VALIGN=top>
+	  With this option, the pipeline will attempt to find alignments incident 
+	  to microexons.  Works only for reads 50bp or longer.
+	  </td></tr>
+	  <tr><td VALIGN=top>
+	  <tt>--butterfly-search</tt>
+	  </td><td VALIGN=top>
+	  TopHat will use a slower but potentially more sensitive algorithm to find
+	  junctions <strong>in addition</strong> to its standard search.  Consider
+	  using this if you expect that your experiment produced a lot of reads from 
+	  pre-mRNA, that fall within the introns of your transcripts.
+	  </td></tr>
+	  <tr><td VALIGN=top>
+	  <b>Advanced Options:</b>
+	  </td><td VALIGN=top>
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--segment-mismatches</tt>
+	  </td><td VALIGN=top>
+	  Read segments are mapped independently, allowing up to this many mismatches
+	  in each segment alignment.  The default is 2.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--segment-length</tt>
+	  </td><td VALIGN=top>
+	  Each read is cut up into segments, each at least this long.  These segments
+	  are mapped independently. The default is 25.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--min-closure-exon</tt>
+	  </td><td VALIGN=top>
+	  During closure search for paired end reads, exonic hops in the potential 
+	  splice graph must be at least this long.  The default is 50.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--min-closure-intron</tt>
+	  </td><td VALIGN=top>
+	  The minimum intron length that may be found during closure search.  
+	  The default is 50.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--max-closure-intron</tt>
+	  </td><td VALIGN=top>
+	  The maximum intron length that may be found during closure search.  
+	  The default is 5000.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--min-coverage-intron</tt>
+	  </td><td VALIGN=top>
+	  The minimum intron length that may be found during coverage search.  
+	  The default is 50.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--max-coverage-intron</tt>
+	  </td><td VALIGN=top>
+	  The maximum intron length that may be found during coverage search.  
+	  The default is 20000.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--min-segment-intron</tt>
+	  </td><td VALIGN=top>
+	  The minimum intron length that may be found during split-segment search.  
+	  The default is 50.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--max-segment-intron</tt>
+	  </td><td VALIGN=top>
+	  The maximum intron length that may be found during split-segment search.  
+	  The default is 500000.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--keep-tmp</tt>
+	  </td><td VALIGN=top>
+	  Causes TopHat to preserve its intermediate files produced during the run. 
+	  By default, they are deleted upon exit.
+	  </td></tr>
+	</td></tr>
+	
+	 </table><br/>
+	 
+	<b>Supplying your own junctions:</b>
+	  <p>The options below allow you validate your own junctions with your 
+		RNA-Seq data.  Note that the chromosome names in the files provided
+		with the options below <strong>must match</strong> the names in the 
+		Bowtie index.  These names are <strong>case-senstitive</strong>.</p>
+	  <table CELLSPACING=15>
+	  <tr><td VALIGN=top>
+	  
+	  </td><td VALIGN=top>
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>-G/--GFF &lt;GFF3 file&gt;</tt>
+	  </td><td VALIGN=top>
+	  <p> Supply TopHat with a list of gene model annotations.  TopHat will 
+	  use the <tt>gene</tt>, <tt>mRNA</tt> and <tt>exon</tt> records in this file to
+	  build a set of known splice junctions for each gene, and will attempt to 
+	  align reads to these junctions even if they would not normally be covered
+	  by the initial mapping. </p> 
+	  </td></tr>
+	 <tr><td VALIGN=top nowrap>
+	  <tt>-j/--raw-juncs &lt;.juncs file&gt;</tt>
+	  </td><td VALIGN=top>
+	  <p> Supply TopHat with a list of raw junctions.  Junctions are specified 
+		one per line, in a tab-delimited format.  Records look like:
+	  </p> </br>
+		<tt>&lt;chrom&gt;   &lt;left&gt;   &lt;right&gt;   &lt;+/-&gt;</tt>
+		<p><tt>left</tt> and <tt>right</tt> are zero-based coordinates, and 
+			specify the last character of the left sequenced to be spliced to 
+			the first character of the right sequence, inclusive. </p>
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--no-novel-juncs</tt>
+	  </td><td VALIGN=top>
+	  Only look for junctions indicated in the supplied GFF file.  (ignored without -G)
+	  </td></tr>
+	
+	  </table>
+	 <b>Providing TopHat with an annotation file</b>
+	 <p>If you choose to supply TopHat with a GFF3 file of gene annotation, the 
+		program will look for the junctions between exons in the annotated transcripts.
+	    Note that all elements have <strong>must have ID tags and all element except the genes have 
+	    Parent tags</strong>.  Transcript records are called "mRNA", not "transcript".  
+	
+		<strong>Most importantly</strong>, the values in the first column, which 
+		indicates the chromosome or contig on which the feature is located, 
+		<strong>must match</strong> a reference sequence record in the Bowtie index
+		you are using with TopHat.  You can get a list of the records in a Bowtie 
+		index by typing:</p>
+		<br/>
+	    	<blockquote>
+				bowtie-inspect --names your_index
+			</blockquote> 
+		<br/>
+	  <br/>
+  	  <h2 id="output">TopHat Output</h2><br/>
+  	  <p>
+  	  The <tt>tophat</tt> script produces a number of files in the directory
+	  in which it was invoked.  Most of these files are internal, intermediate 
+	  files that are generated for use within the pipeline.  The output 
+	  files you will likely want to look at are:
+      </p> <br/>
+      <ol>
+		<li><tt>accepted_hits.sam</tt>. A list of read alignments in <a 
+			href="http://samtools.sourceforge.net">SAM</a> format.  SAM is a 
+			compact short read alignment format that is increasingly being 
+			adopted.  The formal specification is <a href="http://samtools.sourceforge.net/SAM1.pdf">here</a>.</li>
+	    <li><tt>coverage.wig</tt>. A <a href="http://genome.ucsc.edu/goldenPath/help/bedgraph.html">UCSC BedGraph</a> wigglegram track, showing the depth of
+		coverage at each position, including the spliced read alignments.</li>
+        <li><tt>junctions.bed</tt>.  A <a href="http://genome.ucsc.edu/FAQ/FAQformat.html#format1">UCSC 
+		BED</a> track of junctions reported by TopHat.  Each junction consists 
+		of two connected BED blocks, where each block is as long as the 
+		maximal overhang of any read spanning the junction.  The score is the 
+		number of alignments spanning the junction.</li>
+      </ol>
+      </td></tr></table><br/>
+    </div>
+  </div>
+  <div id="footer">
+  	<table width="100%" cellspacing=15><tr><td>
+    This research was supported in part by NIH grants R01-LM06845 and R01-GM083873 and NSF grant CCF-0347992.
+    </td><td align=right>
+    Administrator: <a href="mailto:cole@cs.umd.edu">Cole Trapnell</a>. Design by <a href="http://www.free-css-templates.com" title="Design by David Herreman">David Herreman</a>
+    </td></tr></table>
+  </div>
+</div>
+
+<!-- Google analytics code -->
+<script type="text/javascript">
+var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+</script>
+<script type="text/javascript">
+var pageTracker = _gat._getTracker("UA-6101038-1");
+pageTracker._trackPageview();
+</script>
+
+</body>
+</html>

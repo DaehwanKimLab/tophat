@@ -1,0 +1,68 @@
+<h2>Site Map</h2>
+  <div class="box">
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="tutorial.html">Getting started</a></li>
+      <li><a href="manual.html">Manual</a></li>
+    </ul>
+  </div>
+  <a href="./downloads"><h2><u>Releases</u></h2></a>
+  <div class="box">
+    <ul>
+      <table width="100%"><tr>
+      <td>
+	      	<a href="./downloads/tophat-0.8.2.tar.gz">TopHat 0.8.2</a>
+	         </td><td align="right">
+	           3/1/2009
+	         </td>
+      </tr>
+	  </table>
+    </ul>
+  </div>
+  <a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/"><h2><u>Pre-built indexes</u></h2></a>
+  <div class="box">
+    <ul>
+      <li><table width="100%"><tr><td><a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/h_sapiens.ebwt.zip"><i>H. sapiens</i>, NCBI 36.3, contigs</a></li></td><td align="right">2.7 GB</td></tr></table>
+      <li><table width="100%"><tr><td><a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/h_sapiens_asm.ebwt.zip"><i>H. sapiens</i>, NCBI 36.3, assembly</a></li></td><td align="right">2.7 GB</td></tr></table>
+      <li><table width="100%"><tr><td><a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/p_troglodytes.ebwt.zip"><i>P. troglodytes</i>, NCBI 2.1, contigs</a></li></td><td align="right">2.7 GB</td></tr></table>
+      <li><table width="100%"><tr><td><a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/r_norvegicus.ebwt.zip"><i>R. norvegicus</i>, NCBI 4.1, contigs</a></li></td><td align="right">2.3 GB</td></tr></table>
+      <li><table width="100%"><tr><td><a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/m_musculus.ebwt.zip"><i>M. musculus</i>, NCBI 37.1, contigs</a></li></td><td align="right">2.4 GB</td></tr></table>
+      <li><table width="100%"><tr><td><a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/c_familiaris.ebwt.zip"><i>C. familiaris</i>, NCBI 2.1, contigs</a></li></td><td align="right">2.2 GB</td></tr></table>
+      <li><table width="100%"><tr><td><a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/g_gallus.ebwt.zip"><i>G. gallus</i>, NCBI 2.1, contigs</a></li></td><td align="right">969 MB</td></tr></table>
+      <li><table width="100%"><tr><td><a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/t_rubripes.ebwt.zip"><i>T. rubripes</i>, Fugu Gen. Cons. v4</a></li></td><td align="right">348 MB</td></tr></table>
+      <li><table width="100%"><tr><td><a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/d_melanogaster.ebwt.zip"><i>D. melanogaster</i>, Flybase, r5.11</a></li></td><td align="right">153 MB</td></tr></table>
+      <li><table width="100%"><tr><td><a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/a_thaliana.ebwt.zip"><i>A. thaliana</i>, TAIR, TAIR8</a></li></td><td align="right">119 MB</td></tr></table>
+      <li><table width="100%"><tr><td><a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/c_elegans.ebwt.zip"><i>C. elegans</i>, Wormbase, WS199</a></li></td><td align="right">77 MB</td></tr></table>
+      <li><table width="100%"><tr><td><a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/s_cerevisiae.ebwt.zip"><i>S. cerevisiae</i>, CYGD</a></li></td><td align="right">15 MB</td></tr></table>
+      <li><table width="100%"><tr><td><a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/e_coli.ebwt.zip"><i>E. coli</i>, NCBI, st. 536</a></li></td><td align="right">5.0 MB</td></tr></table>
+    </ul> 
+  </div>
+
+  <h2>Publications</h2>
+  <div class="box">
+    <ul>
+	  <li style="font-size: x-small; line-height: 130%"><p>Trapnell C, Pachter L, Salzberg SL. <a href="http://bioinformatics.oxfordjournals.org/cgi/content/abstract/btp120"><b>TopHat: discovering splice junctions with RNA-Seq</b></a>. <i><a href="http://bioinformatics.oxfordjournals.org">Bioinformatics</a></i>  doi:10.1093/bioinformatics/btp120</p><br/></li>
+      <li style="font-size: x-small; line-height: 130%"><p>Langmead B, Trapnell C, Pop M, Salzberg SL. <a href="http://genomebiology.com/2009/10/3/R25"><b>Ultrafast and memory-efficient alignment of short DNA sequences to the human genome</b></a>. <i><a href="http://genomebiology.com">Genome Biology</a></i> <b>10</b>:R25.</li>
+    </ul>
+  </div>
+  
+  <h2>Contributors</h2>
+  <div class="box">
+    <ul>
+      <li><a href="http://www.cs.umd.edu/~cole/">Cole Trapnell</a></li>
+      <li><a href="http://www.math.berkeley.edu/~lpachter/">Lior Pachter</a></li>
+      <li><a href="http://www.cbcb.umd.edu/~salzberg/">Steven Salzberg</a></li>
+    </ul>
+  </div>
+
+  <h2>Links</h2>
+  <div class="box">
+    <ul>
+      <li><a href="http://www.umd.edu/">University of Maryland</a></li>
+      <li><a href="http://www.berkeley.edu/">University of California, Berkeley</a></li>
+      <li><a href="http://www.cbcb.umd.edu/">UMD CBCB</a></li>
+      <li><a href="http://www.cs.umd.edu/">UMD Computer Science</a></li>
+      <li><a href="http://www.math.berkeley.edu/">Berkeley Mathematics</a></li>
+      <li><a href="http://www.umiacs.umd.edu/">UMIACS</a></li>
+    </ul>
+  </div>
