@@ -1,12 +1,19 @@
-##-- TOPHAT CONFIGURE --##
+define([svnversion], esyscmd([sh -c "svnversion|tr -d '\n'"]))dnl
 
-# initialize
-#AC_PREREQ(2.61)
-AC_INIT([TopHat],[1.0.14],[cole@cs.umd.edu],[tophat])
-AC_PREFIX_DEFAULT([`pwd`])
-AC_CONFIG_SRCDIR([src/reads.h])
-AC_CONFIG_AUX_DIR([config])
+AC_INIT([tophat],[1.0.14-svnversion],[cole@cs.umd.edu])
+AC_DEFINE(SVN_REVISION, "svnversion", [SVN Revision])
+
+AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_AUX_DIR([build-aux])
+
+AM_INIT_AUTOMAKE
+
+ # Make sure CXXFLAGS is defined so that AC_PROG_CXX doesn't set it.
+CXXFLAGS="$CXXFLAGS"
+CFLAGS="$CFLAGS"
+
+AC_LANG(C)
 
 AC_ARG_ENABLE(debug,
 	AC_HELP_STRING([--enable-debug],[build debug library (default=no)]),,enable_debug=no)
@@ -33,6 +40,28 @@ AC_CHECK_TOOL(AR,ar,false)
 AC_PATH_PROG(PERL, [perl], [:])
 AC_PATH_PROG(TOPHAT_SHELL, bash, no)
 AM_PATH_PYTHON([2.4])
+
+# Checks for header files.
+AC_CHECK_HEADERS([stdlib.h string.h unistd.h])
+
+# check the platform
+AC_CANONICAL_HOST
+
+# Checks for header files.
+AC_HEADER_STDC
+AC_CHECK_HEADERS([stdlib.h string.h unistd.h])
+
+# Checks for typedefs, structures, and compiler characteristics.
+AC_HEADER_STDBOOL
+AC_C_CONST
+AC_SYS_LARGEFILE
+
+# Checks for libraries.
+AC_CHECK_LIB([z], [gzread])
+
+# Checks for library functions.
+AC_FUNC_MALLOC
+AC_CHECK_FUNCS([memset strdup strrchr strtol strsep])
 
 # ---------------------------------------------------------------------
 # Debug and profile
@@ -88,32 +117,11 @@ CXXFLAGS="$CFLAGS"
 
 AM_CXXFLAGS="$CXXFLAGS -I./SeqAn-1.1"
 
-# Checks for libraries.
-AC_CHECK_LIB([z], [gzread])
-
-# Checks for header files.
-AC_HEADER_STDC
-AC_CHECK_HEADERS([stdlib.h string.h unistd.h])
-
-# Checks for typedefs, structures, and compiler characteristics.
-AC_HEADER_STDBOOL
-AC_C_CONST
-#AC_TYPE_INT32_T
-#AC_TYPE_SIZE_T
-#AC_TYPE_UINT32_T
-#AC_TYPE_UINT64_T
-#AC_TYPE_UINT8_T
-AC_SYS_LARGEFILE
-
-# Checks for library functions.
-AC_FUNC_MALLOC
-AC_CHECK_FUNCS([memset strdup strrchr strtol strsep])
-
 AC_SUBST(CC)
 AC_SUBST(AM_CXXFLAGS)
 AC_SUBST(AM_CFLAGS)
 
-AM_INIT_AUTOMAKE([-Wall foreign])
+AM_INIT_AUTOMAKE([-Wall foreign tar-ustar foreign])
 
 # makefiles to configure
 AC_CONFIG_FILES([Makefile src/Makefile])

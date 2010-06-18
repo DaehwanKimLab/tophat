@@ -77,7 +77,6 @@
 		ED6D625D118B5B8C00A682F4 /* README */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README; sourceTree = "<group>"; };
 		ED6D625E118B5B8C00A682F4 /* THANKS */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = THANKS; sourceTree = "<group>"; };
 		ED6D625F118B5B8C00A682F4 /* unbootstrap */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = unbootstrap; sourceTree = "<group>"; };
-		ED6D6260118B5B9300A682F4 /* tophat.mk */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = tophat.mk; path = config/tophat.mk; sourceTree = "<group>"; };
 		ED74232511AC65E1007FBF56 /* tophat_reports */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = tophat_reports; sourceTree = BUILT_PRODUCTS_DIR; };
 		ED74236511AC692C007FBF56 /* fsa_alphabet.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = fsa_alphabet.cc; sourceTree = "<group>"; };
 		ED74236611AC692C007FBF56 /* fsa_alphabet.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fsa_alphabet.h; sourceTree = "<group>"; };
@@ -162,7 +161,6 @@
 		ED6D622C118B5B4000A682F4 /* Autotools */ = {
 			isa = PBXGroup;
 			children = (
-				ED6D6260118B5B9300A682F4 /* tophat.mk */,
 				ED6D6255118B5B7300A682F4 /* Makefile.am */,
 				ED6D6256118B5B8C00A682F4 /* AUTHORS */,
 				ED6D6257118B5B8C00A682F4 /* bootstrap */,
