@@ -1,4 +1,4 @@
-include $(top_srcdir)/config/tophat.mk
+include $(top_srcdir)/build-aux/tophat.mk
 
 #SUBDIRS = samtools
 
