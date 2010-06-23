@@ -85,7 +85,7 @@ void filter_garbage_reads(vector<FILE*> reads_files)
 			double percent_N = (double)(counts[(size_t)'N']) / read.seq.length();
 			
 			if (reads_format == FASTQ &&
-				read.seq.length() != read.seq.length())
+				read.seq.length() != read.qual.length())
 			{
 				++num_reads_chucked;
 				continue;
