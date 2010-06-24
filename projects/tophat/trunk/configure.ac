@@ -44,9 +44,6 @@ AM_PATH_PYTHON([2.4])
 # Checks for header files.
 AC_CHECK_HEADERS([stdlib.h string.h unistd.h])
 
-# check the platform
-AC_CANONICAL_HOST
-
 # Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS([stdlib.h string.h unistd.h])
