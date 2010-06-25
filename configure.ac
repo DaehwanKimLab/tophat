@@ -118,7 +118,7 @@ AC_SUBST(CC)
 AC_SUBST(AM_CXXFLAGS)
 AC_SUBST(AM_CFLAGS)
 
-AM_INIT_AUTOMAKE([-Wall foreign tar-ustar foreign])
+AM_INIT_AUTOMAKE([-Wall foreign tar-pax foreign])
 
 # makefiles to configure
 AC_CONFIG_FILES([Makefile src/Makefile])

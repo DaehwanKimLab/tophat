@@ -88,6 +88,7 @@
 		ED74236C11AC692C007FBF56 /* regexp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = regexp.h; sourceTree = "<group>"; };
 		ED74236D11AC692C007FBF56 /* sequence.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = sequence.cc; sourceTree = "<group>"; };
 		ED74236E11AC692C007FBF56 /* sequence.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = sequence.h; sourceTree = "<group>"; };
+		EDB0A13211D3E14300DB9D11 /* tophat.mk */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = tophat.mk; path = "build-aux/tophat.mk"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -161,6 +162,7 @@
 		ED6D622C118B5B4000A682F4 /* Autotools */ = {
 			isa = PBXGroup;
 			children = (
+				EDB0A13211D3E14300DB9D11 /* tophat.mk */,
 				ED6D6255118B5B7300A682F4 /* Makefile.am */,
 				ED6D6256118B5B8C00A682F4 /* AUTHORS */,
 				ED6D6257118B5B8C00A682F4 /* bootstrap */,
