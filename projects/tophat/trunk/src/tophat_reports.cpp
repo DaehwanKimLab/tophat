@@ -1073,7 +1073,7 @@ int main(int argc, char** argv)
 		}
 	}
 
-    FILE* junctions_file = fopen((output_dir + "/" + junctions_file_name).c_str(), "w");
+    FILE* junctions_file = fopen(junctions_file_name.c_str(), "w");
     if (junctions_file == NULL)
     {
         fprintf(stderr, "Error: cannot open BED file %s for writing\n",
@@ -1081,7 +1081,12 @@ int main(int argc, char** argv)
         exit(1);
     }
 
-    FILE* accepted_hits_file = fopen((output_dir + "/" + accepted_hits_file_name).c_str(), "w");
+    
+    // Open the SAM file as "a", because the python driver will write the
+    // header to this guy.  This is ugly and should be done differently, but
+    // the long term solution is to emit BAM records directly, so this is fine
+    // for now.
+    FILE* accepted_hits_file = fopen(accepted_hits_file_name.c_str(), "a");
     if (accepted_hits_file == NULL)
     {
         fprintf(stderr, "Error: cannot open SAM file %s for writing\n",
