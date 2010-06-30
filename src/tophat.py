@@ -668,6 +668,37 @@ def get_bowtie_version():
        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
            print >> sys.stderr, fail_str, "Error: bowtie not found on this system"
        sys.exit(1)
+       
+# Retrive a tuple containing the system's version of Bowtie.  Parsed from 
+# `bowtie --version`
+def get_index_sam_header(idx_prefix):
+    try:
+        # Launch Bowtie to capture its version info
+        sam_header_filename = tmp_name()
+        sam_header_file = open(sam_header_filename,"w")
+
+        
+        bowtie_header_cmd = ['bowtie', '--sam', idx_prefix, '/dev/null']
+        proc = subprocess.call(bowtie_header_cmd,stdout=sam_header_file, stderr=open('/dev/null'))
+       
+        #sam_header = None
+        #sam_header = repr(stdout_value)
+        
+        # Launder the header as appropriate for TopHat
+        
+        # Write it to a file
+               
+        #sam_header = sam_header.split('\\n')
+#        print  sam_header 
+#        for line in sam_header:
+#            print >> sam_header_file, line
+        
+        return sam_header_filename
+        
+    except OSError, o:
+       if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
+           print >> sys.stderr, fail_str, "Error: bowtie not found on this system"
+       sys.exit(1)
 
 # Make sure Bowtie is installed and is recent enough to be useful
 def check_bowtie():
@@ -679,8 +710,50 @@ def check_bowtie():
     elif bowtie_version[1] < 10:
         print >> sys.stderr, "Error: TopHat requires Bowtie 0.10.0 or later"
         sys.exit(1)
-    print >> sys.stderr, "\tBowtie version:\t\t %s" % ".".join([str(x) for x in bowtie_version])
+    print >> sys.stderr, "\tBowtie version:\t\t\t %s" % ".".join([str(x) for x in bowtie_version])
+    
+
+# Retrive a tuple containing the system's version of samtools.  Parsed from 
+# `samtools`
+def get_samtools_version():
+    try:
+        # Launch Bowtie to capture its version info
+        proc = subprocess.Popen(['samtools'],stderr=subprocess.PIPE)
+        stderr_value = proc.communicate()[1]
+        samtools_version = None
+        samtools_out = repr(stderr_value)
+        #print >> sys.stderr, samtools_out
+        # Find the version identifier
+        version_str = "Version: "
+        ver_str_idx = samtools_out.find(version_str)
+        if ver_str_idx != -1:
+            nl = samtools_out.find("\\n", ver_str_idx)
+            ws = samtools_out.find(" ", ver_str_idx + len("Version: "))
+            end = min(nl, ws)
+            version_val = samtools_out[ver_str_idx + len(version_str):end]
+            #print >> sys.stderr, ws, nl, end, samtools_out[ver_str_idx + len(version_str):ws]
+            samtools_version = [int(x) for x in version_val.split('.')]
+        if len(samtools_version) == 3:
+            samtools_version.append(0)
         
+        return samtools_version
+    except OSError, o:
+       if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
+           print >> sys.stderr, fail_str, "Error: bowtie not found on this system"
+       sys.exit(1)
+
+# Make sure the SAM tools are installed and are recent enough to be useful
+def check_samtools():
+    print >> sys.stderr, "[%s] Checking for Samtools" % right_now()
+    samtools_version = get_samtools_version()
+    if samtools_version == None:
+        print >> sys.stderr, "Error: Samtools not found on this system"
+        sys.exit(1)
+    elif  samtools_version[1] < 1 or samtools_version[2] < 7:
+        print >> sys.stderr, "Error: TopHat requires Samtools 0.1.7 or later"
+        sys.exit(1)
+    print >> sys.stderr, "\tSamtools version:\t\t %s" % ".".join([str(x) for x in samtools_version])
+      
 
 
 def fq_next(f, fname):
@@ -1145,7 +1218,7 @@ def write_sam_header(read_params, sam_file):
     print >> sam_file, "@PG\tID:TopHat\tVN:%s\tCL:%s" % (get_version(), run_cmd)
             
 # Write final TopHat output, via tophat_reports and wiggles
-def compile_reports(params, left_maps, left_reads, right_maps, right_reads, gff_annotation):
+def compile_reports(params, sam_header_filename, left_maps, left_reads, right_maps, right_reads, gff_annotation):
     print >> sys.stderr, "[%s] Reporting output tracks" % right_now()
     
     left_maps = [x for x in left_maps if (os.path.exists(x) and os.path.getsize(x) > 0)]
@@ -1156,9 +1229,10 @@ def compile_reports(params, left_maps, left_reads, right_maps, right_reads, gff_
         right_maps = ','.join(right_maps)
     
     report_log = open(logging_dir + "reports.log", "w")
-    junctions = "junctions.bed"
+    junctions = output_dir + "junctions.bed"
     coverage =  "coverage.wig"
-    accepted_hits = "accepted_hits.sam"
+    accepted_hits_sam = tmp_dir + "accepted_hits.sam"
+    accepted_hits_bam = output_dir + "accepted_hits.bam"
     report_cmdpath = which("tophat_reports")
     if report_cmdpath == None:
         print >> sys.stderr, err_find_prog+"tophat_reports"
@@ -1167,7 +1241,7 @@ def compile_reports(params, left_maps, left_reads, right_maps, right_reads, gff_
     report_cmd.extend(params.cmd())
         
     report_cmd.extend([junctions,
-                       accepted_hits,
+                       accepted_hits_sam,
                        left_maps,
                        left_reads])
     if len(right_maps) > 0 and right_reads != None:
@@ -1175,6 +1249,17 @@ def compile_reports(params, left_maps, left_reads, right_maps, right_reads, gff_
         report_cmd.append(right_reads)
                     
     try: 
+    
+        accepted_hits_sam_file = open(accepted_hits_sam, "w")
+        #write_sam_header(params.read_params, sorted_map)
+    
+        header = open(sam_header_filename, "r")
+        for line in header:
+            print >> accepted_hits_sam_file, line,
+    
+        accepted_hits_sam_file.close()
+        #accepted_hits_sam_file = open(accepted_hits_sam, "a")
+    
         print >> run_log, " ".join(report_cmd)   
         retcode = subprocess.call(report_cmd, 
                                   stderr=report_log)
@@ -1183,36 +1268,50 @@ def compile_reports(params, left_maps, left_reads, right_maps, right_reads, gff_
         if retcode != 0:
             print >> sys.stderr, fail_str, "Error: Report generation failed with err =", retcode
             sys.exit(1)
-            
-        sorted_map_name = tmp_name()
-        sorted_map = open(sorted_map_name, "w")
-        write_sam_header(params.read_params, sorted_map)
-        sorted_map.close()
-        sorted_map = open(sorted_map_name, "a")
         
-        sort_cmd =["sort",
-                    "-k",
-                    "3,3", 
-                    "-k", 
-                    "4,4n",
-                    "--temporary-directory="+tmp_dir,
-                    output_dir + accepted_hits]
-                    
-        print >> run_log, " ".join(sort_cmd), ">",sorted_map
-        
+        tmp_bam = tmp_name() 
+        sam_to_bam_cmd = ["samtools", "view", "-S", "-b", accepted_hits_sam]
+        print >> run_log, " ".join(sam_to_bam_cmd) + " > " + tmp_bam
+        sam_to_bam_log = open(logging_dir + "accepted_hits_sam_to_bam.log", "w")
+        tmp_bam_file = open(tmp_bam, "w")
+        subprocess.call(sam_to_bam_cmd, 
+                        stdout=tmp_bam_file,
+                        stderr=sam_to_bam_log)
+                        
+        sort_cmd = ["samtools", "sort", tmp_bam, output_dir + "accepted_hits"]
+        print >> run_log, " ".join(sort_cmd)
+#        sorted_map_name = tmp_name()
+#        sorted_map = open(sorted_map_name, "w")
+#        write_sam_header(params.read_params, sorted_map)
+#        sorted_map.close()
+#        sorted_map = open(sorted_map_name, "a")
+#        
+#        sort_cmd =["sort",
+#                    "-k",
+#                    "3,3", 
+#                    "-k", 
+#                    "4,4n",
+#                    "--temporary-directory="+tmp_dir,
+#                    output_dir + accepted_hits]
+#                    
+                
+        sort_bam_log = open(logging_dir + "accepted_hits_bam_sort.log", "w")
         subprocess.call(sort_cmd, 
-                        stdout=sorted_map,
-                        stderr=report_log)
-        print >> run_log, "mv %s %s" % (sorted_map, output_dir + accepted_hits)
-        os.rename(sorted_map_name, output_dir + accepted_hits) 
-        
-        wig_cmd = [prog_path("wiggles"), output_dir + accepted_hits, output_dir + coverage]
-        print >> run_log, " ".join(wig_cmd)
-        subprocess.call(wig_cmd,
-                        stderr=open("/dev/null"))
+                        stdout=open('/dev/null'),
+                        stderr=sort_bam_log)
+                        
+#        print >> run_log, "mv %s %s" % (sorted_map, output_dir + accepted_hits)
+#        os.rename(sorted_map_name, output_dir + accepted_hits) 
+
+#        FIXME: put wiggles back!
+#        wig_cmd = [prog_path("wiggles"), output_dir + accepted_hits, output_dir + coverage]
+#        print >> run_log, " ".join(wig_cmd)
+#        subprocess.call(wig_cmd,
+#                        stderr=open("/dev/null"))
                         
     # cvg_islands not found
     except OSError, o:
+        print >>sys.stderr, o
         if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
             print >> sys.stderr, fail_str, "Error: tophat_reports not found on this system"
         sys.exit(1)
@@ -1410,6 +1509,7 @@ def junctions_from_segments(params,
 # Joins mapped segments into full-length read alignments via the executable
 # long_spanning_reads
 def join_mapped_segments(params,
+                         sam_header_filename,
                          reads,
                          ref_fasta,
                          possible_juncs,
@@ -1429,6 +1529,16 @@ def join_mapped_segments(params,
     #     align_cmd += ["-f"]
     
     alignments_out = open(alignments_out_name, "w")
+    #write_sam_header(params.read_params, sorted_map)
+    
+    header = open(sam_header_filename, "r")
+    for line in header:
+        print >> alignments_out, line,
+    
+    alignments_out.close()
+    alignments_out = open(alignments_out_name, "a")
+    
+    #alignments_out = open(alignments_out_name, "w")
     
     align_cmd.extend(params.cmd())
     
@@ -1461,6 +1571,7 @@ def join_mapped_segments(params,
 # pair of SAM alignment files (for paired end reads).
 def spliced_alignment(params,
                       bwt_idx_prefix,
+                      sam_header_filename,
                       ref_fasta,
                       read_len,
                       segment_len,
@@ -1527,6 +1638,7 @@ def spliced_alignment(params,
         # TODO: this step should be removable now that Bowtie supports SAM 
         # format
         join_mapped_segments(params,
+                             sam_header_filename,
                              reads,
                              ref_fasta,
                              ["/dev/null"],
@@ -1668,6 +1780,7 @@ def spliced_alignment(params,
         # alignments
         mapped_reads = reads +".candidate_hits.sam"
         join_mapped_segments(params,
+                             sam_header_filename,
                              reads,
                              ref_fasta,
                              possible_juncs,
@@ -1683,15 +1796,21 @@ def spliced_alignment(params,
             # NOTE: We also should be able to address bug #134 here, by replacing
             # contiguous alignments that poke into an intron by a small amount by
             # the correct spliced alignment.
-            merged_map = tmp_name()
-            merge_sort_cmd =["sort",
-                             "-k 1,1n",
-                              "--temporary-directory="+tmp_dir,
+            merged_map = tmp_name() + ".sam"
+            merge_sort_cmd =["samtools merge -n -h",
+                              sam_header_filename,
                               maps[reads].unspliced_sam, 
-                              mapped_reads]
-            print >> run_log, " ".join(merge_sort_cmd), ">", merged_map
-            subprocess.call(merge_sort_cmd,
-                             stdout=open(merged_map,"w"))  
+                              mapped_reads,
+                              merged_map]
+                              
+#            merge_sort_cmd =["sort",
+#                             "-k 1,1n",
+#                              "--temporary-directory="+tmp_dir,
+#                              maps[reads].unspliced_sam, 
+#                              mapped_reads]
+#            print >> run_log, " ".join(merge_sort_cmd), ">", merged_map
+#            subprocess.call(merge_sort_cmd,
+#                             stdout=open(merged_map,"w"))  
         else:
             merged_map = mapped_reads
         
@@ -1775,6 +1894,9 @@ def main(argv=None):
         (ref_fasta, ref_seq_dict) = check_index(bwt_idx_prefix)
         
         check_bowtie()
+        check_samtools()
+        
+        sam_header_filename = get_index_sam_header(bwt_idx_prefix)
         
         if params.skip_check_reads == False:
             # TODO: check right reads as well ?
@@ -1806,6 +1928,7 @@ def main(argv=None):
         
         mapping = spliced_alignment(params, 
                                     bwt_idx_prefix,
+                                    sam_header_filename,
                                     ref_fasta,
                                     params.read_params.seed_length,
                                     params.segment_length,
@@ -1819,6 +1942,7 @@ def main(argv=None):
         #right_unmapped_reads = mapping[3]
             
         compile_reports(params,
+                        sam_header_filename,
                         left_maps,
                         left_kept_reads,
                         right_maps,
