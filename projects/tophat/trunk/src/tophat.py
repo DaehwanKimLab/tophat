@@ -707,8 +707,8 @@ def check_bowtie():
     if bowtie_version == None:
         print >> sys.stderr, "Error: Bowtie not found on this system"
         sys.exit(1)
-    elif bowtie_version[1] < 10:
-        print >> sys.stderr, "Error: TopHat requires Bowtie 0.10.0 or later"
+    elif bowtie_version[1] < 12 or bowtie_version[2] < 3:
+        print >> sys.stderr, "Error: TopHat requires Bowtie 0.12.3 or later"
         sys.exit(1)
     print >> sys.stderr, "\tBowtie version:\t\t\t %s" % ".".join([str(x) for x in bowtie_version])
     

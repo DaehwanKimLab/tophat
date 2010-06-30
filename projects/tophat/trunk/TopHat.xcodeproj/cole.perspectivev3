@@ -272,7 +272,7 @@
 							<key>PBXSmartGroupTreeModuleOutlineStateSelectionKey</key>
 							<array>
 								<array>
-									<integer>32</integer>
+									<integer>40</integer>
 									<integer>1</integer>
 									<integer>0</integer>
 								</array>
@@ -327,7 +327,7 @@
 										<key>_historyCapacity</key>
 										<integer>0</integer>
 										<key>bookmark</key>
-										<string>EDE1068811DBDEB9005F1F4B</string>
+										<string>EDE106AC11DBE4B7005F1F4B</string>
 										<key>history</key>
 										<array>
 											<string>EDE1062811DBC324005F1F4B</string>
@@ -346,14 +346,14 @@
 							<key>GeometryConfiguration</key>
 							<dict>
 								<key>Frame</key>
-								<string>{{0, 0}, {936, 822}}</string>
+								<string>{{0, 0}, {936, 818}}</string>
 								<key>RubberWindowFrame</key>
 								<string>444 129 1144 1049 0 0 1920 1178 </string>
 							</dict>
 							<key>Module</key>
 							<string>PBXNavigatorGroup</string>
 							<key>Proportion</key>
-							<string>822pt</string>
+							<string>818pt</string>
 						</dict>
 						<dict>
 							<key>ContentConfiguration</key>
@@ -366,14 +366,14 @@
 							<key>GeometryConfiguration</key>
 							<dict>
 								<key>Frame</key>
-								<string>{{0, 827}, {936, 181}}</string>
+								<string>{{0, 823}, {936, 185}}</string>
 								<key>RubberWindowFrame</key>
 								<string>444 129 1144 1049 0 0 1920 1178 </string>
 							</dict>
 							<key>Module</key>
 							<string>XCDetailModule</string>
 							<key>Proportion</key>
-							<string>181pt</string>
+							<string>185pt</string>
 						</dict>
 					</array>
 					<key>Proportion</key>
@@ -392,9 +392,9 @@
 			</array>
 			<key>TableOfContents</key>
 			<array>
-				<string>EDE1062B11DBC324005F1F4B</string>
+				<string>EDE106AD11DBE4B7005F1F4B</string>
 				<string>1CE0B1FE06471DED0097A5F4</string>
-				<string>EDE1062C11DBC324005F1F4B</string>
+				<string>EDE106AE11DBE4B7005F1F4B</string>
 				<string>1CE0B20306471E060097A5F4</string>
 				<string>1CE0B20506471E060097A5F4</string>
 			</array>
@@ -532,7 +532,6 @@
 	<integer>5</integer>
 	<key>WindowOrderList</key>
 	<array>
-		<string>1CD10A99069EF8BA00B06720</string>
 		<string>EDE1062E11DBC324005F1F4B</string>
 		<string>/Users/cole/develop/tophat/TopHat.xcodeproj</string>
 	</array>
@@ -614,7 +613,7 @@
 			<key>TableOfContents</key>
 			<array>
 				<string>EDE1062E11DBC324005F1F4B</string>
-				<string>EDE1062F11DBC324005F1F4B</string>
+				<string>EDE106AF11DBE4B7005F1F4B</string>
 				<string>1CD0528F0623707200166675</string>
 				<string>XCMainBuildResultsModuleGUID</string>
 			</array>
