@@ -187,7 +187,7 @@ int main(int argc, char** argv)
 		exit(2);
 	}
 	
-	fprintf(stderr, "gff_juncs v%s\n", PACKAGE_VERSION); 
+	fprintf(stderr, "gff_juncs v%s (%s)\n", PACKAGE_VERSION, SVN_REVISION); 
 	fprintf(stderr, "---------------------------\n");
 	
 	gff_db.from_file(gff_filename);

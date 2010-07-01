@@ -11,6 +11,7 @@
 #include <config.h>
 #else
 #define PACKAGE_VERSION "INTERNAL"
+#define SVN_REVISION "XXX"
 #endif
 
 
@@ -991,7 +992,7 @@ void print_usage()
 
 int main(int argc, char** argv)
 {
-	fprintf(stderr, "tophat_reports v%s\n", PACKAGE_VERSION); 
+	fprintf(stderr, "tophat_reports v%s (%s)\n", PACKAGE_VERSION, SVN_REVISION); 
 	fprintf(stderr, "---------------------------------------\n");
 	
 	reads_format = FASTQ;
