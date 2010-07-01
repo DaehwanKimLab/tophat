@@ -642,7 +642,7 @@ void print_usage()
 
 int main(int argc, char** argv)
 {
-	fprintf(stderr, "closure_juncs v%s\n", PACKAGE_VERSION); 
+	fprintf(stderr, "closure_juncs v%s (%s)\n", PACKAGE_VERSION, SVN_REVISION); 
 	fprintf(stderr, "---------------------------\n");
 	
     int parse_ret = parse_options(argc, argv, print_usage);

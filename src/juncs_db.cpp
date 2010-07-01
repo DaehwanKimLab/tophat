@@ -235,7 +235,7 @@ void driver(const vector<FILE*>& splice_coords_files,
 
 int main(int argc, char** argv)
 {
-	fprintf(stderr, "juncs_db v%s\n", PACKAGE_VERSION); 
+	fprintf(stderr, "juncs_db v%s (%s)\n", PACKAGE_VERSION, SVN_REVISION); 
 	fprintf(stderr, "---------------------------\n");
 	
 	int parse_ret = parse_options(argc, argv, print_usage);

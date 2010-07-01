@@ -1,6 +1,6 @@
 define([svnversion], esyscmd([sh -c "svnversion|tr -d '\n'"]))dnl
 
-AC_INIT([tophat],[1.0.14-svnversion],[cole@cs.umd.edu])
+AC_INIT([tophat],[1.0.14],[cole@cs.umd.edu])
 AC_DEFINE(SVN_REVISION, "svnversion", [SVN Revision])
 
 AC_CONFIG_SRCDIR([config.h.in])

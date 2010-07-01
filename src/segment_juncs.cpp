@@ -3120,7 +3120,7 @@ void driver(istream& ref_stream,
 
 int main(int argc, char** argv)
 {
-	fprintf(stderr, "segment_juncs v%s\n", PACKAGE_VERSION); 
+	fprintf(stderr, "segment_juncs v%s (%s)\n", PACKAGE_VERSION, SVN_REVISION); 
 	fprintf(stderr, "---------------------------\n");
 	
     int parse_ret = parse_options(argc, argv, print_usage);
