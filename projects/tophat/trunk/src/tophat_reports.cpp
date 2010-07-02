@@ -386,8 +386,16 @@ struct lex_hit_sort
     {
         uint32_t l_id = lhs.ref_id();
         uint32_t r_id = rhs.ref_id();
+        
+        uint32_t l_len = _rt.get_len(lhs.ref_id());
+        uint32_t r_len = _rt.get_len(rhs.ref_id());
         if (l_id != r_id)
+        {
+            //if (l_len != 0 && r_len != 0)
+            //    return l_len > r_len;
+            //else 
             return (strcmp(_rt.get_name(lhs.ref_id()), _rt.get_name(rhs.ref_id())) < 0);
+        }
         return lhs.left() < rhs.left();
     }
     
@@ -757,7 +765,6 @@ void get_junctions_from_best_hits(HitStream& left_hs,
 		}
 	}
 	
-	
 	left_hs.reset();
 	right_hs.reset();
 }
@@ -771,7 +778,7 @@ void driver(FILE* left_map,
 			FILE* accepted_hits_out)
 {	
     ReadTable it;
-    RefSequenceTable rt(true);
+    RefSequenceTable rt(sam_header, true);
 	
     SAMHitFactory hit_factory(it,rt);
 	

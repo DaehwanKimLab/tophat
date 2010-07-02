@@ -1,3 +1,6 @@
+m4_include([ax_bam.m4])
+m4_include([ax_check_zlib.m4])
+
 define([svnversion], esyscmd([sh -c "svnversion|tr -d '\n'"]))dnl
 
 AC_INIT([tophat],[1.0.14],[cole@cs.umd.edu])
@@ -40,6 +43,8 @@ AC_CHECK_TOOL(AR,ar,false)
 AC_PATH_PROG(PERL, [perl], [:])
 AC_PATH_PROG(TOPHAT_SHELL, bash, no)
 AM_PATH_PYTHON([2.4])
+AX_BAM
+AX_CHECK_ZLIB()
 
 # Checks for header files.
 AC_CHECK_HEADERS([stdlib.h string.h unistd.h])
@@ -110,7 +115,7 @@ AS_IF([test "x$enable_debug" = xyes],
       [debug_CFLAGS="-DNDEBUG"])
 	  
 CFLAGS="${generic_CFLAGS} ${ext_CFLAGS} ${user_CFLAGS} ${debug_CFLAGS}"
-CXXFLAGS="$CFLAGS"
+CXXFLAGS="$CFLAGS $BAM_CPPFLAGS"
 
 AM_CXXFLAGS="$CXXFLAGS -I./SeqAn-1.1"
 

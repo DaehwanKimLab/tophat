@@ -23,6 +23,8 @@
 		ED74237211AC6948007FBF56 /* regexp.cc in Sources */ = {isa = PBXBuildFile; fileRef = ED74236B11AC692C007FBF56 /* regexp.cc */; };
 		ED74237311AC6948007FBF56 /* sequence.cc in Sources */ = {isa = PBXBuildFile; fileRef = ED74236D11AC692C007FBF56 /* sequence.cc */; };
 		ED74237611AC6953007FBF56 /* tokenize.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D624F118B5B6B00A682F4 /* tokenize.cpp */; };
+		EDBBA31411DD58610015175B /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = EDBBA31311DD58610015175B /* libz.dylib */; };
+		EDBBA31611DD588C0015175B /* libbam.a in Frameworks */ = {isa = PBXBuildFile; fileRef = EDBBA31511DD588C0015175B /* libbam.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -89,6 +91,10 @@
 		ED74236D11AC692C007FBF56 /* sequence.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = sequence.cc; sourceTree = "<group>"; };
 		ED74236E11AC692C007FBF56 /* sequence.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = sequence.h; sourceTree = "<group>"; };
 		EDB0A13211D3E14300DB9D11 /* tophat.mk */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = tophat.mk; path = "build-aux/tophat.mk"; sourceTree = "<group>"; };
+		EDBBA30411DD4F3F0015175B /* ax_bam.m4 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = ax_bam.m4; sourceTree = "<group>"; };
+		EDBBA30511DD4F480015175B /* ax_check_zlib.m4 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = ax_check_zlib.m4; sourceTree = "<group>"; };
+		EDBBA31311DD58610015175B /* libz.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libz.dylib; path = /usr/lib/libz.dylib; sourceTree = "<absolute>"; };
+		EDBBA31511DD588C0015175B /* libbam.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbam.a; path = /usr/local/libIntel64/libbam.a; sourceTree = "<absolute>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -96,6 +102,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EDBBA31411DD58610015175B /* libz.dylib in Frameworks */,
+				EDBBA31611DD588C0015175B /* libbam.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -105,8 +113,10 @@
 		ED5C74D9118B5B0700397B5E = {
 			isa = PBXGroup;
 			children = (
+				EDBBA31511DD588C0015175B /* libbam.a */,
 				ED6D622B118B5B3600A682F4 /* Source */,
 				ED74232611AC65E1007FBF56 /* Products */,
+				EDBBA31311DD58610015175B /* libz.dylib */,
 			);
 			sourceTree = "<group>";
 		};
@@ -162,6 +172,8 @@
 		ED6D622C118B5B4000A682F4 /* Autotools */ = {
 			isa = PBXGroup;
 			children = (
+				EDBBA30511DD4F480015175B /* ax_check_zlib.m4 */,
+				EDBBA30411DD4F3F0015175B /* ax_bam.m4 */,
 				EDB0A13211D3E14300DB9D11 /* tophat.mk */,
 				ED6D6255118B5B7300A682F4 /* Makefile.am */,
 				ED6D6256118B5B8C00A682F4 /* AUTHORS */,
@@ -286,6 +298,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(NATIVE_ARCH_ACTUAL)";
 				COPY_PHASE_STRIP = NO;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_ENABLE_FIX_AND_CONTINUE = YES;
@@ -297,6 +310,10 @@
 					"./src/Seqan-1.1",
 				);
 				INSTALL_PATH = /usr/local/bin;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					/usr/local/libIntel64,
+				);
 				PREBINDING = NO;
 				PRODUCT_NAME = tophat_reports;
 				USER_HEADER_SEARCH_PATHS = "";
@@ -312,6 +329,10 @@
 				GCC_ENABLE_FIX_AND_CONTINUE = NO;
 				GCC_MODEL_TUNING = G5;
 				INSTALL_PATH = /usr/local/bin;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					/usr/local/libIntel64,
+				);
 				PREBINDING = NO;
 				PRODUCT_NAME = tophat_reports;
 				ZERO_LINK = NO;

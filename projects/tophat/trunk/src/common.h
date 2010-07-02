@@ -56,6 +56,7 @@ extern std::string gff_file;
 extern std::string gene_filter;
 
 extern std::string ium_reads;
+extern std::string sam_header;
 
 extern bool solexa_quals;
 extern bool phred64_quals;

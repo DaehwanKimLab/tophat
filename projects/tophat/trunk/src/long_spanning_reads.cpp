@@ -128,7 +128,7 @@ void get_seqs(istream& ref_stream,
 		}
 		seqan::read(ref_stream, *ref_str, Fasta());
 		
-        rt.get_id(name, keep_seqs ? ref_str : NULL);
+        rt.get_id(name, keep_seqs ? ref_str : NULL, 0);
     }	
 }
 
@@ -1065,7 +1065,7 @@ void driver(vector<FILE*> possible_juncs_files,
 			int ret = sscanf(buf, "%s %d %d %c", junc_ref_name, &left, &right, &orientation);
 			if (ret != 4)
 				continue;
-			uint32_t ref_id = rt.get_id(junc_ref_name, NULL);
+			uint32_t ref_id = rt.get_id(junc_ref_name, NULL, 0);
 			possible_juncs.insert(Junction(ref_id, left, right, orientation == '-'));
 		}
 	}

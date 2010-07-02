@@ -190,7 +190,7 @@ void driver(const vector<FILE*>& splice_coords_files,
 				fprintf(stderr,"Error: malformed splice coordinate record\n");
 				exit(1);
 			}
-			uint32_t ref_id = rt.get_id(ref_name, NULL);
+			uint32_t ref_id = rt.get_id(ref_name, NULL, 0);
 			uint32_t left_coord = atoi(scan_left_coord);
 			uint32_t right_coord = atoi(scan_right_coord);
 			bool antisense = *orientation == '-';
@@ -215,7 +215,7 @@ void driver(const vector<FILE*>& splice_coords_files,
 		
 		read(ref_stream, ref_str, Fasta());
 		
-		uint32_t refid = rt.get_id(name, NULL);
+		uint32_t refid = rt.get_id(name, NULL, 0);
 		Junction dummy_left(refid, 0, 0, true);
 		Junction dummy_right(refid, 0xFFFFFFFF, 0xFFFFFFFF, true);
 		

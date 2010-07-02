@@ -61,7 +61,7 @@ void driver(FILE* map_file, FILE* repeat_file)
 		if (ret < 7)
 			continue;
 		
-		int id = rt.get_id(chrom, NULL);
+		int id = rt.get_id(chrom, NULL, 0);
 		repeats.push_back(Repeat(id, left, right));
 	}
 	

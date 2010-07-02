@@ -99,6 +99,8 @@ bin_dir = sys.path[0] + "/"
 #ok_str = "\t\t\t\t[OK]\n"
 fail_str = "\t[FAILED]\n"
 
+sam_header = tmp_dir + "stub_header.sam"
+
 # TopHatParams captures all of the runtime paramaters used by TopHat, and many
 # of these are passed as command line options to exectubles run by the pipeline
 
@@ -395,7 +397,8 @@ class TopHatParams:
                "--min-coverage-intron", str(self.search_params.min_coverage_intron_length),
                "--max-coverage-intron", str(self.search_params.max_coverage_intron_length),
                "--min-segment-intron", str(self.search_params.min_segment_intron_length),
-               "--max-segment-intron", str(self.search_params.max_segment_intron_length)]
+               "--max-segment-intron", str(self.search_params.max_segment_intron_length),
+               "--sam-header", sam_header]
                
         if self.read_params.mate_inner_dist != None:
             cmd.extend(["--inner-dist-mean", str(self.read_params.mate_inner_dist),
@@ -671,18 +674,72 @@ def get_bowtie_version():
        
 # Retrive a tuple containing the system's version of Bowtie.  Parsed from 
 # `bowtie --version`
-def get_index_sam_header(idx_prefix):
+def get_index_sam_header(read_params, idx_prefix):
     try:
         # Launch Bowtie to capture its version info
-        sam_header_filename = tmp_name()
-        sam_header_file = open(sam_header_filename,"w")
+        bowtie_sam_header_filename = tmp_name()
+        bowtie_sam_header_file = open(bowtie_sam_header_filename,"w")
 
         
         bowtie_header_cmd = ['bowtie', '--sam', idx_prefix, '/dev/null']
-        proc = subprocess.call(bowtie_header_cmd,stdout=sam_header_file, stderr=open('/dev/null'))
-       
-        #sam_header = None
-        #sam_header = repr(stdout_value)
+        proc = subprocess.call(bowtie_header_cmd,stdout=bowtie_sam_header_file, stderr=open('/dev/null'))
+        
+        bowtie_sam_header_file.close()
+        bowtie_sam_header_file = open(bowtie_sam_header_filename,"r")
+        
+        sam_header_file = open(sam_header, "w")
+        
+        preamble = []
+        sq_dict_lines = {}
+        CL_header_line = []
+        
+        for line in bowtie_sam_header_file.readlines():
+            line = line.strip()
+            if line.find("@SQ") != -1:
+                # Sequence dictionary record
+                cols = line.split('\t')
+                seq_name = None
+                for col in cols: 
+                    fields = col.split(':')
+                    if fields[0] == "SN":
+                        seq_name = fields[1]
+                if seq_name == None:
+                    print >> sys.stderr, "Error: malformed sequence dictionary in sam header"
+                    sys.exit(1)
+                sq_dict_lines[seq_name] = line
+            elif line.find("CL"):
+                continue
+            else:
+                preamble.append(line)
+        #for line in preamble:
+        #    print >> sam_header_file, line
+
+        
+        print >> sam_header_file, "@HD\tVN:1.0\tSO:sorted"
+    
+        if read_params.read_group_id and read_params.sample_id:
+            rg_str = "@RG\tID:%s\tSM:%s" % (read_params.read_group_id,
+                                            read_params.sample_id)
+            if read_params.library_id:
+                rg_str += "\tLB:%s" % read_params.library_id
+            if read_params.description:
+                rg_str += "\tDS:%s" % read_params.description
+            if read_params.seq_platform_unit:
+                rg_str += "\tPU:%s" % read_params.seq_platform_unit
+            if read_params.seq_center:
+                rg_str += "\tCN:%s" % read_params.seq_center
+            if read_params.mate_inner_dist:
+                rg_str += "\tPI:%s" % read_params.mate_inner_dist
+            if read_params.seq_run_date:
+                rg_str += "\tDT:%s" % read_params.seq_run_date
+            if read_params.seq_platform:
+                rg_str += "\tPL:%s" % read_params.seq_platform
+            
+            print >> sam_header_file, rg_str
+        
+        for name, line in sq_dict_lines.iteritems():
+            print >> sam_header_file, line
+        print >> sam_header_file, "@PG\tID:TopHat\tVN:%s\tCL:%s" % (get_version(), run_cmd)
         
         # Launder the header as appropriate for TopHat
         
@@ -693,7 +750,9 @@ def get_index_sam_header(idx_prefix):
 #        for line in sam_header:
 #            print >> sam_header_file, line
         
-        return sam_header_filename
+        sam_header_file.close()
+        
+        return sam_header
         
     except OSError, o:
        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
@@ -1303,7 +1362,7 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
 #        print >> run_log, "mv %s %s" % (sorted_map, output_dir + accepted_hits)
 #        os.rename(sorted_map_name, output_dir + accepted_hits) 
 
-#        FIXME: put wiggles back!
+# FIXME: put wiggles back!
 #        wig_cmd = [prog_path("wiggles"), output_dir + accepted_hits, output_dir + coverage]
 #        print >> run_log, " ".join(wig_cmd)
 #        subprocess.call(wig_cmd,
@@ -1896,7 +1955,7 @@ def main(argv=None):
         check_bowtie()
         check_samtools()
         
-        sam_header_filename = get_index_sam_header(bwt_idx_prefix)
+        sam_header_filename = get_index_sam_header(params.read_params, bwt_idx_prefix)
         
         if params.skip_check_reads == False:
             # TODO: check right reads as well ?
