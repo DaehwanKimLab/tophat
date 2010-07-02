@@ -701,7 +701,8 @@ def get_index_sam_header(read_params, idx_prefix):
                 seq_name = None
                 for col in cols: 
                     fields = col.split(':')
-                    if fields[0] == "SN":
+                    print fields
+                    if len(fields) > 0 and fields[0] == "SN":
                         seq_name = fields[1]
                 if seq_name == None:
                     print >> sys.stderr, "Error: malformed sequence dictionary in sam header"
