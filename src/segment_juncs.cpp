@@ -117,7 +117,7 @@ void get_seqs(istream& ref_stream,
 		fprintf(stderr, "\tLoading %s...", name.c_str());
 		seqan::read(ref_stream, *ref_str, Fasta());
 		fprintf(stderr, "done\n");
-        rt.get_id(name, keep_seqs ? ref_str : NULL);
+        rt.get_id(name, keep_seqs ? ref_str : NULL, 0);
 		if (!keep_seqs)
 			delete ref_str;
     }	

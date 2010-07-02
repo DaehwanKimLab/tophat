@@ -182,37 +182,37 @@ libtophat_a_SOURCES = \
 #-- program sources
 
 prep_reads_SOURCES = prep_reads.cpp
-prep_reads_LDADD = $(top_builddir)/src/libtophat.a
+prep_reads_LDADD = $(top_builddir)/src/libtophat.a  $(BAM_LIB)
 
 segment_juncs_SOURCES = segment_juncs.cpp
-segment_juncs_LDADD = $(top_builddir)/src/libtophat.a 
+segment_juncs_LDADD = $(top_builddir)/src/libtophat.a  $(BAM_LIB)
 
 long_spanning_reads_SOURCES = long_spanning_reads.cpp
-long_spanning_reads_LDADD = $(top_builddir)/src/libtophat.a
+long_spanning_reads_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
 
 gff_juncs_SOURCES = gff_juncs.cpp
-gff_juncs_LDADD = $(top_builddir)/src/libtophat.a
+gff_juncs_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
 
 juncs_db_SOURCES = juncs_db.cpp
-juncs_db_LDADD = $(top_builddir)/src/libtophat.a
+juncs_db_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
 
 library_stats_SOURCES = library_stats.cpp
-library_stats_LDADD = $(top_builddir)/src/libtophat.a
+library_stats_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
 
 tophat_reports_SOURCES = tophat_reports.cpp
-tophat_reports_LDADD = $(top_builddir)/src/libtophat.a 
+tophat_reports_LDADD = $(top_builddir)/src/libtophat.a  $(BAM_LIB)
 
 extract_reads_SOURCES = extract_reads.cpp
-extract_reads_LDADD = $(top_builddir)/src/libtophat.a
+extract_reads_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
 
 fix_map_ordering_SOURCES = fix_map_ordering.cpp
-fix_map_ordering_LDADD = $(top_builddir)/src/libtophat.a
+fix_map_ordering_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
 
 closure_juncs_SOURCES = closures.cpp
-closure_juncs_LDADD = $(top_builddir)/src/libtophat.a
+closure_juncs_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
 
 mask_sam_SOURCES = mask_sam.cpp
-mask_sam_LDADD = $(top_builddir)/src/libtophat.a
+mask_sam_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
 
 wiggles_SOURCES = wiggles.cpp
-wiggles_LDADD = $(top_builddir)/src/libtophat.a
+wiggles_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)

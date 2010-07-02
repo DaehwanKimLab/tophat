@@ -15,6 +15,8 @@
 #include <cstring>
 #include <seqan/sequence.h>
 
+#include <bam/sam.h>
+
 using namespace std;
 
 /*
@@ -275,13 +277,16 @@ public:
 	{
 		SequenceInfo(uint32_t _order, 
 					 char* _name, 
-					 Sequence* _seq) :
-		observation_order(_order),
-		name(_name),
-		seq(_seq) {}
+					 Sequence* _seq, uint32_t _len) :
+            observation_order(_order),
+            name(_name),
+            seq(_seq),
+            len(_len) {}
+        
 		uint32_t observation_order;
 		char* name;
 		Sequence* seq;
+        uint32_t len;
 	};
 	
 	typedef map<string, uint64_t> IDTable;
@@ -292,21 +297,44 @@ public:
 	RefSequenceTable(bool keep_names, bool keep_seqs = false) : 
 	_next_id(1), 
 	_keep_names(keep_names) {}
+    
+    RefSequenceTable(const string& sam_header_filename, 
+                     bool keep_names, 
+                     bool keep_seqs = false) : 
+        _next_id(1), 
+        _keep_names(keep_names) 
+    {
+        samfile_t* fh = samopen(sam_header_filename.c_str(), "r", 0);
+        if (fh == 0) {
+            fprintf(stderr, "Failed to open SAM header file %s\n", sam_header_filename.c_str());
+            exit(1);
+        }
+        
+        for (size_t i = 0; i < fh->header->n_targets; ++i)
+        {
+            const char* name = fh->header->target_name[i];
+            uint32_t len  = fh->header->target_len[i];
+            get_id(name, NULL, len);
+            fprintf(stderr, "SQ: %s - %d\n", name, len);
+        }
+    }
 	
 	// This function should NEVER return zero
 	uint32_t get_id(const string& name,
-					Sequence* seq)
+					Sequence* seq,
+                    uint32_t len)
 	{
 		uint32_t _id = hash_string(name.c_str());
 		pair<InvertedIDTable::iterator, bool> ret = 
-		_by_id.insert(make_pair(_id, SequenceInfo(_next_id, NULL, NULL)));
+		_by_id.insert(make_pair(_id, SequenceInfo(_next_id, NULL, NULL, 0)));
 		if (ret.second == true)
 		{			
 			char* _name = NULL;
 			if (_keep_names)
 				_name = strdup(name.c_str());
-			ret.first->second.name = _name;
+			ret.first->second.name  = _name;
 			ret.first->second.seq	= seq;
+            ret.first->second.len   = len;
 			++_next_id;
 		}
 		assert (_id);
@@ -320,6 +348,15 @@ public:
 			return itr->second.name;
 		else
 			return NULL;
+	}
+    
+    uint32_t get_len(uint32_t ID) const
+	{
+		InvertedIDTable::const_iterator itr = _by_id.find(ID);
+		if (itr != _by_id.end())
+			return itr->second.len;
+		else
+			return 0;
 	}
 	
 	Sequence* get_seq(uint32_t ID) const

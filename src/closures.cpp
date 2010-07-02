@@ -249,7 +249,7 @@ public:
 			}
 			read(ref_stream, *ref_str, Fasta());
 			
-			uint32_t ref_id = rt.get_id(name, NULL);
+			uint32_t ref_id = rt.get_id(name, NULL, 0);
 			finders[ref_id] = RefCIF(CIF(ref_str), CIF(ref_str), ref_str);
 		}
 	}

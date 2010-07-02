@@ -64,6 +64,7 @@ string output_dir = "tophat_out";
 string gene_filter = "";
 string gff_file = "";
 string ium_reads = "";
+string sam_header = "";
 
 bool solexa_quals = false;
 bool phred64_quals = false;
@@ -159,11 +160,13 @@ const char *short_options = "";
 #define OPT_BUTTERFLY_SEARCH			62
 #define OPT_SOLEXA_QUALS			    63
 #define OPT_PHRED64_QUALS				64
+#define OPT_SAM_HEADER                  65
 
 static struct option long_options[] = {
 {"fasta",				no_argument,		0,	OPT_FASTA},
 {"fastq",				no_argument,		0,	OPT_FASTQ},
 {"min-anchor",			required_argument,	0,	OPT_MIN_ANCHOR},
+{"sam-header",			required_argument,	0,	OPT_SAM_HEADER},
 {"splice-mismatches",	required_argument,	0,	OPT_SPLICE_MISMATCHES},
 {"verbose",				no_argument,		0,	OPT_VERBOSE},
 {"inner-dist-mean",		required_argument,	0,	OPT_INSERT_LENGTH_MEAN},
@@ -284,6 +287,9 @@ int parse_options(int argc, char** argv, void (*print_usage)())
 				break;
 			case OPT_IUM_READS:
 				ium_reads = optarg;
+				break;
+            case OPT_SAM_HEADER:
+				sam_header = optarg;
 				break;
 			case OPT_BUTTERFLY_SEARCH:
 				butterfly_search = true;
