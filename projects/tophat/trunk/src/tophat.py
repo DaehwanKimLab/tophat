@@ -690,7 +690,7 @@ def get_index_sam_header(read_params, idx_prefix):
         sam_header_file = open(sam_header, "w")
         
         preamble = []
-        sq_dict_lines = {}
+        sq_dict_lines = []
         CL_header_line = []
         
         for line in bowtie_sam_header_file.readlines():
@@ -706,7 +706,7 @@ def get_index_sam_header(read_params, idx_prefix):
                 if seq_name == None:
                     print >> sys.stderr, "Error: malformed sequence dictionary in sam header"
                     sys.exit(1)
-                sq_dict_lines[seq_name] = line
+                sq_dict_lines.append([seq_name,line])
             elif line.find("CL"):
                 continue
             else:
@@ -737,7 +737,8 @@ def get_index_sam_header(read_params, idx_prefix):
             
             print >> sam_header_file, rg_str
         
-        for name, line in sq_dict_lines.iteritems():
+        sq_dict_lines.sort(lambda x,y: cmp(x[0],y[0]))
+        for [name, line] in sq_dict_lines:
             print >> sam_header_file, line
         print >> sam_header_file, "@PG\tID:TopHat\tVN:%s\tCL:%s" % (get_version(), run_cmd)
         
