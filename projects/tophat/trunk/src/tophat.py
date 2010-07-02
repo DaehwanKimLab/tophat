@@ -741,15 +741,6 @@ def get_index_sam_header(read_params, idx_prefix):
             print >> sam_header_file, line
         print >> sam_header_file, "@PG\tID:TopHat\tVN:%s\tCL:%s" % (get_version(), run_cmd)
         
-        # Launder the header as appropriate for TopHat
-        
-        # Write it to a file
-               
-        #sam_header = sam_header.split('\\n')
-#        print  sam_header 
-#        for line in sam_header:
-#            print >> sam_header_file, line
-        
         sam_header_file.close()
         
         return sam_header
@@ -1855,21 +1846,27 @@ def spliced_alignment(params,
             # NOTE: We also should be able to address bug #134 here, by replacing
             # contiguous alignments that poke into an intron by a small amount by
             # the correct spliced alignment.
-            merged_map = tmp_name() + ".sam"
-            merge_sort_cmd =["samtools merge -n -h",
-                              sam_header_filename,
-                              maps[reads].unspliced_sam, 
-                              mapped_reads,
-                              merged_map]
-                              
-#            merge_sort_cmd =["sort",
-#                             "-k 1,1n",
-#                              "--temporary-directory="+tmp_dir,
+            
+            # Using this requires converting to BAM upstream.  What a pain.
+#            merged_map = tmp_name() + ".sam"
+#
+#            merge_sort_cmd =["samtools", "merge", "-n", "-h",
+#                              sam_header_filename,
 #                              maps[reads].unspliced_sam, 
-#                              mapped_reads]
-#            print >> run_log, " ".join(merge_sort_cmd), ">", merged_map
-#            subprocess.call(merge_sort_cmd,
-#                             stdout=open(merged_map,"w"))  
+#                              mapped_reads,
+#                              merged_map]
+                              
+            merged_map = tmp_name()
+            merge_sort_cmd =["sort",
+                             "-k 1,1n",
+                              "--temporary-directory="+tmp_dir,
+                              maps[reads].unspliced_sam, 
+                              mapped_reads]
+            print >> run_log, " ".join(merge_sort_cmd), ">", merged_map
+
+            print >> run_log, " ".join(merge_sort_cmd)
+            subprocess.call(merge_sort_cmd,
+                             stdout=open(merged_map,"w")) 
         else:
             merged_map = mapped_reads
         
