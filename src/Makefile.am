@@ -119,7 +119,7 @@ bin_PROGRAMS = \
 	prep_reads \
 	tophat_reports \
 	juncs_db \
-	gff_juncs \
+	gtf_juncs \
 	extract_reads \
     segment_juncs \
 	closure_juncs \
@@ -138,10 +138,22 @@ dist_bin_SCRIPTS = \
 
 
 #-- tophat library for linking convienence
-noinst_LIBRARIES = libtophat.a
+noinst_LIBRARIES = libtophat.a libgc.a
+
 noinst_HEADERS = \
 	reads.h \
-	common.h \
+    codons.h \
+    common.h \
+    GArgs.h \
+	GBase.h \
+	gdna.h \
+	GFaSeqGet.h \
+	GFastaFile.h \
+	gff.h \
+	GHash.hh \
+	GList.hh \
+	GStr.h \
+    gtf_tracking.h \
 	bwt_map.h \
 	wiggles.h \
 	junctions.h \
@@ -149,16 +161,10 @@ noinst_HEADERS = \
 	alphabet.h \
 	timer.h \
 	closures.h \
-	FSA/regexp.h \
-	FSA/gff.h \
-	FSA/misc.h \
-	FSA/sequence.h \
-	FSA/fsa_alphabet.h \
 	tokenize.h \
 	fragments.h \
 	inserts.h \
 	segments.h \
-    genes.h \
 	qual.h
 
 	
@@ -168,16 +174,20 @@ libtophat_a_SOURCES = \
 	bwt_map.cpp \
 	common.cpp \
 	junctions.cpp \
-	FSA/regexp.cc \
-	FSA/gff.cc \
-	FSA/misc.cc \
-	FSA/sequence.cc \
-	FSA/fsa_alphabet.cc \
 	fragments.cpp \
 	tokenize.cpp \
 	inserts.cpp \
-    genes.cpp \
 	qual.cpp
+    
+libgc_a_SOURCES = \
+	codons.cpp \
+	GArgs.cpp \
+	GBase.cpp \
+	gdna.cpp \
+	GStr.cpp \
+	GFaSeqGet.cpp \
+	gff.cpp \
+	gtf_tracking.cpp
 
 #-- program sources
 
@@ -190,8 +200,8 @@ segment_juncs_LDADD = $(top_builddir)/src/libtophat.a  $(BAM_LIB)
 long_spanning_reads_SOURCES = long_spanning_reads.cpp
 long_spanning_reads_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
 
-gff_juncs_SOURCES = gff_juncs.cpp
-gff_juncs_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
+gtf_juncs_SOURCES = gtf_juncs.cpp
+gtf_juncs_LDADD = $(top_builddir)/src/libtophat.a libgc.a $(BAM_LIB)
 
 juncs_db_SOURCES = juncs_db.cpp
 juncs_db_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)

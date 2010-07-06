@@ -1148,36 +1148,36 @@ def tmp_name():
         os.mkdir(tmp_root)
     return tmp_root + os.tmpnam().split('/')[-1] 
 
-# Retrieve a .juncs file from a GFF file by calling the gff_juncs executable
-def get_gff_juncs(gff_annotation):
+# Retrieve a .juncs file from a GFF file by calling the gtf_juncs executable
+def get_gtf_juncs(gff_annotation):
     print >> sys.stderr, "[%s] Reading known junctions from GFF file" % (right_now())
-    gff_juncs_log = open(logging_dir + "gff_juncs.log", "w")
+    gtf_juncs_log = open(logging_dir + "gtf_juncs.log", "w")
     
     gff_prefix = gff_annotation.split('/')[-1].split('.')[0]
     
-    gff_juncs_out_name  = output_dir + gff_prefix + ".juncs"
-    gff_juncs_out = open(gff_juncs_out_name, "w")
+    gtf_juncs_out_name  = output_dir + gff_prefix + ".juncs"
+    gtf_juncs_out = open(gtf_juncs_out_name, "w")
     
-    #gff_juncs_cmd = [bin_dir + "gff_juncs", gff_annotation]
-    gff_juncs_cmd=[prog_path("gff_juncs"), gff_annotation]                 
+    #gtf_juncs_cmd = [bin_dir + "gtf_juncs", gff_annotation]
+    gtf_juncs_cmd=[prog_path("gtf_juncs"), gff_annotation]                 
     try:    
-        print >> run_log, " ".join(gff_juncs_cmd)
-        retcode = subprocess.call(gff_juncs_cmd, 
-                                  stderr=gff_juncs_log,
-                                  stdout=gff_juncs_out)
+        print >> run_log, " ".join(gtf_juncs_cmd)
+        retcode = subprocess.call(gtf_juncs_cmd, 
+                                  stderr=gtf_juncs_log,
+                                  stdout=gtf_juncs_out)
         # cvg_islands returned an error
         if retcode == 1:
             print >> sys.stderr, "\tWarning: TopHat did not find any junctions in GFF file"
-            return (False, gff_juncs_out_name) 
+            return (False, gtf_juncs_out_name) 
         elif retcode < 0:
             print >> sys.stderr, fail_str, "Error: GFF junction extraction failed with err =", retcode
             sys.exit(1)
     # cvg_islands not found
     except OSError, o:
        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
-           print >> sys.stderr, fail_str, "Error: gff_juncs not found on this system"
+           print >> sys.stderr, fail_str, "Error: gtf_juncs not found on this system"
        sys.exit(1)
-    return (True, gff_juncs_out_name)
+    return (True, gtf_juncs_out_name)
 
 # Call bowtie-build on the FASTA file of sythetic splice junction sequences
 def build_juncs_bwt_index(external_splice_prefix):
@@ -1962,9 +1962,9 @@ def main(argv=None):
             
         user_supplied_juncs = []
         if params.gff_annotation != None and params.find_GFF_juncs == True:
-            (found_juncs, gff_juncs) = get_gff_juncs(params.gff_annotation)
+            (found_juncs, gtf_juncs) = get_gtf_juncs(params.gff_annotation)
             if found_juncs == True:
-                user_supplied_juncs.append(gff_juncs)
+                user_supplied_juncs.append(gtf_juncs)
         if params.raw_junctions != None:
             user_supplied_juncs.append(params.raw_junctions)
                 

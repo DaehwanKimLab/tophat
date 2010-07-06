@@ -37,7 +37,6 @@
 #include "fragments.h"
 #include "wiggles.h"
 #include "tokenize.h"
-#include "genes.h"
 #include "reads.h"
 
 #include "inserts.h"
@@ -580,33 +579,7 @@ void print_sam_for_hits(const RefSequenceTable& rt,
 	}
 }
 
-// Extracts junctions from all the SAM hits (based on REF_SKIPs) in the hit file
-// resets the stream when finished.
-void get_junctions_from_hits(HitStream& hit_stream, 
-							 ReadTable& it, 
-							 JunctionSet& junctions)
-{
-	HitsForRead curr_hit_group;
-	hit_stream.next_read_hits(curr_hit_group);
 
-	uint32_t curr_obs_order = it.observation_order(curr_hit_group.insert_id);
-	
-	while(curr_obs_order != 0xFFFFFFFF)
-	{
-		for (size_t i = 0; i < curr_hit_group.hits.size(); ++i)
-		{
-			BowtieHit& bh = curr_hit_group.hits[i];
-			if (!bh.contiguous())
-			{
-				junctions_from_alignment(bh, junctions);
-			}
-			hit_stream.next_read_hits(curr_hit_group);
-			curr_obs_order = it.observation_order(curr_hit_group.insert_id);
-		}
-	}
-	
-	hit_stream.reset();
-}
 
 void update_junctions(const HitsForRead& hits,
 					  JunctionSet& junctions)
