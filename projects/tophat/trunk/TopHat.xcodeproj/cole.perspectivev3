@@ -270,7 +270,6 @@
 							<array>
 								<string>ED5C74D9118B5B0700397B5E</string>
 								<string>ED6D622B118B5B3600A682F4</string>
-								<string>ED74236411AC692C007FBF56</string>
 								<string>ED6D622C118B5B4000A682F4</string>
 								<string>1C37FBAC04509CD000000102</string>
 								<string>1C37FAAC04509CD000000102</string>
@@ -278,13 +277,14 @@
 							<key>PBXSmartGroupTreeModuleOutlineStateSelectionKey</key>
 							<array>
 								<array>
-									<integer>56</integer>
+									<integer>70</integer>
+									<integer>62</integer>
 									<integer>2</integer>
 									<integer>0</integer>
 								</array>
 							</array>
 							<key>PBXSmartGroupTreeModuleOutlineStateVisibleRectKey</key>
-							<string>{{0, 794}, {185, 840}}</string>
+							<string>{{0, 522}, {185, 840}}</string>
 						</dict>
 						<key>PBXTopSmartGroupGIDs</key>
 						<array/>
@@ -301,7 +301,7 @@
 							<real>185</real>
 						</array>
 						<key>RubberWindowFrame</key>
-						<string>253 198 1186 899 0 0 1920 1178 </string>
+						<string>540 279 1186 899 0 0 1920 1178 </string>
 					</dict>
 					<key>Module</key>
 					<string>PBXSmartGroupTreeModule</string>
@@ -319,7 +319,7 @@
 								<key>PBXProjectModuleGUID</key>
 								<string>ED5C74E3118B5B0800397B5E</string>
 								<key>PBXProjectModuleLabel</key>
-								<string>GBase.cpp</string>
+								<string>configure.ac</string>
 								<key>PBXSplitModuleInNavigatorKey</key>
 								<dict>
 									<key>Split0</key>
@@ -327,11 +327,11 @@
 										<key>PBXProjectModuleGUID</key>
 										<string>ED5C74E4118B5B0800397B5E</string>
 										<key>PBXProjectModuleLabel</key>
-										<string>GBase.cpp</string>
+										<string>configure.ac</string>
 										<key>_historyCapacity</key>
 										<integer>0</integer>
 										<key>bookmark</key>
-										<string>EDE1094E11E3CE39005F1F4B</string>
+										<string>EDE1098A11E3DABA005F1F4B</string>
 										<key>history</key>
 										<array>
 											<string>EDBBA2B611DD3C040015175B</string>
@@ -358,7 +358,6 @@
 											<string>ED2A455411DE8530009AD73B</string>
 											<string>ED2A455911DE893B009AD73B</string>
 											<string>ED2A45DD11E2A727009AD73B</string>
-											<string>ED2A45E011E2A727009AD73B</string>
 											<string>ED2A45E111E2A727009AD73B</string>
 											<string>ED2A45E211E2A727009AD73B</string>
 											<string>ED2A45E311E2A727009AD73B</string>
@@ -366,17 +365,19 @@
 											<string>EDE1086711E3AEB6005F1F4B</string>
 											<string>EDE1086D11E3AEB6005F1F4B</string>
 											<string>EDE108CD11E3B668005F1F4B</string>
-											<string>EDE1090A11E3BF17005F1F4B</string>
-											<string>EDE1090B11E3BF17005F1F4B</string>
-											<string>EDE1093111E3C950005F1F4B</string>
 											<string>EDE1093211E3C950005F1F4B</string>
 											<string>EDE1093611E3CB30005F1F4B</string>
 											<string>EDE1093711E3CB30005F1F4B</string>
-											<string>EDE1093811E3CB30005F1F4B</string>
 											<string>EDE1093911E3CB30005F1F4B</string>
 											<string>EDE1094A11E3CDAC005F1F4B</string>
 											<string>EDE1094B11E3CDAC005F1F4B</string>
-											<string>EDE1094C11E3CDAC005F1F4B</string>
+											<string>EDE1094F11E3D902005F1F4B</string>
+											<string>EDE1095311E3D902005F1F4B</string>
+											<string>EDE1095C11E3D928005F1F4B</string>
+											<string>EDE1096611E3D9BE005F1F4B</string>
+											<string>EDE1097B11E3DA78005F1F4B</string>
+											<string>EDE1098811E3DABA005F1F4B</string>
+											<string>EDE1098911E3DABA005F1F4B</string>
 										</array>
 									</dict>
 									<key>SplitCount</key>
@@ -390,18 +391,18 @@
 							<key>GeometryConfiguration</key>
 							<dict>
 								<key>Frame</key>
-								<string>{{0, 0}, {979, 446}}</string>
+								<string>{{0, 0}, {979, 626}}</string>
 								<key>RubberWindowFrame</key>
-								<string>253 198 1186 899 0 0 1920 1178 </string>
+								<string>540 279 1186 899 0 0 1920 1178 </string>
 							</dict>
 							<key>Module</key>
 							<string>PBXNavigatorGroup</string>
 							<key>Proportion</key>
-							<string>446pt</string>
+							<string>626pt</string>
 						</dict>
 						<dict>
 							<key>Proportion</key>
-							<string>407pt</string>
+							<string>227pt</string>
 							<key>Tabs</key>
 							<array>
 								<dict>
@@ -415,9 +416,9 @@
 									<key>GeometryConfiguration</key>
 									<dict>
 										<key>Frame</key>
-										<string>{{10, 27}, {979, 380}}</string>
+										<string>{{10, 27}, {979, 200}}</string>
 										<key>RubberWindowFrame</key>
-										<string>253 198 1186 899 0 0 1920 1178 </string>
+										<string>540 279 1186 899 0 0 1920 1178 </string>
 									</dict>
 									<key>Module</key>
 									<string>XCDetailModule</string>
@@ -698,7 +699,7 @@
 		<string>/Users/cole/develop/tophat/TopHat.xcodeproj</string>
 	</array>
 	<key>WindowString</key>
-	<string>253 198 1186 899 0 0 1920 1178 </string>
+	<string>540 279 1186 899 0 0 1920 1178 </string>
 	<key>WindowToolsV3</key>
 	<array>
 		<dict>

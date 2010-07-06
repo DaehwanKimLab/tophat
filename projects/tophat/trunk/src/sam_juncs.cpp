@@ -43,7 +43,11 @@ void get_junctions_from_hitstream(HitStream& hitstream,
             junctions_from_alignment(bh, junctions);
         }
         
+        //fprintf(stderr, "#Hits = %d\n", curr_hit_group.hits.size()); 
+        
+        //curr_hit_group = HitsForRead();
         // Get next hit group
+        
         hitstream.next_read_hits(curr_hit_group);
         curr_obs_order = it.observation_order(curr_hit_group.insert_id);
 	}
