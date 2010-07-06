@@ -131,5 +131,9 @@ bool accept_if_valid(const Junction& j, JunctionStats& s);
 
 void filter_junctions(JunctionSet& junctions);
 
+void get_junctions_from_hits(HitStream& hit_stream, 
+							 ReadTable& it, 
+							 JunctionSet& junctions);
+
 #endif
 

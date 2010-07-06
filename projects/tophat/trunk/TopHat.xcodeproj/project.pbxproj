@@ -7,6 +7,26 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		ED2A44BE11DE77C7009AD73B /* gtf_juncs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED2A44BD11DE77C7009AD73B /* gtf_juncs.cpp */; };
+		ED2A44CB11DE78E2009AD73B /* gff.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED2A44C911DE78E2009AD73B /* gff.cpp */; };
+		ED2A44D011DE7923009AD73B /* bwt_map.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D6231118B5B5800A682F4 /* bwt_map.cpp */; };
+		ED2A44D311DE793C009AD73B /* reads.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D624A118B5B6300A682F4 /* reads.cpp */; };
+		ED2A456111E2401E009AD73B /* reads.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D624A118B5B6300A682F4 /* reads.cpp */; };
+		ED2A456211E2401E009AD73B /* bwt_map.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D6231118B5B5800A682F4 /* bwt_map.cpp */; };
+		ED2A456311E2401E009AD73B /* tokenize.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D624F118B5B6B00A682F4 /* tokenize.cpp */; };
+		ED2A456411E2401E009AD73B /* common.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D6235118B5B5800A682F4 /* common.cpp */; };
+		ED2A456511E2401E009AD73B /* junctions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D6242118B5B6300A682F4 /* junctions.cpp */; };
+		ED2A456611E2401E009AD73B /* GArgs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EDBBA55E11DE75750015175B /* GArgs.cpp */; };
+		ED2A456711E2401E009AD73B /* GBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EDBBA56011DE75750015175B /* GBase.cpp */; };
+		ED2A456811E2401E009AD73B /* gdna.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EDBBA56211DE75750015175B /* gdna.cpp */; };
+		ED2A456911E2401E009AD73B /* GFaSeqGet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EDBBA56611DE75750015175B /* GFaSeqGet.cpp */; };
+		ED2A456A11E2401E009AD73B /* GStr.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EDBBA56B11DE75750015175B /* GStr.cpp */; };
+		ED2A456B11E2401E009AD73B /* gtf_tracking.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EDBBA57811DE75B30015175B /* gtf_tracking.cpp */; };
+		ED2A456C11E2401E009AD73B /* codons.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EDBBA58511DE75E80015175B /* codons.cpp */; };
+		ED2A456E11E2401E009AD73B /* gff.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED2A44C911DE78E2009AD73B /* gff.cpp */; };
+		ED2A457011E2401E009AD73B /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = EDBBA31311DD58610015175B /* libz.dylib */; };
+		ED2A457111E2401E009AD73B /* libbam.a in Frameworks */ = {isa = PBXBuildFile; fileRef = EDBBA31511DD588C0015175B /* libbam.a */; };
+		ED2A457811E240E4009AD73B /* sam_juncs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED2A457711E240E4009AD73B /* sam_juncs.cpp */; };
 		ED74232B11AC6617007FBF56 /* alphabet.c in Sources */ = {isa = PBXBuildFile; fileRef = ED6D622D118B5B5800A682F4 /* alphabet.c */; };
 		ED74232C11AC6617007FBF56 /* bwt_map.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D6231118B5B5800A682F4 /* bwt_map.cpp */; };
 		ED74232D11AC6617007FBF56 /* common.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D6235118B5B5800A682F4 /* common.cpp */; };
@@ -16,18 +36,29 @@
 		ED74233111AC6617007FBF56 /* qual.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D6248118B5B6300A682F4 /* qual.cpp */; };
 		ED74233211AC6617007FBF56 /* reads.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D624A118B5B6300A682F4 /* reads.cpp */; };
 		ED74233311AC6617007FBF56 /* tophat_reports.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D6251118B5B6B00A682F4 /* tophat_reports.cpp */; };
-		ED74233411AC6637007FBF56 /* genes.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D623C118B5B6300A682F4 /* genes.cpp */; };
-		ED74236F11AC6948007FBF56 /* fsa_alphabet.cc in Sources */ = {isa = PBXBuildFile; fileRef = ED74236511AC692C007FBF56 /* fsa_alphabet.cc */; };
-		ED74237011AC6948007FBF56 /* gff.cc in Sources */ = {isa = PBXBuildFile; fileRef = ED74236711AC692C007FBF56 /* gff.cc */; };
-		ED74237111AC6948007FBF56 /* misc.cc in Sources */ = {isa = PBXBuildFile; fileRef = ED74236911AC692C007FBF56 /* misc.cc */; };
-		ED74237211AC6948007FBF56 /* regexp.cc in Sources */ = {isa = PBXBuildFile; fileRef = ED74236B11AC692C007FBF56 /* regexp.cc */; };
-		ED74237311AC6948007FBF56 /* sequence.cc in Sources */ = {isa = PBXBuildFile; fileRef = ED74236D11AC692C007FBF56 /* sequence.cc */; };
 		ED74237611AC6953007FBF56 /* tokenize.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D624F118B5B6B00A682F4 /* tokenize.cpp */; };
 		EDBBA31411DD58610015175B /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = EDBBA31311DD58610015175B /* libz.dylib */; };
 		EDBBA31611DD588C0015175B /* libbam.a in Frameworks */ = {isa = PBXBuildFile; fileRef = EDBBA31511DD588C0015175B /* libbam.a */; };
+		EDBBA54111DE75370015175B /* tokenize.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D624F118B5B6B00A682F4 /* tokenize.cpp */; };
+		EDBBA54A11DE75370015175B /* common.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D6235118B5B5800A682F4 /* common.cpp */; };
+		EDBBA54D11DE75370015175B /* junctions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D6242118B5B6300A682F4 /* junctions.cpp */; };
+		EDBBA55211DE75370015175B /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = EDBBA31311DD58610015175B /* libz.dylib */; };
+		EDBBA55311DE75370015175B /* libbam.a in Frameworks */ = {isa = PBXBuildFile; fileRef = EDBBA31511DD588C0015175B /* libbam.a */; };
+		EDBBA56D11DE75760015175B /* GArgs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EDBBA55E11DE75750015175B /* GArgs.cpp */; };
+		EDBBA56E11DE75760015175B /* GBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EDBBA56011DE75750015175B /* GBase.cpp */; };
+		EDBBA56F11DE75760015175B /* gdna.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EDBBA56211DE75750015175B /* gdna.cpp */; };
+		EDBBA57111DE75760015175B /* GFaSeqGet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EDBBA56611DE75750015175B /* GFaSeqGet.cpp */; };
+		EDBBA57211DE75760015175B /* GStr.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EDBBA56B11DE75750015175B /* GStr.cpp */; };
+		EDBBA57A11DE75B30015175B /* gtf_tracking.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EDBBA57811DE75B30015175B /* gtf_tracking.cpp */; };
+		EDBBA58711DE75E80015175B /* codons.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EDBBA58511DE75E80015175B /* codons.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		ED2A44BD11DE77C7009AD73B /* gtf_juncs.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = gtf_juncs.cpp; path = src/gtf_juncs.cpp; sourceTree = "<group>"; };
+		ED2A44C911DE78E2009AD73B /* gff.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = gff.cpp; path = src/gff.cpp; sourceTree = "<group>"; };
+		ED2A44CA11DE78E2009AD73B /* gff.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = gff.h; path = src/gff.h; sourceTree = "<group>"; };
+		ED2A457511E2401E009AD73B /* gtf_juncs */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = gtf_juncs; sourceTree = BUILT_PRODUCTS_DIR; };
+		ED2A457711E240E4009AD73B /* sam_juncs.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = sam_juncs.cpp; path = src/sam_juncs.cpp; sourceTree = "<group>"; };
 		ED6D622D118B5B5800A682F4 /* alphabet.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = alphabet.c; path = src/alphabet.c; sourceTree = "<group>"; };
 		ED6D622E118B5B5800A682F4 /* alphabet.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = alphabet.h; path = src/alphabet.h; sourceTree = "<group>"; };
 		ED6D622F118B5B5800A682F4 /* assert_helpers.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = assert_helpers.h; path = src/assert_helpers.h; sourceTree = "<group>"; };
@@ -43,9 +74,6 @@
 		ED6D6239118B5B5800A682F4 /* fix_map_ordering.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = fix_map_ordering.cpp; path = src/fix_map_ordering.cpp; sourceTree = "<group>"; };
 		ED6D623A118B5B5800A682F4 /* fragments.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = fragments.cpp; path = src/fragments.cpp; sourceTree = "<group>"; };
 		ED6D623B118B5B5800A682F4 /* fragments.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = fragments.h; path = src/fragments.h; sourceTree = "<group>"; };
-		ED6D623C118B5B6300A682F4 /* genes.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = genes.cpp; path = src/genes.cpp; sourceTree = "<group>"; };
-		ED6D623D118B5B6300A682F4 /* genes.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = genes.h; path = src/genes.h; sourceTree = "<group>"; };
-		ED6D623E118B5B6300A682F4 /* gff_juncs.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = gff_juncs.cpp; path = src/gff_juncs.cpp; sourceTree = "<group>"; };
 		ED6D623F118B5B6300A682F4 /* inserts.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = inserts.cpp; path = src/inserts.cpp; sourceTree = "<group>"; };
 		ED6D6240118B5B6300A682F4 /* inserts.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = inserts.h; path = src/inserts.h; sourceTree = "<group>"; };
 		ED6D6241118B5B6300A682F4 /* juncs_db.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = juncs_db.cpp; path = src/juncs_db.cpp; sourceTree = "<group>"; };
@@ -95,15 +123,51 @@
 		EDBBA30511DD4F480015175B /* ax_check_zlib.m4 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = ax_check_zlib.m4; sourceTree = "<group>"; };
 		EDBBA31311DD58610015175B /* libz.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libz.dylib; path = /usr/lib/libz.dylib; sourceTree = "<absolute>"; };
 		EDBBA31511DD588C0015175B /* libbam.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbam.a; path = /usr/local/libIntel64/libbam.a; sourceTree = "<absolute>"; };
+		EDBBA55711DE75370015175B /* gtf_juncs */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = gtf_juncs; sourceTree = BUILT_PRODUCTS_DIR; };
+		EDBBA55E11DE75750015175B /* GArgs.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = GArgs.cpp; path = src/GArgs.cpp; sourceTree = "<group>"; };
+		EDBBA55F11DE75750015175B /* GArgs.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = GArgs.h; path = src/GArgs.h; sourceTree = "<group>"; };
+		EDBBA56011DE75750015175B /* GBase.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = GBase.cpp; path = src/GBase.cpp; sourceTree = "<group>"; };
+		EDBBA56111DE75750015175B /* GBase.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = GBase.h; path = src/GBase.h; sourceTree = "<group>"; };
+		EDBBA56211DE75750015175B /* gdna.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = gdna.cpp; path = src/gdna.cpp; sourceTree = "<group>"; };
+		EDBBA56311DE75750015175B /* gdna.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = gdna.h; path = src/gdna.h; sourceTree = "<group>"; };
+		EDBBA56611DE75750015175B /* GFaSeqGet.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = GFaSeqGet.cpp; path = src/GFaSeqGet.cpp; sourceTree = "<group>"; };
+		EDBBA56711DE75750015175B /* GFaSeqGet.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = GFaSeqGet.h; path = src/GFaSeqGet.h; sourceTree = "<group>"; };
+		EDBBA56811DE75750015175B /* GFastaFile.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = GFastaFile.h; path = src/GFastaFile.h; sourceTree = "<group>"; };
+		EDBBA56911DE75750015175B /* GHash.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = GHash.hh; path = src/GHash.hh; sourceTree = "<group>"; };
+		EDBBA56A11DE75750015175B /* GList.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = GList.hh; path = src/GList.hh; sourceTree = "<group>"; };
+		EDBBA56B11DE75750015175B /* GStr.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = GStr.cpp; path = src/GStr.cpp; sourceTree = "<group>"; };
+		EDBBA56C11DE75750015175B /* GStr.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = GStr.h; path = src/GStr.h; sourceTree = "<group>"; };
+		EDBBA57811DE75B30015175B /* gtf_tracking.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = gtf_tracking.cpp; path = src/gtf_tracking.cpp; sourceTree = "<group>"; };
+		EDBBA57911DE75B30015175B /* gtf_tracking.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = gtf_tracking.h; path = src/gtf_tracking.h; sourceTree = "<group>"; };
+		EDBBA58511DE75E80015175B /* codons.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = codons.cpp; path = src/codons.cpp; sourceTree = "<group>"; };
+		EDBBA58611DE75E80015175B /* codons.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = codons.h; path = src/codons.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		ED2A456F11E2401E009AD73B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				ED2A457011E2401E009AD73B /* libz.dylib in Frameworks */,
+				ED2A457111E2401E009AD73B /* libbam.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		ED74232311AC65E1007FBF56 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				EDBBA31411DD58610015175B /* libz.dylib in Frameworks */,
 				EDBBA31611DD588C0015175B /* libbam.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EDBBA55111DE75370015175B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EDBBA55211DE75370015175B /* libz.dylib in Frameworks */,
+				EDBBA55311DE75370015175B /* libbam.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -139,19 +203,19 @@
 				ED6D6239118B5B5800A682F4 /* fix_map_ordering.cpp */,
 				ED6D623A118B5B5800A682F4 /* fragments.cpp */,
 				ED6D623B118B5B5800A682F4 /* fragments.h */,
-				ED6D623C118B5B6300A682F4 /* genes.cpp */,
-				ED6D623D118B5B6300A682F4 /* genes.h */,
-				ED6D623E118B5B6300A682F4 /* gff_juncs.cpp */,
 				ED6D623F118B5B6300A682F4 /* inserts.cpp */,
 				ED6D6240118B5B6300A682F4 /* inserts.h */,
 				ED6D6241118B5B6300A682F4 /* juncs_db.cpp */,
 				ED6D6242118B5B6300A682F4 /* junctions.cpp */,
 				ED6D6243118B5B6300A682F4 /* junctions.h */,
 				ED6D6244118B5B6300A682F4 /* library_stats.cpp */,
+				ED2A44C911DE78E2009AD73B /* gff.cpp */,
+				ED2A44CA11DE78E2009AD73B /* gff.h */,
 				ED6D6245118B5B6300A682F4 /* long_spanning_reads.cpp */,
 				ED6D6246118B5B6300A682F4 /* mask_sam.cpp */,
 				ED6D6247118B5B6300A682F4 /* prep_reads.cpp */,
 				ED6D6248118B5B6300A682F4 /* qual.cpp */,
+				ED2A44BD11DE77C7009AD73B /* gtf_juncs.cpp */,
 				ED6D6249118B5B6300A682F4 /* qual.h */,
 				ED6D624A118B5B6300A682F4 /* reads.cpp */,
 				ED6D624B118B5B6300A682F4 /* reads.h */,
@@ -164,6 +228,24 @@
 				ED6D6252118B5B6B00A682F4 /* tophat.py */,
 				ED6D6253118B5B6B00A682F4 /* wiggles.cpp */,
 				ED6D6254118B5B6B00A682F4 /* wiggles.h */,
+				EDBBA55E11DE75750015175B /* GArgs.cpp */,
+				EDBBA55F11DE75750015175B /* GArgs.h */,
+				EDBBA56011DE75750015175B /* GBase.cpp */,
+				EDBBA56111DE75750015175B /* GBase.h */,
+				EDBBA56211DE75750015175B /* gdna.cpp */,
+				EDBBA56311DE75750015175B /* gdna.h */,
+				EDBBA56611DE75750015175B /* GFaSeqGet.cpp */,
+				EDBBA56711DE75750015175B /* GFaSeqGet.h */,
+				EDBBA56811DE75750015175B /* GFastaFile.h */,
+				EDBBA56911DE75750015175B /* GHash.hh */,
+				EDBBA56A11DE75750015175B /* GList.hh */,
+				EDBBA56B11DE75750015175B /* GStr.cpp */,
+				EDBBA56C11DE75750015175B /* GStr.h */,
+				EDBBA57811DE75B30015175B /* gtf_tracking.cpp */,
+				EDBBA57911DE75B30015175B /* gtf_tracking.h */,
+				EDBBA58511DE75E80015175B /* codons.cpp */,
+				EDBBA58611DE75E80015175B /* codons.h */,
+				ED2A457711E240E4009AD73B /* sam_juncs.cpp */,
 				ED6D622C118B5B4000A682F4 /* Autotools */,
 			);
 			name = Source;
@@ -194,6 +276,8 @@
 			isa = PBXGroup;
 			children = (
 				ED74232511AC65E1007FBF56 /* tophat_reports */,
+				EDBBA55711DE75370015175B /* gtf_juncs */,
+				ED2A457511E2401E009AD73B /* gtf_juncs */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -219,6 +303,22 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		ED2A455F11E2401E009AD73B /* sam_juncs */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = ED2A457211E2401E009AD73B /* Build configuration list for PBXNativeTarget "sam_juncs" */;
+			buildPhases = (
+				ED2A456011E2401E009AD73B /* Sources */,
+				ED2A456F11E2401E009AD73B /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = sam_juncs;
+			productName = tophat_reports;
+			productReference = ED2A457511E2401E009AD73B /* gtf_juncs */;
+			productType = "com.apple.product-type.tool";
+		};
 		ED74232411AC65E1007FBF56 /* tophat_reports */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = ED74232A11AC65E3007FBF56 /* Build configuration list for PBXNativeTarget "tophat_reports" */;
@@ -235,6 +335,22 @@
 			productReference = ED74232511AC65E1007FBF56 /* tophat_reports */;
 			productType = "com.apple.product-type.tool";
 		};
+		EDBBA53F11DE75370015175B /* gtf_juncs */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EDBBA55411DE75370015175B /* Build configuration list for PBXNativeTarget "gtf_juncs" */;
+			buildPhases = (
+				EDBBA54011DE75370015175B /* Sources */,
+				EDBBA55111DE75370015175B /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = gtf_juncs;
+			productName = tophat_reports;
+			productReference = EDBBA55711DE75370015175B /* gtf_juncs */;
+			productType = "com.apple.product-type.tool";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -249,22 +365,39 @@
 			projectRoot = "";
 			targets = (
 				ED74232411AC65E1007FBF56 /* tophat_reports */,
+				EDBBA53F11DE75370015175B /* gtf_juncs */,
+				ED2A455F11E2401E009AD73B /* sam_juncs */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
+		ED2A456011E2401E009AD73B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				ED2A456111E2401E009AD73B /* reads.cpp in Sources */,
+				ED2A456211E2401E009AD73B /* bwt_map.cpp in Sources */,
+				ED2A456311E2401E009AD73B /* tokenize.cpp in Sources */,
+				ED2A456411E2401E009AD73B /* common.cpp in Sources */,
+				ED2A456511E2401E009AD73B /* junctions.cpp in Sources */,
+				ED2A456611E2401E009AD73B /* GArgs.cpp in Sources */,
+				ED2A456711E2401E009AD73B /* GBase.cpp in Sources */,
+				ED2A456811E2401E009AD73B /* gdna.cpp in Sources */,
+				ED2A456911E2401E009AD73B /* GFaSeqGet.cpp in Sources */,
+				ED2A456A11E2401E009AD73B /* GStr.cpp in Sources */,
+				ED2A456B11E2401E009AD73B /* gtf_tracking.cpp in Sources */,
+				ED2A456C11E2401E009AD73B /* codons.cpp in Sources */,
+				ED2A456E11E2401E009AD73B /* gff.cpp in Sources */,
+				ED2A457811E240E4009AD73B /* sam_juncs.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		ED74232211AC65E1007FBF56 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				ED74237611AC6953007FBF56 /* tokenize.cpp in Sources */,
-				ED74236F11AC6948007FBF56 /* fsa_alphabet.cc in Sources */,
-				ED74237011AC6948007FBF56 /* gff.cc in Sources */,
-				ED74237111AC6948007FBF56 /* misc.cc in Sources */,
-				ED74237211AC6948007FBF56 /* regexp.cc in Sources */,
-				ED74237311AC6948007FBF56 /* sequence.cc in Sources */,
-				ED74233411AC6637007FBF56 /* genes.cpp in Sources */,
 				ED74232B11AC6617007FBF56 /* alphabet.c in Sources */,
 				ED74232C11AC6617007FBF56 /* bwt_map.cpp in Sources */,
 				ED74232D11AC6617007FBF56 /* common.cpp in Sources */,
@@ -277,9 +410,75 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		EDBBA54011DE75370015175B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				ED2A44D311DE793C009AD73B /* reads.cpp in Sources */,
+				ED2A44D011DE7923009AD73B /* bwt_map.cpp in Sources */,
+				EDBBA54111DE75370015175B /* tokenize.cpp in Sources */,
+				EDBBA54A11DE75370015175B /* common.cpp in Sources */,
+				EDBBA54D11DE75370015175B /* junctions.cpp in Sources */,
+				EDBBA56D11DE75760015175B /* GArgs.cpp in Sources */,
+				EDBBA56E11DE75760015175B /* GBase.cpp in Sources */,
+				EDBBA56F11DE75760015175B /* gdna.cpp in Sources */,
+				EDBBA57111DE75760015175B /* GFaSeqGet.cpp in Sources */,
+				EDBBA57211DE75760015175B /* GStr.cpp in Sources */,
+				EDBBA57A11DE75B30015175B /* gtf_tracking.cpp in Sources */,
+				EDBBA58711DE75E80015175B /* codons.cpp in Sources */,
+				ED2A44BE11DE77C7009AD73B /* gtf_juncs.cpp in Sources */,
+				ED2A44CB11DE78E2009AD73B /* gff.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
+		ED2A457311E2401E009AD73B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(NATIVE_ARCH_ACTUAL)";
+				COPY_PHASE_STRIP = NO;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_FIX_AND_CONTINUE = YES;
+				GCC_MODEL_TUNING = G5;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				HEADER_SEARCH_PATHS = (
+					./src/FSA,
+					./src/,
+					"./src/Seqan-1.1",
+				);
+				INSTALL_PATH = /usr/local/bin;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					/usr/local/libIntel64,
+				);
+				PREBINDING = NO;
+				PRODUCT_NAME = gtf_juncs;
+				USER_HEADER_SEARCH_PATHS = "";
+			};
+			name = Debug;
+		};
+		ED2A457411E2401E009AD73B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_ENABLE_FIX_AND_CONTINUE = NO;
+				GCC_MODEL_TUNING = G5;
+				INSTALL_PATH = /usr/local/bin;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					/usr/local/libIntel64,
+				);
+				PREBINDING = NO;
+				PRODUCT_NAME = tophat_reports;
+				ZERO_LINK = NO;
+			};
+			name = Release;
+		};
 		ED5C74DC118B5B0700397B5E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -339,9 +538,63 @@
 			};
 			name = Release;
 		};
+		EDBBA55511DE75370015175B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(NATIVE_ARCH_ACTUAL)";
+				COPY_PHASE_STRIP = NO;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_FIX_AND_CONTINUE = YES;
+				GCC_MODEL_TUNING = G5;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				HEADER_SEARCH_PATHS = (
+					./src/FSA,
+					./src/,
+					"./src/Seqan-1.1",
+				);
+				INSTALL_PATH = /usr/local/bin;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					/usr/local/libIntel64,
+				);
+				PREBINDING = NO;
+				PRODUCT_NAME = gtf_juncs;
+				USER_HEADER_SEARCH_PATHS = "";
+			};
+			name = Debug;
+		};
+		EDBBA55611DE75370015175B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_ENABLE_FIX_AND_CONTINUE = NO;
+				GCC_MODEL_TUNING = G5;
+				INSTALL_PATH = /usr/local/bin;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					/usr/local/libIntel64,
+				);
+				PREBINDING = NO;
+				PRODUCT_NAME = tophat_reports;
+				ZERO_LINK = NO;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		ED2A457211E2401E009AD73B /* Build configuration list for PBXNativeTarget "sam_juncs" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				ED2A457311E2401E009AD73B /* Debug */,
+				ED2A457411E2401E009AD73B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		ED5C74DE118B5B0700397B5E /* Build configuration list for PBXProject "TopHat" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -356,6 +609,15 @@
 			buildConfigurations = (
 				ED74232811AC65E3007FBF56 /* Debug */,
 				ED74232911AC65E3007FBF56 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		EDBBA55411DE75370015175B /* Build configuration list for PBXNativeTarget "gtf_juncs" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EDBBA55511DE75370015175B /* Debug */,
+				EDBBA55611DE75370015175B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
