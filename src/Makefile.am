@@ -127,7 +127,8 @@ bin_PROGRAMS = \
 	fix_map_ordering \
 	library_stats \
 	mask_sam \
-	wiggles
+	wiggles \
+    sam_juncs
  
 
 #-- scripts to be installed in $prefix/bin
@@ -226,3 +227,6 @@ mask_sam_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
 
 wiggles_SOURCES = wiggles.cpp
 wiggles_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
+
+sam_juncs_SOURCES = sam_juncs.cpp
+sam_juncs_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)

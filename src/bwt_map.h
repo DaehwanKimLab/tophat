@@ -304,18 +304,21 @@ public:
         _next_id(1), 
         _keep_names(keep_names) 
     {
-        samfile_t* fh = samopen(sam_header_filename.c_str(), "r", 0);
-        if (fh == 0) {
-            fprintf(stderr, "Failed to open SAM header file %s\n", sam_header_filename.c_str());
-            exit(1);
-        }
-        
-        for (size_t i = 0; i < fh->header->n_targets; ++i)
+        if (sam_header_filename != "")
         {
-            const char* name = fh->header->target_name[i];
-            uint32_t len  = fh->header->target_len[i];
-            get_id(name, NULL, len);
-            fprintf(stderr, "SQ: %s - %d\n", name, len);
+            samfile_t* fh = samopen(sam_header_filename.c_str(), "r", 0);
+            if (fh == 0) {
+                fprintf(stderr, "Failed to open SAM header file %s\n", sam_header_filename.c_str());
+                exit(1);
+            }
+            
+            for (size_t i = 0; i < fh->header->n_targets; ++i)
+            {
+                const char* name = fh->header->target_name[i];
+                uint32_t len  = fh->header->target_len[i];
+                get_id(name, NULL, len);
+                fprintf(stderr, "SQ: %s - %d\n", name, len);
+            }
         }
     }
 	

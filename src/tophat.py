@@ -519,9 +519,12 @@ class TopHatParams:
                 global output_dir
                 global logging_dir
                 global tmp_dir
+                global sam_header
                 output_dir = value + "/"
                 logging_dir = output_dir + "logs/"
                 tmp_dir = output_dir + "tmp/"
+                sam_header = tmp_dir + "stub_header.sam"
+                
             
         if len(args) < 2:
             raise Usage(use_message)
