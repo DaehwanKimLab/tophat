@@ -17,6 +17,7 @@
 #include <getopt.h>
 #include <string>
 #include <cstdio>
+#include <set>
 #include "Glist.hh"
 #include "gtf_tracking.h"
 
@@ -45,6 +46,8 @@ uint32_t get_junctions_from_gff(FILE* ref_mRNA_file,
 		read_mRNAs(ref_mRNA_file, ref_rnas);
 	}
     
+    set<pair<string, pair<int, int> > > uniq_juncs;
+    
     // Geo groups them by chr.
 	if (ref_rnas.Count()>0) //if any ref data was loaded
 	{
@@ -70,7 +73,7 @@ uint32_t get_junctions_from_gff(FILE* ref_mRNA_file,
                                 ex.end - 1,
                                 next_ex.start - 1,
                                 '+');
-                        num_juncs_reported++;
+                        uniq_juncs.insert(make_pair(name, make_pair(ex.end - 1, next_ex.start - 1))); 
 					}
 				}
 				
@@ -94,128 +97,14 @@ uint32_t get_junctions_from_gff(FILE* ref_mRNA_file,
                                 ex.end - 1,
                                 next_ex.start - 1,
                                 '-');
-                        num_juncs_reported++;
+                        uniq_juncs.insert(make_pair(name, make_pair(ex.end - 1, next_ex.start - 1)));
 					}
 				}
 			}
 		}
     }
     
-    /*
-     fprintf(stdout, "%s\t%d\t%d\t%c\n",
-     five_prime_ex->seqid.c_str(),
-     five_prime_ex->end - 1,
-     three_prime_ex->start - 1,
-     five_prime_ex->strand);
-     */
-    
-    
-//	// Table to hold the exons for each transcript, we'll make introns 
-//	// from these below
-//	
-//	typedef map<string, const GFF*> TransTable;
-//	typedef map<const GFF*, vector<const GFF*> > TransExonTable; 
-//	TransTable transcripts;
-//	TransExonTable transcript_exons;
-//	
-//    uint32_t num_juncs_reported = 0;
-//	
-//	for(GFF_database::const_iterator gff_itr = gff_db.begin();
-//		gff_itr != gff_db.end();
-//		++gff_itr)
-//	{
-//		const GFF& gff_rec = *gff_itr;
-//		if (gff_rec.type == "mRNA")
-//		{
-//			GFF::AttributeTable::const_iterator att_itr;
-//			att_itr = gff_rec.attributes.find("ID");
-//			if (att_itr == gff_rec.attributes.end() ||
-//				att_itr->second.size() != 1)
-//			{
-//				cerr << "Malformed transcript record " << gff_rec << endl; 
-//				continue;
-//			}
-//			const string& id = att_itr->second.front();
-//			transcripts.insert(make_pair(id, &gff_rec));
-//			transcript_exons.insert(make_pair(&gff_rec, vector<const GFF*>()));
-//		}
-//
-//	}
-//	
-//	for(GFF_database::const_iterator gff_itr = gff_db.begin();
-//		gff_itr != gff_db.end();
-//		++gff_itr)
-//	{
-//		const GFF& gff_rec = *gff_itr;
-//		if (gff_rec.type == "exon")
-//		{
-//			GFF::AttributeTable::const_iterator att_itr;
-//			att_itr = gff_rec.attributes.find("Parent");
-//			if (att_itr == gff_rec.attributes.end())
-//			{
-//				cerr << "Malformed exon record " << gff_rec << endl; 
-//				continue;
-//			}
-//			vector<string> parent_transcripts = att_itr->second;
-//			for (vector<string>::iterator par_itr = parent_transcripts.begin();
-//				 par_itr != parent_transcripts.end();
-//				 ++par_itr)
-//			{
-//				const string& parent_str = *par_itr;
-//				TransTable::iterator parent_rec = transcripts.find(parent_str);
-//				if (parent_rec == transcripts.end())
-//				{
-//					cerr << "No transcript with id " << parent_str << endl;
-//					continue;
-//				}
-//				TransExonTable::iterator parent_exons = transcript_exons.find(parent_rec->second);
-//				if (parent_exons == transcript_exons.end())
-//				{
-//					cerr << "No exons with for " << *par_itr << endl;
-//					continue;
-//				}
-//				parent_exons->second.push_back(&gff_rec);
-//			}
-//		}
-//	}
-//	
-//	
-//	for (TransExonTable::iterator trans_itr = transcript_exons.begin();
-//		 trans_itr != transcript_exons.end();
-//		 ++trans_itr)
-//	{
-//		vector<const GFF*>& exons = trans_itr->second;
-//		if (exons.size() <= 1)
-//			continue;
-//		
-//		vector<const GFF*>::iterator prev_itr = exons.begin();
-//		vector<const GFF*>::iterator curr_itr = ++(exons.begin());
-//		while (curr_itr != exons.end())
-//		{
-//			const GFF* five_prime_ex = *prev_itr;
-//			const GFF* three_prime_ex = *curr_itr;
-//			if (three_prime_ex->start < five_prime_ex->end)
-//			{
-//				fprintf(stderr, "Error: bad transcript annotation:\n");
-//				cerr << *(trans_itr->first);
-//				fprintf(stderr, "Offending exons overlapped:\n");
-//				cerr << *five_prime_ex;
-//				cerr << *three_prime_ex;
-//				//exit(2);
-//                break;
-//			}
-//			
-//			fprintf(stdout, "%s\t%d\t%d\t%c\n",
-//					five_prime_ex->seqid.c_str(),
-//					five_prime_ex->end - 1,
-//					three_prime_ex->start - 1,
-//					five_prime_ex->strand);
-//            ++num_juncs_reported;
-//			++curr_itr;
-//			++prev_itr;
-//		}
-//	}
-    return num_juncs_reported;
+    return uniq_juncs.size();
 	
 }
 

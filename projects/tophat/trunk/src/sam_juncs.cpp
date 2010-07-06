@@ -55,6 +55,7 @@ void get_junctions_from_hitstream(HitStream& hitstream,
 void driver(FILE* hit_map)
 {	
     ReadTable it;
+    
     RefSequenceTable rt(sam_header, true);
 	
     SAMHitFactory hit_factory(it,rt);
@@ -65,6 +66,20 @@ void driver(FILE* hit_map)
     
 	get_junctions_from_hitstream(hitstream, it, junctions);
 	
+    for (JunctionSet::iterator itr = junctions.begin();
+         itr != junctions.end();
+         ++itr)
+	{
+        const char* ref_name = rt.get_name(itr->first.refid);
+    
+        fprintf(stdout,
+                "%s\t%d\t%d\t%c\n",
+                ref_name,
+                itr->first.left - 1,
+                itr->first.right,
+                itr->first.antisense ? '-' : '+');
+    }
+    
 	fprintf(stderr, "Extracted %lu junctions\n", junctions.size()); 
 }
 
