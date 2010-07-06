@@ -194,39 +194,52 @@ libgc_a_SOURCES = \
 
 prep_reads_SOURCES = prep_reads.cpp
 prep_reads_LDADD = $(top_builddir)/src/libtophat.a  $(BAM_LIB)
+prep_reads_LDFLAGS = $(BAM_LDFLAGS)
 
 segment_juncs_SOURCES = segment_juncs.cpp
 segment_juncs_LDADD = $(top_builddir)/src/libtophat.a  $(BAM_LIB)
+segment_juncs_LDFLAGS = $(BAM_LDFLAGS)
 
 long_spanning_reads_SOURCES = long_spanning_reads.cpp
 long_spanning_reads_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
+long_spanning_reads_LDFLAGS = $(BAM_LDFLAGS)
 
 gtf_juncs_SOURCES = gtf_juncs.cpp
 gtf_juncs_LDADD = $(top_builddir)/src/libtophat.a libgc.a $(BAM_LIB)
+gtf_juncs_LDFLAGS = $(BAM_LDFLAGS)
 
 juncs_db_SOURCES = juncs_db.cpp
 juncs_db_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
+juncs_db_LDFLAGS = $(BAM_LDFLAGS)
 
 library_stats_SOURCES = library_stats.cpp
 library_stats_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
+library_stats_LDFLAGS = $(BAM_LDFLAGS)
 
 tophat_reports_SOURCES = tophat_reports.cpp
 tophat_reports_LDADD = $(top_builddir)/src/libtophat.a  $(BAM_LIB)
+tophat_reports_LDFLAGS = $(BAM_LDFLAGS)
 
 extract_reads_SOURCES = extract_reads.cpp
 extract_reads_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
+extract_reads_LDFLAGS = $(BAM_LDFLAGS)
 
 fix_map_ordering_SOURCES = fix_map_ordering.cpp
 fix_map_ordering_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
+fix_map_ordering_LDFLAGS = $(BAM_LDFLAGS)
 
 closure_juncs_SOURCES = closures.cpp
 closure_juncs_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
+closure_juncs_LDFLAGS = $(BAM_LDFLAGS)
 
 mask_sam_SOURCES = mask_sam.cpp
 mask_sam_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
+mask_sam_LDFLAGS = $(BAM_LDFLAGS)
 
 wiggles_SOURCES = wiggles.cpp
 wiggles_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
+wiggles_LDFLAGS = $(BAM_LDFLAGS)
 
 sam_juncs_SOURCES = sam_juncs.cpp
 sam_juncs_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
+sam_juncs_LDFLAGS = $(BAM_LDFLAGS)
