@@ -18,7 +18,7 @@
 #include <string>
 #include <cstdio>
 #include <set>
-#include "Glist.hh"
+#include "GList.hh"
 #include "gtf_tracking.h"
 
 #include "common.h"
@@ -137,7 +137,7 @@ int main(int argc, char** argv)
         exit(1);
     }
 	
-	fprintf(stderr, "gff_juncs v%s (%s)\n", PACKAGE_VERSION, SVN_REVISION); 
+	fprintf(stderr, "gtf_juncs v%s (%s)\n", PACKAGE_VERSION, SVN_REVISION); 
 	fprintf(stderr, "---------------------------\n");
 	
 	//gff_db.from_file(gff_filename);

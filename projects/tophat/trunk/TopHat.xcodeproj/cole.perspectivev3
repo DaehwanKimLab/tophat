@@ -278,13 +278,13 @@
 							<key>PBXSmartGroupTreeModuleOutlineStateSelectionKey</key>
 							<array>
 								<array>
-									<integer>71</integer>
+									<integer>56</integer>
 									<integer>2</integer>
 									<integer>0</integer>
 								</array>
 							</array>
 							<key>PBXSmartGroupTreeModuleOutlineStateVisibleRectKey</key>
-							<string>{{0, 616}, {185, 840}}</string>
+							<string>{{0, 794}, {185, 840}}</string>
 						</dict>
 						<key>PBXTopSmartGroupGIDs</key>
 						<array/>
@@ -319,7 +319,7 @@
 								<key>PBXProjectModuleGUID</key>
 								<string>ED5C74E3118B5B0800397B5E</string>
 								<key>PBXProjectModuleLabel</key>
-								<string>sam_juncs.cpp</string>
+								<string>GBase.cpp</string>
 								<key>PBXSplitModuleInNavigatorKey</key>
 								<dict>
 									<key>Split0</key>
@@ -327,20 +327,18 @@
 										<key>PBXProjectModuleGUID</key>
 										<string>ED5C74E4118B5B0800397B5E</string>
 										<key>PBXProjectModuleLabel</key>
-										<string>sam_juncs.cpp</string>
+										<string>GBase.cpp</string>
 										<key>_historyCapacity</key>
 										<integer>0</integer>
 										<key>bookmark</key>
-										<string>EDE1092C11E3C13C005F1F4B</string>
+										<string>EDE1094E11E3CE39005F1F4B</string>
 										<key>history</key>
 										<array>
 											<string>EDBBA2B611DD3C040015175B</string>
 											<string>EDBBA2B811DD3C040015175B</string>
-											<string>EDBBA32111DD58D80015175B</string>
 											<string>EDBBA33D11DD59D50015175B</string>
 											<string>EDBBA39611DD5F8F0015175B</string>
 											<string>EDBBA3D911DD7DFE0015175B</string>
-											<string>EDBBA4BD11DE3FB20015175B</string>
 											<string>EDBBA57F11DE75C70015175B</string>
 											<string>EDBBA58011DE75C70015175B</string>
 											<string>EDBBA5A511DE76590015175B</string>
@@ -365,17 +363,20 @@
 											<string>ED2A45E211E2A727009AD73B</string>
 											<string>ED2A45E311E2A727009AD73B</string>
 											<string>ED2A45E511E2A727009AD73B</string>
-											<string>EDE1086611E3AEB6005F1F4B</string>
 											<string>EDE1086711E3AEB6005F1F4B</string>
-											<string>EDE1086911E3AEB6005F1F4B</string>
-											<string>EDE1086A11E3AEB6005F1F4B</string>
 											<string>EDE1086D11E3AEB6005F1F4B</string>
-											<string>EDE108CC11E3B668005F1F4B</string>
 											<string>EDE108CD11E3B668005F1F4B</string>
 											<string>EDE1090A11E3BF17005F1F4B</string>
 											<string>EDE1090B11E3BF17005F1F4B</string>
-											<string>EDE1092A11E3C13C005F1F4B</string>
-											<string>EDE1092B11E3C13C005F1F4B</string>
+											<string>EDE1093111E3C950005F1F4B</string>
+											<string>EDE1093211E3C950005F1F4B</string>
+											<string>EDE1093611E3CB30005F1F4B</string>
+											<string>EDE1093711E3CB30005F1F4B</string>
+											<string>EDE1093811E3CB30005F1F4B</string>
+											<string>EDE1093911E3CB30005F1F4B</string>
+											<string>EDE1094A11E3CDAC005F1F4B</string>
+											<string>EDE1094B11E3CDAC005F1F4B</string>
+											<string>EDE1094C11E3CDAC005F1F4B</string>
 										</array>
 									</dict>
 									<key>SplitCount</key>
@@ -415,6 +416,8 @@
 									<dict>
 										<key>Frame</key>
 										<string>{{10, 27}, {979, 380}}</string>
+										<key>RubberWindowFrame</key>
+										<string>253 198 1186 899 0 0 1920 1178 </string>
 									</dict>
 									<key>Module</key>
 									<string>XCDetailModule</string>
@@ -469,8 +472,6 @@
 									<dict>
 										<key>Frame</key>
 										<string>{{10, 27}, {979, 380}}</string>
-										<key>RubberWindowFrame</key>
-										<string>253 198 1186 899 0 0 1920 1178 </string>
 									</dict>
 									<key>Module</key>
 									<string>PBXBuildResultsModule</string>

@@ -12,6 +12,7 @@
 #include <cassert>
 #include <cstring>
 #include <cstdlib>
+#include <cstdio>
 #include <string>
 
 extern int inner_dist_mean;
