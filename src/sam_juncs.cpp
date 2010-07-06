@@ -64,12 +64,28 @@ void driver(FILE* hit_map)
 	
     SAMHitFactory hit_factory(it,rt);
 	
-	HitStream hitstream(hit_map, &hit_factory, false, true, true);
+	//HitStream hitstream(hit_map, &hit_factory, false, true, true);
 	
     JunctionSet junctions;
     
-	get_junctions_from_hitstream(hitstream, it, junctions);
-	
+    while (hit_map && !feof(hit_map))
+	{
+        char bwt_buf[2048];
+		fgets(bwt_buf, 2048, hit_map);
+		// Chomp the newline
+		char* nl = strrchr(bwt_buf, '\n');
+		if (nl) *nl = 0;
+		
+		// Get a new record from the tab-delimited Bowtie map
+		BowtieHit bh;
+		
+		if (hit_factory.get_hit_from_buf(bwt_buf, bh, false))
+		{
+            junctions_from_alignment(bh, junctions);
+
+		}
+	}
+    
     for (JunctionSet::iterator itr = junctions.begin();
          itr != junctions.end();
          ++itr)
