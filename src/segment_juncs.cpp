@@ -222,7 +222,7 @@ uint8_t charToDna5[] = {
 /*   0 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 /*  16 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 /*  32 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-/*  48 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+/*  48 */ 0, 1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 /*  64 */ 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 4, 0,
 /*    A     C           G                    N */
 /*  80 */ 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -248,24 +248,28 @@ typedef vector<uint32_t> MerExtensionCounts;
 MerExtensionTable extensions;
 MerExtensionCounts extension_counts;
 
-uint64_t dna5str_to_idx(const Dna5String& str)
+uint64_t dna5str_to_idx(const string& str)
 {
 	uint64_t idx = 0;
 	
-	for (size_t i = 0; i < length(str); ++i)
+	for (size_t i = 0; i < str.length(); ++i)
 	{
 		idx <<=2;
-		
+		char c = toupper(str[i]);
+		idx |= (0x3 & charToDna5[(size_t)c]);
+	}
+	return idx;
+}
+
+uint64_t colorstr_to_idx(const string& str)
+{
+	uint64_t idx = 0;
+	
+	for (size_t i = 0; i < str.length(); ++i)
+	{
+		idx <<=2;
 		char c = str[i];
-		
-		switch(toupper(c))
-		{
-			case 'A': idx |= 0x0; break;
-			case 'C': idx |= 0x1; break;
-			case 'G': idx |= 0x2; break;
-			case 'T': idx |= 0x3; break;
-			default: break;
-		}
+		idx |= (0x3 & charToDna5[(size_t)c]);
 	}
 	return idx;
 }
@@ -484,17 +488,18 @@ void count_read_mers(FILE* reads_file, size_t half_splice_mer_len)
 		read.clear();
 		
 		// Get the next read from the file
-		if (reads_format == FASTA)
+		if (!next_fasta_record(fr, read.name, read.seq, reads_format))
+		  break;
+		if (reads_format == FASTQ)
 		{
-			if (!next_fasta_record(fr, read.name, read.seq))
-				break;
+		  if (!next_fastq_record(fr, read.seq, read.alt_name, read.qual, reads_format))
+		    break;
 		}
-		else if (reads_format == FASTQ)
-		{
-			if (!next_fastq_record(fr, read.name, read.seq, read.alt_name, read.qual))
-				break;
-		}
-		
+
+		if (color)
+		  // erase the primer and the adjacent color
+		  read.seq.erase(0, 2);
+
 		if (read.seq.size() > 32)
 			read.seq.resize(32);
 		
@@ -529,7 +534,7 @@ void compact_extension_table()
 
 void prune_extension_table(uint8_t max_extension_bp)
 {
-	uint32_t mask =  ~(0xFFFFFFFFuLL << (max_extension_bp << 2));
+	uint32_t mask =  ~(0xFFFFFFFFuLL << (max_extension_bp << 1));
 	
 	for (size_t i = 0; i < extensions.size(); ++i)
 	{
@@ -545,8 +550,8 @@ void prune_extension_table(uint8_t max_extension_bp)
 			
 			if (ex.right_ext_len > max_extension_bp)
 			{
-				ex.right_ext_len = max_extension_bp; 
-				ex.right_dna_str >>= ((ex.right_ext_len - max_extension_bp) << 1);
+			  ex.right_dna_str >>= ((ex.right_ext_len - max_extension_bp) << 1);
+			  ex.right_ext_len = max_extension_bp; 
 			}
 		}
 	}
@@ -568,16 +573,17 @@ void store_read_mers(FILE* reads_file, size_t half_splice_mer_len)
 		read.clear();
 		
 		// Get the next read from the file
-		if (reads_format == FASTA)
+		if (!next_fasta_record(fr, read.name, read.seq, reads_format))
+		  break;
+		if (reads_format == FASTQ)
 		{
-			if (!next_fasta_record(fr, read.name, read.seq))
-				break;
+		  if (!next_fastq_record(fr, read.seq, read.alt_name, read.qual, reads_format))
+		    break;
 		}
-		else if (reads_format == FASTQ)
-		{
-			if (!next_fastq_record(fr, read.name, read.seq, read.alt_name, read.qual))
-				break;
-		}
+
+		if (color)
+		  // erase the primer and the adjacent color
+		  read.seq.erase(0, 2);
 		
 		if (read.seq.size() > 32)
 			read.seq.resize(32);
@@ -668,12 +674,12 @@ uint32_t mismatching_bases(uint32_t w1_word,
 	int shift = 0;
 	int L = len;
 	uint32_t misses = 0;
-	
+
 	// While we haven't yet exceeded the maximum allowable mismatches,
 	// and there are still unaligned bases, keep shift-anding
 	while (shift < len && misses <= max_mis)
 	{
-		int match_chars = 0;
+	  int match_chars = 0;
 		
 		// Get the number of characters matching on the right sides of 
 		// both words
@@ -706,6 +712,7 @@ uint32_t mismatching_bases(uint32_t w1_word,
 			misses++;
 		}
 	}
+
 	return diffs;
 }
 
@@ -722,25 +729,41 @@ uint64_t rc_dna_str(uint64_t dna_str)
 	return rc;
 }
 
+uint64_t rc_color_str(uint64_t color_str)
+{
+  uint64_t rc = 0;
+  for (int i = 0; i < 32; ++i)
+    {
+      rc <<= 2;
+      rc |= (color_str & 0x3);
+      color_str >>= 2;
+    }
+  return rc;
+}
+
 struct DnaSpliceStrings
 {
-	DnaSpliceStrings(uint64_t f, uint64_t r) : fwd_string(f), rev_string(r) {}
-	uint64_t fwd_string;
-	uint64_t rev_string;
-	
-	bool operator<(const DnaSpliceStrings& rhs) const
-	{
-		if (fwd_string != rhs.fwd_string)
-			return fwd_string < rhs.fwd_string;
-		if (rev_string != rhs.rev_string)
-			return rev_string < rhs.rev_string;
-		return false;
-	}
-	
-	bool operator==(const DnaSpliceStrings& rhs) const
-	{
-		return fwd_string == rhs.fwd_string && rev_string == rhs.rev_string;
-	}
+  DnaSpliceStrings(uint64_t f, uint64_t r) : fwd_string(f), rev_string(r), first_in_string('N'), last_in_string('N') {}
+  uint64_t fwd_string;
+  uint64_t rev_string;
+
+  // for color-space purposes
+  char first_in_string;
+  char last_in_string;
+  
+  bool operator<(const DnaSpliceStrings& rhs) const
+  {
+    if (fwd_string != rhs.fwd_string)
+      return fwd_string < rhs.fwd_string;
+    if (rev_string != rhs.rev_string)
+      return rev_string < rhs.rev_string;
+    return false;
+  }
+  
+  bool operator==(const DnaSpliceStrings& rhs) const
+  {
+    return fwd_string == rhs.fwd_string && rev_string == rhs.rev_string;
+  }
 };
 
 struct IntronMotifs
@@ -786,23 +809,48 @@ struct IntronMotifs
 		{
 			size_t pos = dinucs[i].first;
 			int half_splice_mer_len = 32;
-			
-			if (pos <= (size_t)half_splice_mer_len || pos >= length(ref_str))
-			{
-				continue; 
-			}
-			
-			Dna5String seg_str = seqan::infixWithLength(ref_str,
-														pos - half_splice_mer_len,
-														half_splice_mer_len);
-			//cerr << pos<< " " << seg_str << endl;
-			uint64_t idx = dna5str_to_idx(seg_str);
-			
-			dinucs[i].second.fwd_string = idx;
-			dinucs[i].second.rev_string = rc_dna_str(idx);
+
+			if (color)
+			  {
+			    if (pos <= (size_t)half_splice_mer_len+1 || pos >= length(ref_str))
+			      continue; 
+
+			    Dna5String seg_str = seqan::infixWithLength(ref_str,
+									pos - half_splice_mer_len - 1,
+									half_splice_mer_len + 1);
+			    stringstream ss(stringstream::in | stringstream::out);
+			    string s;
+			    ss << seg_str;
+			    ss >> s;
+			    
+			    string col_seg_str = convert_bp_to_color(s, true);
+			    uint64_t idx = colorstr_to_idx(col_seg_str);
+
+			    dinucs[i].second.fwd_string = idx;
+			    dinucs[i].second.rev_string = rc_color_str(idx);
+			    dinucs[i].second.first_in_string = s[1];
+			    dinucs[i].second.last_in_string = s[half_splice_mer_len];
+			  }
+			else
+			  {
+			    if (pos <= (size_t)half_splice_mer_len || pos >= length(ref_str))
+			      continue; 
+
+			    Dna5String seg_str = seqan::infixWithLength(ref_str,
+									pos - half_splice_mer_len,
+									half_splice_mer_len);
+
+			    stringstream ss(stringstream::in | stringstream::out);
+			    string s;
+			    ss << seg_str;
+			    ss >> s;
+			    uint64_t idx = dna5str_to_idx(s);
+			    dinucs[i].second.fwd_string = idx;
+			    dinucs[i].second.rev_string = rc_dna_str(idx);
+			  }
 		}
 	}
-	
+  
 	
 	void attach_downstream_mers(RefSequenceTable::Sequence& ref_str,
 								vector<pair<size_t, DnaSpliceStrings> >& dinucs)
@@ -814,18 +862,41 @@ struct IntronMotifs
 			int half_splice_mer_len = 32;
 			
 			if (pos + 2 + half_splice_mer_len >= length(ref_str))
-			{
 				continue; 
-			}
-			
-			Dna5String seg_str = seqan::infixWithLength(ref_str,
-														pos + 2,
-														half_splice_mer_len);
-			//cerr << pos<< " " << seg_str << endl;
-			uint64_t idx = dna5str_to_idx(seg_str);
-			
-			dinucs[i].second.fwd_string = idx;
-			dinucs[i].second.rev_string = rc_dna_str(idx);
+
+			if (color)
+			  {
+			    Dna5String seg_str = seqan::infixWithLength(ref_str,
+									pos + 2 - 1,
+									half_splice_mer_len + 1);
+			    stringstream ss(stringstream::in | stringstream::out);
+			    string s;
+			    ss << seg_str;
+			    ss >> s;
+
+			    string col_seg_str = convert_bp_to_color(s, true);
+			    uint64_t idx = colorstr_to_idx(col_seg_str);
+
+			    dinucs[i].second.fwd_string = idx;
+			    dinucs[i].second.rev_string = rc_color_str(idx);
+			    dinucs[i].second.first_in_string = s[1];
+			    dinucs[i].second.last_in_string = s[half_splice_mer_len];
+			  }
+			else
+			  {
+			    Dna5String seg_str = seqan::infixWithLength(ref_str,
+									pos + 2,
+									half_splice_mer_len);
+			    
+			    stringstream ss(stringstream::in | stringstream::out);
+			    string s;
+			    ss << seg_str;
+			    ss >> s;
+			    uint64_t idx = dna5str_to_idx(s);
+
+			    dinucs[i].second.fwd_string = idx;
+			    dinucs[i].second.rev_string = rc_dna_str(idx);
+			  }
 		}
 	}
 };
@@ -1490,6 +1561,7 @@ bool right_extendable_junction(uint64_t downstream_dna_str,
 		uint64_t downstream = downstream_dna_str & mask;
 		downstream >>= ((32 - ext.right_ext_len) << 1);
 		int mism = mismatching_bases(ext.right_dna_str, downstream, ext.right_ext_len, extension_mismatches);
+
 		if (mism <= extension_mismatches)
 			return true;
 	}
@@ -1509,23 +1581,43 @@ uint32_t junction_key(uint64_t upstream_dna_str,
 }
 
 bool extendable_junction(uint64_t upstream_dna_str,
-						 uint64_t downstream_dna_str,
-						 size_t splice_mer_len,
-						 size_t min_ext_len)
+			 uint64_t downstream_dna_str,
+			 size_t splice_mer_len,
+			 size_t min_ext_len,
+			 bool reverse,
+			 char last_in_upstream = 'N',
+			 char first_in_downstream = 'N')
 {
+  if (color)
+    {
+      string two_bp; two_bp.push_back(last_in_upstream); two_bp.push_back(first_in_downstream);
+      string color = convert_bp_to_color(two_bp, true);
+      char num = (color[0] - '0')  & 0x3;
 
-	uint32_t key = junction_key(upstream_dna_str, 
-								downstream_dna_str,
-								splice_mer_len);
-	
-	upstream_dna_str >>= splice_mer_len;
-	downstream_dna_str <<= splice_mer_len;
-	
-	bool extendable = (left_extendable_junction(upstream_dna_str,
-												key, splice_mer_len, min_ext_len) || 
-					   right_extendable_junction(downstream_dna_str,
-												 key, splice_mer_len, min_ext_len));
-	return extendable;
+      if (reverse)
+	{
+	  upstream_dna_str = (upstream_dna_str >> 2) << 2;
+	  upstream_dna_str |= (uint64_t)num;
+	}
+      else
+	{
+	  downstream_dna_str = (downstream_dna_str << 2) >> 2;
+	  downstream_dna_str |= ((uint64_t)num << 62);
+	}
+    }
+  
+  uint32_t key = junction_key(upstream_dna_str, 
+			      downstream_dna_str,
+			      splice_mer_len);
+
+  upstream_dna_str >>= splice_mer_len;
+  downstream_dna_str <<= splice_mer_len;
+  
+  bool extendable = (left_extendable_junction(upstream_dna_str,
+					      key, splice_mer_len, min_ext_len) || 
+		     right_extendable_junction(downstream_dna_str,
+					       key, splice_mer_len, min_ext_len));
+  return extendable;
 }
 
 typedef std::set<Junction, skip_count_lt> PotentialJuncs;
@@ -1560,26 +1652,30 @@ struct RecordExtendableJuncs
 				 R < right_sites.size() && right_sites[R].first < max_right_pos; ++R)
 			{
 				uint64_t upstream_dna_str = left_sites[L].second.fwd_string;
+				char last_in_upstream = left_sites[L].second.last_in_string;
 				uint64_t downstream_dna_str = right_sites[R].second.fwd_string;
+				char first_in_downstream = right_sites[R].second.first_in_string;
 				uint64_t rc_upstream_dna_str = left_sites[L].second.rev_string;
 				uint64_t rc_downstream_dna_str = right_sites[R].second.rev_string;
-				
+
 				if (extendable_junction(upstream_dna_str,
-										downstream_dna_str, splice_mer_len, 7) ||
-					extendable_junction(rc_downstream_dna_str,
-										rc_upstream_dna_str, splice_mer_len, 7))
-				{
-					juncs.insert(Junction(ref_id,
-										  left_sites[L].first - 1,
-										  right_sites[R].first + 2,
-										  antisense,
-										  R - curr_R));
-					
-				}
+							downstream_dna_str, splice_mer_len, 7, false,
+							last_in_upstream, first_in_downstream) ||
+				    extendable_junction(rc_downstream_dna_str,
+							rc_upstream_dna_str, splice_mer_len, 7, true,
+							last_in_upstream, first_in_downstream))
+				  {
+				    juncs.insert(Junction(ref_id,
+							  left_sites[L].first - 1,
+							  right_sites[R].first + 2,
+							  antisense,
+							  R - curr_R));
+				    
+				  }
 				if (juncs.size() > max_juncs)
-				{
-					juncs.erase(*(juncs.rbegin()));
-				}			
+				  {
+				    juncs.erase(*(juncs.rbegin()));
+				  }			
 			}
 		}	
 	}
@@ -1736,10 +1832,6 @@ struct RecordButterflyJuncs
 			vector<ButterflyKey> left_keys;
 			for (size_t L = 0; L < left_sites.size(); ++L)
 			{
-	//			if (left_sites[L].first == 29600578)
-	//			{
-	//				int a = 5;
-	//			}
 				uint64_t fwd_upstream_dna_str = left_sites[L].second.fwd_string;
 				uint64_t fwd_upstream_key = fwd_upstream_dna_str & bottom_bit_mask;
 				
@@ -1755,7 +1847,7 @@ struct RecordButterflyJuncs
 					/*
 					 < f_u_key ><ext.right>
 					 NNNNNNNNNN  GT
-					 */
+					*/
 					
 					// take the top bits of the right extension
 					uint64_t key = ext.right_dna_str >> ((ext.right_ext_len - extension_length) << 1);
@@ -1766,10 +1858,9 @@ struct RecordButterflyJuncs
 					
 					// and cat them together
 					key |= (top_half << (extension_length << 1));
-
 					left_keys.push_back(ButterflyKey((uint32_t)left_sites[L].first, key));
 				}
-				
+
 				uint64_t rev_upstream_dna_str = left_sites[L].second.rev_string;
 				uint64_t rev_upstream_key = (rev_upstream_dna_str & top_bit_mask) >> (64 - (key_length<<1));
 				
@@ -1786,11 +1877,11 @@ struct RecordButterflyJuncs
 					 < r_u_key ><ext.left>
 					 NNNNNNNNNN  GT
 					 */
-					
+				
 					// reverse complement the left extension, and we will need 
 					// what were the bottom bits.  these become the top bits in the 
 					// rc.
-					uint64_t ext_str = rc_dna_str(ext.left_dna_str);
+					uint64_t ext_str = color ? rc_color_str(ext.left_dna_str) : rc_dna_str(ext.left_dna_str);
 					ext_str >>= 64 - (ext.left_ext_len << 1);
 					
 					// now take the top bits of the rc, make them the bottom of 
@@ -1800,9 +1891,8 @@ struct RecordButterflyJuncs
 					// now add in the seed key bottom bits, making them the top of 
 					// the key
 					uint64_t mask = ~(0xFFFFFFFFFFFFFFFFull << (extension_length << 1));
-					uint64_t top_half = rev_upstream_key & mask;
+					uint64_t top_half = fwd_upstream_key & mask;
 					key |= (top_half << (extension_length << 1));
-					
 					left_keys.push_back(ButterflyKey((uint32_t)left_sites[L].first, key));
 				}
 			}
@@ -1817,18 +1907,35 @@ struct RecordButterflyJuncs
 				uint64_t fwd_downstream_key = (fwd_downstream_dna_str & top_bit_mask) >> (64 - (key_length<<1));
 
 				assert (fwd_downstream_key < extensions.size());
-				
-				vector<MerExtension>& fwd_exts = extensions[fwd_downstream_key];
-				for (size_t i = 0; i < fwd_exts.size(); ++i)
-				{
+
+				vector<uint64_t> fwd_downstream_keys;
+				if (color)
+				  {
+				    for(size_t color_value = 0; color_value < 4; ++color_value)
+				      {
+					uint64_t tmp_key = (fwd_downstream_key << 2) >> 2 | (color_value << ((key_length - 1) << 1));
+					fwd_downstream_keys.push_back(tmp_key);
+				      }
+				  }
+				else
+				  {
+				    fwd_downstream_keys.push_back(fwd_downstream_key);
+				  }
+
+				for(size_t key = 0; key < fwd_downstream_keys.size(); ++key)
+				  {
+				    uint64_t tmp_fwd_downstream_key = fwd_downstream_keys[key];
+				    vector<MerExtension>& fwd_exts = extensions[tmp_fwd_downstream_key];
+				    for (size_t i = 0; i < fwd_exts.size(); ++i)
+				      {
 					const MerExtension& ext = fwd_exts[i];
 					if (ext.left_ext_len < extension_length)
-						continue;
+					  continue;
 					
 					/*
-					 <ext.left>< f_d_key >
-							  AG NNNNNNNNNN
-					 */
+					  <ext.left>< f_d_key >
+					  AG NNNNNNNNNN
+					*/
 					
 					// take the bottom bits of the left extension, making them the
 					// top of the key.
@@ -1837,46 +1944,71 @@ struct RecordButterflyJuncs
 					
 					// add in the top bits of the seed key, making them the bottom bits
 					// of the key.
-					uint64_t bottom_half = (fwd_downstream_key >> ((key_length - extension_length) << 1));
+					uint64_t bottom_half = (tmp_fwd_downstream_key >> ((key_length - extension_length) << 1));
 					key |= bottom_half;
-
 					right_keys.push_back(ButterflyKey((uint32_t)right_sites[R].first, key));
-				}
-				
+				      }
+				  }
+
 				uint64_t rev_downstream_dna_str = right_sites[R].second.rev_string;
 				uint64_t rev_downstream_key = rev_downstream_dna_str & bottom_bit_mask;
 				
 				assert (rev_downstream_key < extensions.size());
 				
-				vector<MerExtension>& rev_exts = extensions[rev_downstream_key];
-				for (size_t i = 0; i < rev_exts.size(); ++i)
-				{
+				vector<uint64_t> rev_downstream_keys;
+				if (color)
+				  {
+				    for(size_t color_value = 0; color_value < 4; ++color_value)
+				      {
+					uint64_t tmp_key = (rev_downstream_key >> 2) << 2 | color_value;
+					rev_downstream_keys.push_back(tmp_key);
+				      }
+				  }
+				else
+				  {
+				    rev_downstream_keys.push_back(rev_downstream_key);
+				  }
+				
+				for(size_t key = 0; key < rev_downstream_keys.size(); ++key)
+				  {
+				    uint64_t tmp_rev_downstream_key = rev_downstream_keys[key];
+				    uint64_t tmp_fwd_downstream_key = fwd_downstream_key;
+				    if (color)
+				      {
+					tmp_fwd_downstream_key = rc_color_str(tmp_rev_downstream_key) >> (64 - (key_length << 1));
+				      }
+				    
+				    vector<MerExtension>& rev_exts = extensions[tmp_rev_downstream_key];
+				    for (size_t i = 0; i < rev_exts.size(); ++i)
+				      {
 					const MerExtension& ext = rev_exts[i];
 					if (ext.right_ext_len < extension_length)
-						continue;
+					  continue;
 					
 					/*
-					 <ext.right>< r_d_key >
-							AG NNNNNNNNNN
-					 */
+					  <ext.right>< r_d_key >
+					  AG NNNNNNNNNN
+					*/
 					
 					// reverse complement the right_extension.  we want the 
 					// top bits of the extension, but these become the bottom bits
 					// under the rc.
-					uint64_t ext_str = rc_dna_str(ext.right_dna_str);
-					uint64_t mask = ~(0xFFFFFFFFFFFFFFFFull << (extension_length << 1));
+					uint64_t ext_str = color ? rc_color_str(ext.right_dna_str) : rc_dna_str(ext.right_dna_str);
+					ext_str >>= 64 - (ext.right_ext_len << 1);
 					
 					// take the bottom bits of the rc and make it the top of the key
-					uint64_t key = (ext_str & mask) << (extension_length << 1);
+					uint64_t key = ext_str << (extension_length << 1);
 					
 					// take the top bits of the seed key and make them the bottom
 					// of the key.
-					uint64_t bottom_half = (rev_downstream_key >> ((key_length - extension_length) << 1));
+					uint64_t bottom_half = (tmp_fwd_downstream_key >> ((key_length - extension_length) << 1));
 					key |= bottom_half;
-					
+
 					right_keys.push_back(ButterflyKey((uint32_t)right_sites[R].first, key));
-				}
+				      }
+				  }
 			}
+			
 			sort (right_keys.begin(), right_keys.end());
 			new_end = unique(right_keys.begin(), right_keys.end());
 			right_keys.erase(new_end, right_keys.end());
@@ -1933,6 +2065,7 @@ struct RecordButterflyJuncs
 							}
 							++tmp_rk;
 						}
+
 						++tmp_lk;
 					}
 					
@@ -2073,7 +2206,7 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
 						max_intron, 
 						max_juncs,
 						half_splice_mer_len);
-		
+
 		recorder.record(ref_id, 
 						rev_acceptors, 
 						rev_donors, 
@@ -2239,7 +2372,7 @@ int seed_alignments = 0;
 
 int microaligned_segs = 0;
 
-map<RefSeg, vector<Dna5String>* > microexon_windows;
+map<RefSeg, vector<string>* > microexon_windows;
 
 bool overlap_in_genome(int ll, int lr, int rl, int rr)
 {
@@ -2257,7 +2390,7 @@ bool overlap_in_genome(int ll, int lr, int rl, int rr)
 void add_to_microexon_windows(uint32_t ref_id, 
 							  int left_boundary, 
 							  int right_boundary, 
-							  const Dna5String& dna_str)
+							  const string& dna_str)
 {
 	//bool found_matching_window = false;
 	//cerr << "adding: "<< dna_str  << endl;
@@ -2265,17 +2398,17 @@ void add_to_microexon_windows(uint32_t ref_id,
 	RefSeg left_dummy(ref_id, false, left_boundary, right_boundary);
 	RefSeg right_dummy(ref_id, false, right_boundary, right_boundary + 1);
 	
-	map<RefSeg, vector<Dna5String>* >::iterator lb = microexon_windows.lower_bound(left_dummy);
-	map<RefSeg, vector<Dna5String>* >::iterator ub = microexon_windows.lower_bound(right_dummy);
-	vector<Dna5String>* new_vec = NULL;
+	map<RefSeg, vector<string>* >::iterator lb = microexon_windows.lower_bound(left_dummy);
+	map<RefSeg, vector<string>* >::iterator ub = microexon_windows.lower_bound(right_dummy);
+	vector<string>* new_vec = NULL;
 	if (lb == microexon_windows.end())
 	{
-		microexon_windows.insert(make_pair(left_dummy, new vector<Dna5String>(1, dna_str)));
+		microexon_windows.insert(make_pair(left_dummy, new vector<string>(1, dna_str)));
 		return;
 	}
 	
-	map<RefSeg, vector<Dna5String>* >::iterator first_to_be_erased = microexon_windows.end();
-	map<RefSeg, vector<Dna5String>* >::iterator last_to_be_erased = ub;
+	map<RefSeg, vector<string>* >::iterator first_to_be_erased = microexon_windows.end();
+	map<RefSeg, vector<string>* >::iterator last_to_be_erased = ub;
 	
 	while (lb != ub)
 	{
@@ -2284,7 +2417,7 @@ void add_to_microexon_windows(uint32_t ref_id,
 		if (overlap_in_genome(lb->first.left, lb->first.right, left_boundary, right_boundary))
 		{
 			if (!new_vec)
-				new_vec = new vector<Dna5String>();
+				new_vec = new vector<string>();
 			if (first_to_be_erased == microexon_windows.end())
 				first_to_be_erased = lb;
 			left_dummy.left = min(lb->first.left, left_boundary);
@@ -2309,7 +2442,7 @@ void add_to_microexon_windows(uint32_t ref_id,
 	if (!new_vec)
 	{
 		// never found an overlapping window, so just add this one and bail
-		microexon_windows.insert(make_pair(left_dummy, new vector<Dna5String>(1, dna_str)));
+		microexon_windows.insert(make_pair(left_dummy, new vector<string>(1, dna_str)));
 		return;
 	}
 	else
@@ -2327,10 +2460,10 @@ void align_microexon_segs(RefSequenceTable& rt,
 						  int half_splice_mer_len)
 {
 	int num_segments = 0;
-	for (map<RefSeg, vector<Dna5String>* >::iterator itr = microexon_windows.begin(); 
+	for (map<RefSeg, vector<string>* >::iterator itr = microexon_windows.begin(); 
 		 itr != microexon_windows.end(); ++itr)
 	{
-		vector<Dna5String>& unaligned_segments = *itr->second;
+		vector<string>& unaligned_segments = *itr->second;
 		num_segments += unaligned_segments.size();
 	}
 	
@@ -2346,7 +2479,7 @@ void align_microexon_segs(RefSequenceTable& rt,
 	
 
 	int window_num = 0;
-	for (map<RefSeg, vector<Dna5String>* >::iterator itr = microexon_windows.begin(); 
+	for (map<RefSeg, vector<string>* >::iterator itr = microexon_windows.begin(); 
 		 itr != microexon_windows.end(); ++itr)
 	{
 		window_num++;
@@ -2361,7 +2494,7 @@ void align_microexon_segs(RefSequenceTable& rt,
 			extensions[j].clear();
 		}
 		
-		vector<Dna5String>& unaligned_segments = *itr->second;
+		vector<string>& unaligned_segments = *itr->second;
 		
 		for (size_t j = 0; j < unaligned_segments.size(); ++j)
 		{
@@ -2370,7 +2503,7 @@ void align_microexon_segs(RefSequenceTable& rt,
 			//cerr << w.unaligned_segments[j];
 			ss << unaligned_segments[j];
 			ss >> s;
-			
+
 			store_read_extensions(extensions,
 								  half_splice_mer_len,
 								  half_splice_mer_len,
@@ -2460,9 +2593,11 @@ void look_for_hit_group(RefSequenceTable& rt,
 				
 				if (!got_read)
 					break;
+				
 				string fwd_read = read_seq;
-				string rev_read = fwd_read;
-				reverse_complement(rev_read);
+				if (color)
+				  // remove the primer and the adjacent color
+				  fwd_read.erase(0, 2);
 				
 				// make sure there are hits for all the other segs, all the 
 				// way to the root (right-most) one.
@@ -2478,7 +2613,12 @@ void look_for_hit_group(RefSequenceTable& rt,
 					break;
 				
 				fwd_read = fwd_read.substr(0, segment_length);
-				rev_read = rev_read.substr(rev_read.length() - segment_length - 1);
+				string rev_read = fwd_read;
+
+				if (color)
+				  reverse(rev_read.begin(), rev_read.end());
+				else
+				  reverse_complement(rev_read);
 				
 				for (size_t h = 0; h < hits_for_read[empty_seg + 1].hits.size(); ++h)
 				{
@@ -2504,8 +2644,7 @@ void look_for_hit_group(RefSequenceTable& rt,
 						
 						microaligned_segs++;
 						
-						Dna5String dna_str = rev_read;
-						add_to_microexon_windows(bh.ref_id(), left_boundary, right_boundary, dna_str); 
+						add_to_microexon_windows(bh.ref_id(), left_boundary, right_boundary, rev_read); 
 					}
 					else
 					{
@@ -2518,8 +2657,7 @@ void look_for_hit_group(RefSequenceTable& rt,
 						
 						microaligned_segs++;
 						
-						Dna5String dna_str = fwd_read;
-						add_to_microexon_windows(bh.ref_id(), left_boundary, right_boundary, dna_str);  
+						add_to_microexon_windows(bh.ref_id(), left_boundary, right_boundary, fwd_read);  
 					}
 				}
 			}
@@ -3084,10 +3222,11 @@ void driver(istream& ref_stream,
 		
 		fprintf(stderr, "done\n");
 	}
-	
+
+	std::set<Junction, skip_count_lt> microexon_juncs;
 	if (!no_microexon_search)
 	{
-		std::set<Junction, skip_count_lt> microexon_juncs;
+	  std::set<Junction, skip_count_lt> microexon_juncs;
 		align_microexon_segs(rt,
 							 microexon_juncs,
 							 max_cov_juncs,
@@ -3098,7 +3237,7 @@ void driver(istream& ref_stream,
 	juncs.insert(cov_juncs.begin(), cov_juncs.end());
 	juncs.insert(seg_juncs.begin(), seg_juncs.end());
 	juncs.insert(butterfly_juncs.begin(), butterfly_juncs.end());
-	
+
 	
 	fprintf(stderr, "Reporting potential splice junctions...");
 	for(std::set<Junction>::iterator itr = juncs.begin();

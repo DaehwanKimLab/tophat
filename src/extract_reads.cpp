@@ -48,15 +48,12 @@ void extract_reads(FILE *fa, const READSET& selected_reads)
 		read.clear();
 		
 		// Get the next read from the file
-		if (format == FASTA)
+		if (!next_fasta_record(fr, read.name, read.seq, format))
+		  break;
+		if (format == FASTQ)
 		{
-			if (!next_fasta_record(fr, read.name, read.seq))
-				break;
-		}
-		else if (format == FASTQ)
-		{
-			if (!next_fastq_record(fr, read.name, read.seq, read.alt_name, read.qual))
-				break;
+		  if (!next_fastq_record(fr, read.seq, read.alt_name, read.qual, format))
+		    break;
 		}
 		reads_examined++;
 		const string& name_selected = use_alt_name ? read.alt_name : read.name;

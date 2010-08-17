@@ -61,6 +61,10 @@ extern std::string sam_header;
 
 extern bool solexa_quals;
 extern bool phred64_quals;
+extern bool quals;
+extern bool integer_quals;
+extern bool color;
+extern bool color_out;
 
 int parseInt(int lower, const char *errmsg, void (*print_usage)());
 int parse_options(int argc, char** argv, void (*print_usage)());

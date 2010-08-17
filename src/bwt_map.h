@@ -16,8 +16,9 @@
 #include <seqan/sequence.h>
 
 #include <bam/sam.h>
-
 using namespace std;
+
+#include "common.h"
 
 /*
  *  bwt_map.h
@@ -219,7 +220,13 @@ struct BowtieHit
 	
 	const string& hitfile_rec() const { return _hitfile_rec; }
 	void hitfile_rec(const string& rec) { _hitfile_rec = rec; }
-	
+
+  	const string& seq() const { return _seq; }
+	void seq(const string& seq) { _seq = seq; }
+
+  	const string& qual() const { return _qual; }
+	void qual(const string& qual) { _qual = qual; }
+
 private:
 	
 	uint32_t _ref_id;
@@ -234,6 +241,8 @@ private:
 	unsigned char _edit_dist;  // Total mismatches
 	unsigned char _splice_mms; // Mismatches within min_anchor_len of a splice junction
 	string _hitfile_rec; // Points to the buffer for the record from which this hit came
+  string _seq;
+  string _qual;
 };
 
 class ReadTable
@@ -508,10 +517,12 @@ public:
 						 unsigned char edit_dist);
 	
 	virtual bool get_hit_from_buf(const char* bwt_buf, 
-								  BowtieHit& bh,
-								  bool strip_slash,
-								  char* name_out = NULL,
-								  char* name_tags = NULL) = 0;
+				      BowtieHit& bh,
+				      bool strip_slash,
+				      char* name_out = NULL,
+				      char* name_tags = NULL,
+				      char* seq = NULL,
+				      char* qual = NULL) = 0;
 	
 private:
 	ReadTable& _insert_table;
@@ -526,10 +537,12 @@ public:
 		HitFactory(insert_table, reference_table) {}
 	
 	bool get_hit_from_buf(const char* bwt_buf, 
-						  BowtieHit& bh,
-						  bool strip_slash,
-						  char* name_out = NULL,
-						  char* name_tags = NULL);
+			      BowtieHit& bh,
+			      bool strip_slash,
+			      char* name_out = NULL,
+			      char* name_tags = NULL,
+			      char* seq = NULL,
+			      char* qual = NULL);
 };
 
 class SplicedBowtieHitFactory : public HitFactory
@@ -542,10 +555,12 @@ public:
 	_anchor_length(anchor_length){}
 	
 	bool get_hit_from_buf(const char* bwt_buf, 
-						  BowtieHit& bh,
-						  bool strip_slash,
-						  char* name_out = NULL,
-						  char* name_tags = NULL);
+			      BowtieHit& bh,
+			      bool strip_slash,
+			      char* name_out = NULL,
+			      char* name_tags = NULL,
+			      char* seq = NULL,
+			      char* qual = NULL);
 private:
 	int _anchor_length;
 	int _seg_offset;
@@ -559,10 +574,12 @@ public:
 	HitFactory(insert_table, reference_table) {}
 	
 	bool get_hit_from_buf(const char* bwt_buf, 
-						  BowtieHit& bh,
-						  bool strip_slash,
-						  char* name_out = NULL,
-						  char* name_tags = NULL);
+			      BowtieHit& bh,
+			      bool strip_slash,
+			      char* name_out = NULL,
+			      char* name_tags = NULL,
+			      char* seq = NULL,
+			      char* qual = NULL);
 };
 
 struct HitsForRead
@@ -577,16 +594,20 @@ class HitStream
 	
 public:
 	HitStream(FILE* hit_file, 
-			  HitFactory* hit_factory, 
-			  bool spliced, 
-			  bool strip_slash, 
-			  bool keep_bufs) : 
+		  HitFactory* hit_factory, 
+		  bool spliced, 
+		  bool strip_slash, 
+		  bool keep_bufs,
+		  bool keep_seqs = false,
+		  bool keep_quals = false) : 
 	_hit_file(hit_file),
 	_factory(hit_factory),
 	_spliced(spliced),
 	_strip_slash(strip_slash),
 	buffered_hit(BowtieHit()),
-	_keep_bufs(keep_bufs)
+	  _keep_bufs(keep_bufs),
+	  _keep_seqs(keep_seqs),
+	  _keep_quals(keep_quals)
 	{
 		// Prime the stream by reading a single hit into the buffered_hit
 		HitsForRead dummy = HitsForRead();
@@ -614,8 +635,13 @@ public:
 			return false;
 		}
 		
-		char bwt_buf[2048];
-		bwt_buf[0] = 0;
+		char bwt_buf[2048]; bwt_buf[0] = 0;
+		char bwt_seq[2048]; bwt_seq[0] = 0;
+		char bwt_qual[2048]; bwt_qual[0] = 0;
+
+		char* seq = _keep_seqs ? bwt_seq : NULL;
+		char* qual = _keep_quals ? bwt_qual : NULL;
+		
 		hits_for_read.insert_id = buffered_hit.insert_id();
 		if (hits_for_read.insert_id)
 			hits_for_read.hits.push_back(buffered_hit);
@@ -630,10 +656,34 @@ public:
 			// Get a new record from the tab-delimited Bowtie map
 			BowtieHit bh;
 			
-			if ( _factory->get_hit_from_buf(bwt_buf, bh, _strip_slash))
+			if ( _factory->get_hit_from_buf(bwt_buf, bh, _strip_slash, NULL, NULL, seq, qual))
 			{
 				if (_keep_bufs)
 					bh.hitfile_rec(bwt_buf);
+
+				if (_keep_seqs)
+				  {
+				    if (strlen(seq) == 0)
+				      {
+					int kk = 0;
+					++kk;
+				      }
+				    bh.seq(seq);
+				  }
+
+				if (_keep_quals)
+				  {
+				    // when it comes to convert from qual in color to qual in bp,
+				    // we need to fill in the two extream qual values using the adjacent qual values.
+				    size_t qual_len = strlen(qual);
+				    if (color && !color_out && qual_len > 2)
+				      {
+					qual[0] = qual[1];
+					qual[qual_len-1] = qual[qual_len-2];
+				      }
+				    
+				    bh.qual(qual);
+				  }
 				
 				if (bh.insert_id() == hits_for_read.insert_id)
 				{
@@ -668,6 +718,8 @@ private:
 	bool _strip_slash;
 	BowtieHit buffered_hit;
 	bool _keep_bufs;
+	bool _keep_seqs;
+	bool _keep_quals;
 };
 
 typedef uint32_t MateStatusMask;
@@ -691,10 +743,11 @@ void add_hit_to_coverage(const BowtieHit& bh, vector<unsigned int>& DoC);
 void accept_all_hits(HitTable& hits);
 
 void print_hit(FILE* fout, 
-			   const char* read_name,
-			   const BowtieHit& bh,
-			   const char* ref_name,
-			   const char* sequence,
-			   const char* qualities);
+	       const char* read_name,
+	       const BowtieHit& bh,
+	       const char* ref_name,
+	       const char* sequence,
+	       const char* qualities,
+	       bool from_bowtie = false);
 
 #endif

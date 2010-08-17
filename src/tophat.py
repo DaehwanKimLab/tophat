@@ -30,7 +30,7 @@ use_message = '''
 TopHat maps short sequences from spliced transcripts to whole genomes.
 
 Usage:
-    tophat [options] <bowtie_index> <reads1[,reads2,...,readsN]> [reads1[,reads2,...,readsN]]
+    tophat [options] <bowtie_index> <reads1[,reads2,...,readsN]> [reads1[,reads2,...,readsN]] [quals1,[quals2,...,qualsN]] [quals1[,quals2,...,qualsN]]
     
 Options:
     -v/--version
@@ -44,6 +44,10 @@ Options:
     --solexa-quals                          
     --solexa1.3-quals                          (same as phred64-quals)
     --phred64-quals                            (same as solexa1.3-quals)
+    -Q/--quals
+    --integer-quals
+    -C/--color                                 (Solid - color space)
+    --color-out
     -p/--num-threads               <int>       [ default: 1            ]
     -G/--GFF                       <filename>
     -j/--raw-juncs                 <filename>
@@ -130,13 +134,13 @@ class TopHatParams:
             for option, value in opts:
                 if option in ("-m", "--splice-mismatches"):
                     self.splice_mismatches = int(value)
-                if option in ("-a", "--min-anchor"):
+                elif option in ("-a", "--min-anchor"):
                     self.min_anchor_length = int(value)
-                if option in ("-F", "--min-isoform-fraction"):
+                elif option in ("-F", "--min-isoform-fraction"):
                     self.min_isoform_fraction = float(value)
-                if option in ("-i", "--min-intron-length"):
+                elif option in ("-i", "--min-intron-length"):
                     self.min_intron_length = int(value)
-                if option in ("-I", "--max-intron-length"):
+                elif option in ("-I", "--max-intron-length"):
                     self.max_intron_length = int(value)
         
         def check(self):
@@ -171,7 +175,7 @@ class TopHatParams:
             for option, value in opts:
                 if option in ("-p", "--num-threads"):
                     self.bowtie_threads = int(value)
-                if option in ("--keep-tmp"):
+                elif option in ("--keep-tmp"):
                     self.keep_tmp = True
         
         def check(self):
@@ -186,6 +190,10 @@ class TopHatParams:
         def __init__(self,
                      solexa_quals,
                      phred64_quals,
+                     quals,
+                     integer_quals,
+                     color,
+                     color_out,
                      seed_length,
                      reads_format,
                      mate_inner_dist,
@@ -200,6 +208,10 @@ class TopHatParams:
                      seq_platform):
             self.solexa_quals = solexa_quals
             self.phred64_quals = phred64_quals
+            self.quals = quals
+            self.integer_quals = integer_quals
+            self.color = color
+            self.color_out = color_out
             self.seed_length = seed_length
             self.reads_format = reads_format
             self.mate_inner_dist = mate_inner_dist
@@ -217,29 +229,37 @@ class TopHatParams:
             for option, value in opts:
                 if option == "--solexa-quals":
                     self.solexa_quals = True
-                if option in ("--solexa1.3-quals", "--phred64-quals"):
-                    self.phred64_quals = True    
-                if option in ("-s", "--seed-length"):
+                elif option in ("--solexa1.3-quals", "--phred64-quals"):
+                    self.phred64_quals = True
+                elif option in ("-Q", "--quals"):
+                    self.quals = True
+                elif option in ("--integer-quals"):
+                    self.integer_quals = True
+                elif option in ("-C", "--color"):
+                    self.color = True
+                elif option in ("--color-out"):
+                    self.color_out = True
+                elif option in ("-s", "--seed-length"):
                     self.seed_length = int(value)
-                if option in ("-r", "--mate-inner-dist"):
+                elif option in ("-r", "--mate-inner-dist"):
                     self.mate_inner_dist = int(value)
-                if option == "--mate-std-dev":
+                elif option == "--mate-std-dev":
                     self.mate_inner_dist_std_dev = int(value)
-                if option == "--rg-id":
+                elif option == "--rg-id":
                     self.read_group_id = value
-                if option == "--rg-sample":
+                elif option == "--rg-sample":
                     self.sample_id = value
-                if option == "--rg-library":
+                elif option == "--rg-library":
                     self.library_id = value
-                if option == "--rg-description":
+                elif option == "--rg-description":
                     self.description = value
-                if option == "--rg-platform-unit":
+                elif option == "--rg-platform-unit":
                     self.seq_platform_unit = value
-                if option == "--rg-center":
+                elif option == "--rg-center":
                     self.seq_center = value
-                if option == "--rg-date":
+                elif option == "--rg-date":
                     self.seq_run_date = value    
-                if option == "--rg-platform":
+                elif option == "--rg-platform":
                     self.seq_platform = value            
 
         def check(self):
@@ -323,6 +343,10 @@ class TopHatParams:
         
         self.read_params = self.ReadParams(False,               # solexa_scale
                                            False,
+                                           False,               # quals
+                                           False,               # integer quals
+                                           False,               # Solid - color space
+                                           False,               # Solid - color out instead of base pair
                                            None,                # seed_length
                                            "fastq",             # quality_format
                                            None,                # mate inner distance
@@ -399,6 +423,7 @@ class TopHatParams:
                "--min-segment-intron", str(self.search_params.min_segment_intron_length),
                "--max-segment-intron", str(self.search_params.max_segment_intron_length),
                "--sam-header", sam_header]
+        
                
         if self.read_params.mate_inner_dist != None:
             cmd.extend(["--inner-dist-mean", str(self.read_params.mate_inner_dist),
@@ -415,6 +440,14 @@ class TopHatParams:
             cmd.append("--butterfly-search")
         if self.read_params.solexa_quals == True:
             cmd.append("--solexa-quals")
+        if self.read_params.quals == True:
+            cmd.append("--quals")
+        if self.read_params.integer_quals == True:
+            cmd.append("--integer-quals")
+        if self.read_params.color == True:
+            cmd.append("--color")
+            if self.read_params.color_out == True:
+                cmd.append("--color-out")
         if self.read_params.phred64_quals == True:
             cmd.append("--phred64-quals")
         return cmd
@@ -424,13 +457,17 @@ class TopHatParams:
     # of options.
     def parse_options(self, argv):
         try:
-            opts, args = getopt.getopt(argv[1:], "hvp:m:F:a:i:I:G:r:o:j:g:", 
+            opts, args = getopt.getopt(argv[1:], "hvp:m:F:a:i:I:G:r:o:j:g:QC", 
                                         ["version",
                                          "help",  
                                          "output-dir=",
                                          "solexa-quals",
                                          "solexa1.3-quals",
                                          "phred64-quals",
+                                         "quals",
+                                         "integer-quals",
+                                         "color",
+                                         "color-out",
                                          "num-threads=",
                                          "splice-mismatches=",
                                          "max-multihits=",
@@ -604,6 +641,7 @@ def bowtie_idx_to_fa(idx_prefix):
 
         inspect_cmd = ["bowtie-inspect",
                        idx_prefix]
+
         #print >> sys.stderr, "Executing: " + " ".join(inspect_cmd) + " > " + tmp_fasta_file_name   
         ret = subprocess.call(inspect_cmd, 
                               stdout=tmp_fasta_file,
@@ -684,9 +722,12 @@ def get_index_sam_header(read_params, idx_prefix):
         bowtie_sam_header_file = open(bowtie_sam_header_filename,"w")
 
         
-        bowtie_header_cmd = ['bowtie', '--sam', idx_prefix, '/dev/null']
+        bowtie_header_cmd = ['bowtie', '--sam']
+        if read_params.color == True:
+            bowtie_header_cmd.append('-C')
+        bowtie_header_cmd += [idx_prefix, '/dev/null']
         proc = subprocess.call(bowtie_header_cmd,stdout=bowtie_sam_header_file, stderr=open('/dev/null'))
-        
+
         bowtie_sam_header_file.close()
         bowtie_sam_header_file = open(bowtie_sam_header_filename,"r")
         
@@ -811,7 +852,7 @@ def check_samtools():
       
 
 
-def fq_next(f, fname):
+def fq_next(f, fname, color):
    '''
    basic fastq record iterator  
    as a function returning a tuple: (seqID, sequence_string, qv_string, seq_len)
@@ -851,13 +892,13 @@ def fq_next(f, fname):
           if not line : break #end of file  
           qstr += line.rstrip()
           qstrlen=len(qstr)  
-          if qstrlen >= seq_len:  
+          if (not color and qstrlen >= seq_len) or (color and qstrlen + 1 >= seq_len):  
                break # qv string has reached the length of seq string
           #loop until qv has the same length as seq  
-       if seq_len != qstrlen:
-          raise ValueError("Length mismatch between sequence and quality strings "+ \
-                           "for %s (%i vs %i)." \
-                           % (seqid, seq_len, qstrlen))
+       if (not color and seq_len != qstrlen) or (color and seq_len != qstrlen + 1):
+           raise ValueError("Length mismatch between sequence and quality strings "+ \
+                                "for %s (%i vs %i)." \
+                                % (seqid, seq_len, qstrlen))
    except ValueError, err:
         print >> sys.stderr, "\nError encountered parsing file "+fname+":\n "+str(err)
         sys.exit(1)
@@ -933,7 +974,7 @@ def check_reads(params, reads_files):
     
     seed_len = params.seed_length
     format = params.reads_format
-    
+
     observed_formats = set([])
     observed_scales = set([])
     min_seed_len = 99999
@@ -945,7 +986,7 @@ def check_reads(params, reads_files):
         except IOError:
             print >> sys.stderr, "Error: could not open file", f_name
             sys.exit(1)
-            
+
         first_line = f.readline()
         if first_line[0] == "@":
             format = "fastq"
@@ -953,13 +994,17 @@ def check_reads(params, reads_files):
             format = "fasta"
         else:
             print >> sys.stderr, "Error: file %s does not appear to be a valid FASTA or FASTQ file" % f_name
+
         observed_formats.add(format)
         f.seek(0)
         line_num = 0
         if format == "fastq":
             while True:
-              seqid, seqstr, qstr, seq_len = fq_next(f, f_name)
+              seqid, seqstr, qstr, seq_len = fq_next(f, f_name, params.color)
               if not seqid: break
+              if params.color:
+                  seq_len -= 1
+                  seqstr = seqstr[1:]
               if seq_len < 20:
                   print >> sys.stderr, "Warning: found a read < 20bp in", f_name
               else:
@@ -971,6 +1016,9 @@ def check_reads(params, reads_files):
             while True:
                 seqid, seqstr, seq_len = fa_next(f,f_name)
                 if not seqid: break
+                if params.color:
+                  seq_len -= 1
+                  seqstr = seqstr[1:]
                 if seq_len < 20:
                      print >> sys.stderr, "Warning: found a read < 20bp in", f_name
                 else:
@@ -998,6 +1046,10 @@ def check_reads(params, reads_files):
     #print seed_len, format, solexa_scale
     return TopHatParams.ReadParams(params.solexa_quals,
                                    params.phred64_quals,
+                                   params.quals,
+                                   params.integer_quals,
+                                   params.color,
+                                   params.color_out,
                                    seed_len, 
                                    format, 
                                    params.mate_inner_dist, 
@@ -1023,9 +1075,9 @@ def formatTD(td):
 # The read library features reads with monotonically increasing integer IDs.
 # prep_reads also filters out very low complexy or garbage reads as well as 
 # polyA reads.
-def prep_reads(params, reads_list, output_name):    
+def prep_reads(params, reads_list, quals_list, output_name):    
     #filter_cmd = ["prep_reads"]
-        
+
     reads_suffix = ".fq"
     kept_reads_filename = output_dir + output_name + reads_suffix
     
@@ -1035,7 +1087,6 @@ def prep_reads(params, reads_list, output_name):
     
     filter_log = open(logging_dir + "prep_reads.log", "w")
     
-    # filter_cmd = [bin_dir + "prep_reads"]
     filter_cmd = [prog_path("prep_reads")]
     filter_cmd.extend(params.cmd())
     if params.read_params.reads_format == "fastq":
@@ -1043,6 +1094,9 @@ def prep_reads(params, reads_list, output_name):
     elif params.read_params.reads_format == "fasta":
         filter_cmd += ["--fasta"]
     filter_cmd.append(reads_list)
+
+    if params.read_params.quals == True:
+        filter_cmd.append(quals_list)
        
     #print "\t executing: `%s'" % " ".join(filter_cmd)    
     # files = reads_list.split(',')
@@ -1061,7 +1115,7 @@ def prep_reads(params, reads_list, output_name):
         if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
             print >> sys.stderr, fail_str, "Error: prep_reads not found on this system.  Did you forget to include it in your PATH?"
         sys.exit(1)
-        
+
     return kept_reads_filename
 
 # Call bowtie
@@ -1091,15 +1145,19 @@ def bowtie(params,
             bowtie_cmd += ["-q"]
         elif reads_format == "fasta":
             bowtie_cmd += ["-f"]
-            
+
+        if params.read_params.color:
+            bowtie_cmd += ["-C", "--col-keepends"]
+
         if unmapped_reads != None:
             unmapped_reads_fasta_name = unmapped_reads
             bowtie_cmd += ["--un", unmapped_reads_fasta_name,
                            "--max", "/dev/null"]
         else:
             unmapped_reads_fasta_name = None
-        
-        bowtie_cmd += ["-v", str(params.segment_mismatches),
+
+        # infphilo - check "-v" vs. "-n"
+        bowtie_cmd += ["-n", str(params.segment_mismatches),
                          "-p", str(params.system_params.bowtie_threads),
                          "-k", str(params.max_hits),
                          "-m", str(params.max_hits),
@@ -1183,15 +1241,18 @@ def get_gtf_juncs(gff_annotation):
     return (True, gtf_juncs_out_name)
 
 # Call bowtie-build on the FASTA file of sythetic splice junction sequences
-def build_juncs_bwt_index(external_splice_prefix):
+def build_juncs_bwt_index(external_splice_prefix, color):
     print >> sys.stderr, "[%s] Indexing splices" % (right_now())
     bowtie_build_log = open(logging_dir + "bowtie_build.log", "w")
     
     #user_splices_out_prefix  = output_dir + "user_splices_idx"
     
-    bowtie_build_cmd = ["bowtie-build", 
-                        external_splice_prefix + ".fa",
-                        external_splice_prefix]            
+    bowtie_build_cmd = ["bowtie-build"]
+    if color == True:
+        bowtie_build_cmd += ["-C"]
+        
+    bowtie_build_cmd += [external_splice_prefix + ".fa",
+                         external_splice_prefix]            
     try:    
         print >> run_log, " ".join(bowtie_build_cmd)
         retcode = subprocess.call(bowtie_build_cmd, 
@@ -1212,7 +1273,8 @@ def build_juncs_index(min_anchor_length,
                       read_length,
                       juncs_prefix, 
                       external_juncs,  
-                      reference_fasta):
+                      reference_fasta,
+                      color):
     print >> sys.stderr, "[%s] Retrieving sequences for splices" % (right_now())
     
     juncs_file_list = ",".join(external_juncs)
@@ -1243,7 +1305,7 @@ def build_juncs_index(min_anchor_length,
            print >> sys.stderr, fail_str, "Error: juncs_db not found on this system"
        sys.exit(1)
        
-    external_splices_out_prefix = build_juncs_bwt_index(external_splices_out_prefix)
+    external_splices_out_prefix = build_juncs_bwt_index(external_splices_out_prefix, color)
     return external_splices_out_prefix
 
 # Print out the sam header, embedding the user's specified library properties.
@@ -1376,8 +1438,9 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
 # for each segment  This function needs to be fixed to support mixed read length
 # inputs
 def split_reads(reads_filename, 
-                prefix, 
-                fasta, 
+                prefix,
+                fasta,
+                color,
                 read_length, 
                 segment_length):
     reads_file = open(reads_filename)
@@ -1397,24 +1460,71 @@ def split_reads(reads_filename,
         while i <= num_files:
             output_files.append(open(prefix + ("_seg%d" % i) + extension, "w"))
             i += 1
-    def split_record(read_name, read_seq, read_qual, output_files, offsets):
+
+    def convert_color_to_bp(color_seq):
+        decode_dic = { 'A0':'A', 'A1':'C', 'A2':'G', 'A3':'T', 'A4':'N', 'A.':'N',
+                           'C0':'C', 'C1':'A', 'C2':'T', 'C3':'G', 'C4':'N', 'C.':'N',
+                           'G0':'G', 'G1':'T', 'G2':'A', 'G3':'C', 'G4':'N', 'G.':'N',
+                           'T0':'T', 'T1':'G', 'T2':'C', 'T3':'A', 'T4':'N', 'T.':'N',
+                           'N0':'N', 'N1':'N', 'N2':'N', 'N3':'N', 'N4':'N', 'N.':'N' }
+
+        base = color_seq[0]
+        bp_seq = base
+        for ch in color_seq[1:]:
+            base = decode_dic[base+ch]
+            bp_seq += base
+        return bp_seq
+
+    def convert_bp_to_color(bp_seq):
+        encode_dic = { 'AA':'0', 'CC':'0', 'GG':'0', 'TT':'0',
+                       'AC':'1', 'CA':'1', 'GT':'1', 'TG':'1',
+                       'AG':'2', 'CT':'2', 'GA':'2', 'TC':'2',
+                       'AT':'3', 'CG':'3', 'GC':'3', 'TA':'3',
+                       'A.':'4', 'C.':'4', 'G.':'4', 'T.':'4',
+                       '.A':'4', '.C':'4', '.G':'4', '.T':'4',
+                       '.N':'4', 'AN':'4', 'CN':'4', 'GN':'4',
+                       'TN':'4', 'NA':'4', 'NC':'4', 'NG':'4',
+                       'NT':'4', 'NN':'4', 'N.':'4', '..':'4' }
+
+        base = bp_seq[0]
+        color_seq = base
+        for ch in bp_seq[1:]:
+            color_seq += encode_dic[base + ch]
+            base = ch
+
+        return color_seq
+       
+    def split_record(read_name, read_seq, read_qual, output_files, offsets, color):
+        if color == True:
+            color_offset = 1
+            read_seq_temp = convert_color_to_bp(read_seq)
+
+            seg_num = 1
+            while seg_num + 1 < len(offsets):
+                if read_seq[offsets[seg_num]+1] not in ['0', '1', '2', '3']:
+                    return
+                seg_num += 1
+        else:
+            color_offset = 0
+
         seg_num = 0
         last_seq_offset = 0
-        while seg_num < len(offsets) - 1:
+        while seg_num + 1 < len(offsets):
             f = output_files[seg_num]
             #print last_seq_offset, offsets[seg_num + 1]
-            seg_seq = read_seq[last_seq_offset:offsets[seg_num + 1]]
-            if fasta == False: #FASTQ
-                seg_qual = read_qual[last_seq_offset:offsets[seg_num + 1]]
-                print >> f, "%s|%d:%d" % (read_name,last_seq_offset,seg_num)
+            seg_seq = read_seq[last_seq_offset+color_offset:offsets[seg_num + 1]+color_offset]
+            print >> f, "%s|%d:%d" % (read_name,last_seq_offset,seg_num)
+            if color == True:
+                print >> f, "%s%s" % (read_seq_temp[last_seq_offset], seg_seq)
+            else:
                 print >> f, seg_seq
+            if fasta == False:
+                seg_qual = read_qual[last_seq_offset:offsets[seg_num + 1]]
                 print >> f, "+"
                 print >> f, seg_qual
-            else:
-                print >> f, "%s|%d:%d" % (read_name, last_seq_offset,seg_num)
-                print >> f, seg_seq
             seg_num += 1
             last_seq_offset = offsets[seg_num]
+
     offsets = [segment_length * i for i in range(0,num_segments + 1)]
     
     # Bowtie's minimum read length here is 20bp, so if the last segment
@@ -1433,7 +1543,7 @@ def split_reads(reads_filename,
                 read_name = line.strip()
             else:
                 read_seq = line.strip()
-                split_record(read_name, read_seq, None, output_files, offsets)
+                split_record(read_name, read_seq, None, output_files, offsets, color)
             line_state += 1
             line_state %= 2
     else:
@@ -1453,7 +1563,8 @@ def split_reads(reads_filename,
                 line = line.strip()
             else:
                 read_quals = line.strip()
-                split_record(read_name, read_seq, read_quals, output_files, offsets)
+                split_record(read_name, read_seq, read_quals, output_files, offsets, color)
+                
             line_state += 1
             line_state %= 4
     for f in output_files:
@@ -1475,7 +1586,7 @@ def junctions_from_closures(params,
     slash = left_maps.rfind('/')
     juncs_out = ""
     if slash != -1:
-        juncs_out += left_maps[:slash + 1]
+        juncs_out += left_maps[:slash+1]
     juncs_out += "closure.juncs"
 
     juncs_log = open(logging_dir + "closure.log", "w")
@@ -1527,7 +1638,7 @@ def junctions_from_segments(params,
     slash = left_seg_maps[0].rfind('/')
     juncs_out = ""
     if slash != -1:
-        juncs_out += left_seg_maps[0][:slash + 1]
+        juncs_out += left_seg_maps[0][:slash+1]
     juncs_out += "segment.juncs"
     
     left_maps = ','.join(left_seg_maps)
@@ -1641,7 +1752,7 @@ def spliced_alignment(params,
     right_maps = []
     maps = { left_reads : [], right_reads : [] }
     #single_segments = False
-    
+
     # This class collects spliced and unspliced alignments for each of the 
     # left and right read files provided by the user.
     class Maps:
@@ -1665,7 +1776,7 @@ def spliced_alignment(params,
         slash = reads.rfind("/")
         extension = reads.rfind(".")
         if extension != -1:
-            prefix = reads[slash + 1:extension]
+            prefix = reads[slash+1:extension]
         else:
             prefix = reads      
           
@@ -1673,8 +1784,8 @@ def spliced_alignment(params,
         assert extension != -1
         tmp = reads.rfind("/")
 
-        unspliced_out = tmp_dir + reads[tmp:extension] + ".bwtout"  
-        unmapped_unspliced = tmp_dir + reads[tmp:extension] + "_missing.fq"
+        unspliced_out = tmp_dir + reads[tmp+1:extension] + ".bwtout"  
+        unmapped_unspliced = tmp_dir + reads[tmp+1:extension] + "_missing.fq"
         num_segs = read_len / segment_len
         phred_thresh = 70 * num_segs
         
@@ -1686,7 +1797,8 @@ def spliced_alignment(params,
                                            unspliced_out,
                                            unmapped_unspliced,
                                            reads,
-                                           phred_thresh)  
+                                           phred_thresh)
+
         unspliced_sam = tmp_name()
         
         # Convert the initial Bowtie maps into SAM format.  
@@ -1700,7 +1812,7 @@ def spliced_alignment(params,
                              [unspliced_map],
                              [],
                              unspliced_sam)
-        
+
         # Using the num_segs value returned by check_reads(), decide which 
         # junction discovery strategy to use
         if num_segs == 1:
@@ -1723,19 +1835,20 @@ def spliced_alignment(params,
         if num_segs > 1:
             # split up the IUM reads into segments
             read_segments = split_reads(unmapped_unspliced,
-                                        output_dir + "/tmp/" + prefix, 
+                                        output_dir + "tmp/" + prefix, 
                                         False,
+                                        params.read_params.color,
                                         read_len, 
                                         segment_len)
-                                        
+
             # Map each segment file independently with Bowtie
             for seg in read_segments:
                 extension = seg.rfind(".")
                 assert extension != -1
                 tmp = seg.rfind("/")
                 assert tmp != -1
-                seg_out =  tmp_dir + seg[tmp:extension] + ".bwtout"
-                unmapped_seg = tmp_dir + seg[tmp:extension] + "_missing.fq"
+                seg_out =  tmp_dir + seg[tmp+1:extension] + ".bwtout"
+                unmapped_seg = tmp_dir + seg[tmp+1:extension] + "_missing.fq"
                 (seg_map, unmapped) = bowtie(params,
                                              bwt_idx_prefix, 
                                              seg,
@@ -1787,8 +1900,8 @@ def spliced_alignment(params,
                                             maps[right_reads].seg_maps[-1],
                                             ref_fasta)
             if os.path.getsize(juncs[0]) != 0:
-                possible_juncs.extend(juncs)         
-    
+                possible_juncs.extend(juncs)
+
     if len(possible_juncs) == 0:
         spliced_seg_maps = None
         junc_idx_prefix = None
@@ -1800,7 +1913,8 @@ def spliced_alignment(params,
                           segment_len,
                           junc_idx_prefix, 
                           possible_juncs,
-                          ref_fasta)
+                          ref_fasta,
+                          params.read_params.color)
     
     # Now map read segments (or whole IUM reads, if num_segs == 1) to the splice
     # index with Bowtie
@@ -1818,8 +1932,8 @@ def spliced_alignment(params,
                 assert tmp != -1
             
                 ordering = maps[reads].segs[i]
-                seg_out = tmp_dir + seg[tmp:extension] + "_to_spliced.bwtout"
-                #unmapped_seg = seg[tmp:extension] + "_missing.fa"
+                seg_out = tmp_dir + seg[tmp+1:extension] + "_to_spliced.bwtout"
+                #unmapped_seg = seg[tmp+1:extension] + "_missing.fa"
                 (seg_map, unmapped) = bowtie(params,
                                              output_dir + junc_idx_prefix, 
                                              seg,
@@ -1829,7 +1943,6 @@ def spliced_alignment(params,
                                              ordering)
                 spliced_seg_maps.append(seg_map)
                 i += 1
-
         
         # Join the contigous and spliced segment hits into full length read 
         # alignments
@@ -1842,6 +1955,7 @@ def spliced_alignment(params,
                              maps[reads].seg_maps,
                              spliced_seg_maps,
                              mapped_reads)
+
         if num_segs > 1:
             # Merge the spliced and unspliced full length alignments into a 
             # single SAM file.
@@ -1928,13 +2042,20 @@ def main(argv=None):
         
         bwt_idx_prefix = args[0]
         left_reads_list = args[1]
-        if len(args) > 2:
+        left_quals_list, right_quals_list = [], []
+        if (params.read_params.quals != True and len(args) > 2) or (params.read_params.quals == True and len(args) > 3):
             if params.read_params.mate_inner_dist == None:
                 print >> sys.stderr, "Error: you must set the mean inner distance between mates with -r"
                 sys.exit(1)
+
             right_reads_list = args[2]
+            if params.read_params.quals == True:
+                left_quals_list = args[3]
+                right_quals_list = args[4]
         else:
             right_reads_list = None
+            if params.read_params.quals == True:
+                left_quals_list = args[2]
             
         print >> sys.stderr
         print >> sys.stderr, "[%s] Beginning TopHat run (v%s)" % (right_now(), get_version())
@@ -1974,19 +2095,25 @@ def main(argv=None):
         # Now start the time consuming stuff
         left_kept_reads = prep_reads(params,
                                      left_reads_list,
+                                     left_quals_list,
                                      "left_kept_reads")
-                                     
+
         if right_reads_list != None:
             right_kept_reads = prep_reads(params,
                                           right_reads_list,
+                                          right_quals_list,
                                           "right_kept_reads")
         else:
             right_kept_reads = None
+
+        # turn off integer-quals
+        if params.read_params.integer_quals == True:
+            params.read_params.integer_quals = False
             
         spliced_reads = []
         
         #if params.read_params.seed_length / segment_length > 1:
-        
+
         mapping = spliced_alignment(params, 
                                     bwt_idx_prefix,
                                     sam_header_filename,
@@ -2001,7 +2128,7 @@ def main(argv=None):
         #left_unmapped_reads = mapping[1]
         right_maps = mapping[right_kept_reads]
         #right_unmapped_reads = mapping[3]
-            
+
         compile_reports(params,
                         sam_header_filename,
                         left_maps,
@@ -2009,7 +2136,7 @@ def main(argv=None):
                         right_maps,
                         right_kept_reads,
                         params.gff_annotation)
-                        
+
         if params.system_params.keep_tmp == False:
             for m in left_maps:
                 os.remove(m)

@@ -243,13 +243,17 @@ BowtieHit merge_sense_chain(std::set<Junction>& possible_juncs,
 	
 	list<BowtieHit>::iterator prev_hit = hit_chain.begin();
 	list<BowtieHit>::iterator curr_hit = ++(hit_chain.begin());
-	
+
+	string seq;
+	string qual;
 	int old_read_length = 0;
 	for(list<BowtieHit>::iterator i = hit_chain.begin();
 		i != hit_chain.end(); 
 		++i)
 	{
-		old_read_length += i->read_len();
+	  seq += i->seq();
+	  qual += i->qual();
+	  old_read_length += i->read_len();
 	}
 	
 	
@@ -428,6 +432,9 @@ BowtieHit merge_sense_chain(std::set<Junction>& possible_juncs,
 					  saw_antisense_splice,
 					  num_mismatches,
 					  num_splice_mms);
+
+	new_hit.seq(seq);
+	new_hit.qual(qual);
 	
 	int new_read_len = new_hit.read_len();
 	if (new_read_len != old_read_length)
@@ -450,13 +457,17 @@ BowtieHit merge_antisense_chain(std::set<Junction>& possible_juncs,
 	
 	list<BowtieHit>::iterator prev_hit = hit_chain.begin();
 	list<BowtieHit>::iterator curr_hit = ++(hit_chain.begin());
-	
+
+	string seq;
+	string qual;
 	int old_read_length = 0;
 	for(list<BowtieHit>::iterator i = hit_chain.begin();
 		i != hit_chain.end(); 
 		++i)
 	{
-		old_read_length += i->read_len();
+	    seq = i->seq() + seq;
+	    qual = i->qual() + qual;
+	    old_read_length += i->read_len();
 	}
 	
 	while(curr_hit != hit_chain.end() && prev_hit != hit_chain.end())
@@ -630,6 +641,9 @@ BowtieHit merge_antisense_chain(std::set<Junction>& possible_juncs,
 					  saw_antisense_splice,
 					  num_mismatches,
 					  num_splice_mms);
+	new_hit.seq(seq);
+	new_hit.qual(qual);
+	
 	int new_read_len = new_hit.read_len();
 	if (new_read_len != old_read_length)
 	{
@@ -964,10 +978,14 @@ void join_segment_hits(std::set<Junction>& possible_juncs,
 				sort(joined_hits.begin(), joined_hits.end());
 				vector<BowtieHit>::iterator new_end = unique(joined_hits.begin(), joined_hits.end());
 				joined_hits.erase(new_end, joined_hits.end());
+
 				for (size_t i = 0; i < joined_hits.size(); i++)
 				{
 					const char* ref_name = rt.get_name(joined_hits[i].ref_id());
-					print_hit(stdout, read_name, joined_hits[i], ref_name, read_seq, read_quals);
+					if (color && !color_out)
+					  print_hit(stdout, read_name, joined_hits[i], ref_name, joined_hits[i].seq().c_str(), joined_hits[i].qual().c_str(), true);
+					else
+					  print_hit(stdout, read_name, joined_hits[i], ref_name, read_seq, read_quals, false);
 				}
 			}
 			else
@@ -996,6 +1014,14 @@ void driver(vector<FILE*> possible_juncs_files,
 
 	RefSequenceTable rt(true, true);
 	ReadTable it;
+
+	bool need_seq = false;
+	bool need_qual = false;
+	if (color && !color_out)
+	  {
+	    need_seq = true;
+	    need_qual = true;
+	  }
 	
 	//HitFactory hit_factory(it,rt);
 	
@@ -1010,7 +1036,7 @@ void driver(vector<FILE*> possible_juncs_files,
 	{
 		HitFactory* fac = new BowtieHitFactory(it, rt);
 		factories.push_back(fac);
-		HitStream hs(seg_files[i], fac, false, false, false);
+		HitStream hs(seg_files[i], fac, false, false, false, need_seq, need_qual);
 		contig_hits.push_back(hs);
 	}
 	
@@ -1028,7 +1054,7 @@ void driver(vector<FILE*> possible_juncs_files,
 													  anchor_length);
 		factories.push_back(fac);
 		
-		HitStream hs(spliced_seg_files[i], fac, true, false, false);
+		HitStream hs(spliced_seg_files[i], fac, true, false, false, need_seq, need_qual);
 		spliced_hits.push_back(hs);
 		
 		//HitsForRead hit_group;
