@@ -38,7 +38,7 @@ void format_qual_string(const string& orig_qual_str,
 }
 
 
-void filter_garbage_reads(vector<FILE*> reads_files)
+void filter_garbage_reads(vector<FILE*> reads_files, vector<FILE*> quals_files)
 {	
 	int num_reads_chucked = 0, num_reads = 0;
 	int next_id = 0;
@@ -47,22 +47,32 @@ void filter_garbage_reads(vector<FILE*> reads_files)
 		Read read;
 		FILE* fa = reads_files[fi];
 		FLineReader fr(fa);
-		//while(!feof(fa))
+
+		FILE* fq;
+		if (quals)
+		  fq = quals_files[fi];
+		FLineReader frq(fq);
 		while (!fr.isEof())
 		{
 			read.clear();
 			
 			// Get the next read from the file
-			if (reads_format == FASTA)
-			{
-				if (!next_fasta_record(fr, read.name, read.seq))
-					break;
-			}
-			else if (reads_format == FASTQ)
+			if (!next_fasta_record(fr, read.name, read.seq, reads_format))
+			  break;
+			if (reads_format == FASTQ || quals)
 			{
 				string orig_qual;
-				if (!next_fastq_record(fr, read.name, read.seq, read.alt_name, orig_qual))
+				if (reads_format == FASTQ)
+				  {
+				    if (!next_fastq_record(fr, read.seq, read.alt_name, orig_qual, reads_format))
 					break;
+				  }
+				else
+				  {
+				    if (!next_fastq_record(frq, read.seq, read.alt_name, orig_qual, reads_format))
+					break;
+				  }
+
 				format_qual_string(orig_qual, read.qual);
 			}
 			
@@ -83,54 +93,66 @@ void filter_garbage_reads(vector<FILE*> reads_files)
 			double percent_G = (double)(counts[(size_t)'G']) / read.seq.length();
 			double percent_T = (double)(counts[(size_t)'T']) / read.seq.length();
 			double percent_N = (double)(counts[(size_t)'N']) / read.seq.length();
+			double percent_4 = (double)(counts[(size_t)'4']) / read.seq.length();
 			
 			if (reads_format == FASTQ &&
-				read.seq.length() != read.qual.length())
+			    ((!color && read.seq.length() != read.qual.length()) ||
+			     (color && read.seq.length() != read.qual.length()+1)) )
 			{
 				++num_reads_chucked;
 				continue;
 			}
+
+			// daehwan - check this later, it's due to bowtie
+			if (color && read.seq[1] == '4')
+			  continue;
 			
 			// Chuck the read if there are at least 5 'N's or if it's mostly
 			// (>90%) 'N's and 'A's
 			
 			if (percent_A > 0.9 ||
-				percent_C > 0.9 ||
-				percent_G > 0.9 ||
-				percent_T > 0.9 ||
-				percent_N >= 0.1)
+			    percent_C > 0.9 ||
+			    percent_G > 0.9 ||
+			    percent_T > 0.9 ||
+			    percent_N >= 0.1 ||
+			    percent_4 >= 0.1)
 			{
 				++num_reads_chucked;
 			} 
 			else
 			{
 				if (!fastq_db)
-				{
-					if (reads_format == FASTA)
+				{					
+				  if (reads_format == FASTQ  or (reads_format == FASTA && quals))
+				    printf("@%s\n%s\n+\n%s\n", 
+					   read.name.c_str(), read.seq.c_str(),read.qual.c_str());
+				  else if (reads_format == FASTA)
 						printf(">%s\n%s\n", read.name.c_str(), read.seq.c_str());
-					else if (reads_format == FASTQ)
-						printf("@%s\n%s\n+\n%s\n", 
-							   read.name.c_str(), read.seq.c_str(),read.qual.c_str());
 				}
 				else
 				{
-					if (reads_format == FASTA)
-					{
-						printf("@%d\n%s\n+%s\n%s\n",
-							   next_id,
-							   read.seq.c_str(),
-							   read.name.c_str(),
-							   string(read.seq.length(), 'I').c_str());
-					}
-					else if (reads_format == FASTQ)
-					{
-						printf("@%d\n%s\n+%s\n%s\n",
-							   next_id,
-							   read.seq.c_str(),
-							   read.name.c_str(),
-							   read.qual.c_str());
-					}
-					
+				  if (reads_format == FASTQ or (reads_format == FASTA && quals))
+				    {
+				      printf("@%d\n%s\n+%s\n%s\n",
+					     next_id,
+					     read.seq.c_str(),
+					     read.name.c_str(),
+					     read.qual.c_str());
+				    }
+				  else if (reads_format == FASTA)
+				    {
+				      string qual;
+				      if (color)
+					qual = string(read.seq.length()-1, 'I').c_str();
+				      else
+					qual = string(read.seq.length(), 'I').c_str();
+				      
+				      printf("@%d\n%s\n+%s\n%s\n",
+					     next_id,
+					     read.seq.c_str(),
+					     read.name.c_str(),
+					     qual.c_str());
+				    }
 				}
 			}
 		}
@@ -162,7 +184,7 @@ int main(int argc, char *argv[])
     
     string reads_file_list = argv[optind++];
 
-	vector<string> reads_file_names;
+    vector<string> reads_file_names;
     vector<FILE*> reads_files;
     tokenize(reads_file_list, ",",reads_file_names);
     for (size_t i = 0; i < reads_file_names.size(); ++i)
@@ -176,11 +198,30 @@ int main(int argc, char *argv[])
         }
         reads_files.push_back(seg_file);
     }
+
+    vector<string> quals_file_names;
+    vector<FILE*> quals_files;
+    if (quals)
+      {
+	string quals_file_list = argv[optind++];
+	tokenize(quals_file_list, ",",quals_file_names);
+	for (size_t i = 0; i < quals_file_names.size(); ++i)
+	  {
+	    FILE* seg_file = fopen(quals_file_names[i].c_str(), "r");
+	    if (seg_file == NULL)
+	      {
+		fprintf(stderr, "Error: cannot open reads file %s for reading\n",
+			quals_file_names[i].c_str());
+		exit(1);
+	      }
+	    quals_files.push_back(seg_file);
+	  }
+      }
 	
-	// Only print to standard out the good reads
+    // Only print to standard out the good reads
     //TODO: a better, more generic read filtering protocol
-	filter_garbage_reads(reads_files);
+    filter_garbage_reads(reads_files, quals_files);
 	
-	return 0;
+    return 0;
 }
 

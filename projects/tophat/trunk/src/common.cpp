@@ -68,6 +68,10 @@ string sam_header = "";
 
 bool solexa_quals = false;
 bool phred64_quals = false;
+bool quals = false;
+bool integer_quals = false;
+bool color = false;
+bool color_out = false;
 
 extern void print_usage();
 
@@ -161,6 +165,10 @@ const char *short_options = "";
 #define OPT_SOLEXA_QUALS			    63
 #define OPT_PHRED64_QUALS				64
 #define OPT_SAM_HEADER                  65
+#define OPT_QUALS                  66
+#define OPT_INTEGER_QUALS                  67
+#define OPT_COLOR                  68
+#define OPT_COLOR_OUT                  69
 
 static struct option long_options[] = {
 {"fasta",				no_argument,		0,	OPT_FASTA},
@@ -194,7 +202,11 @@ static struct option long_options[] = {
 {"butterfly-search",	no_argument,		0,	OPT_BUTTERFLY_SEARCH},
 {"solexa-quals",		no_argument,		0,	OPT_SOLEXA_QUALS},
 {"phred64-quals",		no_argument,		0,	OPT_PHRED64_QUALS},
-
+{"quals",		no_argument,		0,	OPT_QUALS},
+{"integer-quals",		no_argument,		0,	OPT_INTEGER_QUALS},
+{"color",		no_argument,		0,	OPT_COLOR},
+{"color-out",		no_argument,		0,	OPT_COLOR_OUT},
+  
 {0, 0, 0, 0} // terminator
 };
 
@@ -300,9 +312,21 @@ int parse_options(int argc, char** argv, void (*print_usage)())
 			case OPT_PHRED64_QUALS:
 				phred64_quals = true;
 				break;
-			default:
-				print_usage();
-				return 1;
+	case OPT_QUALS:
+	  quals = true;
+	  break;
+	case OPT_INTEGER_QUALS:
+	  integer_quals = true;
+	  break;
+	case OPT_COLOR:
+	  color = true;
+	  break;
+	case OPT_COLOR_OUT:
+	  color_out = true;
+	  break;
+	default:
+	  print_usage();
+	  return 1;
         }
     } while(next_option != -1);
 	

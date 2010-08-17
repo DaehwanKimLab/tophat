@@ -41,6 +41,8 @@ struct Read
 };
 
 void reverse_complement(string& seq);
+string convert_color_to_bp(const string& color);
+string convert_bp_to_color(const string& bp, bool remove_primer = false);
 
 class ReadTable;
 
@@ -84,11 +86,8 @@ public:
     free(buf);
     }
 };
-/*
-bool next_fasta_record(FILE* fp, string& defline, string& seq);
-bool next_fastq_record(FILE* fp, string& defline, string& seq, string& alt_name, string& qual);
-*/
-bool next_fasta_record(FLineReader& fr, string& defline, string& seq);
-bool next_fastq_record(FLineReader& fr, string& defline, string& seq, string& alt_name, string& qual);
+
+bool next_fasta_record(FLineReader& fr, string& defline, string& seq, ReadFormat reads_format);
+bool next_fastq_record(FLineReader& fr, const string& seq, string& alt_name, string& qual, ReadFormat reads_format);
 
 #endif

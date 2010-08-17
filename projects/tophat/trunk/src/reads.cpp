@@ -18,6 +18,7 @@
 #include <cstdlib>
 #include "reads.h"
 #include "bwt_map.h"
+#include "tokenize.h"
 
 using namespace std;
 
@@ -56,8 +57,9 @@ char* FLineReader::nextLine() {
 
 
 bool next_fasta_record(FLineReader& fr,
-					   string& defline, 
-					   string& seq)
+		       string& defline, 
+		       string& seq,
+		       ReadFormat reads_format)
 
 {
   seq.clear();
@@ -65,7 +67,7 @@ bool next_fasta_record(FLineReader& fr,
   char* buf=NULL;
   while ((buf=fr.nextLine())!=NULL) {
     if (buf[0]==0) continue; //skip empty lines
-    if (buf[0] == '>') { //next record
+    if ((reads_format == FASTA && buf[0] == '>') || (reads_format == FASTQ && (buf[0] == '+' || buf[0] == '@'))) { //next record
         if (seq.length()>0) { //current record ending
            fr.pushBack();
            return true;
@@ -80,58 +82,17 @@ bool next_fasta_record(FLineReader& fr,
     // sequence line
     seq.append(buf);
     } //line reading loop
-  /*
-    static int buf_size = 2048;
-	char buf[buf_size];
-	
-	while (!feof(fp) && fgets(buf, buf_size, fp)) 
-	{
-		// Chomp the newline
-		char* nl = strrchr(buf, '\n');
-		if (nl) *nl = 0;
-		
-		if (buf[0] == '>')
-		{
-			defline = buf + 1;
-			string::size_type space_pos = defline.find_first_of(" \t\r");
-			if (space_pos != string::npos)
-			{
-				defline.resize(space_pos);
-			}
-			break;
-		}
-	}
-	
-	if (feof(fp))
-		return false;
-	
-	int c;
-	while ((c = fgetc(fp)) != EOF)
-	{
-		if (c == '>')
-		{
-			ungetc(c, fp);
-			break;
-		}
-		else if (isalpha(c))
-		{
-			c = toupper(c);
-			seq.push_back(c);
-		}
-	}
-	*/
+
     replace(seq.begin(),seq.end(),'.','N'); //shouldn't really be needed for FASTA files
 	return !(seq.empty());
 }
 
 bool next_fastq_record(FLineReader& fr,
-					   string& defline, 
-					   string& seq, 
-					   string& alt_name,
-					   string& qual)
+		       const string& seq,
+		       string& alt_name,
+		       string& qual,
+		       ReadFormat reads_format)
 {
-  seq.clear();
-  defline.clear();
   alt_name.clear();
   qual.clear();
   char* fline=fr.nextLine();
@@ -140,129 +101,45 @@ bool next_fastq_record(FLineReader& fr,
     fline=fr.nextLine();
     if (fline==NULL) return false;
     }
-  if (fline[0] != '@') { //first non-empty line must be a defline
-    err_exit("Error: fastq record must start with '@'!\n",fline);
-    return false;
-    }
-  defline=fline+1;
-  string::size_type space_pos = defline.find_first_of(" \t\r");
-  if (space_pos != string::npos) defline.resize(space_pos);
-  //parse sequence:
-  while ((fline=fr.nextLine())!=NULL) {
-    if (fline[0]=='+') {
-       break;
-       }
-    seq.append(fline);
-    }
   //must be on '+' line here
-  if (fline==NULL || fline[0]!='+') {
-     err_exit("Error: '+' not found for fastq record %s\n",defline.c_str());
+  if (fline==NULL || (reads_format == FASTQ && fline[0] != '+') || (reads_format == FASTA && quals && fline[0] != '>')) {
+     err_exit("Error: '+' not found for fastq record %s\n",fline);
      return false;
      }
   alt_name=fline+1;
-  space_pos = alt_name.find_first_of(" \t");
+  string::size_type space_pos = alt_name.find_first_of(" \t");
   if (space_pos != string::npos) alt_name.resize(space_pos);
    //read qv line(s) now:
   while ((fline=fr.nextLine())!=NULL) {
-     qual.append(fline);
-     if (qual.length()>=seq.length()) break;
+    if (integer_quals)
+      {
+	vector<string> integer_qual_values;
+	tokenize(string(fline), " ", integer_qual_values);
+
+	string temp_qual;
+	for (size_t i = 0; i < integer_qual_values.size(); ++i)
+	  {
+	    temp_qual.push_back((char)(atoi(integer_qual_values[i].c_str()) + 33));
+	  }
+
+	qual.append(temp_qual);
+      }
+    else
+      qual.append(fline);
+    
+    if ((!color && qual.length()>=seq.length()) || (color && qual.length()+1>=seq.length())) break;
      }
   // final check
-  if (seq.length()!=qual.length()) {
+  if ((!color && seq.length()!=qual.length()) || (color && seq.length()!=qual.length()+1)) {
            err_exit("Error: qual length (%d) differs from seq length (%d) for fastq record %s!\n",
-               qual.length(), seq.length(), defline.c_str());
+               qual.length(), seq.length(), alt_name.c_str());
            return false;
            }
   //
 
-  replace(seq.begin(),seq.end(),'.','N'); //replace dots with Ns in the sequence
-  return !(seq.empty());
-
-  /*
-	static int buf_size = 2048;
-	char buf[buf_size];
-	defline.clear();
-	seq.clear();
-	alt_name.clear();
-	qual.clear();
-	// Put the name of the record into defline
-	while (!feof(fp) && fgets(buf, buf_size, fp)) 
-	{
-		// Chomp the newline
-		char* nl = strrchr(buf, '\n');
-		if (nl) *nl = 0;
-		
-		// Is this line the start of a new record?
-		if (buf[0] == '@')
-		{
-			defline = buf + 1;
-			string::size_type space_pos = defline.find_first_of(" \t\r");
-			if (space_pos != string::npos)
-			{
-				defline.resize(space_pos);
-			}
-			break;
-		}
-	}
-	if (feof(fp))
-		return false;
-	
-	// Put the sequece for the record in seq
-	int c;
-	while ((c = fgetc(fp)) != EOF)
-	{
-		// We might have multiple newlines after the sequence, but the "+" line
-		// means we've reached the end of the sequence part of the record 
-		if (c == '+')
-		{
-			ungetc(c, fp);
-			break;
-		}
-		else if (isalpha(c))
-		{
-			seq.push_back(c);
-		}
-	}
-	
-	if (c == EOF)
-		return false;
-	
-	while (!feof(fp) && fgets(buf, buf_size, fp))
-	{
-		// Chomp the newline
-		char* nl = strrchr(buf, '\n');
-		if (nl) *nl = 0;
-		
-		if (buf[0] == '+')
-		{
-			alt_name = buf + 1;
-			break;
-		}	
-	}
-	
-	if (feof(fp))
-		return false;
-	
-	// Put the qualities of the record into qual
-	while ((c = fgetc(fp)) != EOF)
-	{
-		// If we hit a "@" char, and we already have enough qualities for the 
-		// sequence string we read, then this is the start of a new record.
-		if (c == '@' && qual.length() >= seq.length())
-		{
-			ungetc(c, fp);
-			break;
-		}
-		// Only accept quality chars in the Sanger-scaled (but printable) range
-		//else if (c >= '!' && c <= 'I')
-		//{
-		if (qual.length() < seq.length())
-			qual.push_back(c);
-		//}
-	}
-	return true;
-	*/
+  return !(qual.empty());
 }
+
 
 // This could be faster.
 void reverse_complement(string& seq)
@@ -283,6 +160,125 @@ void reverse_complement(string& seq)
 	//fprintf(stderr, "rev: %s\n", seq.c_str());
 }
 
+string convert_color_to_bp(const string& color)
+{
+  if (color.length() <= 0)
+    return "";
+
+  char base = color[0];
+  string bp;
+  for (string::size_type i = 1; i < color.length(); ++i)
+    {
+      char next = color[i];
+      switch(base)
+	{
+	  // 'A0':'A', 'A1':'C', 'A2':'G', 'A3':'T', 'A4':'N', 'A.':'N',
+	case 'A':
+	  {
+	    switch(next)
+	      {
+	      case '0': next = 'A'; break;
+	      case '1': next = 'C'; break;
+	      case '2': next = 'G'; break;
+	      case '3': next = 'T'; break;
+	      default: next = 'N'; break;
+	      }
+	  }
+	  break;
+	case 'C':
+	  {
+	    // 'C0':'C', 'C1':'A', 'C2':'T', 'C3':'G', 'C4':'N', 'C.':'N',
+	     switch(next)
+	      {
+	      case '0': next = 'C'; break;
+	      case '1': next = 'A'; break;
+	      case '2': next = 'T'; break;
+	      case '3': next = 'G'; break;
+	      default: next = 'N'; break;
+	      }
+	  }
+	  break;
+	case 'G':
+	  {
+	    // 'G0':'G', 'G1':'T', 'G2':'A', 'G3':'C', 'G4':'N', 'G.':'N',
+	     switch(next)
+	      {
+	      case '0': next = 'G'; break;
+	      case '1': next = 'T'; break;
+	      case '2': next = 'A'; break;
+	      case '3': next = 'C'; break;
+	      default: next = 'N'; break;
+	      }
+	  }
+	  break;
+	case 'T':
+	  {
+	    // 'T0':'T', 'T1':'G', 'T2':'C', 'T3':'A', 'T4':'N', 'T.':'N',
+	     switch(next)
+	      {
+	      case '0': next = 'T'; break;
+	      case '1': next = 'G'; break;
+	      case '2': next = 'C'; break;
+	      case '3': next = 'A'; break;
+	      default: next = 'N'; break;
+	      }
+	  }
+	  break;
+	default: next = 'N'; break;
+	}
+
+      bp.push_back(next);
+      base = next;
+    }
+
+  return bp;
+}
+
+#define check_color(b1, b2, c1, c2) ((b1 == c1 && b2 == c2) || (b1 == c2 && b2 == c1))
+
+string convert_bp_to_color(const string& bp, bool remove_primer)
+{
+  if (bp.length() <= 1)
+    return "";
+  
+#if 0
+    { 'AA':'0', 'CC':'0', 'GG':'0', 'TT':'0',
+      'AC':'1', 'CA':'1', 'GT':'1', 'TG':'1',
+      'AG':'2', 'CT':'2', 'GA':'2', 'TC':'2',
+      'AT':'3', 'CG':'3', 'GC':'3', 'TA':'3',
+      'A.':'4', 'C.':'4', 'G.':'4', 'T.':'4',
+      '.A':'4', '.C':'4', '.G':'4', '.T':'4',
+      '.N':'4', 'AN':'4', 'CN':'4', 'GN':'4',
+      'TN':'4', 'NA':'4', 'NC':'4', 'NG':'4',
+      'NT':'4', 'NN':'4', 'N.':'4', '..':'4' }
+#endif
+
+    char base = toupper(bp[0]);
+    string color;
+    if (!remove_primer)
+      color.push_back(base);
+    
+  for (string::size_type i = 1; i < bp.length(); ++i)
+    {
+      char next = toupper(bp[i]);
+
+      if ((base == 'A' || base == 'G' || base == 'C' || base == 'T') && base == next)
+	color.push_back('0');
+      else if (check_color(base, next, 'A', 'C') || check_color(base, next, 'G', 'T'))
+	color.push_back('1');
+      else if (check_color(base, next, 'A', 'G') || check_color(base, next, 'C', 'T'))
+	color.push_back('2');
+      else if (check_color(base, next, 'A', 'T') || check_color(base, next, 'C', 'G'))
+	color.push_back('3');
+      else
+	color.push_back('4');
+
+      base = next;
+    }
+
+  return color;
+}
+
 bool get_read_from_stream(uint64_t insert_id,
 						  FILE* reads_file,
 						  ReadFormat reads_format,
@@ -301,14 +297,12 @@ bool get_read_from_stream(uint64_t insert_id,
 		read.clear();
 		
 		// Get the next read from the file
-		if (reads_format == FASTA)
+		if (!next_fasta_record(fr, read.name, read.seq, reads_format))
+		  break;
+
+		if (reads_format == FASTQ)
 		{
-			if (!next_fasta_record(fr, read.name, read.seq))
-				break;
-		}
-		else if (reads_format == FASTQ)
-		{
-			if (!next_fastq_record(fr, read.name, read.seq, read.alt_name, read.qual))
+		  if (!next_fastq_record(fr, read.seq, read.alt_name, read.qual, reads_format))
 				break;
 		}
 		

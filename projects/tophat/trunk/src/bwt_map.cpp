@@ -125,10 +125,12 @@ BowtieHit HitFactory::create_hit(const string& insert_name,
 }
 
 bool BowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf, 
-										BowtieHit& bh,
-										bool strip_slash,
-										char* name_out,
-										char* name_tags)
+					BowtieHit& bh,
+					bool strip_slash,
+					char* name_out,
+					char* name_tags,
+					char* seq,
+					char* qual)
 {
 	if (!orig_bwt_buf || !*orig_bwt_buf)
 		return false;
@@ -161,7 +163,13 @@ bool BowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 	
 	char* text_offset_str = strsep((char**)&buf,"\t");
 	char* seq_str = strsep((char**)&buf,"\t");
-	/*const char* qual_str = */strsep((char**)&buf,"\t");
+	if (seq)
+	  strcpy(seq, seq_str);
+	
+	const char* qual_str = strsep((char**)&buf,"\t");
+	if (qual)
+	  strcpy(qual, qual_str);
+	
 	/*const char* other_occs_str =*/ strsep((char**)&buf, "\t");
 	mismatches[0] = 0;
 	char* mismatches_str = strsep((char**)&buf, "\t");
@@ -216,10 +224,12 @@ bool BowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 int anchor_mismatch = 0;
 
 bool SplicedBowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf, 
-											   BowtieHit& bh,
-											   bool strip_slash,
-											   char* name_out,
-											   char* name_tags)
+					       BowtieHit& bh,
+					       bool strip_slash,
+					       char* name_out,
+					       char* name_tags,
+					       char* seq,
+					       char* qual)
 {
 	if (!orig_bwt_buf || !*orig_bwt_buf)
 		return false;
@@ -251,7 +261,13 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 	
 	char* text_offset_str = strsep((char**)&buf,"\t");
 	char* seq_str = strsep((char**)&buf,"\t");
-	/*const char* qual_str = */strsep((char**)&buf,"\t");
+	if (seq)
+	  strcpy(seq, seq_str);
+	
+	const char* qual_str = strsep((char**)&buf,"\t");
+	if (qual)
+	  strcpy(qual, qual_str);
+	
 	/*const char* other_occs_str =*/ strsep((char**)&buf, "\t");
 	mismatches[0] = 0;
 	char* mismatches_str = strsep((char**)&buf, "\t");
@@ -391,10 +407,12 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 }
 
 bool SAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf, 
-									 BowtieHit& bh,
-									 bool strip_slash,
-									 char* name_out,
-									 char* name_tags)
+				     BowtieHit& bh,
+				     bool strip_slash,
+				     char* name_out,
+				     char* name_tags,
+				     char* seq,
+				     char* qual)
 {
 	if (!orig_bwt_buf || !*orig_bwt_buf)
 		return false;
@@ -414,8 +432,14 @@ bool SAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 	const char* mate_ref_str =  strsep((char**)&buf,"\t");
 	const char* mate_pos_str =  strsep((char**)&buf,"\t");
 	const char* inferred_insert_sz_str =  strsep((char**)&buf,"\t");
+	
 	const char* seq_str =  strsep((char**)&buf,"\t");
+	if (seq)
+	  strcpy(seq, seq_str);
+	
 	const char* qual_str =  strsep((char**)&buf,"\t");
+	if (qual)
+	  strcpy(qual, qual_str);
 	
 	if (!name ||
 		!sam_flag_str ||
@@ -705,11 +729,12 @@ void add_hit_to_coverage(const BowtieHit& bh, vector<unsigned int>& DoC)
 }
 
 void print_hit(FILE* fout, 
-			   const char* read_name,
-			   const BowtieHit& bh,
-			   const char* ref_name,
-			   const char* sequence,
-			   const char* qualities)
+	       const char* read_name,
+	       const BowtieHit& bh,
+	       const char* ref_name,
+	       const char* sequence,
+	       const char* qualities,
+	       bool from_bowtie)
 {
 	//static const int buf_size = 256;
 	//char text_name[buf_size];
@@ -741,16 +766,16 @@ void print_hit(FILE* fout,
 	{
 		quals = "*";	
 	}
-	
+
 	uint32_t sam_flag = 0;
 	if (bh.antisense_align())
 	{
 		sam_flag |= 0x0010; // BAM_FREVERSE
-		if (sequence)
-		{
-			reverse_complement(seq);
-			reverse(quals.begin(), quals.end());
-		}
+		if (sequence && !from_bowtie)  // if it is from bowtie hit, it's already reversed.
+		  {
+		    reverse_complement(seq);
+		    reverse(quals.begin(), quals.end());
+		  }
 	}
 	
 	uint32_t sam_pos = bh.left() + 1;
