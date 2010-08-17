@@ -828,7 +828,8 @@ def get_samtools_version():
             end = min(nl, ws)
             version_val = samtools_out[ver_str_idx + len(version_str):end]
             #print >> sys.stderr, ws, nl, end, samtools_out[ver_str_idx + len(version_str):ws]
-            samtools_version = [int(x) for x in version_val.split('.')]
+            #samtools_version = [int(x) for x in version_val.split('.')]
+            samtools_version = [int(x.split('-')[0]) for x in version_val.split('.')]
         if len(samtools_version) == 3:
             samtools_version.append(0)
         
@@ -961,13 +962,11 @@ def fa_next(f, fname):
    #Return the record and then continue...  
    return (seqid, seqstr, seq_len)
 
-# NEEDS REFACTORING
 # check_reads() has several jobs.  It examines the user's reads, one file at a 
 # time, and determines the file format, read length, and other properties that 
-# are used to set the junction search strategy later on.  The FASTA/Q parser in
-# this routine is AWFUL, and needs rewriting.  Furthermore, when we add support 
-# for mixed read lengths, this routine will need to set the seed length 
-# differently. 
+# are used to set the junction search strategy later on.  
+# TODO: When we add support for mixed read lengths, this routine 
+# will need to set the seed length differently. 
 def check_reads(params, reads_files):
     print >> sys.stderr, "[%s] Checking reads" % right_now()
     bowtie_version = get_bowtie_version()
