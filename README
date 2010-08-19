@@ -11,16 +11,16 @@ See http://tophat.cbcb.umd.edu for more information.
 
 Notes on compiling the package from source:
 -------------------------------------------
-TopHat now uses SAMTOOLS (http://samtools.sourceforge.net/) in order to
-generate and handle the compressed alignment files (BAM).
+TopHat requires the Samtools package (http://samtools.sourceforge.net/) 
+in order to generate and handle the compressed, binary alignment files (BAM).
 The --with-bam=<bam_prefix> option of the configure script expects the
 following subdirectories and files:
 
-<bam_prefix>/include/bam/*.h (all the header files from SAMTOOLS)
-<bam_prefix>/lib/libbam.a (obtained by compiling SAMTOOLS)
+<bam_prefix>/include/bam/*.h (all the header files from Samtools)
+<bam_prefix>/lib/libbam.a (obtained by compiling Samtools)
 
-As at the time of this writing the SAMTOOLS library does not have an
-install routine so the user will have to explicitly create the above 
+At the time of this writing the Samtools package does not have an
+install routine the user will have to explicitly create the above 
 directory structure (./include/bam/ and ./lib) and copy the required 
-SAMTOOLS files as indicated (the header files and libbam.a)
+Samtools files as indicated (the header files and libbam.a)
 
