@@ -1,6 +1,6 @@
+#include "GBase.h"
 #include <stdarg.h>
 #include <ctype.h>
-#include "GBase.h"
 #include <sys/stat.h>
 
 static char msg[4069];
@@ -93,14 +93,14 @@ void GFree(pointer* ptr){
 
 char* Gstrdup(const char* str) {
   if (str==NULL) return NULL;
-  char *copy = NULL;
+  char *copy=NULL;
   GMALLOC(copy, strlen(str)+1);
   strcpy(copy,str);
   return copy;
   }
 
 char* newEmptyStr() {
-  char* zs = NULL;
+  char* zs=NULL;
   GMALLOC(zs,1);
   zs[0]=0;
   return zs;
@@ -108,7 +108,7 @@ char* newEmptyStr() {
 
 char* Gstrdup(const char* sfrom, const char* sto) {
   if (sfrom==NULL || sto==NULL) return NULL;
-  char *copy = NULL;
+  char *copy=NULL;
   if (sfrom[0]==0) return newEmptyStr();
   GMALLOC(copy, sto-sfrom+2);
   strncpy(copy, sfrom, sto-sfrom+1);
@@ -619,4 +619,48 @@ bool parseHex(char* &p, uint& i) {
  if (endptr!=p || i!=l) return false;
  return true;
 }
+
+//write a formatted fasta record, fasta formatted
+void writeFasta(FILE *fw, const char* seqid, const char* descr,
+        const char* seq, int linelen, int seqlen) {
+  fflush(fw);
+  // write header line only if given!
+  if (seqid!=NULL) {
+    if (descr==NULL || descr[0]==0)
+             fprintf(fw,">%s\n",seqid);
+        else fprintf(fw,">%s %s\n",seqid, descr);
+    }
+  fflush(fw);
+  if (seq==NULL || *seq==0) return; //nothing to print
+  if (linelen==0) { //unlimited line length: write the whole sequence on a line
+     if (seqlen>0)
+             fwrite((const void*)seq, 1, seqlen,fw);
+        else fprintf(fw,"%s",seq);
+     fprintf(fw,"\n");
+     fflush(fw);
+     return;
+     }
+  int ilen=0;
+  if (seqlen>0) { //seq length given, so we know when to stop
+    for (int i=0; i < seqlen; i++, ilen++) {
+            if (ilen == linelen) {
+                 fputc('\n', fw);
+                 ilen = 0;
+                 }
+            fputc(seq[i], fw);
+            }
+    fputc('\n', fw);
+    }
+  else { //seq length not given, stop when 0 encountered
+    for (int i=0; seq[i]!=0; i++, ilen++) {
+            if (ilen == linelen) {
+                 fputc('\n', fw);
+                 ilen = 0;
+                 }
+            fputc(seq[i], fw);
+            } //for
+    fputc('\n', fw);
+    }
+  fflush(fw);
+ }
 

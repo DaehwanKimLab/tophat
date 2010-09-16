@@ -143,18 +143,17 @@ noinst_LIBRARIES = libtophat.a libgc.a
 
 noinst_HEADERS = \
 	reads.h \
-    codons.h \
-    common.h \
-    GArgs.h \
+	codons.h \
+	common.h \
 	GBase.h \
 	gdna.h \
 	GFaSeqGet.h \
-	GFastaFile.h \
+	GFastaIndex.h \
 	gff.h \
 	GHash.hh \
 	GList.hh \
 	GStr.h \
-    gtf_tracking.h \
+	gtf_tracking.h \
 	bwt_map.h \
 	wiggles.h \
 	junctions.h \
@@ -181,12 +180,12 @@ libtophat_a_SOURCES = \
 	qual.cpp
     
 libgc_a_SOURCES = \
-	codons.cpp \
-	GArgs.cpp \
 	GBase.cpp \
+	codons.cpp \
 	gdna.cpp \
 	GStr.cpp \
 	GFaSeqGet.cpp \
+	GFastaIndex.cpp \
 	gff.cpp \
 	gtf_tracking.cpp
 
