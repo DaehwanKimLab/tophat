@@ -1,6 +1,10 @@
 #ifndef G_BASE_DEFINED
 #define G_BASE_DEFINED
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -12,12 +16,15 @@
   #include <windows.h>
 #endif
 
+#include <stdint.h>
+
 #ifdef DEBUG
 #undef NDEBUG
 #endif
 
-typedef unsigned int uint32;
-typedef int int32;
+typedef int32_t int32;
+typedef uint32_t uint32;
+
 typedef unsigned char uchar;
 typedef unsigned char byte;
 
@@ -30,7 +37,7 @@ typedef unsigned char byte;
 #ifndef MAXUINT
 #define MAXUINT ((unsigned int)-1)
 #endif
-
+/*
 #if defined(_NATIVE_64) || defined(_LP64) || defined(__LP64__)
  typedef long int64;
  typedef unsigned long uint64;
@@ -39,6 +46,10 @@ typedef unsigned char byte;
  typedef long long int64;
  typedef unsigned long long uint64;
 #endif
+*/
+
+typedef int64_t int64;
+typedef uint64_t uint64;
 
 /****************************************************************************/
 
@@ -52,7 +63,7 @@ typedef unsigned char byte;
 
 /****************************************************************************/
 #define ERR_ALLOC "Error allocating memory.\n"
-#if defined (__WIN32__) || defined (WIN32)
+#if defined (__WIN32__) || defined (WIN32) || defined (_WIN32)
   #define CHPATHSEP '\\'
   #include <io.h>
   #define ftello ftell
@@ -340,6 +351,7 @@ class GLineReader {
    char* chars() { return buf; }
    char* line() { return buf; }
    int readcount() { return lcount; } //number of lines read
+   void setFile(FILE* stream) { file=stream; }
    int length() { return len; }
    int size() { return len; } //same as size();
    bool isEof() {return isEOF; }
@@ -395,6 +407,10 @@ int fileExists(const char* fname);
 //        3 otherwise (?)
 
 off_t fileSize(const char* fpath);
+
+//write a formatted fasta record, fasta formatted
+void writeFasta(FILE *fw, const char* seqid, const char* descr,
+        const char* seq, int linelen=60, int seqlen=0);
 
 //parses the next number found in a string at the current position
 //until a non-digit (and not a '.', 'e','E','-','+') is encountered;

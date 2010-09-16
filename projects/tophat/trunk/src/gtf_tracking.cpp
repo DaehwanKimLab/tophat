@@ -9,13 +9,11 @@
 
 #include <cstdlib>
 #include "gtf_tracking.h"
-#include "gff.h"
-#include "GStr.h"
 
 const char* ATTR_GENE_NAME=  "gene_name";
 
-//bool verbose = false;
-bool largeScale=false; //many input Cufflinks files processed at once by cuffcompare, discard exon attributes
+bool gtf_tracking_verbose = false;
+bool gtf_tracking_largeScale=false; //many input Cufflinks files processed at once by cuffcompare, discard exon attributes
 
 int GXConsensus::count=0;
 
@@ -23,6 +21,9 @@ int cmpByPtr(const pointer p1, const pointer p2) {
   return (p1>p2) ? 1: ((p1==p2)? 0 : -1);
   }
 
+char* getGSeqName(int gseq_id) {
+ return GffObj::names->gseqs.getName(gseq_id);
+}
 
 GffObj* is_mRNADup(GffObj* m, GList<GffObj>& mrnas) {
  //mrnas MUST be sorted by start coordinate
@@ -198,28 +199,28 @@ int parse_mRNAs(GList<GffObj>& mrnas,
 		if (m->gscore==0.0)   
 		   m->gscore=m->exons[0]->score; //Cufflinks exon score = isoform abundance
 		//for Cufflinks file, parse expr attribute from the 1st exon (the lowest coordinate exon)
-		const char* expr = (largeScale) ? m->getAttr("FPKM") : m->exons[0]->getAttr(m->names,"FPKM");
+		const char* expr = (gtf_tracking_largeScale) ? m->getAttr("FPKM") : m->exons[0]->getAttr(m->names,"FPKM");
 		if (expr!=NULL) {
 			if (expr[0]=='"') expr++;
 			fpkm=strtod(expr, NULL);
 			} else { //backward compatibility: read RPKM if FPKM not found
-			expr=(largeScale) ? m->getAttr("RPKM") : m->exons[0]->getAttr(m->names,"RPKM");
+			expr=(gtf_tracking_largeScale) ? m->getAttr("RPKM") : m->exons[0]->getAttr(m->names,"RPKM");
 			if (expr!=NULL) {
 				if (expr[0]=='"') expr++;
 				fpkm=strtod(expr, NULL);
 				}
 			}
-		const char* scov=(largeScale) ? m->getAttr("cov") : m->exons[0]->getAttr(m->names,"cov");
+		const char* scov=(gtf_tracking_largeScale) ? m->getAttr("cov") : m->exons[0]->getAttr(m->names,"cov");
 		if (scov!=NULL) {
 			if (scov[0]=='"') scov++; 
 			cov=strtod(scov, NULL);
 			}
-		const char* sconf_hi=(largeScale) ? m->getAttr("conf_hi") : m->exons[0]->getAttr(m->names,"conf_hi");
+		const char* sconf_hi=(gtf_tracking_largeScale) ? m->getAttr("conf_hi") : m->exons[0]->getAttr(m->names,"conf_hi");
 		if (sconf_hi!=NULL){
 			if (sconf_hi[0]=='"') sconf_hi++;
 			conf_hi=strtod(sconf_hi, NULL);
 			}
-		const char* sconf_lo=(largeScale) ? m->getAttr("conf_lo") : m->exons[0]->getAttr(m->names,"conf_lo");
+		const char* sconf_lo=(gtf_tracking_largeScale) ? m->getAttr("conf_lo") : m->exons[0]->getAttr(m->names,"conf_lo");
 		if (sconf_lo!=NULL) {
 			if (sconf_lo[0]=='"') sconf_lo++;
 			conf_lo=strtod(sconf_lo, NULL);
@@ -303,9 +304,7 @@ void cluster_mRNAs(GList<GffObj> & mrnas, GList<GLocus> & loci, int qfidx, bool 
 	//mrnas sorted by start coordinate
 	//and so are the loci
 	//int rdisc=0;
-   //TODO: optimize this clustering pattern, using the fact that both mrnas and loci are sorted by start coordinate
-   // (so perhaps we should scan loci in reverse and give up after certain distance ? but check for problems with mrgloci )
-	for (int t=0;t<mrnas.Count();t++) {
+   	for (int t=0;t<mrnas.Count();t++) {
 		GArray<int> mrgloci(false);
 		GffObj* mrna=mrnas[t];
 		int lfound=0; //count of parent loci
@@ -453,6 +452,17 @@ GSeqData* getRefData(int gid, GList<GSeqData>& ref_data) {
 	return r;
 }
 
+void read_transcripts(FILE* f, GList<GSeqData>& seqdata) {
+	rewind(f);
+	GffReader* gffr=new GffReader(f, true);
+    //          keepAttrs   mergeCloseExons   noExonAttrs
+	gffr->readAll(true,          true,        true);
+	//                 is_ref?   check_for_dups,
+	parse_mRNAs(gffr->gflst, seqdata, false,    false);
+    delete gffr;
+}
+
+
 void read_mRNAs(FILE* f, GList<GSeqData>& seqdata, GList<GSeqData>* ref_data,
 	         bool check_for_dups, int qfidx, const char* fname, bool checkseq) {
 	//>>>>> read all the mRNAs from a file
@@ -462,11 +472,11 @@ void read_mRNAs(FILE* f, GList<GSeqData>& seqdata, GList<GSeqData>* ref_data,
 	if (ref_data==NULL) ref_data=&seqdata;
 	bool isRefData=(&seqdata==ref_data);
 	//           keepAttrs   mergeCloseExons   noExonAttrs
-	gffr->readAll(true,          true,        isRefData || largeScale);
+	gffr->readAll(true,          true,        isRefData || gtf_tracking_largeScale);
 	//so it will read exon attributes if low number of Cufflinks files
 	
 	int d=parse_mRNAs(gffr->gflst, seqdata, isRefData, check_for_dups, qfidx);
-	if (verbose && d>0) {
+	if (gtf_tracking_verbose && d>0) {
 	  if (isRefData) GMessage(" %d duplicate reference transcripts discarded.\n",d);
 	             else GMessage(" %d redundant cufflinks transfrags discarded.\n",d);
 	  }
@@ -490,7 +500,7 @@ void read_mRNAs(FILE* f, GList<GSeqData>& seqdata, GList<GSeqData>* ref_data,
 	for (int g=0;g<seqdata.Count();g++) {
 		//find the corresponding refseqdata with the same gseq_id
 		int gseq_id=seqdata[g]->gseq_id;
-		//if (verbose) GMessage("Clustering mRNAs on %s...\n", getGSeqName(gseq_id));
+		//if (gtf_tracking_verbose) GMessage("Clustering mRNAs on %s...\n", getGSeqName(gseq_id));
 		if (!isRefData) { //cufflinks data, find corresponding ref data
 			GSeqData* rdata=getRefData(gseq_id, *ref_data);
 			if (rdata!=NULL && seqdata[g]->umrnas.Count()>0) {
