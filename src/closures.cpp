@@ -18,6 +18,7 @@
 #include "inserts.h"
 #include "closures.h"
 #include "reads.h"
+#include "tokenize.h"
 #include <seqan/sequence.h>
 #include <seqan/file.h>
 
@@ -280,11 +281,31 @@ public:
 			
 			RefCIF& ref_finders = if_itr->second;
 			
-			//int exp_inner_dist = inner_dist_mean;
-			
-			if (bh_right.left() - bh_left.right() > inner_dist_mean + 2 * inner_dist_std_dev)
+			pair<int, int> ds = pair_distances(bh_left, bh_right);
+
+			int minor_hit_start, major_hit_start;
+			int minor_hit_end, major_hit_end;
+			if (bh_left.left() < bh_right.left())
+			  {
+			    minor_hit_start = (int)bh_left.left();
+			    minor_hit_end = (int)bh_left.right();
+			    major_hit_start = (int)bh_right.left();
+			    major_hit_end = (int)bh_right.right();
+			  }
+			else
+			  {
+			    minor_hit_start = (int)bh_right.left();
+			    minor_hit_end = (int)bh_right.right();
+			    major_hit_start = (int)bh_left.left();
+			    major_hit_end = (int)bh_left.right();
+			  }
+		
+			int inner_dist = major_hit_start - minor_hit_end;
+
+			if (inner_dist > inner_dist_mean + 2 * inner_dist_std_dev)
 			{
-			
+			  // daehwan - I'm not sure about this
+			  // change this?
 				// Forward strand
 				ref_finders.fwd_cif.add_motifs_in_window((int)bh_left.left() - 10, 
 														 bh_left.right() + 10, 
@@ -306,6 +327,21 @@ public:
 														bh_right.right() + 10, 
 														rev_lm, 
 														rev_rm);
+
+			  /*
+			  // Forward strand
+			  ref_finders.fwd_cif.add_motifs_in_window(minor_hit_end - 10, 
+								   major_hit_start + 10, 
+								   fwd_lm, 
+								   fwd_rm);
+
+				
+			  // Reverse strand
+			  ref_finders.rev_cif.add_motifs_in_window(minor_hit_end - 10, 
+								   major_hit_start + 10, 
+								   rev_lm, 
+								   rev_rm);
+			  */
 			}
 		}
 	}
@@ -407,141 +443,137 @@ public:
 	}
 };
 
-void closure_driver(FILE* map1, 
-					FILE* map2, 
-					ifstream& ref_stream, 
-					FILE* juncs_file)
+void closure_driver(vector<FILE*> map1, 
+		    vector<FILE*> map2, 
+		    ifstream& ref_stream, 
+		    FILE* juncs_file)
 {
 	typedef RefSequenceTable::Sequence Reference;
 	
 	ReadTable it;
 	RefSequenceTable rt(true);
 
-    BowtieHitFactory hit_factory(it,rt);
-	
-	HitStream left_hs(map1, &hit_factory, false, true, false);
-	HitStream right_hs(map2, &hit_factory, false, true, false);
-	
-	HitsForRead curr_left_hit_group;
-	HitsForRead curr_right_hit_group;
-	
-	left_hs.next_read_hits(curr_left_hit_group);
-	right_hs.next_read_hits(curr_right_hit_group);
-	
-	uint32_t curr_right_obs_order = it.observation_order(curr_left_hit_group.insert_id);
-	uint32_t curr_left_obs_order = it.observation_order(curr_right_hit_group.insert_id);
-	
-	
+	BowtieHitFactory hit_factory(it,rt);
+
 	fprintf (stderr, "Finding near-covered motifs...");
 	CoverageMapVisitor cov_map_visitor(ref_stream, rt);
 	uint32_t coverage_attempts = 0;
-	while(curr_left_obs_order != 0xFFFFFFFF && 
+
+	assert(map1.size() == map2.size());
+	for (size_t num = 0; num < map1.size(); ++num)
+	  {
+	    HitStream left_hs(map1[num], &hit_factory, false, true, false);
+	    HitStream right_hs(map2[num], &hit_factory, false, true, false);
+	
+	    HitsForRead curr_left_hit_group;
+	    HitsForRead curr_right_hit_group;
+	
+	    left_hs.next_read_hits(curr_left_hit_group);
+	    right_hs.next_read_hits(curr_right_hit_group);
+	
+	    uint32_t curr_right_obs_order = it.observation_order(curr_left_hit_group.insert_id);
+	    uint32_t curr_left_obs_order = it.observation_order(curr_right_hit_group.insert_id);
+	
+	    while(curr_left_obs_order != 0xFFFFFFFF && 
 		  curr_right_obs_order != 0xFFFFFFFF)
-	{
-		//uint64_t next_left_id = left_hs.next_group_id();
-		//uint64_t next_right_id = right_hs.next_group_id();
-		
-		//uint32_t next_left_order = unmapped_reads.observation_order(next_left_id);
-		//uint32_t next_left_order = unmapped_reads.observation_order(next_right_id);
-		
+	      {
 		while (curr_left_obs_order < curr_right_obs_order&&
-			   curr_left_obs_order != 0xFFFFFFFF && curr_right_obs_order != 0xFFFFFFFF)
-		{
-			// Get hit group
-			
-			left_hs.next_read_hits(curr_left_hit_group);
-			curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
-		}
+		       curr_left_obs_order != 0xFFFFFFFF && curr_right_obs_order != 0xFFFFFFFF)
+		  {
+		    // Get hit group
+		    
+		    left_hs.next_read_hits(curr_left_hit_group);
+		    curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
+		  }
 		
 		while (curr_left_obs_order > curr_right_obs_order &&
-			   curr_left_obs_order != 0xFFFFFFFF && curr_right_obs_order != 0xFFFFFFFF)
-		{
-			// Get hit group
-			
-			right_hs.next_read_hits(curr_right_hit_group);
-			curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
-			
-		}
+		       curr_left_obs_order != 0xFFFFFFFF && curr_right_obs_order != 0xFFFFFFFF)
+		  {
+		    // Get hit group
+		    
+		    right_hs.next_read_hits(curr_right_hit_group);
+		    curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
+		  }
 		
 		while (curr_left_obs_order == curr_right_obs_order &&
-			   curr_left_obs_order != 0xFFFFFFFF && curr_right_obs_order != 0xFFFFFFFF)
-		{			
-			if (coverage_attempts++ % 1000 == 0)
-				fprintf (stderr, "Adding covered motifs from pair %d\n", coverage_attempts); 
-			visit_best_pairing(curr_left_hit_group, curr_right_hit_group, cov_map_visitor);
-			
-			left_hs.next_read_hits(curr_left_hit_group);
-			curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
-			
-			right_hs.next_read_hits(curr_right_hit_group);
-			curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
-		}
-	}
+		       curr_left_obs_order != 0xFFFFFFFF && curr_right_obs_order != 0xFFFFFFFF)
+		  {			
+		    if (coverage_attempts++ % 1000 == 0)
+		      fprintf (stderr, "Adding covered motifs from pair %d\n", coverage_attempts); 
+		    visit_best_pairing(curr_left_hit_group, curr_right_hit_group, cov_map_visitor);
+		    
+		    left_hs.next_read_hits(curr_left_hit_group);
+		    curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
+		    
+		    right_hs.next_read_hits(curr_right_hit_group);
+		    curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
+		  }
+	      }
+	  }
 	
 	cov_map_visitor.finalize();
 	fprintf (stderr, "done\n");
-	
-	rewind(map1);
-	rewind(map2);
-	
-	
-	left_hs = HitStream(map1, &hit_factory, false, true, false);
-	right_hs = HitStream(map2, &hit_factory, false, true, false);
-	
-	left_hs.next_read_hits(curr_left_hit_group);
-	right_hs.next_read_hits(curr_right_hit_group);
-	
-	curr_right_obs_order = it.observation_order(curr_left_hit_group.insert_id);
-	curr_left_obs_order = it.observation_order(curr_right_hit_group.insert_id);
-	
+
 	ClosureJunctionSet fwd_splices;
 	ClosureJunctionSet rev_splices;
 	
 	JunctionMapVisitor junc_map_visitor(fwd_splices, rev_splices, cov_map_visitor.finders);
 	fprintf (stderr, "Searching for closures...");
 	uint32_t closure_attempts = 0;
-	while(curr_left_obs_order != 0xFFFFFFFF && 
+
+	for (size_t num = 0; num < map1.size(); ++num)
+	  {
+	    rewind(map1[num]);
+	    rewind(map2[num]);
+	
+	    HitStream left_hs = HitStream(map1[num], &hit_factory, false, true, false);
+	    HitStream right_hs = HitStream(map2[num], &hit_factory, false, true, false);
+
+	    HitsForRead curr_left_hit_group;
+	    HitsForRead curr_right_hit_group;
+
+	    left_hs.next_read_hits(curr_left_hit_group);
+	    right_hs.next_read_hits(curr_right_hit_group);
+	    
+	    uint32_t curr_right_obs_order = it.observation_order(curr_left_hit_group.insert_id);
+	    uint32_t curr_left_obs_order = it.observation_order(curr_right_hit_group.insert_id);
+	    
+	    while(curr_left_obs_order != 0xFFFFFFFF && 
 		  curr_right_obs_order != 0xFFFFFFFF)
-	{
-		//uint64_t next_left_id = left_hs.next_group_id();
-		//uint64_t next_right_id = right_hs.next_group_id();
-		
-		//uint32_t next_left_order = unmapped_reads.observation_order(next_left_id);
-		//uint32_t next_left_order = unmapped_reads.observation_order(next_right_id);
-		
+	      {
 		while (curr_left_obs_order < curr_right_obs_order &&
-			   curr_left_obs_order != 0xFFFFFFFF && curr_right_obs_order != 0xFFFFFFFF)
-		{
-			// Get hit group
-			
-			left_hs.next_read_hits(curr_left_hit_group);
-			curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
-		}
+		       curr_left_obs_order != 0xFFFFFFFF && curr_right_obs_order != 0xFFFFFFFF)
+		  {
+		    // Get hit group
+		    
+		    left_hs.next_read_hits(curr_left_hit_group);
+		    curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
+		  }
 		
 		while (curr_left_obs_order > curr_right_obs_order &&
-			   curr_left_obs_order != 0xFFFFFFFF && curr_right_obs_order != 0xFFFFFFFF)
-		{
-			// Get hit group
-			
-			right_hs.next_read_hits(curr_right_hit_group);
-			curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
-			
-		}
+		       curr_left_obs_order != 0xFFFFFFFF && curr_right_obs_order != 0xFFFFFFFF)
+		  {
+		    // Get hit group
+		    
+		    right_hs.next_read_hits(curr_right_hit_group);
+		    curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
+		  }
 		
 		while (curr_left_obs_order == curr_right_obs_order &&
-			   curr_left_obs_order != 0xFFFFFFFF && curr_right_obs_order != 0xFFFFFFFF)
-		{	
-			if (closure_attempts++ % 1000 == 0)
-				fprintf (stderr, "Trying to close pair %d\n", closure_attempts); 
-			visit_best_pairing(curr_left_hit_group, curr_right_hit_group, junc_map_visitor);
-			left_hs.next_read_hits(curr_left_hit_group);
-			curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
-			
-			right_hs.next_read_hits(curr_right_hit_group);
-			curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
-		}
-	}
-	
+		       curr_left_obs_order != 0xFFFFFFFF && curr_right_obs_order != 0xFFFFFFFF)
+		  {	
+		    if (closure_attempts++ % 1000 == 0)
+		      fprintf (stderr, "Trying to close pair %d\n", closure_attempts); 
+		    visit_best_pairing(curr_left_hit_group, curr_right_hit_group, junc_map_visitor);
+		    left_hs.next_read_hits(curr_left_hit_group);
+		    curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
+		    
+		    right_hs.next_read_hits(curr_right_hit_group);
+		    curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
+		  }
+	      }
+	  }
+	    
 	fprintf(stderr, "%lu Forward strand splices\n", fwd_splices.size());
 	fprintf(stderr, "%lu Reverse strand splices\n", rev_splices.size());
 	
@@ -587,130 +619,91 @@ void print_usage()
 	//    fprintf(stderr, "Usage:   tophat_reports <coverage.wig> <junctions.bed> <accepted_hits.sam> <map1.bwtout> [splice_map1.sbwtout]\n");
 }
 
-//const char *short_options = "i:I:e:r:s:fq";
-//
-//static struct option long_options[] = {
-//{"min-anchor",       required_argument,       0,            'a'},
-//{"insert-len",       required_argument,       0,            'r'},
-//{"insert-len-std-dev",       required_argument,       0,    's'},
-//{"min-anchor",       required_argument,       0,            'a'},
-//{"min-intron",       required_argument,       0,            'i'},
-//{"island-extension",       required_argument,       0,            'e'},
-//{0, 0, 0, 0} // terminator
-//};
-
-//int parse_options(int argc, char** argv)
-//{
-//    int option_index = 0;
-//    int next_option;
-//    do {
-//        next_option = getopt_long(argc, argv, short_options, long_options, &option_index);
-//        switch (next_option) {
-//			case 'r':
-//	   			insert_len = (uint32_t)parseInt(1, "-I/--insert-len arg must be at least 1", print_usage);
-//	   			break;
-//			case 's':
-//	   			insert_len_std_dev = (uint32_t)parseInt(1, "-s/--insert-stddev arg must be at least 1", print_usage);
-//	   			break;
-//			case 'i':
-//				min_intron_length = (uint32_t)parseInt(1, "-a/--min-intron arg must be at least 1", print_usage);
-//				break;
-//			case 'I':
-//				max_intron_length = parseInt(1,"-I arg must be at least 1", print_usage);
-//				break;
-//			case 'e':
-//				island_extension = parseInt(0, "-e arg must be at least 1", print_usage);
-//				break;
-//			case 'f':
-//				reads_format = FASTA;
-//				break;
-//			case 'q':
-//				reads_format = FASTQ;
-//				break; 
-//            case -1:     /* Done with options. */
-//                break;
-//            default:
-//                print_usage();
-//                return 1;
-//        }
-//    } while(next_option != -1);
-//    
-//	max_mate_inner_dist = max_intron_length + insert_len;
-//	
-//    return 0;
-//}
-
 int main(int argc, char** argv)
 {
-	fprintf(stderr, "closure_juncs v%s (%s)\n", PACKAGE_VERSION, SVN_REVISION); 
-	fprintf(stderr, "---------------------------\n");
-	
-    int parse_ret = parse_options(argc, argv, print_usage);
-    if (parse_ret)
-        return parse_ret;
-	
-    if(optind >= argc)
+  fprintf(stderr, "closure_juncs v%s (%s)\n", PACKAGE_VERSION, SVN_REVISION); 
+  fprintf(stderr, "---------------------------\n");
+  
+  int parse_ret = parse_options(argc, argv, print_usage);
+  if (parse_ret)
+    return parse_ret;
+  
+  if(optind >= argc)
     {
-        print_usage();
-        return 1;
+      print_usage();
+      return 1;
     }
-	
-    string junctions_file_name = argv[optind++];
-	
-    if(optind >= argc)
+  
+  string junctions_file_name = argv[optind++];
+  
+  if(optind >= argc)
     {
-        print_usage();
-        return 1;
+      print_usage();
+      return 1;
     }
-	
-    string ref_fasta = argv[optind++];
-	
-	if(optind >= argc)
+  
+  string ref_fasta = argv[optind++];
+  
+  if(optind >= argc)
     {
-        print_usage();
-        return 1;
+      print_usage();
+      return 1;
     }
-	
-    string left_map_name = argv[optind++];
-	
-	if(optind >= argc)
+
+  string left_file_list = argv[optind++];
+
+  vector<string> left_file_names;
+  vector<FILE*> left_files;
+  tokenize(left_file_list, ",", left_file_names);
+  for (size_t i = 0; i < left_file_names.size(); ++i)
     {
-        print_usage();
-        return 1;
+      FILE* seg_file = fopen(left_file_names[i].c_str(), "r");
+      if (seg_file == NULL)
+        {
+	  fprintf(stderr, "Error: cannot open file %s for reading\n",
+		  left_file_names[i].c_str());
+	  exit(1);
+        }
+      left_files.push_back(seg_file);
     }
-	
-    string right_map_name = argv[optind++];
-	
-    FILE* left_map = fopen(left_map_name.c_str(), "r");
-    if (left_map == NULL)
+
+  if(optind >= argc)
     {
-        fprintf(stderr, "Error: cannot open %s for reading\n",
-                left_map_name.c_str());
-        exit(1);
+      print_usage();
+      return 1;
     }
-	
-	FILE* right_map = fopen(right_map_name.c_str(), "r");
-    if (right_map == NULL)
+  
+  string right_file_list = argv[optind++];
+  
+  vector<string> right_file_names;
+  vector<FILE*> right_files;
+  tokenize(right_file_list, ",", right_file_names);
+  for (size_t i = 0; i < right_file_names.size(); ++i)
     {
-        fprintf(stderr, "Error: cannot open %s for reading\n",
-                right_map_name.c_str());
-        exit(1);
+      FILE* seg_file = fopen(right_file_names[i].c_str(), "r");
+      if (seg_file == NULL)
+	{
+	  fprintf(stderr, "Error: cannot open %s for reading\n",
+		  right_file_names[i].c_str());
+	  exit(1);
+	}
+      right_files.push_back(seg_file);
     }
-	
-    ifstream ref_stream(ref_fasta.c_str(), ifstream::in);
-	
-	FILE* splice_db = fopen(junctions_file_name.c_str(), "w");
-    if (splice_db == NULL)
+
+  ifstream ref_stream(ref_fasta.c_str(), ifstream::in);
+
+  FILE* splice_db = fopen(junctions_file_name.c_str(), "w");
+  if (splice_db == NULL)
     {
-        fprintf(stderr, "Error: cannot open junctions file %s for writing\n",
-                junctions_file_name.c_str());
-        exit(1);
+      fprintf(stderr, "Error: cannot open junctions file %s for writing\n",
+	      junctions_file_name.c_str());
+      exit(1);
     }
-	
-    closure_driver(left_map,
-				   right_map,
-				   ref_stream,
-				   splice_db);
-	
-    return 0;
+  
+  closure_driver(left_files,
+		 right_files,
+		 ref_stream,
+		 splice_db);
+  
+  return 0;
 }

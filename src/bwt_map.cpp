@@ -85,43 +85,47 @@ bool hit_insert_id_lt(const BowtieHit& h1, const BowtieHit& h2)
 }
 
 BowtieHit HitFactory::create_hit(const string& insert_name, 
-								 const string& ref_name,
-								 int left,
-								 const vector<CigarOp>& cigar,
-								 bool antisense_aln,
-								 bool antisense_splice,
-								 unsigned char edit_dist,
-								 unsigned char splice_mms)
+				 const string& ref_name,
+				 int left,
+				 const vector<CigarOp>& cigar,
+				 bool antisense_aln,
+				 bool antisense_splice,
+				 unsigned char edit_dist,
+				 unsigned char splice_mms,
+				 bool end)
 {
 	uint64_t insert_id = _insert_table.get_id(insert_name);
 	uint32_t reference_id = _ref_table.get_id(ref_name, NULL, 0);
 	
 	return BowtieHit(reference_id,
-					 insert_id, 
-					 left, 
-					 cigar, 
-					 antisense_aln,
-					 antisense_splice,
-					 edit_dist,
-					 splice_mms);	
+			 insert_id, 
+			 left, 
+			 cigar, 
+			 antisense_aln,
+			 antisense_splice,
+			 edit_dist,
+			 splice_mms,
+			 end);
 }
 
 BowtieHit HitFactory::create_hit(const string& insert_name, 
-								 const string& ref_name,
-								 uint32_t left,
-								 uint32_t read_len,
-								 bool antisense_aln,
-								 unsigned char edit_dist)
+				 const string& ref_name,
+				 uint32_t left,
+				 uint32_t read_len,
+				 bool antisense_aln,
+				 unsigned char edit_dist,
+				 bool end)
 {
 	uint64_t insert_id = _insert_table.get_id(insert_name);
 	uint32_t reference_id = _ref_table.get_id(ref_name, NULL, 0);
 	
 	return BowtieHit(reference_id,
-					 insert_id, 
-					 left,
-					 read_len,
-					 antisense_aln,
-					 edit_dist);	
+			 insert_id, 
+			 left,
+			 read_len,
+			 antisense_aln,
+			 edit_dist,
+			 end);	
 }
 
 bool BowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf, 
@@ -179,12 +183,28 @@ bool BowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 	orientation = orientation_str[0];
 	text_offset = atoi(text_offset_str);
 
+	bool end = true;
+	unsigned int seg_offset = 0;
+	unsigned int seg_num = 0;
+	unsigned int num_segs = 0;
+	
 	// Copy the tag out of the name field before we might wipe it out
 	char* pipe = strrchr(name, '|');
 	if (pipe)
 	{
 		if (name_tags)
 			strcpy(name_tags, pipe);
+
+		char* tag_buf = pipe + 1;
+		if (strchr(tag_buf, ':'))
+		  {
+		    sscanf(tag_buf, "%u:%u:%u", &seg_offset, &seg_num, &num_segs);
+		    if (seg_num + 1 == num_segs)
+		      end = true;
+		    else
+		      end = false;
+		  }
+		
 		*pipe = 0;
 	}
 	// Stripping the slash and number following it gives the insert name
@@ -212,11 +232,12 @@ bool BowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 	}
 	
 	bh = create_hit(name,
-					text_name,
-					text_offset, 
-					(int)read_len, 
-					orientation == '-',
-					num_mismatches);
+			text_name,
+			text_offset, 
+			(int)read_len, 
+			orientation == '-',
+			num_mismatches,
+			end);
 	
 	return true;
 }
@@ -277,20 +298,28 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 	orientation = orientation_str[0];
 	text_offset = atoi(text_offset_str);
 	
-	int seg_offset = 0;
+	bool end = true;
+	unsigned int seg_offset = 0;
+	unsigned int seg_num = 0;
+	unsigned int num_segs = 0;
+
 	// Copy the tag out of the name field before we might wipe it out
 	char* pipe = strrchr(name, '|');
 	if (pipe)
 	{
 		if (name_tags)
 			strcpy(name_tags, pipe);
+
 		char* tag_buf = pipe + 1;
-		char* colon = strchr(tag_buf, ':');
-		if (colon)
-		{
-			*colon = 0;
-			seg_offset = atoi(tag_buf);
-		}
+		if (strchr(tag_buf, ':'))
+		  {
+		    sscanf(tag_buf, "%u:%u:%u", &seg_offset, &seg_num, &num_segs);
+		    if (seg_num + 1 == num_segs)
+		      end = true;
+		    else
+		      end = false;
+		  }
+
 		*pipe = 0;
 	}
 	// Stripping the slash and number following it gives the insert name
@@ -387,13 +416,14 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 		cigar.push_back(CigarOp(REF_SKIP, gap_len));
 		cigar.push_back(CigarOp(MATCH, right_splice_pos));
 		bh = create_hit(name,
-						contig,
-						left, 
-						cigar,
-						orientation == '-', 
-						junction_strand == "rev",
-						num_mismatches,
-						mismatches_in_anchor);
+				contig,
+				left, 
+				cigar,
+				orientation == '-', 
+				junction_strand == "rev",
+				num_mismatches,
+				mismatches_in_anchor,
+				end);
 		return true;
 	}
 	else
@@ -460,15 +490,32 @@ bool SAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 	
 	int sam_flag = atoi(sam_flag_str);
 	int text_offset = atoi(text_offset_str);
-	
+
+	bool end = true;
+	unsigned int seg_offset = 0;
+	unsigned int seg_num = 0;
+	unsigned int num_segs = 0;
+
 	// Copy the tag out of the name field before we might wipe it out
 	char* pipe = strrchr(name, '|');
 	if (pipe)
 	{
 		if (name_tags)
 			strcpy(name_tags, pipe);
+
+		char* tag_buf = pipe + 1;
+		if (strchr(tag_buf, ':'))
+		  {
+		    sscanf(tag_buf, "%u:%u:%u", &seg_offset, &seg_num, &num_segs);
+		    if (seg_num + 1 == num_segs)
+		      end = true;
+		    else
+		      end = false;
+		  }
+
 		*pipe = 0;
 	}
+
 	// Stripping the slash and number following it gives the insert name
 	char* slash = strrchr(name, '/');
 	if (strip_slash && slash)
@@ -586,14 +633,14 @@ bool SAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 	if (spliced_alignment)
 	{
 		bh = create_hit(name,
-						text_name,
-						text_offset - 1, 
-						cigar,
-						sam_flag & 0x0010,
-						antisense_splice,
-						num_mismatches,
-						num_splice_anchor_mismatches
-						);
+				text_name,
+				text_offset - 1, 
+				cigar,
+				sam_flag & 0x0010,
+				antisense_splice,
+				num_mismatches,
+				num_splice_anchor_mismatches,
+				end);
 		return true;
 
 	}
@@ -602,11 +649,12 @@ bool SAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 		//assert(cigar.size() == 1 && cigar[0].opcode == MATCH);
 
 		bh = create_hit(name,
-						text_name,
-						text_offset - 1, // SAM files are 1-indexed 
-						cigar[0].length, 
-						sam_flag & 0x0010,
-						num_mismatches);
+				text_name,
+				text_offset - 1, // SAM files are 1-indexed 
+				cigar[0].length, 
+				sam_flag & 0x0010,
+				num_mismatches,
+				end);
 		return true;
 	}
 		

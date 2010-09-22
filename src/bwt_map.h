@@ -58,14 +58,16 @@ struct BowtieHit
 		_antisense_splice(false),
 		_antisense_aln(false),
 		_edit_dist(0),
-		_splice_mms(0){}
+		_splice_mms(0),
+		_end(false){}
 	
 	BowtieHit(uint32_t ref_id,
-			  ReadID insert_id, 
-			  int left, 
-			  int read_len, 
-			  bool antisense,
-			  unsigned char edit_dist) :
+		  ReadID insert_id, 
+		  int left, 
+		  int read_len, 
+		  bool antisense,
+		  unsigned char edit_dist,
+		  bool end) :
 		_ref_id(ref_id),
 		_insert_id(insert_id), 
 		_left(left), 
@@ -73,19 +75,21 @@ struct BowtieHit
 		_antisense_splice(false),
 		_antisense_aln(antisense),
 		_edit_dist(edit_dist),
-		_splice_mms(0)
+		_splice_mms(0),
+		_end(end)
 	{
 		assert(_cigar.capacity() == _cigar.size());
 	}
 	
 	BowtieHit(uint32_t ref_id,
-			  ReadID insert_id, 
-			  int left,  
-			  const vector<CigarOp>& cigar,
-			  bool antisense_aln,
-			  bool antisense_splice,
-			  unsigned char edit_dist,
-			  unsigned char splice_mms) : 
+		  ReadID insert_id, 
+		  int left,  
+		  const vector<CigarOp>& cigar,
+		  bool antisense_aln,
+		  bool antisense_splice,
+		  unsigned char edit_dist,
+		  unsigned char splice_mms,
+		  bool end) : 
 		_ref_id(ref_id),
 		_insert_id(insert_id), 	
 		_left(left),
@@ -93,7 +97,8 @@ struct BowtieHit
 		_antisense_splice(antisense_splice),
 		_antisense_aln(antisense_aln),
 		_edit_dist(edit_dist),
-		_splice_mms(splice_mms)
+		_splice_mms(splice_mms),
+		_end(end)
 	{
 		assert(_cigar.capacity() == _cigar.size());
 	}
@@ -227,22 +232,25 @@ struct BowtieHit
   	const string& qual() const { return _qual; }
 	void qual(const string& qual) { _qual = qual; }
 
+        bool end() const { return _end; }
+
 private:
 	
-	uint32_t _ref_id;
-	ReadID _insert_id;   // Id of the sequencing insert
-	int _left;        // Position in the reference of the left side of the alignment
-	
-	vector<CigarOp> _cigar;
-	
-	bool _antisense_splice;    // Whether the junction spanned is on the reverse strand
-	bool _antisense_aln;       // Whether the alignment is to the reverse strand
-
-	unsigned char _edit_dist;  // Total mismatches
-	unsigned char _splice_mms; // Mismatches within min_anchor_len of a splice junction
-	string _hitfile_rec; // Points to the buffer for the record from which this hit came
+  uint32_t _ref_id;
+  ReadID _insert_id;   // Id of the sequencing insert
+  int _left;        // Position in the reference of the left side of the alignment
+  
+  vector<CigarOp> _cigar;
+  
+  bool _antisense_splice;    // Whether the junction spanned is on the reverse strand
+  bool _antisense_aln;       // Whether the alignment is to the reverse strand
+  
+  unsigned char _edit_dist;  // Total mismatches
+  unsigned char _splice_mms; // Mismatches within min_anchor_len of a splice junction
+  string _hitfile_rec; // Points to the buffer for the record from which this hit came
   string _seq;
   string _qual;
+  bool _end; // Whether this segment is the last one of the read it belongs to
 };
 
 class ReadTable
@@ -501,20 +509,22 @@ public:
 	virtual ~HitFactory() {}
 	
 	BowtieHit create_hit(const string& insert_name, 
-						 const string& ref_name,
-						 int left,
-						 const vector<CigarOp>& cigar,
-						 bool antisense_aln,
-						 bool antisense_splice,
-						 unsigned char edit_dist,
-						 unsigned char splice_mms);
+			     const string& ref_name,
+			     int left,
+			     const vector<CigarOp>& cigar,
+			     bool antisense_aln,
+			     bool antisense_splice,
+			     unsigned char edit_dist,
+			     unsigned char splice_mms,
+			     bool end);
 	
 	BowtieHit create_hit(const string& insert_name, 
-						 const string& ref_name,
-						 uint32_t left,
-						 uint32_t read_len,
-						 bool antisense_aln,
-						 unsigned char edit_dist);
+			     const string& ref_name,
+			     uint32_t left,
+			     uint32_t read_len,
+			     bool antisense_aln,
+			     unsigned char edit_dist,
+			     bool end);
 	
 	virtual bool get_hit_from_buf(const char* bwt_buf, 
 				      BowtieHit& bh,

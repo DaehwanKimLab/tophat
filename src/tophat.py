@@ -237,6 +237,7 @@ class TopHatParams:
                     self.integer_quals = True
                 elif option in ("-C", "--color"):
                     self.color = True
+                    self.integer_quals = True
                 elif option in ("--color-out"):
                     self.color_out = True
                 elif option in ("-s", "--seed-length"):
@@ -977,6 +978,7 @@ def check_reads(params, reads_files):
     observed_formats = set([])
     observed_scales = set([])
     min_seed_len = 99999
+    max_seed_len = 0
     max_qual = -1
     files = reads_files.split(',')
     for f_name in files:
@@ -1008,12 +1010,13 @@ def check_reads(params, reads_files):
                   print >> sys.stderr, "Warning: found a read < 20bp in", f_name
               else:
                   min_seed_len = min(seq_len, min_seed_len)
+                  max_seed_len = max(seq_len, max_seed_len)
               max_line_qual = max([ord(x) for x in list(qstr)])
               max_qual = max(max_line_qual, max_qual)   
         elif format == "fasta":
             fa_init(f)
             while True:
-                seqid, seqstr, seq_len = fa_next(f,f_name)
+                seqid, seqstr, seq_len = fa_next(f, f_name)
                 if not seqid: break
                 if params.color:
                   seq_len -= 1
@@ -1022,17 +1025,18 @@ def check_reads(params, reads_files):
                      print >> sys.stderr, "Warning: found a read < 20bp in", f_name
                 else:
                      min_seed_len = min(seq_len, min_seed_len)
+                     max_seed_len = max(seq_len, max_seed_len)
             
     if len(observed_formats) > 1:
         print >> sys.stderr, "Error: TopHat requires all reads be either FASTQ or FASTA.  Mixing formats is not supported."
         sys.exit(1)
-    
+
     if seed_len != None:
-        seed_len = min(seed_len, min_seed_len)
+        seed_len = max(seed_len, min_seed_len)
     else:
-        seed_len = min_seed_len
+        seed_len = max_seed_len
         
-    print >> sys.stderr, "\tseed length:\t %dbp" % seed_len
+    print >> sys.stderr, "\tmin read length: %dbp, max read length: %dbp" % (min_seed_len, max_seed_len)
     print >> sys.stderr, "\tformat:\t\t %s" % format
     if format == "fastq":
         quality_scale = "phred33 (default)"
@@ -1075,8 +1079,6 @@ def formatTD(td):
 # prep_reads also filters out very low complexy or garbage reads as well as 
 # polyA reads.
 def prep_reads(params, reads_list, quals_list, output_name):    
-    #filter_cmd = ["prep_reads"]
-
     reads_suffix = ".fq"
     kept_reads_filename = output_dir + output_name + reads_suffix
     
@@ -1092,6 +1094,7 @@ def prep_reads(params, reads_list, quals_list, output_name):
         filter_cmd += ["--fastq"]
     elif params.read_params.reads_format == "fasta":
         filter_cmd += ["--fasta"]
+
     filter_cmd.append(reads_list)
 
     if params.read_params.quals == True:
@@ -1124,11 +1127,12 @@ def bowtie(params,
            reads_format,
            mapped_reads,
            unmapped_reads,
-           reads_for_ordering=None,
-           phred_thresh=70):
+           reads_for_ordering = None,
+           phred_thresh = 70,
+           extra_output = ""):
     start_time = datetime.now()
     bwt_idx_name = bwt_idx_prefix.split('/')[-1]
-    print >> sys.stderr, "[%s] Mapping reads against %s with Bowtie" % (start_time.strftime("%c"), bwt_idx_name)
+    print >> sys.stderr, "[%s] Mapping reads against %s with Bowtie%s" % (start_time.strftime("%c"), bwt_idx_name, extra_output)
     
     # Setup Bowtie output redirects
     #bwt_map = output_dir + mapped_reads
@@ -1155,7 +1159,7 @@ def bowtie(params,
         else:
             unmapped_reads_fasta_name = None
 
-        # infphilo - check "-v" vs. "-n"
+        # daehwan - check "-v" vs. "-n"
         bowtie_cmd += ["-n", str(params.segment_mismatches),
                          "-p", str(params.system_params.bowtie_threads),
                          "-k", str(params.max_hits),
@@ -1440,22 +1444,17 @@ def split_reads(reads_filename,
                 prefix,
                 fasta,
                 color,
-                read_length, 
                 segment_length):
     reads_file = open(reads_filename)
     output_files = []
-    num_segments = read_length / segment_length
-    
-    if num_segments == 1:
-        segment_length = read_length
     
     if fasta == True:
         extension = ".fa"
     else:
         extension = ".fq"
-    print >> sys.stderr, "\tSplitting reads into %d segments" % (num_segments)
-    def open_output_files(prefix, num_files, output_files, extension):
-        i = 1
+
+    def open_output_files(prefix, num_files_prev, num_files, output_files, extension):
+        i = num_files_prev + 1
         while i <= num_files:
             output_files.append(open(prefix + ("_seg%d" % i) + extension, "w"))
             i += 1
@@ -1492,7 +1491,7 @@ def split_reads(reads_filename,
             base = ch
 
         return color_seq
-       
+
     def split_record(read_name, read_seq, read_qual, output_files, offsets, color):
         if color == True:
             color_offset = 1
@@ -1510,9 +1509,8 @@ def split_reads(reads_filename,
         last_seq_offset = 0
         while seg_num + 1 < len(offsets):
             f = output_files[seg_num]
-            #print last_seq_offset, offsets[seg_num + 1]
             seg_seq = read_seq[last_seq_offset+color_offset:offsets[seg_num + 1]+color_offset]
-            print >> f, "%s|%d:%d" % (read_name,last_seq_offset,seg_num)
+            print >> f, "%s|%d:%d:%d" % (read_name,last_seq_offset,seg_num, len(offsets) - 1)
             if color == True:
                 print >> f, "%s%s" % (read_seq_temp[last_seq_offset], seg_seq)
             else:
@@ -1524,48 +1522,54 @@ def split_reads(reads_filename,
             seg_num += 1
             last_seq_offset = offsets[seg_num]
 
-    offsets = [segment_length * i for i in range(0,num_segments + 1)]
-    
-    # Bowtie's minimum read length here is 20bp, so if the last segment
-    # is between 20 and segment_length bp long, go ahead and write it out
-    #print >> sys.stderr, read_length % segment_length, num_segments
-    if read_length % segment_length >= 20:
-        offsets.append(segment_length * (num_segments + 1))
-        num_segments += 1
-    open_output_files(prefix, num_segments, output_files, extension)
-    if fasta:
-        line_state = 0
-        read_name = ""
-        read_seq = ""
-        for line in reads_file:
-            if line_state == 0:
-                read_name = line.strip()
+    line_state = 0
+    read_name = ""
+    read_seq = ""
+    read_qual = ""
+    num_segments = 0
+    offsets = []
+    for line in reads_file:
+        if line.strip() == "":
+            continue
+        if line_state == 0:
+            read_name = line.strip()
+        elif line_state == 1:
+            read_seq = line.strip()
+
+            read_length = len(read_seq)
+            tmp_num_segments = read_length / segment_length
+            offsets = [segment_length * i for i in range(0, tmp_num_segments + 1)]
+
+            # Bowtie's minimum read length here is 20bp, so if the last segment
+            # is between 20 and segment_length bp long, go ahead and write it out
+            if read_length % segment_length >= 20:
+                offsets.append(read_length)
+                tmp_num_segments += 1
             else:
-                read_seq = line.strip()
+                offsets[-1] = read_length
+
+            if tmp_num_segments == 1:
+                offsets = [0, read_length]
+
+            if tmp_num_segments > num_segments:
+                open_output_files(prefix, num_segments, tmp_num_segments, output_files, extension)
+                num_segments = tmp_num_segments
+
+            if fasta:
                 split_record(read_name, read_seq, None, output_files, offsets, color)
-            line_state += 1
-            line_state %= 2
-    else:
-        line_state = 0
-        read_name = ""
-        read_seq = ""
-        read_qual = ""
-        for line in reads_file:
-            if line.strip() == "":
-                continue
-            #print >> sys.stderr, line,
-            if line_state == 0:
-                read_name = line.strip()
-            elif line_state == 1:
-                read_seq = line.strip()
-            elif line_state == 2:
-                line = line.strip()
-            else:
-                read_quals = line.strip()
+        elif line_state == 2:
+            line = line.strip()
+        else:
+            read_quals = line.strip()
+            if not fasta:
                 split_record(read_name, read_seq, read_quals, output_files, offsets, color)
                 
-            line_state += 1
+        line_state += 1
+        if fasta:
+            line_state %= 2
+        else:
             line_state %= 4
+        
     for f in output_files:
         f.close()
     return [o.name for o in output_files]
@@ -1582,20 +1586,18 @@ def junctions_from_closures(params,
     #if len(maps) == 0:
     #    return None
     #print >> sys.stderr, left_maps
-    slash = left_maps.rfind('/')
+    slash = left_maps[0].rfind('/')
     juncs_out = ""
     if slash != -1:
-        juncs_out += left_maps[:slash+1]
+        juncs_out += left_maps[0][:slash+1]
     juncs_out += "closure.juncs"
 
     juncs_log = open(logging_dir + "closure.log", "w")
     juncs_cmdpath=prog_path("closure_juncs")
     juncs_cmd = [juncs_cmdpath]
 
-    # if reads_format == "fastq":
-    #     align_cmd += ["-q"]
-    # elif reads_format == "fasta":
-    #     align_cmd += ["-f"]
+    left_maps = ','.join(left_maps);
+    right_maps = ','.join(right_maps);
 
     juncs_cmd.extend(params.cmd())
     juncs_cmd.extend([juncs_out,
@@ -1785,9 +1787,11 @@ def spliced_alignment(params,
 
         unspliced_out = tmp_dir + reads[tmp+1:extension] + ".bwtout"  
         unmapped_unspliced = tmp_dir + reads[tmp+1:extension] + "_missing.fq"
+
         num_segs = read_len / segment_len
-        phred_thresh = 70 * num_segs
-        
+        if read_len % segment_len >= 20:
+            num_segs += 1
+
         # Perform the initial Bowtie mapping of the full lenth reads
         (unspliced_map, unmapped) = bowtie(params,
                                            bwt_idx_prefix, 
@@ -1795,8 +1799,7 @@ def spliced_alignment(params,
                                            "fastq",
                                            unspliced_out,
                                            unmapped_unspliced,
-                                           reads,
-                                           phred_thresh)
+                                           reads)
 
         unspliced_sam = tmp_name()
         
@@ -1837,24 +1840,27 @@ def spliced_alignment(params,
                                         output_dir + "tmp/" + prefix, 
                                         False,
                                         params.read_params.color,
-                                        read_len, 
                                         segment_len)
 
             # Map each segment file independently with Bowtie
-            for seg in read_segments:
+            for i in range(len(read_segments)):
+                seg = read_segments[i]
                 extension = seg.rfind(".")
                 assert extension != -1
                 tmp = seg.rfind("/")
                 assert tmp != -1
                 seg_out =  tmp_dir + seg[tmp+1:extension] + ".bwtout"
                 unmapped_seg = tmp_dir + seg[tmp+1:extension] + "_missing.fq"
+                extra_output = "(%d/%d)" % (i+1, len(read_segments))
                 (seg_map, unmapped) = bowtie(params,
                                              bwt_idx_prefix, 
                                              seg,
                                              "fastq",
                                              seg_out,
                                              unmapped_seg,
-                                             seg)
+                                             seg,
+                                             70,
+                                             extra_output)
                 seg_maps.append(seg_map)
                 unmapped_segs.append(unmapped)
                 segs.append(seg)
@@ -1895,8 +1901,8 @@ def spliced_alignment(params,
         # discover addtional junctions
         if params.closure_search and left_reads != None and right_reads != None:
             juncs = junctions_from_closures(params,
-                                            maps[left_reads].seg_maps[-1], 
-                                            maps[right_reads].seg_maps[-1],
+                                            [maps[left_reads].unspliced_bwt, maps[left_reads].seg_maps[-1]],
+                                            [maps[right_reads].unspliced_bwt, maps[right_reads].seg_maps[-1]],
                                             ref_fasta)
             if os.path.getsize(juncs[0]) != 0:
                 possible_juncs.extend(juncs)
@@ -1932,7 +1938,6 @@ def spliced_alignment(params,
             
                 ordering = maps[reads].segs[i]
                 seg_out = tmp_dir + seg[tmp+1:extension] + "_to_spliced.bwtout"
-                #unmapped_seg = seg[tmp+1:extension] + "_missing.fa"
                 (seg_map, unmapped) = bowtie(params,
                                              output_dir + junc_idx_prefix, 
                                              seg,
@@ -2110,9 +2115,6 @@ def main(argv=None):
             params.read_params.integer_quals = False
             
         spliced_reads = []
-        
-        #if params.read_params.seed_length / segment_length > 1:
-
         mapping = spliced_alignment(params, 
                                     bwt_idx_prefix,
                                     sam_header_filename,
