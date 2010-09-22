@@ -3188,9 +3188,7 @@ void driver(istream& ref_stream,
 	}
 
 	juncs.insert(cov_juncs.begin(), cov_juncs.end());
-
-	// daehwan - check this out
-	// juncs.insert(seg_juncs.begin(), seg_juncs.end());
+	juncs.insert(seg_juncs.begin(), seg_juncs.end());
 	juncs.insert(butterfly_juncs.begin(), butterfly_juncs.end());
 	
 	fprintf(stderr, "Reporting potential splice junctions...");
