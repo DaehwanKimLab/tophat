@@ -346,8 +346,8 @@ class TopHatParams:
                                            False,
                                            False,               # quals
                                            False,               # integer quals
-                                           False,               # Solid - color space
-                                           False,               # Solid - color out instead of base pair
+                                           False,               # SOLiD - color space
+                                           False,               # SOLiD - color out instead of base pair
                                            None,                # seed_length
                                            "fastq",             # quality_format
                                            None,                # mate inner distance
@@ -395,6 +395,10 @@ class TopHatParams:
             sys.exit(1)
         if self.segment_mismatches < 0 or self.segment_mismatches > 3:
             print >> sys.stderr, "Error: arg to --segment-mismatches must in [0, 3]"
+            sys.exit(1)
+
+        if self.read_params.color == True and self.butterfly_search == True:
+            print >> sys.stderr, "Error: butterfly-search in colorspace is not yet supported"
             sys.exit(1)
         
         self.search_params.max_closure_intron_length = min(self.splice_constraints.max_intron_length,
