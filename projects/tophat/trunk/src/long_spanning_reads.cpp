@@ -39,13 +39,6 @@
 
 #include "junctions.h"
 
-//#include "fragments.h"
-//#include "wiggles.h"
-//#include "tokenize.h"
-//#include "genes.h"
-//#include "FSA/gff.h"
-//#include "FSA/sequence.h"
-
 using namespace seqan;
 using namespace std;
 
@@ -54,66 +47,16 @@ void print_usage()
     fprintf(stderr, "Usage:   long_spanning_reads <reads.fa/.fq> <possible_juncs1,...,possible_juncsN> <seg1.bwtout,...,segN.bwtout> [spliced_seg1.bwtout,...,spliced_segN.bwtout]\n");
 }
 
-//const char *short_options = "a:i:I:fqm:";
-
-// This is the maximum number of bowtie mismatches allower per segment hit
-//static const int num_bowtie_mismatches = 2;
-
-//int max_splice_mismatches = 0;
-
-//static struct option long_options[] = {
-//{"min-anchor",       required_argument,       0,            'a'},
-//{"min-intron",       required_argument,       0,            'i'},
-//{"splice-mismatches",       required_argument,       0,            'm'},
-//{0, 0, 0, 0} // terminator
-//};
-//
-//int parse_options(int argc, char** argv)
-//{
-//    int option_index = 0;
-//    int next_option;
-//    do {
-//        next_option = getopt_long(argc, argv, short_options, long_options, &option_index);
-//        switch (next_option) {
-//			case 'a':
-//				min_anchor_len = (uint32_t)parseInt(3, "-a/--min-anchor arg must be at least 3", print_usage);
-//				break;
-//			case 'i':
-//				min_intron_length = (uint32_t)parseInt(1, "-a/--min-intron arg must be at least 1", print_usage);
-//				break;
-//			case 'I':
-//				max_intron_length = parseInt(1,"-I arg must be at least 1", print_usage);
-//				break;
-//			case 'm':
-//				max_splice_mismatches = parseInt(0,"-I arg must be at least 1", print_usage);
-//				break;
-//			case 'f':
-//				reads_format = FASTA;
-//				break;
-//			case 'q':
-//				reads_format = FASTQ;
-//				break;    
-//			case -1:     /* Done with options. */
-//                break;
-//            default:
-//                print_usage();
-//                return 1;
-//        }
-//    } while(next_option != -1);
-//    
-//    return 0;
-//}
-
 bool key_lt(const pair<uint32_t, HitsForRead>& lhs,
-			const pair<uint32_t, HitsForRead>& rhs)
+	    const pair<uint32_t, HitsForRead>& rhs)
 {
 	return lhs.first < rhs.first;
 }
 
 void get_seqs(istream& ref_stream,
-			  RefSequenceTable& rt,
-			  bool keep_seqs = true,
-			  bool strip_slash = false)
+	      RefSequenceTable& rt,
+	      bool keep_seqs = true,
+	      bool strip_slash = false)
 {    
     while(ref_stream.good() &&
           !ref_stream.eof())
@@ -134,11 +77,11 @@ void get_seqs(istream& ref_stream,
 
 
 void look_left_for_hit_group(ReadTable& unmapped_reads,
-							 vector<HitStream>& contig_hits,
-							 size_t curr_file,
-							 vector<HitStream>& spliced_hits,
-							 const HitsForRead& targets,
-							 vector<HitsForRead>& seg_hits_for_read)
+			     vector<HitStream>& contig_hits,
+			     size_t curr_file,
+			     vector<HitStream>& spliced_hits,
+			     const HitsForRead& targets,
+			     vector<HitsForRead>& seg_hits_for_read)
 {
 	int left_file = curr_file - 1;
 	
@@ -356,14 +299,16 @@ BowtieHit merge_sense_chain(std::set<Junction>& possible_juncs,
 			if (found_closure)
 			{
 				// If we got here, it means there's exactly one closure.
+			  bool end = false;
 				BowtieHit merged_hit(reference_id,
-									 insert_id,
-									 new_left,
-									 new_cigar,
-									 false,
-									 antisense_closure,
-									 prev_hit->edit_dist() + curr_hit->edit_dist(),
-									 prev_hit->splice_mms() + curr_hit->splice_mms());
+						     insert_id,
+						     new_left,
+						     new_cigar,
+						     false,
+						     antisense_closure,
+						     prev_hit->edit_dist() + curr_hit->edit_dist(),
+						     prev_hit->splice_mms() + curr_hit->splice_mms(),
+						     end);
 				
 				prev_hit = hit_chain.erase(prev_hit,++curr_hit);
 				hit_chain.insert(prev_hit, merged_hit);
@@ -423,15 +368,17 @@ BowtieHit merge_sense_chain(std::set<Junction>& possible_juncs,
 			}
 		}
 	}
-	
+
+	bool end = false;
 	BowtieHit new_hit(reference_id,
-					  insert_id, 
-					  left, 
-					  long_cigar, 
-					  false,
-					  saw_antisense_splice,
-					  num_mismatches,
-					  num_splice_mms);
+			  insert_id, 
+			  left, 
+			  long_cigar, 
+			  false,
+			  saw_antisense_splice,
+			  num_mismatches,
+			  num_splice_mms,
+			  end);
 
 	new_hit.seq(seq);
 	new_hit.qual(qual);
@@ -566,15 +513,17 @@ BowtieHit merge_antisense_chain(std::set<Junction>& possible_juncs,
 			}
 			
 			if (found_closure)
-			{				
+			{
+			  bool end = false;
 				BowtieHit merged_hit(reference_id,
-									 insert_id,
-									 new_left,
-									 new_cigar,
-									 true,
-									 antisense_closure,
-									 prev_hit->edit_dist() + curr_hit->edit_dist(),
-									 prev_hit->splice_mms() + curr_hit->splice_mms());
+						     insert_id,
+						     new_left,
+						     new_cigar,
+						     true,
+						     antisense_closure,
+						     prev_hit->edit_dist() + curr_hit->edit_dist(),
+						     prev_hit->splice_mms() + curr_hit->splice_mms(),
+						     end);
 				
 				prev_hit = hit_chain.erase(prev_hit,++curr_hit);
 				hit_chain.insert(prev_hit, merged_hit);
@@ -632,15 +581,17 @@ BowtieHit merge_antisense_chain(std::set<Junction>& possible_juncs,
 			}
 		}
 	}
-	
+
+	bool end = false;
 	BowtieHit new_hit(reference_id,
-					  insert_id, 
-					  left, 
-					  long_cigar, 
-					  true,
-					  saw_antisense_splice,
-					  num_mismatches,
-					  num_splice_mms);
+			  insert_id, 
+			  left, 
+			  long_cigar, 
+			  true,
+			  saw_antisense_splice,
+			  num_mismatches,
+			  num_splice_mms,
+			  end);
 	new_hit.seq(seq);
 	new_hit.qual(qual);
 	

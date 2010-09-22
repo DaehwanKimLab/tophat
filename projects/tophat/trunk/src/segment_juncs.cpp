@@ -59,45 +59,6 @@ static const int max_seg_juncs = 10000000;
 int max_microexon_stretch = 2000;
 int butterfly_overhang = 6;
 
-//static struct option long_options[] = {
-//{"min-anchor",       required_argument,       0,            'a'},
-//{"min-intron",       required_argument,       0,            'i'},
-//{0, 0, 0, 0} // terminator
-//};
-
-//int parse_options(int argc, char** argv)
-//{
-//    int option_index = 0;
-//    int next_option;
-//    do {
-//        next_option = getopt_long(argc, argv, short_options, long_options, &option_index);
-//        switch (next_option) {
-//			case 'i':
-//				min_intron_length = (uint32_t)parseInt(1, "-a/--min-intron arg must be at least 1", print_usage);
-//				break;
-//			case 'C':
-//				max_cov_intron_length = parseInt(1,"-I arg must be at least 1", print_usage);
-//				break;
-//			case 'I':
-//				max_intron_length = parseInt(1,"-I arg must be at least 1", print_usage);
-//				break;
-//			case 'f':
-//				reads_format = FASTA;
-//				break;
-//			case 'q':
-//				reads_format = FASTQ;
-//				break;
-//			case -1:     /* Done with options. */
-//                break;
-//            default:
-//                print_usage();
-//                return 1;
-//        }
-//    } while(next_option != -1);
-//    
-//    return 0;
-//}
-
 void get_seqs(istream& ref_stream,
 			  RefSequenceTable& rt,
 			  bool keep_seqs = true,
@@ -1363,14 +1324,14 @@ void get_seed_extensions(const string& ref,
 }
 
 void hits_from_seed_extension(uint32_t ref_id,
-							  int ref_offset,
-							  uint64_t insert_id,
-							  bool antisense,
-							  vector<SeedExtension>& extensions,
-							  vector<BowtieHit>& hits_out,
-							  int left_read_edge,
-							  int right_read_edge,
-							  int seq_key_len)
+			      int ref_offset,
+			      uint64_t insert_id,
+			      bool antisense,
+			      vector<SeedExtension>& extensions,
+			      vector<BowtieHit>& hits_out,
+			      int left_read_edge,
+			      int right_read_edge,
+			      int seq_key_len)
 {
 	for (size_t i = 0; i < extensions.size(); ++i)
 	{
@@ -1403,14 +1364,17 @@ void hits_from_seed_extension(uint32_t ref_id,
 				cigar.push_back(m2); 
 				off_adjust = m1.length;
 			}
+			// daehwan - check this
+			bool end = false;
 			BowtieHit bh(ref_id, 
-						 insert_id,
-						 ref_offset + s.l_pos_in_ref - off_adjust + 1,
-						 cigar,
-						 antisense,
-						 false,
-						 s.mismatches,
-						 0);
+				     insert_id,
+				     ref_offset + s.l_pos_in_ref - off_adjust + 1,
+				     cigar,
+				     antisense,
+				     false,
+				     s.mismatches,
+				     0,
+				     end);
 			hits_out.push_back(bh);
 		}
 	}
@@ -2221,13 +2185,14 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
 }
 
 void find_gaps(RefSequenceTable& rt,
-			   vector<HitsForRead>& hits_for_read,
-			   std::set<Junction, skip_count_lt>& seg_juncs)
+	       vector<HitsForRead>& hits_for_read,
+	       std::set<Junction, skip_count_lt>& seg_juncs)
 {
 	vector<RefSeg> expected_don_acc_windows;
 	
 	if (hits_for_read.empty())
 		return;
+
 	size_t last_non_empty = hits_for_read.size() - 1;
 	while(last_non_empty >= 0 && hits_for_read[last_non_empty].hits.empty())
 	{
@@ -2332,35 +2297,35 @@ void find_gaps(RefSequenceTable& rt,
 	}
 	
 	juncs_from_ref_segs<RecordAllJuncs>(rt, 
-										expected_don_acc_windows, 
-										seg_juncs, 
-										"GT", 
-										"AG",  
-										max_segment_intron_length, 
-										min_segment_intron_length, 
-										max_seg_juncs,
-										false,
-										0);
+					    expected_don_acc_windows, 
+					    seg_juncs, 
+					    "GT", 
+					    "AG",  
+					    max_segment_intron_length, 
+					    min_segment_intron_length, 
+					    max_seg_juncs,
+					    false,
+					    0);
 	juncs_from_ref_segs<RecordAllJuncs>(rt, 
-										expected_don_acc_windows, 
-										seg_juncs, 
-										"GC", 
-										"AG", 
-										max_segment_intron_length, 
-										min_segment_intron_length, 
-										max_seg_juncs,
-										false,
-										0);
+					    expected_don_acc_windows, 
+					    seg_juncs, 
+					    "GC", 
+					    "AG", 
+					    max_segment_intron_length, 
+					    min_segment_intron_length, 
+					    max_seg_juncs,
+					    false,
+					    0);
 	juncs_from_ref_segs<RecordAllJuncs>(rt, 
-										expected_don_acc_windows, 
-										seg_juncs, 
-										"AT", 
-										"AC",  
-										max_segment_intron_length, 
-										min_segment_intron_length, 
-										max_seg_juncs,
-										false,
-										0);
+					    expected_don_acc_windows, 
+					    seg_juncs, 
+					    "AT", 
+					    "AC",  
+					    max_segment_intron_length, 
+					    min_segment_intron_length, 
+					    max_seg_juncs,
+					    false,
+					    0);
 	//juncs_from_ref_segs(rt, expected_don_acc_windows, juncs);
 }
 
@@ -2388,9 +2353,9 @@ bool overlap_in_genome(int ll, int lr, int rl, int rr)
 }
 
 void add_to_microexon_windows(uint32_t ref_id, 
-							  int left_boundary, 
-							  int right_boundary, 
-							  const string& dna_str)
+			      int left_boundary, 
+			      int right_boundary, 
+			      const string& dna_str)
 {
 	//bool found_matching_window = false;
 	//cerr << "adding: "<< dna_str  << endl;
@@ -2455,9 +2420,9 @@ void add_to_microexon_windows(uint32_t ref_id,
 }
 
 void align_microexon_segs(RefSequenceTable& rt,
-						  std::set<Junction, skip_count_lt>& juncs,
-						  int max_juncs,
-						  int half_splice_mer_len)
+			  std::set<Junction, skip_count_lt>& juncs,
+			  int max_juncs,
+			  int half_splice_mer_len)
 {
 	int num_segments = 0;
 	for (map<RefSeg, vector<string>* >::iterator itr = microexon_windows.begin(); 
@@ -2472,11 +2437,9 @@ void align_microexon_segs(RefSequenceTable& rt,
 	extensions.clear();
 	
 	size_t splice_mer_len = 2 * half_splice_mer_len;
-	
 	size_t mer_table_size = 1 << ((splice_mer_len)<<1);
 	
 	extensions.resize(mer_table_size);
-	
 
 	int window_num = 0;
 	for (map<RefSeg, vector<string>* >::iterator itr = microexon_windows.begin(); 
@@ -2505,10 +2468,10 @@ void align_microexon_segs(RefSequenceTable& rt,
 			ss >> s;
 
 			store_read_extensions(extensions,
-								  half_splice_mer_len,
-								  half_splice_mer_len,
-								  s,
-								  false);
+					      half_splice_mer_len,
+					      half_splice_mer_len,
+					      s,
+					      false);
 		}
 		
 		vector<RefSeg> segs;
@@ -2518,15 +2481,15 @@ void align_microexon_segs(RefSequenceTable& rt,
 		segs.push_back(r);
 		
 		juncs_from_ref_segs<RecordExtendableJuncs>(rt, 
-												   segs, 
-												   juncs, 
-												   "GT", 
-												   "AG", 
-												   max_microexon_stretch, 
-												   min_coverage_intron_length, 
-												   max_juncs,
-												   false,
-												   half_splice_mer_len);
+							   segs, 
+							   juncs, 
+							   "GT", 
+							   "AG", 
+							   max_microexon_stretch, 
+							   min_coverage_intron_length, 
+							   max_juncs,
+							   false,
+							   half_splice_mer_len);
 		num_segments += unaligned_segments.size();
 		delete itr->second;
 	}
@@ -2536,13 +2499,13 @@ void align_microexon_segs(RefSequenceTable& rt,
 
 
 void look_for_hit_group(RefSequenceTable& rt,
-						FILE* reads_file,
-						ReadTable& unmapped_reads,
-						vector<HitStream>& seg_files,
-						int curr_file,
-						uint64_t insert_id,
-						vector<HitsForRead>& hits_for_read,
-						std::set<Junction, skip_count_lt>& juncs)
+			FILE* reads_file,
+			ReadTable& unmapped_reads,
+			vector<HitStream>& seg_files,
+			int curr_file,
+			uint64_t insert_id,
+			vector<HitsForRead>& hits_for_read,
+			std::set<Junction, skip_count_lt>& juncs)
 {
 	HitStream& curr = seg_files[curr_file];
 	
@@ -2564,13 +2527,13 @@ void look_for_hit_group(RefSequenceTable& rt,
 			if (curr_file > 0)
 			{
 				look_for_hit_group(rt,
-								   reads_file,
-								   unmapped_reads,
-								   seg_files,
-								   curr_file - 1,
-								   insert_id,
-								   hits_for_read,
-								   juncs);
+						   reads_file,
+						   unmapped_reads,
+						   seg_files,
+						   curr_file - 1,
+						   insert_id,
+						   hits_for_read,
+						   juncs);
 			}
 			else if (!no_microexon_search)
 			{
@@ -2583,13 +2546,13 @@ void look_for_hit_group(RefSequenceTable& rt,
 				// we should try looking for junctions via seed and extend
 				// using it (helps find junctions to microexons).
 				bool got_read = get_read_from_stream(insert_id, 
-													 reads_file,
-													 FASTQ,
-													 false,
-													 read_name, 
-													 read_seq,
-													 read_alt_name,
-													 read_quals);
+								     reads_file,
+								     FASTQ,
+								     false,
+								     read_name, 
+								     read_seq,
+								     read_alt_name,
+								     read_quals);
 				
 				if (!got_read)
 					break;
@@ -2638,7 +2601,7 @@ void look_for_hit_group(RefSequenceTable& rt,
 					{
 						left_boundary = max(0, bh.right() - (int)min_anchor_len);
 						right_boundary = min(ref_len - 2,
-											 left_boundary +  max_microexon_stretch);
+								     left_boundary +  max_microexon_stretch);
 						if (right_boundary - left_boundary < 2 * seq_key_len)
 							continue;
 						
@@ -2649,7 +2612,7 @@ void look_for_hit_group(RefSequenceTable& rt,
 					else
 					{
 						right_boundary = min(ref_len - 2,
-											 bh.left() + (int)min_anchor_len);
+								     bh.left() + (int)min_anchor_len);
 						left_boundary = max(0, right_boundary -  max_microexon_stretch);
 						
 						if (right_boundary - left_boundary < 2 * seq_key_len)
@@ -2676,13 +2639,13 @@ void look_for_hit_group(RefSequenceTable& rt,
 					// we need to look left (recursively) for the group we 
 					// just read for this stream.
 					look_for_hit_group(rt,
-									   reads_file,
-									   unmapped_reads,
-									   seg_files,
-									   curr_file - 1,
-									   insert_id,
-									   hits_for_read,
-									   juncs);
+							   reads_file,
+							   unmapped_reads,
+							   seg_files,
+							   curr_file - 1,
+							   insert_id,
+							   hits_for_read,
+							   juncs);
 					
 				}
 				break;
@@ -2696,29 +2659,27 @@ void look_for_hit_group(RefSequenceTable& rt,
 
 				
 				look_for_hit_group(rt,
-								   reads_file,
-								   unmapped_reads,
-								   seg_files,
-								   curr_file - 1,
-								   hit_group.insert_id,
-								   hits_for_new_read,
-								   juncs);
+						   reads_file,
+						   unmapped_reads,
+						   seg_files,
+						   curr_file - 1,
+						   hit_group.insert_id,
+						   hits_for_new_read,
+						   juncs);
 				find_gaps(rt, hits_for_new_read, juncs);
 			}
 
 		}
 	}
-	
-	
 }
 
 
 bool process_next_hit_group(RefSequenceTable& rt,
-							FILE* reads_file,
-							ReadTable& unmapped_reads,
-							vector<HitStream>& seg_files, 
-							size_t curr_file,
-							std::set<Junction, skip_count_lt>& juncs)
+			    FILE* reads_file,
+			    ReadTable& unmapped_reads,
+			    vector<HitStream>& seg_files, 
+			    size_t curr_file,
+			    std::set<Junction, skip_count_lt>& juncs)
 {
 	HitStream& curr = seg_files[curr_file];
 	HitsForRead hit_group;
@@ -2862,18 +2823,16 @@ void pair_covered_sites(ReadTable& it,
 }
 
 void capture_island_ends(ReadTable& it,
-						 RefSequenceTable& rt,
-						 vector<FILE*>& seg_files,
-						 std::set<Junction, skip_count_lt>& cov_juncs,
-						 size_t half_splice_mer_len)
+			 RefSequenceTable& rt,
+			 vector<FILE*>& seg_files,
+			 std::set<Junction, skip_count_lt>& cov_juncs,
+			 size_t half_splice_mer_len)
 {
 	//static int island_repeat_tolerance = 10;
 	BowtieHitFactory hit_factory(it,rt);
 	map<uint32_t, vector<bool> > coverage_map;
 	vector<RefSeg> expected_look_left_windows;
 	vector<RefSeg> expected_look_right_windows;
-	
-	//FILE* f_islands = fopen("islands.coords", "w");
 	
 	for (size_t f = 0; f < seg_files.size(); ++f)
 	{
@@ -2944,9 +2903,7 @@ void capture_island_ends(ReadTable& it,
 					//fprintf (stdout, "%s\t%d\t%d\n", rt.get_name(itr->first), last_uncovered + 1, c);
 					covered_bases += (c + 1 - last_uncovered);
 					//fprintf(stderr, "making new segment from %d to %d\n", last_uncovered + 1, c);
-					for (int l = (int)c; 
-						 l > (int)last_uncovered; 
-						 --l)
+					for (int l = (int)c; l > (int)last_uncovered; --l)
 					{
 						long_enough[l] = true;
 					}
@@ -3047,35 +3004,35 @@ void capture_island_ends(ReadTable& it,
 	
 	vector<RefSeg> expected_don_acc_windows;
 	expected_don_acc_windows.insert(expected_don_acc_windows.end(),
-									expected_look_right_windows.begin(),
-									expected_look_right_windows.end());
+					expected_look_right_windows.begin(),
+					expected_look_right_windows.end());
 									  
 	expected_don_acc_windows.insert(expected_don_acc_windows.end(),
-									expected_look_left_windows.begin(),
-									expected_look_left_windows.end());
+					expected_look_left_windows.begin(),
+					expected_look_left_windows.end());
 	
 	coverage_map.clear();
 	juncs_from_ref_segs<RecordExtendableJuncs>(rt, 
-											   expected_don_acc_windows, 
-											   cov_juncs, 
-											   "GT", 
-											   "AG",  
-											   max_coverage_intron_length, 
-											   min_coverage_intron_length, 
-											   max_cov_juncs,
-											   true,
-											   half_splice_mer_len);
+						   expected_don_acc_windows, 
+						   cov_juncs, 
+						   "GT", 
+						   "AG",  
+						   max_coverage_intron_length, 
+						   min_coverage_intron_length, 
+						   max_cov_juncs,
+						   true,
+						   half_splice_mer_len);
 	fprintf(stderr, "Found %ld potential island-end pairing junctions\n", cov_juncs.size());
 	//juncs.insert(island_juncs.begin(), island_juncs.end());
 }
 
 
 void process_segment_hits(RefSequenceTable& rt,
-						  FILE* reads_file,
-						  vector<FILE*>& seg_files,
-						  BowtieHitFactory& hit_factory,
-						  ReadTable& it,
-						  std::set<Junction, skip_count_lt>& juncs)
+			  FILE* reads_file,
+			  vector<FILE*>& seg_files,
+			  BowtieHitFactory& hit_factory,
+			  ReadTable& it,
+			  std::set<Junction, skip_count_lt>& juncs)
 {
 	
 	//get_seqs(reads_stream, it, false, false);
@@ -3094,11 +3051,11 @@ void process_segment_hits(RefSequenceTable& rt,
 	
 	int num_group = 0;
 	while (process_next_hit_group(rt,
-								  reads_file,
-								  it, 
-								  hit_streams, 
-								  hit_streams.size() - 1,
-								  juncs) == true)
+				      reads_file,
+				      it, 
+				      hit_streams, 
+				      hit_streams.size() - 1,
+				      juncs) == true)
 	{
 		num_group++;
 		if (num_group % 500000 == 0)
@@ -3110,10 +3067,10 @@ void process_segment_hits(RefSequenceTable& rt,
 }
 
 void driver(istream& ref_stream,
-			FILE* juncs_out,
-			FILE* left_reads_file,
+	    FILE* juncs_out,
+	    FILE* left_reads_file,
             vector<FILE*>& left_seg_files,
-			FILE* right_reads_file,
+	    FILE* right_reads_file,
             vector<FILE*>& right_seg_files)
 {	
 	if (left_seg_files.size() == 0)
@@ -3133,21 +3090,18 @@ void driver(istream& ref_stream,
 	fprintf (stderr, "Loading reference sequences...\n");
 	get_seqs(ref_stream, rt, true, false);
 	
-//	SequenceTable it(true, false);
-	
 	ReadTable it;
-
 	BowtieHitFactory hit_factory(it,rt);
 	
 	if (left_seg_files.size() > 1)
 	{
 		fprintf( stderr, "Loading left segment hits...");
 		process_segment_hits(rt,
-							 left_reads_file,
-							 left_seg_files,
-							 hit_factory,
-							 it,
-							 seg_juncs);
+				     left_reads_file,
+				     left_seg_files,
+				     hit_factory,
+				     it,
+				     seg_juncs);
 		
 		fprintf( stderr, "done.\n");
 	}
@@ -3156,11 +3110,11 @@ void driver(istream& ref_stream,
 	{
 		fprintf( stderr, "Loading right segment hits...");
 		process_segment_hits(rt,
-							 right_reads_file,
-							 right_seg_files,
-							 hit_factory,
-							 it,
-							 seg_juncs);
+				     right_reads_file,
+				     right_seg_files,
+				     hit_factory,
+				     it,
+				     seg_juncs);
 		fprintf( stderr, "done.\n");
 	}
 	fprintf(stderr, "Found %ld potential split-segment junctions\n", seg_juncs.size());
@@ -3200,10 +3154,10 @@ void driver(istream& ref_stream,
 		{
 			fprintf(stderr, "Looking for junctions by island end pairings\n");
 			capture_island_ends(it,
-								rt,
-								all_seg_files, 
-								cov_juncs, 
-								5);
+					    rt,
+					    all_seg_files, 
+					    cov_juncs, 
+					    5);
 			fprintf(stderr, "done\n");
 		}
 	}
@@ -3214,11 +3168,10 @@ void driver(istream& ref_stream,
 		prune_extension_table(butterfly_overhang);
 		compact_extension_table();
 		pair_covered_sites(it,
-						   rt,
-						   all_seg_files, 
-						   butterfly_juncs,
-						   5);
-
+				   rt,
+				   all_seg_files, 
+				   butterfly_juncs,
+				   5);
 		
 		fprintf(stderr, "done\n");
 	}
@@ -3228,16 +3181,15 @@ void driver(istream& ref_stream,
 	{
 	  std::set<Junction, skip_count_lt> microexon_juncs;
 		align_microexon_segs(rt,
-							 microexon_juncs,
-							 max_cov_juncs,
-							 5);
+				     microexon_juncs,
+				     max_cov_juncs,
+				     5);
 		juncs.insert(microexon_juncs.begin(), microexon_juncs.end());
 	}
-	
+
 	juncs.insert(cov_juncs.begin(), cov_juncs.end());
 	juncs.insert(seg_juncs.begin(), seg_juncs.end());
 	juncs.insert(butterfly_juncs.begin(), butterfly_juncs.end());
-
 	
 	fprintf(stderr, "Reporting potential splice junctions...");
 	for(std::set<Junction>::iterator itr = juncs.begin();
@@ -3247,11 +3199,11 @@ void driver(istream& ref_stream,
 		const char* ref_name = rt.get_name(itr->refid);
 		
 		fprintf(juncs_out,
-				"%s\t%d\t%d\t%c\n",
-				ref_name,
-				itr->left,
-				itr->right,
-				itr->antisense ? '-' : '+');
+			"%s\t%d\t%d\t%c\n",
+			ref_name,
+			itr->left,
+			itr->right,
+			itr->antisense ? '-' : '+');
 	}
 	fprintf (stderr, "done\n");
 	fprintf (stderr, "Reported %d total possible splices\n", (int)juncs.size());
@@ -3259,136 +3211,136 @@ void driver(istream& ref_stream,
 
 int main(int argc, char** argv)
 {
-	fprintf(stderr, "segment_juncs v%s (%s)\n", PACKAGE_VERSION, SVN_REVISION); 
-	fprintf(stderr, "---------------------------\n");
-	
-    int parse_ret = parse_options(argc, argv, print_usage);
-    if (parse_ret)
-        return parse_ret;
-    
-	if(optind >= argc)
+  fprintf(stderr, "segment_juncs v%s (%s)\n", PACKAGE_VERSION, SVN_REVISION); 
+  fprintf(stderr, "---------------------------\n");
+  
+  int parse_ret = parse_options(argc, argv, print_usage);
+  if (parse_ret)
+    return parse_ret;
+  
+  if(optind >= argc)
     {
-        print_usage();
-        return 1;
+      print_usage();
+      return 1;
     }
-	
-	string ref_file_name = argv[optind++];
-	
-	if(optind >= argc)
+  
+  string ref_file_name = argv[optind++];
+  
+  if(optind >= argc)
     {
-        print_usage();
-        return 1;
+      print_usage();
+      return 1;
     }
-    
-    string juncs_file_name = argv[optind++];
-	
-	if(optind >= argc)
+  
+  string juncs_file_name = argv[optind++];
+  
+  if(optind >= argc)
     {
-        print_usage();
-        return 1;
+      print_usage();
+      return 1;
     }
-    
-    string left_reads_file_name = argv[optind++];
-	
-    if(optind >= argc)
+  
+  string left_reads_file_name = argv[optind++];
+  
+  if(optind >= argc)
     {
-        print_usage();
-        return 1;
+      print_usage();
+      return 1;
     }
-    
-    string left_segment_file_list = argv[optind++];
-
-    
-	string right_segment_file_list; 
-	string right_reads_file_name;
-	if (optind < argc)
+  
+  string left_segment_file_list = argv[optind++];
+  
+  
+  string right_segment_file_list; 
+  string right_reads_file_name;
+  if (optind < argc)
+    {
+      right_reads_file_name = argv[optind++];
+      
+      if(optind >= argc)
 	{
-		right_reads_file_name = argv[optind++];
-		
-		if(optind >= argc)
-		{
-			print_usage();
-			return 1;
-		}
-		right_segment_file_list = argv[optind++];
+	  print_usage();
+	  return 1;
 	}
-	
-    // Open the approppriate files
-    
-	ifstream ref_stream(ref_file_name.c_str(), ifstream::in);
-    if (!ref_stream.good())
-    {
-        fprintf(stderr, "Error: cannot open %s for reading\n",
-                ref_file_name.c_str());
-        exit(1);
+      right_segment_file_list = argv[optind++];
     }
-    
-	
-	FILE* juncs_file = fopen(juncs_file_name.c_str(), "w");
-	if (!juncs_file)
+  
+  // Open the approppriate files
+  
+  ifstream ref_stream(ref_file_name.c_str(), ifstream::in);
+  if (!ref_stream.good())
+	  {
+	    fprintf(stderr, "Error: cannot open %s for reading\n",
+		    ref_file_name.c_str());
+	    exit(1);
+	  }
+  
+  
+  FILE* juncs_file = fopen(juncs_file_name.c_str(), "w");
+  if (!juncs_file)
     {
-        fprintf(stderr, "Error: cannot open %s for writing\n",
-                juncs_file_name.c_str());
-        exit(1);
+      fprintf(stderr, "Error: cannot open %s for writing\n",
+	      juncs_file_name.c_str());
+      exit(1);
     }
 	
-	FILE* left_reads_file = fopen(left_reads_file_name.c_str(), "r");
-    if (!left_reads_file)
+  FILE* left_reads_file = fopen(left_reads_file_name.c_str(), "r");
+  if (!left_reads_file)
     {
-        fprintf(stderr, "Error: cannot open %s for reading\n",
-                left_reads_file_name.c_str());
-        exit(1);
+      fprintf(stderr, "Error: cannot open %s for reading\n",
+	      left_reads_file_name.c_str());
+      exit(1);
     }
-    
-    vector<string> left_segment_file_names;
-    vector<FILE*> left_segment_files;
-    tokenize(left_segment_file_list, ",",left_segment_file_names);
-    for (size_t i = 0; i < left_segment_file_names.size(); ++i)
+  
+  vector<string> left_segment_file_names;
+  vector<FILE*> left_segment_files;
+  tokenize(left_segment_file_list, ",",left_segment_file_names);
+  for (size_t i = 0; i < left_segment_file_names.size(); ++i)
     {
-        FILE* seg_file = fopen(left_segment_file_names[i].c_str(), "r");
-        if (seg_file == NULL)
+      FILE* seg_file = fopen(left_segment_file_names[i].c_str(), "r");
+      if (seg_file == NULL)
         {
-            fprintf(stderr, "Error: cannot open segment map file %s for reading\n",
-                    left_segment_file_names[i].c_str());
-            exit(1);
+	  fprintf(stderr, "Error: cannot open segment map file %s for reading\n",
+		  left_segment_file_names[i].c_str());
+	  exit(1);
         }
-        left_segment_files.push_back(seg_file);
+      left_segment_files.push_back(seg_file);
     }
-    
-	vector<FILE*> right_segment_files;
-	FILE* right_reads_file = NULL;
-	if (right_segment_file_list != "")
+  
+  vector<FILE*> right_segment_files;
+  FILE* right_reads_file = NULL;
+  if (right_segment_file_list != "")
+    {
+      right_reads_file = fopen(right_reads_file_name.c_str(), "r");
+      if (!right_reads_file)
 	{
-		right_reads_file = fopen(right_reads_file_name.c_str(), "r");
-		if (!right_reads_file)
-		{
-			fprintf(stderr, "Error: cannot open %s for reading\n",
-					right_reads_file_name.c_str());
-			exit(1);
-		}
-		
-		vector<string> right_segment_file_names;
-		
-		tokenize(right_segment_file_list, ",",right_segment_file_names);
-		for (size_t i = 0; i < right_segment_file_names.size(); ++i)
-		{
-			FILE* seg_file = fopen(right_segment_file_names[i].c_str(), "r");
-			if (seg_file == NULL)
-			{
-				fprintf(stderr, "Error: cannot open segment map %s for reading\n",
-						right_segment_file_names[i].c_str());
-				exit(1);
-			}
-			right_segment_files.push_back(seg_file);
-		}
+	  fprintf(stderr, "Error: cannot open %s for reading\n",
+		  right_reads_file_name.c_str());
+	  exit(1);
 	}
-	
-    driver(ref_stream, 
-		   juncs_file,
-		   left_reads_file, 
-		   left_segment_files, 
-		   right_reads_file,
-		   right_segment_files);
-    
-    return 0;
+      
+      vector<string> right_segment_file_names;
+      
+      tokenize(right_segment_file_list, ",",right_segment_file_names);
+      for (size_t i = 0; i < right_segment_file_names.size(); ++i)
+	{
+	  FILE* seg_file = fopen(right_segment_file_names[i].c_str(), "r");
+	  if (seg_file == NULL)
+	    {
+	      fprintf(stderr, "Error: cannot open segment map %s for reading\n",
+		      right_segment_file_names[i].c_str());
+	      exit(1);
+	    }
+	  right_segment_files.push_back(seg_file);
+	}
+    }
+  
+  driver(ref_stream, 
+	 juncs_file,
+	 left_reads_file, 
+	 left_segment_files, 
+	 right_reads_file,
+	 right_segment_files);
+  
+  return 0;
 }
