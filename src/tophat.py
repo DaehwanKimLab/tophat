@@ -985,6 +985,7 @@ def check_reads(params, reads_files):
     max_seed_len = 0
     max_qual = -1
     files = reads_files.split(',')
+
     for f_name in files:
         try:
             f = open(f_name)
@@ -2089,8 +2090,7 @@ def main(argv=None):
         sam_header_filename = get_index_sam_header(params.read_params, bwt_idx_prefix)
         
         if params.skip_check_reads == False:
-            # TODO: check right reads as well ?
-            params.read_params = check_reads(params.read_params, left_reads_list)
+            params.read_params = check_reads(params.read_params, left_reads_list + "," + right_reads_list)
             
         user_supplied_juncs = []
         if params.gff_annotation != None and params.find_GFF_juncs == True:
