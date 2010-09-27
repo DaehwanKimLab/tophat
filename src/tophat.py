@@ -175,7 +175,7 @@ class TopHatParams:
             for option, value in opts:
                 if option in ("-p", "--num-threads"):
                     self.bowtie_threads = int(value)
-                elif option in ("--keep-tmp"):
+                elif option == "--keep-tmp":
                     self.keep_tmp = True
         
         def check(self):
@@ -238,7 +238,7 @@ class TopHatParams:
                 elif option in ("-C", "--color"):
                     self.color = True
                     self.integer_quals = True
-                elif option in ("--color-out"):
+                elif option == "--color-out":
                     self.color_out = True
                 elif option in ("-s", "--seed-length"):
                     self.seed_length = int(value)
