@@ -19,24 +19,11 @@
     </table>
     </div>
   </div>
-  <!--
-  <div id="topmenu">
-    <div class="rights"></div>
-    <div class="lefts">
-      <ul>
-        <li><a href="./index.html">Home</a></li>
-        <li><a href="./tutorial.html">Getting started</a></li>
-        <li><a href="./releases.html">Releases</a></li>
-        <li><a href="./indexes.html">Pre-built indexes</a></li>
-        <li><a href="http://bowtie-bio.sourceforge.net/">Sourceforge</a></li>
-      </ul>
-    </div>
-  </div>
-  -->
+
   <div id="main">
+	
     <div id="rightside">
-        
- 		<h2>Site Map</h2>
+		<h2>Site Map</h2>
 		  <div class="box">
 		    <ul>
 		      <li><a href="index.html">Home</a></li>
@@ -59,15 +46,22 @@
 		    <ul>
 		      <table width="100%"><tr>
 		      <td>
-		      	<a href="./downloads/tophat-1.0.13.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">
-					TopHat 1.0.13 (BETA)</a>
-		         </td><td align="right">
-		           2/5/2010
+				<tr><td>version 1.1.0 (BETA)</td> <td align="right">10/3/2010</td></tr>
+				<tr>
+		      		<td><a href="./downloads/tophat-1.1.0.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
+		      	</tr>
+				<tr>
+					<td><a href="./downloads/tophat-1.1.0.Linux_x86_64.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
+				</tr>
+				<tr>
+					<td><a href="./downloads/tophat-1.1.0.OSX_x86_64.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
+				</tr>
 		      </td>
 		      </tr>
 			  </table>
 		    </ul>
 		  </div>
+		
 		  <h2>Related Tools</h2>
 		  <div class="box">
 		    <ul>
@@ -75,30 +69,58 @@
 		      <li><a href="http://bowtie.cbcb.umd.edu">Bowtie</a>: Ultrafast short read alignment</li>
 		    </ul>
 		  </div>
+		
 		  <a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/"><h2><u>Pre-built indexes</u></h2></a>
 		  <div class="box">
 		    <table width="100%">
 
 		      <!-- hg18 -->
-		      <tr>
 
-		        <td><a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/hg18.ebwt.zip"><i>H. sapiens</i>, UCSC hg18</a></td>
-		        <td align="right"><b>2.7 GB</b></td>
-		      </tr>
+		      <tr><td>
+		        <a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/hg18.ebwt.zip"><i>H. sapiens</i>, UCSC hg18</a>
+		        </td><td align="right">
+		          <b>2.7 GB</b>
+		      </td></tr>
+		      <tr><td colspan=2><table width="100%"><tr>
+
+		      </tr><tr>
+		        <td>&nbsp;colorspace:
+		          <a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/hg18_c.ebwt.zip">full</a></td>
+		      </tr></table>
+		      </td></tr>
 
 		      <!-- hg19 -->
-		      <tr>
-		        <td><a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/hg19.ebwt.zip"><i>H. sapiens</i>, UCSC hg19</a></td>
-		        <td align="right"><b>2.7 GB</b></td>
-		      </tr>
+
+		      <tr><td>
+		        <a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/hg19.ebwt.zip"><i>H. sapiens</i>, UCSC hg19</a>
+		        </td><td align="right">
+		          <b>2.7 GB</b>
+		      </td></tr>
+		      <tr><td colspan=2><table width="100%"><tr>
+
+		      </tr><tr>
+		        <td>&nbsp;colorspace:
+		          <a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/hg19_c.ebwt.zip">full</a></td>
+		      </tr></table>
+
 
 
 		      <!-- mm9 -->
-		      <tr>
-		        <td><a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/mm9.ebwt.zip"><i>M. musculus</i>, UCSC mm9</a></td>
 
-		        <td align="right"><b>2.4 GB</b></td>
-		      </tr>
+		      <tr><td>
+		        <a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/mm9.ebwt.zip"><i>M. musculus</i>, UCSC mm9</a>
+		        </td><td align="right">
+		          <b>2.4 GB</b>
+		      </td></tr>
+		      <tr><td colspan=2><table width="100%"><tr>
+		        
+
+		      </tr><tr>
+		        <td>&nbsp;colorspace:
+		          <a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/mm9_c.ebwt.zip">full</a></td>
+		      </tr></table>
+		      </td></tr>
+
 
 		  </table>
 
@@ -130,6 +152,8 @@
 		  <div class="box">
 		    <ul>
 		      <li><a href="http://www.cs.umd.edu/~cole/">Cole Trapnell</a></li>
+			  <li><a href="http://www.cs.umd.edu/~infphilo/">Daehwan Kim</a></li>
+			  <li>Geo Pertea</li>
 		      <li><a href="http://www.math.berkeley.edu/~lpachter/">Lior Pachter</a></li>
 		      <li><a href="http://www.cbcb.umd.edu/~salzberg/">Steven Salzberg</a></li>
 		    </ul>
@@ -164,7 +188,7 @@
 	  	
 	<br/>
   	<h2 id="inst">Install quick-start</h2><br/>
-      	<p>Download and extract the appropriate <a href="./downloads/tophat-0.7.0.tar.gz">TopHat</a>
+      	<p>Download and extract the appropriate <a href="./downloads/tophat-1.1.0.tar.gz">TopHat</a>
             and <a href="https://sourceforge.net/project/showfiles.php?group_id=236897&package_id=288231">Bowtie</a> releases.</p>
             You will need the following Bowtie in your <tt>PATH</tt>:
             <ul>
@@ -175,7 +199,7 @@
       	<p>
 		<p> To install TopHat, unpack the tarball and change to the package 
 			directory as follows: </p> <p>
-			<blockquote>tar zxvf tophat-1.0.7.tar.gz</blockquote> 
+			<blockquote>tar zxvf tophat-1.1.0.tar.gz</blockquote> 
 			<blockquote>cd tophat-1.0.7/</blockquote>
 		  <p>Now build the package: </p> <p> 
 			<blockquote>./configure --prefix=/path/to/install/directory/</blockquote>
@@ -208,7 +232,7 @@
 		<br/>
 		<pre>
 			
-[Mon May  4 11:07:23 2009] Beginning TopHat run (v1.0.7)
+[Mon May  4 11:07:23 2009] Beginning TopHat run (v1.1.1)
 -----------------------------------------------
 [Mon May  4 11:07:23 2009] Preparing output location ./tophat_out/
 [Mon May  4 11:07:23 2009] Checking for Bowtie index files
@@ -317,17 +341,9 @@ Run complete [00:00:00 elapsed]
       	
       	<h2 id="exam">Examining your output</h2><br/>
       	<p>TopHat produces <a href="./manual.html#output">several files </a> of 
-	    output.  You can quickly examine your results by loading the two 
-	    tracks <tt>coverage.wig</tt> and <tt>junctions.bed</tt> into the <a href="http://genome.ucsc.edu/">UCSC
-		genome browser</a>.</p>
-		
-		<p>You may want to change the "junctions" track to "pack", so the 
-					display looks like this:</p>
-		
-        <br/>
-  	</td></tr></table>
-		<img border=0 src="images/ucsc-track.jpg"></img>
-    </div>
+	    output.  Because TopHat reports output in widely adopted formats, you can import it directly into a number of genome browsers and data viewers, including <a href="http://www.broadinstitute.org/igv/">IGV</a>, <a href="http://www.bioviz.org/igb/">IGB</a>, and the <a href="http://genome.ucsc.edu/">UCSC genome browser</a>.
+	 	</p>
+		<br/>
   </div>
   <div id="footer">
   	<table width="100%" cellspacing=15><tr><td>
