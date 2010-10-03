@@ -268,7 +268,7 @@
 	  the <tt>tophat</tt> script:
 	  </p><br/>
 	  <blockquote>
- 	   Usage: tophat [options]* &lt;index_base&gt; &lt;reads1_1[,...,readsN_1]&gt; [reads1_2,...readsN_2] <br>
+ 	   Usage: tophat [options]* &lt;index_base&gt; &lt;reads1_1[,...,readsN_1]&gt; [reads1_2,...readsN_2]
 	  </blockquote>
 		When running TopHat with paired ends, it is <strong>critical</strong> 
 		that the *_1 files an the *_2 files appear in separate comma separated
@@ -389,22 +389,6 @@
 	  </td><td VALIGN=top>
 	  As of the Illumina GA pipeline version 1.3, quality scores are encoded 
 	  in Phred-scaled base-64.  Use this option for FASTQ files from pipeline 1.3 or later.  
-	  </td></tr>
-	  <tr><td VALIGN=top nowrap>
-	  <tt>-Q/--quals</tt>
-	  </td><td VALIGN=top>
-	  Separate quality value files - colorspace read files (CSFASTA) come with separate qual files.
-	  </td></tr>
-	  <tr><td VALIGN=top nowrap>
-	  <tt>--integer-quals</tt>
-	  </td><td VALIGN=top>
-	  Quality values are space-delimited integer values, this becomes default when you specify -C/--color.
-	  </td></tr>
-	  <tr><td VALIGN=top nowrap>
-	  <tt>-C/--color</tt>
-	  </td><td VALIGN=top>
-	  Colorspace reads, note that it uses a colorspace bowtie index and requires Bowtie 0.12.6 or higher.<br>
-	  Common usage: tophat --color --quals [other options]* &lt;colorspace_index_base&gt; &lt;reads1_1[,...,readsN_1]&gt; [reads1_2,...readsN_2] &lt;quals1_1[,...,qualsN_1]&gt; [quals1_2,...qualsN_2]
 	  </td></tr>
 	  <tr><td VALIGN=top nowrap>
 	  <tt>-F/--min-isoform-fraction &lt;0.0-1.0&gt;</tt>
