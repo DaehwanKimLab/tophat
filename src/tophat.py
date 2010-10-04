@@ -2090,7 +2090,10 @@ def main(argv=None):
         sam_header_filename = get_index_sam_header(params.read_params, bwt_idx_prefix)
         
         if params.skip_check_reads == False:
-            params.read_params = check_reads(params.read_params, left_reads_list + "," + right_reads_list)
+            reads_list = left_reads_list
+            if right_reads_list:
+                reads_list = reads_list + "," + right_reads_list
+            params.read_params = check_reads(params.read_params, reads_list)
             
         user_supplied_juncs = []
         if params.gff_annotation != None and params.find_GFF_juncs == True:
