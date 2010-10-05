@@ -23,6 +23,7 @@
 using namespace std;
 
 char* FLineReader::nextLine() {
+   if(!file) return NULL;
    if (pushed) { pushed=false; return buf; }
    //reads a char at a time until \n and/or \r are encountered
    len=0;
@@ -53,8 +54,18 @@ char* FLineReader::nextLine() {
    return buf;
 }
 
-
-
+void skip_lines(FLineReader& fr)
+{
+  char* buf = NULL;
+  while ((buf = fr.nextLine()) != NULL) {
+    if (buf[0] == '\0') continue;
+    if (buf[0] == '>' || buf[0] == '@')
+      {
+	fr.pushBack();
+	break;
+      }
+  }
+}
 
 bool next_fasta_record(FLineReader& fr,
 		       string& defline, 
