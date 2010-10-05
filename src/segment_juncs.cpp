@@ -3066,6 +3066,24 @@ void process_segment_hits(RefSequenceTable& rt,
 	
 }
 
+void print_juncs(RefSequenceTable& rt, std::set<Junction, skip_count_lt>& juncs, const char* str)
+{
+  fprintf (stderr, "-- %s --\n", str);
+  for(std::set<Junction>::iterator itr = juncs.begin();
+      itr != juncs.end();
+      ++itr)
+    {
+      const char* ref_name = rt.get_name(itr->refid);
+      
+      fprintf(stderr, "%s\t%d\t%d\t%c\n",
+	      ref_name,
+	      itr->left,
+	      itr->right,
+	      itr->antisense ? '-' : '+');
+    }
+  fprintf (stderr, "-- done --\n");
+}
+
 void driver(istream& ref_stream,
 	    FILE* juncs_out,
 	    FILE* left_reads_file,
@@ -3185,7 +3203,15 @@ void driver(istream& ref_stream,
 				     max_cov_juncs,
 				     5);
 		juncs.insert(microexon_juncs.begin(), microexon_juncs.end());
+
+		// daehwan
+		print_juncs(rt, microexon_juncs, "microexon");
 	}
+
+	// daehwan
+	print_juncs(rt, seg_juncs, "seg");
+	print_juncs(rt, cov_juncs, "cov");
+	print_juncs(rt, butterfly_juncs, "buf");
 
 	juncs.insert(cov_juncs.begin(), cov_juncs.end());
 	juncs.insert(seg_juncs.begin(), seg_juncs.end());

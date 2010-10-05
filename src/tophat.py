@@ -233,7 +233,7 @@ class TopHatParams:
                     self.phred64_quals = True
                 elif option in ("-Q", "--quals"):
                     self.quals = True
-                elif option in ("--integer-quals"):
+                elif option == "--integer-quals":
                     self.integer_quals = True
                 elif option in ("-C", "--color"):
                     self.color = True
@@ -927,7 +927,6 @@ def fa_ungetline():
 
 def fa_init(f):
     global fasta_linebuf, fasta_lastline
-    f.seek(0)
     fasta_linebuf=''
     fasta_lastline=''
     
@@ -986,6 +985,7 @@ def check_reads(params, reads_files):
     max_qual = -1
     files = reads_files.split(',')
 
+    file_pos = 0
     for f_name in files:
         try:
             f = open(f_name)
@@ -993,7 +993,13 @@ def check_reads(params, reads_files):
             print >> sys.stderr, "Error: could not open file", f_name
             sys.exit(1)
 
-        first_line = f.readline()
+        # skip lines
+        while True:
+            file_pos = f.tell()
+            first_line = f.readline()
+            if first_line[0] in "@>":
+                break
+            
         if first_line[0] == "@":
             format = "fastq"
         elif first_line[0] == ">":
@@ -1002,7 +1008,8 @@ def check_reads(params, reads_files):
             print >> sys.stderr, "Error: file %s does not appear to be a valid FASTA or FASTQ file" % f_name
 
         observed_formats.add(format)
-        f.seek(0)
+        f.seek(file_pos)
+
         line_num = 0
         if format == "fastq":
             while True:

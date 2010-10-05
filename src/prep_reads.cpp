@@ -47,11 +47,14 @@ void filter_garbage_reads(vector<FILE*> reads_files, vector<FILE*> quals_files)
 		Read read;
 		FILE* fa = reads_files[fi];
 		FLineReader fr(fa);
+		skip_lines(fr);
 
-		FILE* fq;
+		FILE* fq = NULL;
 		if (quals)
 		  fq = quals_files[fi];
 		FLineReader frq(fq);
+		skip_lines(frq);
+
 		while (!fr.isEof())
 		{
 			read.clear();
