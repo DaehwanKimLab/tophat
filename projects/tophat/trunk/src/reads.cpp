@@ -130,7 +130,9 @@ bool next_fastq_record(FLineReader& fr,
 	string temp_qual;
 	for (size_t i = 0; i < integer_qual_values.size(); ++i)
 	  {
-	    temp_qual.push_back((char)(atoi(integer_qual_values[i].c_str()) + 33));
+	    int qual_value = atoi(integer_qual_values[i].c_str());
+	    if (qual_value < 0) qual_value = 0;
+	    temp_qual.push_back((char)(qual_value + 33));
 	  }
 
 	qual.append(temp_qual);

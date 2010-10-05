@@ -73,6 +73,8 @@ bool integer_quals = false;
 bool color = false;
 bool color_out = false;
 
+bool dUTP = false;
+
 extern void print_usage();
 
 /**
@@ -169,6 +171,7 @@ const char *short_options = "";
 #define OPT_INTEGER_QUALS                  67
 #define OPT_COLOR                  68
 #define OPT_COLOR_OUT                  69
+#define OPT_DUTP    70
 
 static struct option long_options[] = {
 {"fasta",				no_argument,		0,	OPT_FASTA},
@@ -206,131 +209,135 @@ static struct option long_options[] = {
 {"integer-quals",		no_argument,		0,	OPT_INTEGER_QUALS},
 {"color",		no_argument,		0,	OPT_COLOR},
 {"color-out",		no_argument,		0,	OPT_COLOR_OUT},
+{"dUTP",		no_argument,		0,	OPT_DUTP},
   
 {0, 0, 0, 0} // terminator
 };
 
 int parse_options(int argc, char** argv, void (*print_usage)())
 {
-    int option_index = 0;
-    int next_option;
-    do {
-        next_option = getopt_long(argc, argv, short_options, long_options, &option_index);
-        switch (next_option) {
-			case -1:    
-				break;
-			case OPT_FASTA:
-				reads_format = FASTA;
-				break;
-			case OPT_FASTQ:
-				reads_format = FASTQ;
-				break;
-			case OPT_MIN_ANCHOR:
-				min_anchor_len = (uint32_t)parseInt(3, "--min-anchor arg must be at least 3", print_usage);
-				break;
-			case OPT_SPLICE_MISMATCHES:
-				max_splice_mismatches = parseInt(0, "--splice-mismatches arg must be at least 0", print_usage);
-				break; 
-			case OPT_VERBOSE:
-				verbose = true;
-				break;
-			case OPT_INSERT_LENGTH_MEAN:
-				inner_dist_mean = parseInt(-1024, "--inner-dist-mean arg must be at least -1024", print_usage);
-				break;
-			case OPT_INSERT_LENGTH_STD_DEV:
-				inner_dist_std_dev = parseInt(0, "--inner-dist-std-dev arg must be at least 0", print_usage);
-				break;
-			case OPT_OUTPUT_DIR:
-				output_dir = optarg;
-				break;
-			case OPT_GENE_FILTER:
-				gene_filter = optarg;
-				break;
-			case OPT_GFF_ANNOTATIONS:
-				gff_file = optarg;
-				break;
-			case OPT_MAX_MULTIHITS:
-				max_multihits = parseInt(1, "--max-multihits arg must be at least 1", print_usage);
-				break;
-			case OPT_NO_CLOSURE_SEARCH:
-				no_closure_search = true;
-				break;
-			case OPT_NO_COVERAGE_SEARCH:
-				no_coverage_search = true;
-				break;
-			case OPT_NO_MICROEXON_SEARCH:
-				no_microexon_search = true;
-				break;
-			case OPT_SEGMENT_LENGTH:
-				segment_length = parseInt(4, "--segment-length arg must be at least 4", print_usage);
-				break;
-			case OPT_SEGMENT_MISMATCHES:
-				segment_mismatches = parseInt(0, "--segment-mismatches arg must be at least 0", print_usage);
-				break;
-			case OPT_MIN_CLOSURE_EXON:
-				min_closure_exon_length = parseInt(1, "--min-closure-exon arg must be at least 1", print_usage);
-				break;
-			case OPT_MIN_CLOSURE_INTRON:
-				min_closure_intron_length = parseInt(1, "--min-closure-intron arg must be at least 1", print_usage);
-				break;
-			case OPT_MAX_CLOSURE_INTRON:
-				max_closure_intron_length = parseInt(1, "--max-closure-intron arg must be at least 1", print_usage);
-				break;
-			case OPT_MIN_COVERAGE_INTRON:
-				min_coverage_intron_length = parseInt(1, "--min-coverage-intron arg must be at least 1", print_usage);
-				break;
-			case OPT_MAX_COVERAGE_INTRON:
-				max_coverage_intron_length = parseInt(1, "--max-coverage-intron arg must be at least 1", print_usage);
-				break;
-			case OPT_MIN_SEGMENT_INTRON:
-				min_segment_intron_length = parseInt(1, "--min-segment-intron arg must be at least 1", print_usage);
-				break;
-			case OPT_MAX_SEGMENT_INTRON:
-				max_segment_intron_length = parseInt(1, "--max-segment-intron arg must be at least 1", print_usage);
-				break;
-			case OPT_MIN_REPORT_INTRON:
-				min_report_intron_length = parseInt(1, "--min-report-intron arg must be at least 1", print_usage);
-				break;
-			case OPT_MAX_REPORT_INTRON:
-				max_segment_intron_length = parseInt(1, "--max-segment-intron arg must be at least 1", print_usage);
-				break;
-			case OPT_MIN_ISOFORM_FRACTION:
-				min_isoform_fraction = parseFloat(0.0f, 1.0f, "--min-isoform-fraction arg must be [0.0,1.0]", print_usage);
-				break;
-			case OPT_IUM_READS:
-				ium_reads = optarg;
-				break;
-            case OPT_SAM_HEADER:
-				sam_header = optarg;
-				break;
-			case OPT_BUTTERFLY_SEARCH:
-				butterfly_search = true;
-				break;
-			case OPT_SOLEXA_QUALS:
-				solexa_quals = true;
-				break;
-			case OPT_PHRED64_QUALS:
-				phred64_quals = true;
-				break;
-	case OPT_QUALS:
-	  quals = true;
-	  break;
-	case OPT_INTEGER_QUALS:
-	  integer_quals = true;
-	  break;
-	case OPT_COLOR:
-	  color = true;
-	  break;
-	case OPT_COLOR_OUT:
-	  color_out = true;
-	  break;
-	default:
-	  print_usage();
-	  return 1;
-        }
-    } while(next_option != -1);
-	
-    return 0;
+  int option_index = 0;
+  int next_option;
+  do {
+    next_option = getopt_long(argc, argv, short_options, long_options, &option_index);
+    switch (next_option) {
+    case -1:    
+      break;
+    case OPT_FASTA:
+      reads_format = FASTA;
+      break;
+    case OPT_FASTQ:
+      reads_format = FASTQ;
+      break;
+    case OPT_MIN_ANCHOR:
+      min_anchor_len = (uint32_t)parseInt(3, "--min-anchor arg must be at least 3", print_usage);
+      break;
+    case OPT_SPLICE_MISMATCHES:
+      max_splice_mismatches = parseInt(0, "--splice-mismatches arg must be at least 0", print_usage);
+      break; 
+    case OPT_VERBOSE:
+      verbose = true;
+      break;
+    case OPT_INSERT_LENGTH_MEAN:
+      inner_dist_mean = parseInt(-1024, "--inner-dist-mean arg must be at least -1024", print_usage);
+      break;
+    case OPT_INSERT_LENGTH_STD_DEV:
+      inner_dist_std_dev = parseInt(0, "--inner-dist-std-dev arg must be at least 0", print_usage);
+      break;
+    case OPT_OUTPUT_DIR:
+      output_dir = optarg;
+      break;
+    case OPT_GENE_FILTER:
+      gene_filter = optarg;
+      break;
+    case OPT_GFF_ANNOTATIONS:
+      gff_file = optarg;
+      break;
+    case OPT_MAX_MULTIHITS:
+      max_multihits = parseInt(1, "--max-multihits arg must be at least 1", print_usage);
+      break;
+    case OPT_NO_CLOSURE_SEARCH:
+      no_closure_search = true;
+      break;
+    case OPT_NO_COVERAGE_SEARCH:
+      no_coverage_search = true;
+      break;
+    case OPT_NO_MICROEXON_SEARCH:
+      no_microexon_search = true;
+      break;
+    case OPT_SEGMENT_LENGTH:
+      segment_length = parseInt(4, "--segment-length arg must be at least 4", print_usage);
+      break;
+    case OPT_SEGMENT_MISMATCHES:
+      segment_mismatches = parseInt(0, "--segment-mismatches arg must be at least 0", print_usage);
+      break;
+    case OPT_MIN_CLOSURE_EXON:
+      min_closure_exon_length = parseInt(1, "--min-closure-exon arg must be at least 1", print_usage);
+      break;
+    case OPT_MIN_CLOSURE_INTRON:
+      min_closure_intron_length = parseInt(1, "--min-closure-intron arg must be at least 1", print_usage);
+      break;
+    case OPT_MAX_CLOSURE_INTRON:
+      max_closure_intron_length = parseInt(1, "--max-closure-intron arg must be at least 1", print_usage);
+      break;
+    case OPT_MIN_COVERAGE_INTRON:
+      min_coverage_intron_length = parseInt(1, "--min-coverage-intron arg must be at least 1", print_usage);
+      break;
+    case OPT_MAX_COVERAGE_INTRON:
+      max_coverage_intron_length = parseInt(1, "--max-coverage-intron arg must be at least 1", print_usage);
+      break;
+    case OPT_MIN_SEGMENT_INTRON:
+      min_segment_intron_length = parseInt(1, "--min-segment-intron arg must be at least 1", print_usage);
+      break;
+    case OPT_MAX_SEGMENT_INTRON:
+      max_segment_intron_length = parseInt(1, "--max-segment-intron arg must be at least 1", print_usage);
+      break;
+    case OPT_MIN_REPORT_INTRON:
+      min_report_intron_length = parseInt(1, "--min-report-intron arg must be at least 1", print_usage);
+      break;
+    case OPT_MAX_REPORT_INTRON:
+      max_segment_intron_length = parseInt(1, "--max-segment-intron arg must be at least 1", print_usage);
+      break;
+    case OPT_MIN_ISOFORM_FRACTION:
+      min_isoform_fraction = parseFloat(0.0f, 1.0f, "--min-isoform-fraction arg must be [0.0,1.0]", print_usage);
+      break;
+    case OPT_IUM_READS:
+      ium_reads = optarg;
+      break;
+    case OPT_SAM_HEADER:
+      sam_header = optarg;
+      break;
+    case OPT_BUTTERFLY_SEARCH:
+      butterfly_search = true;
+      break;
+    case OPT_SOLEXA_QUALS:
+      solexa_quals = true;
+      break;
+    case OPT_PHRED64_QUALS:
+      phred64_quals = true;
+      break;
+    case OPT_QUALS:
+      quals = true;
+      break;
+    case OPT_INTEGER_QUALS:
+      integer_quals = true;
+      break;
+    case OPT_COLOR:
+      color = true;
+      break;
+    case OPT_COLOR_OUT:
+      color_out = true;
+      break;
+    case OPT_DUTP:
+      dUTP = true;
+      break;
+    default:
+      print_usage();
+      return 1;
+    }
+  } while(next_option != -1);
+  
+  return 0;
 }
 
 

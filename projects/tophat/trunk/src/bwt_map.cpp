@@ -877,11 +877,11 @@ void print_hit(FILE* fout,
 			bh.edit_dist());
 	
 	if (!bh.contiguous())
-	{
-		fprintf(fout,
-				"\tXS:A:%c",
-				bh.antisense_splice() ? '-' : '+');
-	}
+	  {
+	    fprintf(fout,
+		    "\tXS:A:%c",
+		    bh.antisense_splice() ? '-' : '+');
+	  }
 	
 	fprintf(fout, "\n");
 }
