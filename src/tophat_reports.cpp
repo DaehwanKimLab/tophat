@@ -119,11 +119,11 @@ enum FragmentType {FRAG_UNPAIRED, FRAG_LEFT, FRAG_RIGHT};
 
 bool rewrite_sam_hit(const RefSequenceTable& rt,
                      const BowtieHit& bh,
-					 const char* bwt_buf,
-					 char* rebuf, 
-					 char* read_alt_name,
-					 const FragmentAlignmentGrade& grade,
-					 FragmentType insert_side,
+		     const char* bwt_buf,
+		     char* rebuf, 
+		     char* read_alt_name,
+		     const FragmentAlignmentGrade& grade,
+		     FragmentType insert_side,
                      int num_hits,
                      const BowtieHit* next_hit)
 {
@@ -220,9 +220,16 @@ bool rewrite_sam_hit(const RefSequenceTable& rt,
                 next_hit->left() + 1);
         strcat(rebuf, mate_buf);
     }
+
+    
+    if (dUTP)
+      {
+	strcat(rebuf, "\tXS:SS");
+      }
+
     strcat(rebuf, "\n");
     
-	return true;
+    return true;
 }
 
 bool rewrite_sam_hit(const RefSequenceTable& rt,

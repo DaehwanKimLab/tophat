@@ -66,6 +66,8 @@ extern bool integer_quals;
 extern bool color;
 extern bool color_out;
 
+extern bool dUTP;
+
 int parseInt(int lower, const char *errmsg, void (*print_usage)());
 int parse_options(int argc, char** argv, void (*print_usage)());
 

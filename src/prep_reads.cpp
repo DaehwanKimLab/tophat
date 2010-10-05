@@ -75,7 +75,7 @@ void filter_garbage_reads(vector<FILE*> reads_files, vector<FILE*> quals_files)
 				    if (!next_fastq_record(frq, read.seq, read.alt_name, orig_qual, reads_format))
 					break;
 				  }
-
+				
 				format_qual_string(orig_qual, read.qual);
 			}
 			
