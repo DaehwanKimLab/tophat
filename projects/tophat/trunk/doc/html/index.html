@@ -57,15 +57,15 @@
 		    <ul>
 		      <table width="100%"><tr>
 		      <td>
-				<tr><td>version 1.1.0 (BETA)</td> <td align="right">10/3/2010</td></tr>
+				<tr><td>version 1.1.1 (BETA)</td> <td align="right">10/11/2010</td></tr>
 				<tr>
-		      		<td><a href="./downloads/tophat-1.1.0.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
+		      		<td><a href="./downloads/tophat-1.1.1.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
 		      	</tr>
 				<tr>
-					<td><a href="./downloads/tophat-1.1.0.Linux_x86_64.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
+					<td><a href="./downloads/tophat-1.1.1.Linux_x86_64.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
 				</tr>
 				<tr>
-					<td><a href="./downloads/tophat-1.1.0.OSX_x86_64.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
+					<td><a href="./downloads/tophat-1.1.1.OSX_x86_64.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
 				</tr>
 		      </td>
 		      </tr>
@@ -185,6 +185,13 @@
     </div> <!-- End of "rightside" -->
     <div id="leftside">
 		</p><br/>
+		<h2>TopHat 1.1.1  release 10/11/2010</h2>
+	    <p>This release of TopHat includes some fixes related to Colorspace read mapping.
+		<ul>
+			<li>Negative quality values are now handled correctly.</li>
+			<li>Comments at the beginning of csfasta files no longer trigger an error.</li>
+			<li><tt>--integer-quals</tt> no longer conflicts with <tt>-i</tt></li>
+			<li>The header in TopHat BAM files now correctly lists the sort order as <tt>coordinate</tt>, with group order <tt>reference</tt></li>
 		<h2>Update - TopHat 1.1.0 packages</h2>
 	    <p>The build of 1.1.0 released yesterday was throwing an exception with single end reads.  This has been corrected and the packages have been updated.  
 		</p><br/>
