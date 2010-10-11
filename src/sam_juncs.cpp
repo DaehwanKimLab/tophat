@@ -71,7 +71,10 @@ void driver(FILE* hit_map)
     while (hit_map && !feof(hit_map))
 	{
         char bwt_buf[2048];
-		fgets(bwt_buf, 2048, hit_map);
+		if (!fgets(bwt_buf, 2048, hit_map))
+        {
+            break;
+        }
 		// Chomp the newline
 		char* nl = strrchr(bwt_buf, '\n');
 		if (nl) *nl = 0;

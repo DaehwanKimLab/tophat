@@ -30,26 +30,6 @@
 		vrLen = 1733;
 		vrLoc = 30404;
 	};
-	ED16F026124E3FD300350FC6 /* PBXTextBookmark */ = {
-		isa = PBXTextBookmark;
-		fRef = ED6D6241118B5B6300A682F4 /* juncs_db.cpp */;
-		name = "juncs_db.cpp: 222";
-		rLen = 11;
-		rLoc = 5721;
-		rType = 0;
-		vrLen = 1242;
-		vrLoc = 5072;
-	};
-	ED16F027124E3FD300350FC6 /* PBXTextBookmark */ = {
-		isa = PBXTextBookmark;
-		fRef = ED6D6241118B5B6300A682F4 /* juncs_db.cpp */;
-		name = "juncs_db.cpp: 222";
-		rLen = 11;
-		rLoc = 5721;
-		rType = 0;
-		vrLen = 1226;
-		vrLoc = 5031;
-	};
 	ED2A44BD11DE77C7009AD73B /* gtf_juncs.cpp */ = {
 		uiCtxt = {
 			sepNavIntBoundsRect = "{{0, 0}, {1125, 2093}}";
@@ -335,6 +315,26 @@
 		vrLen = 1001;
 		vrLoc = 1357;
 	};
+	ED41B43E125E3D800000B5A2 /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = ED6D6241118B5B6300A682F4 /* juncs_db.cpp */;
+		name = "juncs_db.cpp: 222";
+		rLen = 11;
+		rLoc = 5721;
+		rType = 0;
+		vrLen = 1185;
+		vrLoc = 5072;
+	};
+	ED41B43F125E3D800000B5A2 /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = ED6D6252118B5B6B00A682F4 /* tophat.py */;
+		name = "tophat.py: 637";
+		rLen = 33;
+		rLoc = 29527;
+		rType = 0;
+		vrLen = 1866;
+		vrLoc = 24775;
+	};
 	ED5C74DB118B5B0700397B5E /* Project object */ = {
 		activeBuildConfigurationName = Debug;
 		activeExecutable = ED2A457611E2401E009AD73B /* sam_juncs */;
@@ -430,15 +430,13 @@
 					PBXFileDataSource_Warnings_ColumnID,
 				);
 			};
-			PBXPerProjectTemplateStateSaveDate = 307816292;
-			PBXWorkspaceStateSaveDate = 307816292;
+			PBXPerProjectTemplateStateSaveDate = 308171265;
+			PBXWorkspaceStateSaveDate = 308171265;
 		};
 		perUserProjectItems = {
 			ED16F014124CCD8400350FC6 = ED16F014124CCD8400350FC6 /* PBXTextBookmark */;
 			ED16F024124E3FD300350FC6 = ED16F024124E3FD300350FC6 /* PBXTextBookmark */;
 			ED16F025124E3FD300350FC6 = ED16F025124E3FD300350FC6 /* PBXTextBookmark */;
-			ED16F026124E3FD300350FC6 = ED16F026124E3FD300350FC6 /* PBXTextBookmark */;
-			ED16F027124E3FD300350FC6 = ED16F027124E3FD300350FC6 /* PBXTextBookmark */;
 			ED2A450B11DE82AF009AD73B = ED2A450B11DE82AF009AD73B /* PBXTextBookmark */;
 			ED2A450C11DE82AF009AD73B = ED2A450C11DE82AF009AD73B /* PBXTextBookmark */;
 			ED2A450D11DE82AF009AD73B = ED2A450D11DE82AF009AD73B /* PBXTextBookmark */;
@@ -458,6 +456,8 @@
 			ED2A45E211E2A727009AD73B = ED2A45E211E2A727009AD73B /* PBXTextBookmark */;
 			ED2A45E311E2A727009AD73B = ED2A45E311E2A727009AD73B /* PBXTextBookmark */;
 			ED2A45E411E2A727009AD73B = ED2A45E411E2A727009AD73B /* PBXTextBookmark */;
+			ED41B43E125E3D800000B5A2 = ED41B43E125E3D800000B5A2 /* PBXTextBookmark */;
+			ED41B43F125E3D800000B5A2 = ED41B43F125E3D800000B5A2 /* PBXTextBookmark */;
 			EDBBA2B611DD3C040015175B = EDBBA2B611DD3C040015175B /* PBXTextBookmark */;
 			EDBBA2B811DD3C040015175B = EDBBA2B811DD3C040015175B /* PBXTextBookmark */;
 			EDBBA33D11DD59D50015175B = EDBBA33D11DD59D50015175B /* PBXTextBookmark */;
@@ -646,9 +646,9 @@
 	};
 	ED6D6252118B5B6B00A682F4 /* tophat.py */ = {
 		uiCtxt = {
-			sepNavIntBoundsRect = "{{0, 0}, {911, 28353}}";
-			sepNavSelRange = "{85937, 0}";
-			sepNavVisRange = "{85086, 1294}";
+			sepNavIntBoundsRect = "{{0, 0}, {1069, 28444}}";
+			sepNavSelRange = "{29527, 33}";
+			sepNavVisRange = "{24775, 1866}";
 		};
 	};
 	ED6D6253118B5B6B00A682F4 /* wiggles.cpp */ = {
@@ -1231,7 +1231,7 @@
 		lineNumber = 65;
 		modificationTime = 303966017.207148;
 		originalNumberOfMultipleMatches = 1;
-		state = 1;
+		state = 0;
 	};
 	EDE1090011E3BDFE005F1F4B /* sam_juncs.cpp:130 */ = {
 		isa = PBXFileBreakpoint;
@@ -1302,7 +1302,7 @@
 		lineNumber = 31;
 		modificationTime = 303966017.1749129;
 		originalNumberOfMultipleMatches = 1;
-		state = 1;
+		state = 0;
 	};
 	EDE1099111E3DD52005F1F4B /* sam_juncs.cpp:34 */ = {
 		isa = PBXFileBreakpoint;
@@ -1319,7 +1319,7 @@
 		lineNumber = 34;
 		modificationTime = 303966017.206319;
 		originalNumberOfMultipleMatches = 1;
-		state = 1;
+		state = 0;
 	};
 	EDE109B011E3DF32005F1F4B /* sam_juncs.cpp:71 */ = {
 		isa = PBXFileBreakpoint;

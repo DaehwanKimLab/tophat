@@ -774,7 +774,7 @@ def get_index_sam_header(read_params, idx_prefix):
         #    print >> sam_header_file, line
 
         
-        print >> sam_header_file, "@HD\tVN:1.0\tSO:sorted"
+        print >> sam_header_file, "@HD\tVN:1.0\tSO:coordinate\tGO:reference"
     
         if read_params.read_group_id and read_params.sample_id:
             rg_str = "@RG\tID:%s\tSM:%s" % (read_params.read_group_id,
@@ -1333,32 +1333,7 @@ def build_juncs_index(min_anchor_length,
     external_splices_out_prefix = build_juncs_bwt_index(external_splices_out_prefix, color)
     return external_splices_out_prefix
 
-# Print out the sam header, embedding the user's specified library properties.
-# FIXME: also needs SQ dictionary lines
-def write_sam_header(read_params, sam_file):
-    print >> sam_file, "@HD\tVN:1.0\tSO:sorted"
-    
-    if read_params.read_group_id and read_params.sample_id:
-        rg_str = "@RG\tID:%s\tSM:%s" % (read_params.read_group_id,
-                                        read_params.sample_id)
-        if read_params.library_id:
-            rg_str += "\tLB:%s" % read_params.library_id
-        if read_params.description:
-            rg_str += "\tDS:%s" % read_params.description
-        if read_params.seq_platform_unit:
-            rg_str += "\tPU:%s" % read_params.seq_platform_unit
-        if read_params.seq_center:
-            rg_str += "\tCN:%s" % read_params.seq_center
-        if read_params.mate_inner_dist:
-            rg_str += "\tPI:%s" % read_params.mate_inner_dist
-        if read_params.seq_run_date:
-            rg_str += "\tDT:%s" % read_params.seq_run_date
-        if read_params.seq_platform:
-            rg_str += "\tPL:%s" % read_params.seq_platform
-        
-        print >> sam_file, rg_str
-    print >> sam_file, "@PG\tID:TopHat\tVN:%s\tCL:%s" % (get_version(), run_cmd)
-            
+      
 # Write final TopHat output, via tophat_reports and wiggles
 def compile_reports(params, sam_header_filename, left_maps, left_reads, right_maps, right_reads, gff_annotation):
     print >> sys.stderr, "[%s] Reporting output tracks" % right_now()
@@ -2052,7 +2027,7 @@ def prog_path(program):
 
 # FIXME: this should get set during the make dist autotools phase of the build
 def get_version():
-   return "1.1.0"
+   return "1.1.1"
 
 def main(argv=None):
     warnings.filterwarnings("ignore", "tmpnam is a potential security risk")
