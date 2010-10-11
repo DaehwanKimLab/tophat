@@ -2,10 +2,10 @@
 
 #simple script to pack up a precompiled binary package
 
-echo "packing up $1.tar.gz"
+echo "packing up $1.tar.gz, using BAM installation in $2"
 mkdir $1
 make clean
-./configure --enable-intel64 --prefix=`pwd`/$1
+./configure --enable-intel64 --prefix=`pwd`/$1 --with-bam=$2
 make
 make install
 cp $1/bin/* $1
