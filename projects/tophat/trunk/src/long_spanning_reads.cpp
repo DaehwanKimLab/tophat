@@ -1058,115 +1058,113 @@ void driver(vector<FILE*> possible_juncs_files,
 
 int main(int argc, char** argv)
 {
-	fprintf(stderr, "long_spanning_reads v%s (%s)\n", PACKAGE_VERSION, SVN_REVISION); 
-	fprintf(stderr, "--------------------------------------------\n");
-	
-    int parse_ret = parse_options(argc, argv, print_usage);
-    if (parse_ret)
-        return parse_ret;
-	
-	if(optind >= argc)
+  fprintf(stderr, "long_spanning_reads v%s (%s)\n", PACKAGE_VERSION, SVN_REVISION); 
+  fprintf(stderr, "--------------------------------------------\n");
+  
+  int parse_ret = parse_options(argc, argv, print_usage);
+  if (parse_ret)
+    return parse_ret;
+  
+  if(optind >= argc)
     {
-        print_usage();
-        return 1;
+      print_usage();
+      return 1;
     }
-    
-    string reads_file_name = argv[optind++];
-    
-    if(optind >= argc)
+  
+  string reads_file_name = argv[optind++];
+  
+  if(optind >= argc)
     {
-        print_usage();
-        return 1;
+      print_usage();
+      return 1;
     }
-	
-    string juncs_file_list = argv[optind++];
-	
-    if(optind >= argc)
+  
+  string juncs_file_list = argv[optind++];
+  
+  if(optind >= argc)
     {
-        print_usage();
-        return 1;
+      print_usage();
+      return 1;
     }
-    
-    string segment_file_list = argv[optind++];
-	
-	
-    string spliced_segment_file_list;
-	if(optind < argc)
+  
+  string segment_file_list = argv[optind++];
+  string spliced_segment_file_list;
+  if(optind < argc)
     {
-		spliced_segment_file_list = argv[optind++];
+      spliced_segment_file_list = argv[optind++];
     }
-	
-	fprintf(stderr, "Opening %s for reading\n",
-					reads_file_name.c_str());
-	FILE* reads_file = fopen(reads_file_name.c_str(), "r");
-    if (!reads_file)
+  
+  fprintf(stderr, "Opening %s for reading\n",
+	  reads_file_name.c_str());
+  FILE* reads_file = fopen(reads_file_name.c_str(), "r");
+  if (!reads_file)
     {
-        fprintf(stderr, "Error: cannot open %s for reading\n",
-                reads_file_name.c_str());
-        exit(1);
+      fprintf(stderr, "Error: cannot open %s for reading\n",
+	      reads_file_name.c_str());
+      exit(1);
     }
-    
-	vector<string> juncs_file_names;
-    vector<FILE*> juncs_files;
-    tokenize(juncs_file_list, ",",juncs_file_names);
-    for (size_t i = 0; i < juncs_file_names.size(); ++i)
+  
+  vector<string> juncs_file_names;
+  vector<FILE*> juncs_files;
+  tokenize(juncs_file_list, ",",juncs_file_names);
+  for (size_t i = 0; i < juncs_file_names.size(); ++i)
     {
-		fprintf(stderr, "Opening %s for reading\n",
-						juncs_file_names[i].c_str());
-        FILE* juncs_file = fopen(juncs_file_names[i].c_str(), "r");
-        if (juncs_file == NULL)
+      fprintf(stderr, "Opening %s for reading\n",
+	      juncs_file_names[i].c_str());
+      FILE* juncs_file = fopen(juncs_file_names[i].c_str(), "r");
+      if (juncs_file == NULL)
         {
-            fprintf(stderr, "Warning: cannot open %s for reading\n",
-                    juncs_file_names[i].c_str());
-            continue;
+	  fprintf(stderr, "Warning: cannot open %s for reading\n",
+		  juncs_file_names[i].c_str());
+	  continue;
         }
-        juncs_files.push_back(juncs_file);
+      juncs_files.push_back(juncs_file);
     }
-	
-    vector<string> segment_file_names;
-    vector<FILE*> segment_files;
-    tokenize(segment_file_list, ",",segment_file_names);
-    for (size_t i = 0; i < segment_file_names.size(); ++i)
+  
+  vector<string> segment_file_names;
+  vector<FILE*> segment_files;
+  tokenize(segment_file_list, ",",segment_file_names);
+  for (size_t i = 0; i < segment_file_names.size(); ++i)
     {
-		fprintf(stderr, "Opening %s for reading\n",
-						segment_file_names[i].c_str());
-        FILE* seg_file = fopen(segment_file_names[i].c_str(), "r");
-        if (seg_file == NULL)
+      fprintf(stderr, "Opening %s for reading\n",
+	      segment_file_names[i].c_str());
+      FILE* seg_file = fopen(segment_file_names[i].c_str(), "r");
+      if (seg_file == NULL)
         {
-            fprintf(stderr, "Error: cannot open %s for reading\n",
-                    segment_file_names[i].c_str());
-            exit(1);
+	  fprintf(stderr, "Error: cannot open %s for reading\n",
+		  segment_file_names[i].c_str());
+	  exit(1);
         }
-        segment_files.push_back(seg_file);
+      segment_files.push_back(seg_file);
     }
 	
-	vector<string> spliced_segment_file_names;
-    vector<FILE*> spliced_segment_files;
-    tokenize(spliced_segment_file_list, ",",spliced_segment_file_names);
-    for (size_t i = 0; i < spliced_segment_file_names.size(); ++i)
+  vector<string> spliced_segment_file_names;
+  vector<FILE*> spliced_segment_files;
+  tokenize(spliced_segment_file_list, ",",spliced_segment_file_names);
+  for (size_t i = 0; i < spliced_segment_file_names.size(); ++i)
     {
-		fprintf(stderr, "Opening %s for reading\n",
-						spliced_segment_file_names[i].c_str());
-        FILE* spliced_seg_file = fopen(spliced_segment_file_names[i].c_str(), "r");
-        if (spliced_seg_file == NULL)
+      fprintf(stderr, "Opening %s for reading\n",
+	      spliced_segment_file_names[i].c_str());
+      FILE* spliced_seg_file = fopen(spliced_segment_file_names[i].c_str(), "r");
+      if (spliced_seg_file == NULL)
         {
-            fprintf(stderr, "Error: cannot open %s for reading\n",
-                    spliced_segment_file_names[i].c_str());
-            exit(1);
+	  fprintf(stderr, "Error: cannot open %s for reading\n",
+		  spliced_segment_file_names[i].c_str());
+	  exit(1);
         }
         spliced_segment_files.push_back(spliced_seg_file);
     }
-	
-	if (spliced_segment_files.size())
+  
+  if (spliced_segment_files.size())
+    {
+      if (spliced_segment_files.size() != segment_files.size())
 	{
-		if (spliced_segment_files.size() != segment_files.size())
-		{
-			fprintf(stderr, "Error: each segment file must have a corresponding spliced segment file\n");
-			exit(1);
-		}
+	  fprintf(stderr, "Error: each segment file must have a corresponding spliced segment file\n");
+	  exit(1);
 	}
-	
-    driver(juncs_files, spliced_segment_files, segment_files, reads_file);
-    
-    return 0;
+    }
+  
+  driver(juncs_files, spliced_segment_files, segment_files, reads_file);
+  
+  return 0;
 }

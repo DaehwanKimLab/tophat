@@ -85,57 +85,59 @@ void get_seqs(istream& ref_stream,
 }
 
 
+// daehwan - check this out
 RefSeg seg_from_bowtie_hit(const BowtieHit& T)
 {
-	RefSeg r_seg(T.ref_id(), false, 0,0);
+  RefSeg r_seg(T.ref_id(), false, T.antisense_align(), READ_DONTCARE, 0, 0);
 	
-	if (T.antisense_align())
-	{
-		r_seg.left = max(0, T.right() - 2);
-		r_seg.right = T.right() + (T.right() - T.left() + 1); // num allowed bowtie mismatches 
-		r_seg.points_left = false;
-	}
-	else
-	{
-		r_seg.left = max(0, T.left() - (T.right() - T.left() + 1));
-		r_seg.right = T.left() + 2; // num allowed bowtie mismatches
-		r_seg.points_left = true;
-	}
-	
-	return r_seg;
+  if (T.antisense_align())
+    {
+      r_seg.left = max(0, T.right() - 2);
+      r_seg.right = T.right() + (T.right() - T.left() + 1); // num allowed bowtie mismatches 
+      r_seg.points_left = false;
+    }
+  else
+    {
+      r_seg.left = max(0, T.left() - (T.right() - T.left() + 1));
+      r_seg.right = T.left() + 2; // num allowed bowtie mismatches
+      r_seg.points_left = true;
+    }
+  
+  return r_seg;
 }
 
+// daehwan - check this out
 pair<RefSeg, RefSeg> segs_from_bowtie_hits(const BowtieHit& T,
-										   const BowtieHit& H)
+					   const BowtieHit& H)
 {
-	pair<RefSeg, RefSeg> seg_pair;
-	if (H.antisense_align() == false && 
-		abs((H.right() + 1) - T.left()) < (int)max_segment_intron_length)
-	{
-		RefSeg left_seg(H.ref_id(), false, 0,0);
-		left_seg.left = max(0, H.right() - 2);
-		left_seg.right = H.right() + (H.right() - H.left() + 1); // num allowed bowtie mismatches 
-		
-		RefSeg right_seg(T.ref_id(), true, 0,0);
-		right_seg.left = max(0, T.left() - (T.right() - T.left() + 1));
-		right_seg.right = T.left() + 2; // num allowed bowtie mismatches
-		
-		seg_pair = make_pair(left_seg, right_seg);
-	}
-	else if (H.antisense_align() == true &&
-			 abs((T.right() + 1) - H.left()) < (int)max_segment_intron_length)
-	{
-		RefSeg left_seg(T.ref_id(), false, 0,0);
-		left_seg.left = max(0, T.right() - 2);
-		left_seg.right = T.right() + (T.right() - T.left() + 1); // num allowed bowtie mismatches 
-		
-		RefSeg right_seg(H.ref_id(), true, 0,0);
-		right_seg.left = max(0, H.left() - (H.right() - H.left() + 1));
-		right_seg.right = H.left() + 2; // num allowed bowtie mismatches
-		
-		seg_pair = make_pair(left_seg, right_seg);
-	}
-	return seg_pair;
+  pair<RefSeg, RefSeg> seg_pair;
+  if (H.antisense_align() == false && 
+      abs((H.right() + 1) - T.left()) < (int)max_segment_intron_length)
+    {
+      RefSeg left_seg(H.ref_id(), false, H.antisense_align(), READ_DONTCARE, 0, 0);
+      left_seg.left = max(0, H.right() - 2);
+      left_seg.right = H.right() + (H.right() - H.left() + 1); // num allowed bowtie mismatches 
+      
+      RefSeg right_seg(T.ref_id(), true, T.antisense_align(), READ_DONTCARE, 0, 0);
+      right_seg.left = max(0, T.left() - (T.right() - T.left() + 1));
+      right_seg.right = T.left() + 2; // num allowed bowtie mismatches
+      
+      seg_pair = make_pair(left_seg, right_seg);
+    }
+  else if (H.antisense_align() == true &&
+	   abs((T.right() + 1) - H.left()) < (int)max_segment_intron_length)
+    {
+      RefSeg left_seg(T.ref_id(), false, T.antisense_align(), READ_DONTCARE, 0, 0);
+      left_seg.left = max(0, T.right() - 2);
+      left_seg.right = T.right() + (T.right() - T.left() + 1); // num allowed bowtie mismatches 
+      
+      RefSeg right_seg(H.ref_id(), true, H.antisense_align(), READ_DONTCARE, 0, 0);
+      right_seg.left = max(0, H.left() - (H.right() - H.left() + 1));
+      right_seg.right = H.left() + 2; // num allowed bowtie mismatches
+      
+      seg_pair = make_pair(left_seg, right_seg);
+    }
+  return seg_pair;
 }
 
 //static const size_t half_splice_mer_len = 6;
@@ -468,14 +470,6 @@ void count_read_mers(FILE* reads_file, size_t half_splice_mer_len)
 							  half_splice_mer_len,
 							  half_splice_mer_len,
 							  read.seq);
-		
-//		reverse_complement(read.seq);
-//		
-//		count_read_extensions(extension_counts,
-//							  half_splice_mer_len,
-//							  half_splice_mer_len,
-//							  read.seq);
-		
 	}	
 	
 	rewind(reads_file);
@@ -1588,104 +1582,103 @@ typedef std::set<Junction, skip_count_lt> PotentialJuncs;
 
 struct RecordExtendableJuncs
 {
-	void record(uint32_t ref_id,
-				const vector<pair<size_t, DnaSpliceStrings> >& left_sites,
-				const vector<pair<size_t, DnaSpliceStrings> >& right_sites,
-				bool antisense,
-				PotentialJuncs& juncs,
-				int min_intron,
-				int max_intron,
-				size_t max_juncs,
-				size_t half_splice_mer_len)
-	{
-		
-		size_t splice_mer_len = 2 * half_splice_mer_len;
-
-		size_t curr_R = 0;
-		for (size_t L = 0; L < left_sites.size(); ++L)
-		{
-			while (curr_R < right_sites.size() && 
-				   right_sites[curr_R].first < left_sites[L].first + min_intron)
-			{
-				curr_R++;
-			}
-			
-			size_t left_pos = left_sites[L].first;
-			size_t max_right_pos = left_pos + max_intron;
-			for (size_t R = curr_R; 
-				 R < right_sites.size() && right_sites[R].first < max_right_pos; ++R)
-			{
-				uint64_t upstream_dna_str = left_sites[L].second.fwd_string;
-				char last_in_upstream = left_sites[L].second.last_in_string;
-				uint64_t downstream_dna_str = right_sites[R].second.fwd_string;
-				char first_in_downstream = right_sites[R].second.first_in_string;
-				uint64_t rc_upstream_dna_str = left_sites[L].second.rev_string;
-				uint64_t rc_downstream_dna_str = right_sites[R].second.rev_string;
-
-				if (extendable_junction(upstream_dna_str,
-							downstream_dna_str, splice_mer_len, 7, false,
-							last_in_upstream, first_in_downstream) ||
-				    extendable_junction(rc_downstream_dna_str,
-							rc_upstream_dna_str, splice_mer_len, 7, true,
-							last_in_upstream, first_in_downstream))
-				  {
-				    juncs.insert(Junction(ref_id,
-							  left_sites[L].first - 1,
-							  right_sites[R].first + 2,
-							  antisense,
-							  R - curr_R));
-				    
-				  }
-				if (juncs.size() > max_juncs)
-				  {
-				    juncs.erase(*(juncs.rbegin()));
-				  }			
-			}
-		}	
-	}
+  void record(uint32_t ref_id,
+	      const vector<pair<size_t, DnaSpliceStrings> >& left_sites,
+	      const vector<pair<size_t, DnaSpliceStrings> >& right_sites,
+	      bool antisense,
+	      PotentialJuncs& juncs,
+	      int min_intron,
+	      int max_intron,
+	      size_t max_juncs,
+	      size_t half_splice_mer_len)
+  {
+    
+    size_t splice_mer_len = 2 * half_splice_mer_len;
+    
+    size_t curr_R = 0;
+    for (size_t L = 0; L < left_sites.size(); ++L)
+      {
+	while (curr_R < right_sites.size() && 
+	       right_sites[curr_R].first < left_sites[L].first + min_intron)
+	  {
+	    curr_R++;
+	  }
+	
+	size_t left_pos = left_sites[L].first;
+	size_t max_right_pos = left_pos + max_intron;
+	for (size_t R = curr_R; 
+	     R < right_sites.size() && right_sites[R].first < max_right_pos; ++R)
+	  {
+	    uint64_t upstream_dna_str = left_sites[L].second.fwd_string;
+	    char last_in_upstream = left_sites[L].second.last_in_string;
+	    uint64_t downstream_dna_str = right_sites[R].second.fwd_string;
+	    char first_in_downstream = right_sites[R].second.first_in_string;
+	    uint64_t rc_upstream_dna_str = left_sites[L].second.rev_string;
+	    uint64_t rc_downstream_dna_str = right_sites[R].second.rev_string;
+	    
+	    if (extendable_junction(upstream_dna_str,
+				    downstream_dna_str, splice_mer_len, 7, false,
+				    last_in_upstream, first_in_downstream) ||
+		extendable_junction(rc_downstream_dna_str,
+				    rc_upstream_dna_str, splice_mer_len, 7, true,
+				    last_in_upstream, first_in_downstream))
+	      {
+		juncs.insert(Junction(ref_id,
+				      left_sites[L].first - 1,
+				      right_sites[R].first + 2,
+				      antisense,
+				      R - curr_R));
+	      }
+	    if (juncs.size() > max_juncs)
+	      {
+		juncs.erase(*(juncs.rbegin()));
+	      }			
+	  }
+      }	
+  }
 };
 
 struct RecordAllJuncs
 {
-	void record(uint32_t ref_id,
-				const vector<pair<size_t, DnaSpliceStrings> >& left_sites,
-				const vector<pair<size_t, DnaSpliceStrings> >& right_sites,
-				bool antisense,
-				PotentialJuncs& juncs,
-				int min_intron,
-				int max_intron,
-				size_t max_juncs,
-				size_t half_splice_mer_len)
-	{
-		size_t curr_R = 0;
-		for (size_t L = 0; L < left_sites.size(); ++L)
-		{
-			while (curr_R < right_sites.size() && 
-				   right_sites[curr_R].first < left_sites[L].first + min_intron)
-			{
-				curr_R++;
-			}
-			
-			size_t left_pos = left_sites[L].first;
-			size_t max_right_pos = left_pos + max_intron;
-			for (size_t R = curr_R; 
-				 R < right_sites.size() && right_sites[R].first < max_right_pos; ++R)
-			{
-				Junction j(ref_id,
-						   left_sites[L].first - 1,
-						   right_sites[R].first + 2,
-						   antisense,
-						   R - curr_R);
-				
-				juncs.insert(j);
-				
-				if (juncs.size() > max_juncs)
-				{
-					juncs.erase(*(juncs.rbegin()));
-				}
-			}
-		}	
-	}
+  void record(uint32_t ref_id,
+	      const vector<pair<size_t, DnaSpliceStrings> >& left_sites,
+	      const vector<pair<size_t, DnaSpliceStrings> >& right_sites,
+	      bool antisense,
+	      PotentialJuncs& juncs,
+	      int min_intron,
+	      int max_intron,
+	      size_t max_juncs,
+	      size_t half_splice_mer_len)
+  {
+    size_t curr_R = 0;
+    for (size_t L = 0; L < left_sites.size(); ++L)
+      {
+	while (curr_R < right_sites.size() && 
+	       right_sites[curr_R].first < left_sites[L].first + min_intron)
+	  {
+	    curr_R++;
+	  }
+	
+	size_t left_pos = left_sites[L].first;
+	size_t max_right_pos = left_pos + max_intron;
+	for (size_t R = curr_R; 
+	     R < right_sites.size() && right_sites[R].first < max_right_pos; ++R)
+	  {
+	    Junction j(ref_id,
+		       left_sites[L].first - 1,
+		       right_sites[R].first + 2,
+		       antisense,
+		       R - curr_R);
+	    
+	    juncs.insert(j);
+	    
+	    if (juncs.size() > max_juncs)
+	      {
+		juncs.erase(*(juncs.rbegin()));
+	      }
+	  }
+      }	
+  }
 };
 
 struct ButterflyKey 
@@ -1734,607 +1727,634 @@ uint32_t get_right_butterfly_key(uint64_t downstream_key,
 
 struct RecordButterflyJuncs
 {
-	void record(uint32_t ref_id,
-				const vector<pair<size_t, DnaSpliceStrings> >& all_left_sites,
-				const vector<pair<size_t, DnaSpliceStrings> >& all_right_sites,
-				bool antisense,
-				PotentialJuncs& juncs,
-				int min_intron,
-				int max_intron,
-				size_t max_juncs,
-				size_t half_splice_mer_len)
-	{
-		size_t key_length = 2 * half_splice_mer_len;
-		size_t extension_length = butterfly_overhang;
-		uint64_t bottom_bit_mask = ~(0xFFFFFFFFFFFFFFFFull << (key_length<<1));
-		uint64_t top_bit_mask =  ~(0xFFFFFFFFFFFFFFFFull >> (key_length<<1));
+  void record(uint32_t ref_id,
+	      const vector<pair<size_t, DnaSpliceStrings> >& all_left_sites,
+	      const vector<pair<size_t, DnaSpliceStrings> >& all_right_sites,
+	      bool antisense,
+	      PotentialJuncs& juncs,
+	      int min_intron,
+	      int max_intron,
+	      size_t max_juncs,
+	      size_t half_splice_mer_len)
+  {
+    size_t key_length = 2 * half_splice_mer_len;
+    size_t extension_length = butterfly_overhang;
+    uint64_t bottom_bit_mask = ~(0xFFFFFFFFFFFFFFFFull << (key_length<<1));
+    uint64_t top_bit_mask =  ~(0xFFFFFFFFFFFFFFFFull >> (key_length<<1));
 		
-		if (all_left_sites.empty() || all_right_sites.empty())
-			return;
+    if (all_left_sites.empty() || all_right_sites.empty())
+      return;
+    
+    size_t last_site = max(all_left_sites.back().first, 
+			   all_right_sites.back().first);
+    
+    size_t curr_left_site = 0;
+    size_t curr_right_site = 0;
+    for (size_t window_left_edge = 0; 
+	 window_left_edge < last_site; 
+	 window_left_edge += max_intron)
+      {
+	//fprintf(stderr, "\twindow %lu - %lu\n", window_left_edge, window_left_edge + 2 * max_intron); 
+	vector<pair<size_t, DnaSpliceStrings> > left_sites;
+	vector<pair<size_t, DnaSpliceStrings> > right_sites;
+	
+	while(curr_left_site < all_left_sites.size() &&
+	      all_left_sites[curr_left_site].first < window_left_edge)
+	  {
+	    curr_left_site++;
+	  }
+	
+	while(curr_right_site < all_right_sites.size() &&
+	      all_right_sites[curr_right_site].first < window_left_edge)
+	  {
+	    curr_right_site++;
+	  }
+	
+	for (size_t ls = curr_left_site; ls < all_left_sites.size(); ++ls)
+	  {
+	    if (all_left_sites[ls].first < window_left_edge + 2 * max_intron)
+	      {
+		left_sites.push_back(all_left_sites[ls]);
+	      }
+	  }
+	
+	for (size_t rs = curr_right_site; rs < all_right_sites.size(); ++rs)
+	  {
+	    if (all_right_sites[rs].first < window_left_edge + 2 * max_intron)
+	      {
+		right_sites.push_back(all_right_sites[rs]);
+	      }
+	  }
+	
+	vector<ButterflyKey> left_keys;
+	for (size_t L = 0; L < left_sites.size(); ++L)
+	  {
+	    uint64_t fwd_upstream_dna_str = left_sites[L].second.fwd_string;
+	    uint64_t fwd_upstream_key = fwd_upstream_dna_str & bottom_bit_mask;
+	    
+	    assert (fwd_upstream_key < extensions.size());
+	    
+	    vector<MerExtension>& fwd_exts = extensions[fwd_upstream_key];
+	    for (size_t i = 0; i < fwd_exts.size(); ++i)
+	      {
+		const MerExtension& ext = fwd_exts[i];
+		if (ext.right_ext_len < extension_length)
+		  continue;
 		
-		size_t last_site = max(all_left_sites.back().first, 
-							   all_right_sites.back().first);
+		/*
+		  < f_u_key ><ext.right>
+		  NNNNNNNNNN  GT
+		*/
 		
-		size_t curr_left_site = 0;
-		size_t curr_right_site = 0;
-		for (size_t window_left_edge = 0; 
-			 window_left_edge < last_site; 
-			 window_left_edge += max_intron)
-		{
-			//fprintf(stderr, "\twindow %lu - %lu\n", window_left_edge, window_left_edge + 2 * max_intron); 
-			vector<pair<size_t, DnaSpliceStrings> > left_sites;
-			vector<pair<size_t, DnaSpliceStrings> > right_sites;
-			
-			while(curr_left_site < all_left_sites.size() &&
-				  all_left_sites[curr_left_site].first < window_left_edge)
-			{
-				curr_left_site++;
-			}
-			
-			while(curr_right_site < all_right_sites.size() &&
-				  all_right_sites[curr_right_site].first < window_left_edge)
-			{
-				curr_right_site++;
-			}
-			
-			for (size_t ls = curr_left_site; ls < all_left_sites.size(); ++ls)
-			{
-				if (all_left_sites[ls].first < window_left_edge + 2 * max_intron)
-				{
-					left_sites.push_back(all_left_sites[ls]);
-				}
-			}
-			
-			for (size_t rs = curr_right_site; rs < all_right_sites.size(); ++rs)
-			{
-				if (all_right_sites[rs].first < window_left_edge + 2 * max_intron)
-				{
-					right_sites.push_back(all_right_sites[rs]);
-				}
-			}
-			
-			vector<ButterflyKey> left_keys;
-			for (size_t L = 0; L < left_sites.size(); ++L)
-			{
-				uint64_t fwd_upstream_dna_str = left_sites[L].second.fwd_string;
-				uint64_t fwd_upstream_key = fwd_upstream_dna_str & bottom_bit_mask;
+		// take the top bits of the right extension
+		uint64_t key = ext.right_dna_str >> ((ext.right_ext_len - extension_length) << 1);
+		
+		// and the bottom bits of the site key
+		uint64_t mask = ~(0xFFFFFFFFFFFFFFFFull << (extension_length << 1));
+		uint64_t top_half = fwd_upstream_key & mask;
+		
+		// and cat them together
+		key |= (top_half << (extension_length << 1));
+		left_keys.push_back(ButterflyKey((uint32_t)left_sites[L].first, key));
+	      }
+	    
+	    uint64_t rev_upstream_dna_str = left_sites[L].second.rev_string;
+	    uint64_t rev_upstream_key = (rev_upstream_dna_str & top_bit_mask) >> (64 - (key_length<<1));
+	    
+	    assert (rev_upstream_key < extensions.size());
+	    
+	    vector<MerExtension>& rev_exts = extensions[rev_upstream_key];
+	    for (size_t i = 0; i < rev_exts.size(); ++i)
+	      {
+		const MerExtension& ext = rev_exts[i];
+		if (ext.left_ext_len < extension_length)
+		  continue;
+		
+		/*
+		  < r_u_key ><ext.left>
+		  NNNNNNNNNN  GT
+		*/
 				
-				assert (fwd_upstream_key < extensions.size());
-				
-				vector<MerExtension>& fwd_exts = extensions[fwd_upstream_key];
-				for (size_t i = 0; i < fwd_exts.size(); ++i)
-				{
-					const MerExtension& ext = fwd_exts[i];
-					if (ext.right_ext_len < extension_length)
-						continue;
-					
-					/*
-					 < f_u_key ><ext.right>
-					 NNNNNNNNNN  GT
-					*/
-					
-					// take the top bits of the right extension
-					uint64_t key = ext.right_dna_str >> ((ext.right_ext_len - extension_length) << 1);
-					
-					// and the bottom bits of the site key
-					uint64_t mask = ~(0xFFFFFFFFFFFFFFFFull << (extension_length << 1));
-					uint64_t top_half = fwd_upstream_key & mask;
-					
-					// and cat them together
-					key |= (top_half << (extension_length << 1));
-					left_keys.push_back(ButterflyKey((uint32_t)left_sites[L].first, key));
-				}
+		// reverse complement the left extension, and we will need 
+		// what were the bottom bits.  these become the top bits in the 
+		// rc.
+		uint64_t ext_str = color ? rc_color_str(ext.left_dna_str) : rc_dna_str(ext.left_dna_str);
+		ext_str >>= 64 - (ext.left_ext_len << 1);
+		
+		// now take the top bits of the rc, make them the bottom of 
+		// the key
+		uint64_t key = ext_str >> ((ext.left_ext_len - extension_length) << 1);
+		
+		// now add in the seed key bottom bits, making them the top of 
+		// the key
+		uint64_t mask = ~(0xFFFFFFFFFFFFFFFFull << (extension_length << 1));
+		uint64_t top_half = fwd_upstream_key & mask;
+		key |= (top_half << (extension_length << 1));
+		left_keys.push_back(ButterflyKey((uint32_t)left_sites[L].first, key));
+	      }
+	  }
+	sort (left_keys.begin(), left_keys.end());
+	vector<ButterflyKey>::iterator new_end = unique(left_keys.begin(), left_keys.end());
+	left_keys.erase(new_end, left_keys.end());
+	
+	vector<ButterflyKey> right_keys;
+	for (size_t R = 0; R < right_sites.size(); ++R)
+	  {
+	    uint64_t fwd_downstream_dna_str = right_sites[R].second.fwd_string;
+	    uint64_t fwd_downstream_key = (fwd_downstream_dna_str & top_bit_mask) >> (64 - (key_length<<1));
+	    
+	    assert (fwd_downstream_key < extensions.size());
+	    
+	    vector<uint64_t> fwd_downstream_keys;
+	    if (color)
+	      {
+		for(size_t color_value = 0; color_value < 4; ++color_value)
+		  {
+		    uint64_t tmp_key = (fwd_downstream_key << 2) >> 2 | (color_value << ((key_length - 1) << 1));
+		    fwd_downstream_keys.push_back(tmp_key);
+		  }
+	      }
+	    else
+	      {
+		fwd_downstream_keys.push_back(fwd_downstream_key);
+	      }
+	    
+	    for(size_t key = 0; key < fwd_downstream_keys.size(); ++key)
+	      {
+		uint64_t tmp_fwd_downstream_key = fwd_downstream_keys[key];
+		vector<MerExtension>& fwd_exts = extensions[tmp_fwd_downstream_key];
+		for (size_t i = 0; i < fwd_exts.size(); ++i)
+		  {
+		    const MerExtension& ext = fwd_exts[i];
+		    if (ext.left_ext_len < extension_length)
+		      continue;
+		    
+		    /*
+		      <ext.left>< f_d_key >
+		      AG NNNNNNNNNN
+		    */
+		    
+		    // take the bottom bits of the left extension, making them the
+		    // top of the key.
+		    uint64_t mask = ~(0xFFFFFFFFFFFFFFFFull << (extension_length << 1));
+		    uint64_t key = (ext.left_dna_str & mask) << (extension_length << 1);
+		    
+		    // add in the top bits of the seed key, making them the bottom bits
+		    // of the key.
+		    uint64_t bottom_half = (tmp_fwd_downstream_key >> ((key_length - extension_length) << 1));
+		    key |= bottom_half;
+		    right_keys.push_back(ButterflyKey((uint32_t)right_sites[R].first, key));
+		  }
+	      }
 
-				uint64_t rev_upstream_dna_str = left_sites[L].second.rev_string;
-				uint64_t rev_upstream_key = (rev_upstream_dna_str & top_bit_mask) >> (64 - (key_length<<1));
+	    uint64_t rev_downstream_dna_str = right_sites[R].second.rev_string;
+	    uint64_t rev_downstream_key = rev_downstream_dna_str & bottom_bit_mask;
+	    
+	    assert (rev_downstream_key < extensions.size());
+	    
+	    vector<uint64_t> rev_downstream_keys;
+	    if (color)
+	      {
+		for(size_t color_value = 0; color_value < 4; ++color_value)
+		  {
+		    uint64_t tmp_key = (rev_downstream_key >> 2) << 2 | color_value;
+		    rev_downstream_keys.push_back(tmp_key);
+		  }
+	      }
+	    else
+	      {
+		rev_downstream_keys.push_back(rev_downstream_key);
+	      }
 				
-				assert (rev_upstream_key < extensions.size());
-				
-				vector<MerExtension>& rev_exts = extensions[rev_upstream_key];
-				for (size_t i = 0; i < rev_exts.size(); ++i)
-				{
-					const MerExtension& ext = rev_exts[i];
-					if (ext.left_ext_len < extension_length)
-						continue;
-					
-					/*
-					 < r_u_key ><ext.left>
-					 NNNNNNNNNN  GT
-					 */
-				
-					// reverse complement the left extension, and we will need 
-					// what were the bottom bits.  these become the top bits in the 
-					// rc.
-					uint64_t ext_str = color ? rc_color_str(ext.left_dna_str) : rc_dna_str(ext.left_dna_str);
-					ext_str >>= 64 - (ext.left_ext_len << 1);
-					
-					// now take the top bits of the rc, make them the bottom of 
-					// the key
-					uint64_t key = ext_str >> ((ext.left_ext_len - extension_length) << 1);
-									
-					// now add in the seed key bottom bits, making them the top of 
-					// the key
-					uint64_t mask = ~(0xFFFFFFFFFFFFFFFFull << (extension_length << 1));
-					uint64_t top_half = fwd_upstream_key & mask;
-					key |= (top_half << (extension_length << 1));
-					left_keys.push_back(ButterflyKey((uint32_t)left_sites[L].first, key));
-				}
-			}
-			sort (left_keys.begin(), left_keys.end());
-			vector<ButterflyKey>::iterator new_end = unique(left_keys.begin(), left_keys.end());
-			left_keys.erase(new_end, left_keys.end());
+	    for(size_t key = 0; key < rev_downstream_keys.size(); ++key)
+	      {
+		uint64_t tmp_rev_downstream_key = rev_downstream_keys[key];
+		uint64_t tmp_fwd_downstream_key = fwd_downstream_key;
+		if (color)
+		  {
+		    tmp_fwd_downstream_key = rc_color_str(tmp_rev_downstream_key) >> (64 - (key_length << 1));
+		  }
+		
+		vector<MerExtension>& rev_exts = extensions[tmp_rev_downstream_key];
+		for (size_t i = 0; i < rev_exts.size(); ++i)
+		  {
+		    const MerExtension& ext = rev_exts[i];
+		    if (ext.right_ext_len < extension_length)
+		      continue;
+		    
+		    /*
+		      <ext.right>< r_d_key >
+		      AG NNNNNNNNNN
+		    */
+		    
+		    // reverse complement the right_extension.  we want the 
+		    // top bits of the extension, but these become the bottom bits
+		    // under the rc.
+		    uint64_t ext_str = color ? rc_color_str(ext.right_dna_str) : rc_dna_str(ext.right_dna_str);
+		    ext_str >>= 64 - (ext.right_ext_len << 1);
+		    
+		    // take the bottom bits of the rc and make it the top of the key
+		    uint64_t key = ext_str << (extension_length << 1);
+		    
+		    // take the top bits of the seed key and make them the bottom
+		    // of the key.
+		    uint64_t bottom_half = (tmp_fwd_downstream_key >> ((key_length - extension_length) << 1));
+		    key |= bottom_half;
+		    
+		    right_keys.push_back(ButterflyKey((uint32_t)right_sites[R].first, key));
+		  }
+	      }
+	  }
+	
+	sort (right_keys.begin(), right_keys.end());
+	new_end = unique(right_keys.begin(), right_keys.end());
+	right_keys.erase(new_end, right_keys.end());
 			
-			vector<ButterflyKey> right_keys;
-			for (size_t R = 0; R < right_sites.size(); ++R)
-			{
-				uint64_t fwd_downstream_dna_str = right_sites[R].second.fwd_string;
-				uint64_t fwd_downstream_key = (fwd_downstream_dna_str & top_bit_mask) >> (64 - (key_length<<1));
-
-				assert (fwd_downstream_key < extensions.size());
-
-				vector<uint64_t> fwd_downstream_keys;
-				if (color)
-				  {
-				    for(size_t color_value = 0; color_value < 4; ++color_value)
-				      {
-					uint64_t tmp_key = (fwd_downstream_key << 2) >> 2 | (color_value << ((key_length - 1) << 1));
-					fwd_downstream_keys.push_back(tmp_key);
-				      }
-				  }
-				else
-				  {
-				    fwd_downstream_keys.push_back(fwd_downstream_key);
-				  }
-
-				for(size_t key = 0; key < fwd_downstream_keys.size(); ++key)
-				  {
-				    uint64_t tmp_fwd_downstream_key = fwd_downstream_keys[key];
-				    vector<MerExtension>& fwd_exts = extensions[tmp_fwd_downstream_key];
-				    for (size_t i = 0; i < fwd_exts.size(); ++i)
-				      {
-					const MerExtension& ext = fwd_exts[i];
-					if (ext.left_ext_len < extension_length)
-					  continue;
-					
-					/*
-					  <ext.left>< f_d_key >
-					  AG NNNNNNNNNN
-					*/
-					
-					// take the bottom bits of the left extension, making them the
-					// top of the key.
-					uint64_t mask = ~(0xFFFFFFFFFFFFFFFFull << (extension_length << 1));
-					uint64_t key = (ext.left_dna_str & mask) << (extension_length << 1);
-					
-					// add in the top bits of the seed key, making them the bottom bits
-					// of the key.
-					uint64_t bottom_half = (tmp_fwd_downstream_key >> ((key_length - extension_length) << 1));
-					key |= bottom_half;
-					right_keys.push_back(ButterflyKey((uint32_t)right_sites[R].first, key));
-				      }
-				  }
-
-				uint64_t rev_downstream_dna_str = right_sites[R].second.rev_string;
-				uint64_t rev_downstream_key = rev_downstream_dna_str & bottom_bit_mask;
+	size_t lk = 0;
+	size_t rk = 0;
+	
+	while (lk < left_keys.size() && rk < right_keys.size())
+	  {
+	    while (lk < left_keys.size() &&
+		   left_keys[lk].key < right_keys[rk].key) { ++lk; }
+	    
+	    if (lk == left_keys.size())
+	      break;
+	    
+	    while (rk < right_keys.size() &&
+		   right_keys[rk].key < left_keys[lk].key) { ++rk; }
 				
-				assert (rev_downstream_key < extensions.size());
-				
-				vector<uint64_t> rev_downstream_keys;
-				if (color)
-				  {
-				    for(size_t color_value = 0; color_value < 4; ++color_value)
-				      {
-					uint64_t tmp_key = (rev_downstream_key >> 2) << 2 | color_value;
-					rev_downstream_keys.push_back(tmp_key);
-				      }
-				  }
-				else
-				  {
-				    rev_downstream_keys.push_back(rev_downstream_key);
-				  }
-				
-				for(size_t key = 0; key < rev_downstream_keys.size(); ++key)
-				  {
-				    uint64_t tmp_rev_downstream_key = rev_downstream_keys[key];
-				    uint64_t tmp_fwd_downstream_key = fwd_downstream_key;
-				    if (color)
-				      {
-					tmp_fwd_downstream_key = rc_color_str(tmp_rev_downstream_key) >> (64 - (key_length << 1));
-				      }
-				    
-				    vector<MerExtension>& rev_exts = extensions[tmp_rev_downstream_key];
-				    for (size_t i = 0; i < rev_exts.size(); ++i)
-				      {
-					const MerExtension& ext = rev_exts[i];
-					if (ext.right_ext_len < extension_length)
-					  continue;
+	    if (rk == right_keys.size())
+	      break;
+	    
+	    if (lk < left_keys.size() && rk < right_keys.size() &&
+		right_keys[rk].key == left_keys[lk].key)
+	      {
 					
-					/*
-					  <ext.right>< r_d_key >
-					  AG NNNNNNNNNN
-					*/
+		size_t k = right_keys[rk].key;
+		size_t lk_end = lk;
+		size_t rk_end = rk;
+		while (rk_end < right_keys.size() && right_keys[rk_end].key == k) {++rk_end;}
+		while (lk_end < left_keys.size() && left_keys[lk_end].key == k) {++lk_end;}
+		
+		size_t tmp_lk = lk;
 					
-					// reverse complement the right_extension.  we want the 
-					// top bits of the extension, but these become the bottom bits
-					// under the rc.
-					uint64_t ext_str = color ? rc_color_str(ext.right_dna_str) : rc_dna_str(ext.right_dna_str);
-					ext_str >>= 64 - (ext.right_ext_len << 1);
-					
-					// take the bottom bits of the rc and make it the top of the key
-					uint64_t key = ext_str << (extension_length << 1);
-					
-					// take the top bits of the seed key and make them the bottom
-					// of the key.
-					uint64_t bottom_half = (tmp_fwd_downstream_key >> ((key_length - extension_length) << 1));
-					key |= bottom_half;
-
-					right_keys.push_back(ButterflyKey((uint32_t)right_sites[R].first, key));
-				      }
-				  }
-			}
-			
-			sort (right_keys.begin(), right_keys.end());
-			new_end = unique(right_keys.begin(), right_keys.end());
-			right_keys.erase(new_end, right_keys.end());
-			
-			size_t lk = 0;
-			size_t rk = 0;
-
-			while (lk < left_keys.size() && rk < right_keys.size())
-			{
-				while (lk < left_keys.size() &&
-					   left_keys[lk].key < right_keys[rk].key) { ++lk; }
-				
-				if (lk == left_keys.size())
-					break;
-					
-				while (rk < right_keys.size() &&
-					   right_keys[rk].key < left_keys[lk].key) { ++rk; }
-				
-				if (rk == right_keys.size())
-					break;
-				
-				if (lk < left_keys.size() && rk < right_keys.size() &&
-					right_keys[rk].key == left_keys[lk].key)
-				{
-					
-					size_t k = right_keys[rk].key;
-					size_t lk_end = lk;
-					size_t rk_end = rk;
-					while (rk_end < right_keys.size() && right_keys[rk_end].key == k) {++rk_end;}
-					while (lk_end < left_keys.size() && left_keys[lk_end].key == k) {++lk_end;}
-					
-					size_t tmp_lk = lk;
-					
-					while (tmp_lk < lk_end)
-					{
-						size_t tmp_rk = rk;
-						while (tmp_rk < rk_end)
-						{
-							int donor = (int)left_keys[tmp_lk].pos - 1;
-							int acceptor = (int)right_keys[tmp_rk].pos + 2;
+		while (tmp_lk < lk_end)
+		  {
+		    size_t tmp_rk = rk;
+		    while (tmp_rk < rk_end)
+		      {
+			int donor = (int)left_keys[tmp_lk].pos - 1;
+			int acceptor = (int)right_keys[tmp_rk].pos + 2;
 							
-							if (acceptor - donor > min_intron && acceptor - donor < max_intron)
-							{
-								Junction j(ref_id,
-										   donor,
-										   acceptor,
-										   antisense,
-										   acceptor - donor); // just prefer shorter introns
-								juncs.insert(j);
-								if (juncs.size() > max_juncs)
-								{
-									juncs.erase(*(juncs.rbegin()));
-								}
-							}
-							++tmp_rk;
-						}
-
-						++tmp_lk;
-					}
-					
-					lk = lk_end;
-					rk = rk_end;
-				}
-			}
-		}
-	}
+			if (acceptor - donor > min_intron && acceptor - donor < max_intron)
+			  {
+			    Junction j(ref_id,
+				       donor,
+				       acceptor,
+				       antisense,
+				       acceptor - donor); // just prefer shorter introns
+			    juncs.insert(j);
+			    if (juncs.size() > max_juncs)
+			      {
+				juncs.erase(*(juncs.rbegin()));
+			      }
+			  }
+			++tmp_rk;
+		      }
+		    
+		    ++tmp_lk;
+		  }
+		
+		lk = lk_end;
+		rk = rk_end;
+	      }
+	  }
+      }
+  }
 };
 
 template <class JunctionRecorder>
 void juncs_from_ref_segs(RefSequenceTable& rt,
-						 vector<RefSeg>& expected_don_acc_windows,
-						 PotentialJuncs& juncs,
-						 const DnaString& donor_dinuc,
-						 const DnaString& acceptor_dinuc,
-						 int max_intron,
-						 int min_intron,
-						 size_t max_juncs,
-						 bool talkative,
-						 size_t half_splice_mer_len)
+			 vector<RefSeg>& expected_don_acc_windows,
+			 PotentialJuncs& juncs,
+			 const DnaString& donor_dinuc,
+			 const DnaString& acceptor_dinuc,
+			 int max_intron,
+			 int min_intron,
+			 size_t max_juncs,
+			 bool talkative,
+			 size_t half_splice_mer_len)
 {	
 	
-	typedef map<uint32_t, IntronMotifs> MotifMap;
+  typedef map<uint32_t, IntronMotifs> MotifMap;
+  
+  MotifMap ims;
 	
-	MotifMap ims;
-	
-	seqan::DnaStringReverseComplement rev_donor_dinuc(donor_dinuc);
-	seqan::DnaStringReverseComplement rev_acceptor_dinuc(acceptor_dinuc);
-	//cerr << donor_dinuc << " " << rev_donor_dinuc << endl;
-	//cerr << acceptor_dinuc << " " << rev_acceptor_dinuc << endl;
-	
-	if (talkative)
-		fprintf(stderr, "Collecting potential splice sites in islands\n");
-	
-	for (size_t r = 0; r < expected_don_acc_windows.size(); ++r)
-	{
-		const RefSeg& seg = expected_don_acc_windows[r];
-		
-		RefSequenceTable::Sequence* ref_str = rt.get_seq(seg.ref_id);
-		
-		if (!ref_str)
-		{
-			//fprintf(stderr, "Error: reference sequence for ID %d\n, not found, aborting\n", seg.ref_id);
-			continue;
-			//exit(1);
-		}
-		
-		pair<map<uint32_t, IntronMotifs>::iterator, bool> ret = 
-		ims.insert(make_pair(seg.ref_id, IntronMotifs(seg.ref_id)));
-		
-		IntronMotifs& motifs = ret.first->second;
-		
-		if (seg.left < 0 || seg.right >= (int)length(*ref_str) - 1)
-			continue;
-		
-		DnaString seg_str = seqan::infix(*ref_str, seg.left, seg.right);
-		
-		if (seg.points_left)
-		{
-			// A ref segment that "points left" is one that was flanked 
-			// on the right by a partial bowtie hit, indicating that we
-			// should be looking for an intron to the left of the hit
-			// In this seg, that means either an "AG" or an "AC"
-			
-			for (size_t i = 0; i < length(seg_str) - 1; ++i)
-			{
-				// Look at a slice of the reference without creating a copy.
-				DnaString curr = seqan::infix(seg_str, 
-											  i, 
-											  i + 2);
-				//cerr << curr << endl;
-				
-				if (curr == acceptor_dinuc)
-					motifs.fwd_acceptors.push_back(make_pair(seg.left + i, DnaSpliceStrings(0,0)));
-				else if (curr == rev_donor_dinuc)
-					motifs.rev_donors.push_back(make_pair(seg.left + i, DnaSpliceStrings(0,0)));
-			}
-		}
-		else
-		{
-			// A right pointing ref seg wants either a "GT" or a "CT"
-			for (size_t i = 0; i < length(seg_str) - 1; ++i)
-			{
-				
-				// Look at a slice of the reference without creating a copy.
-				DnaString curr = seqan::infix(seg_str, 
-											  i, 
-											  i + 2);
-				//cerr << curr << endl;
-				
-				if (curr == donor_dinuc)
-					motifs.fwd_donors.push_back(make_pair(seg.left + i, DnaSpliceStrings(0,0)));
-				else if (curr == rev_acceptor_dinuc)
-					motifs.rev_acceptors.push_back(make_pair(seg.left + i, DnaSpliceStrings(0,0)));
-			}
-		}
-	}
-	
-	if (talkative)
-	{
-		fprintf(stderr, "reporting synthetic splice junctions...\n");
-	}
-	for (MotifMap::iterator motif_itr = ims.begin(); motif_itr != ims.end(); ++motif_itr)
-	{
-		uint32_t ref_id = motif_itr->first;
-		
-		RefSequenceTable::Sequence* ref_str = rt.get_seq(ref_id);
-		
-		if (!ref_str)
-		{
-			fprintf(stderr, "Error: couldn't get ref string for %u\n", ref_id);
-			exit(1);
-		}	
-		
-		if (talkative)
-			fprintf(stderr, "Examining donor-acceptor pairings in %s\n", rt.get_name(ref_id));
-		IntronMotifs& motifs = motif_itr->second;
-		motifs.unique();
-		//motifs.attach_mer_counts(*ref_str);
-		motifs.attach_mers(*ref_str);
-		
-		vector<pair<size_t, DnaSpliceStrings> >& fwd_donors = motifs.fwd_donors;
-		vector<pair<size_t, DnaSpliceStrings> >& fwd_acceptors = motifs.fwd_acceptors;
-		vector<pair<size_t, DnaSpliceStrings> >& rev_acceptors = motifs.rev_acceptors;
-		vector<pair<size_t, DnaSpliceStrings> >& rev_donors = motifs.rev_donors;
-		
-		//const char* ref_name = rt.get_name(motif_itr->second.ref_id);
-		
-		JunctionRecorder recorder;
-		recorder.record(ref_id,
-						fwd_donors, 
-						fwd_acceptors, 
-						false, 
-						juncs,
-						min_intron,
-						max_intron, 
-						max_juncs,
-						half_splice_mer_len);
+  seqan::DnaStringReverseComplement rev_donor_dinuc(donor_dinuc);
+  seqan::DnaStringReverseComplement rev_acceptor_dinuc(acceptor_dinuc);
+  
+  if (talkative)
+    fprintf(stderr, "Collecting potential splice sites in islands\n");
+  
+  for (size_t r = 0; r < expected_don_acc_windows.size(); ++r)
+    {
+      const RefSeg& seg = expected_don_acc_windows[r];
+      
+      RefSequenceTable::Sequence* ref_str = rt.get_seq(seg.ref_id);
+      
+      if (!ref_str)
+	  continue;
 
-		recorder.record(ref_id, 
-						rev_acceptors, 
-						rev_donors, 
-						true, 
-						juncs,
-						min_intron,
-						max_intron, 
-						max_juncs,
-						half_splice_mer_len);
+      bool skip_acceptor = false;
+      bool skip_rev_donor = false;
+      bool skip_donor = false;
+      bool skip_rev_acceptor = false;
+
+      if (library_type == ILLUMINA_STRANDED_PAIRED_END)
+	{
+	  // left reads come from the reversed transcript
+	  if (seg.read == READ_LEFT)
+	    {
+	      if (seg.antisense)
+		{
+		  skip_rev_donor = true;
+		  skip_rev_acceptor = true;
+		}
+	      else
+		{
+		  skip_donor = true;
+		  skip_acceptor = true;
+		}
+	    }
+	  // right reads come from the transcript
+	  else if(seg.read == READ_RIGHT)
+	    {
+	      if (seg.antisense)
+		{
+		  skip_donor = true;
+		  skip_acceptor = true;
+		}
+	      else
+		{
+		  skip_rev_donor = true;
+		  skip_rev_acceptor = true;
+		}
+	    }
 	}
-	//fprintf(stderr, "Found %d total splices\n", num_juncs);
+
+      pair<map<uint32_t, IntronMotifs>::iterator, bool> ret = 
+	ims.insert(make_pair(seg.ref_id, IntronMotifs(seg.ref_id)));
+		
+      IntronMotifs& motifs = ret.first->second;
+      
+      if (seg.left < 0 || seg.right >= (int)length(*ref_str) - 1)
+	continue;
+      
+      DnaString seg_str = seqan::infix(*ref_str, seg.left, seg.right);
+      
+      if (seg.points_left)
+	{
+	  // A ref segment that "points left" is one that was flanked 
+	  // on the right by a partial bowtie hit, indicating that we
+	  // should be looking for an intron to the left of the hit
+	  // In this seg, that means either an "AG" or an "AC"
+			
+	  for (size_t i = 0; i < length(seg_str) - 1; ++i)
+	    {
+	      // Look at a slice of the reference without creating a copy.
+	      DnaString curr = seqan::infix(seg_str, 
+					    i, 
+					    i + 2);
+	      
+	      if (curr == acceptor_dinuc && !skip_acceptor)
+		motifs.fwd_acceptors.push_back(make_pair(seg.left + i, DnaSpliceStrings(0,0)));
+	      else if (curr == rev_donor_dinuc && !skip_rev_donor)
+		motifs.rev_donors.push_back(make_pair(seg.left + i, DnaSpliceStrings(0,0)));
+	    }
+	}
+      else
+	{
+	  // A right pointing ref seg wants either a "GT" or a "CT"
+	  for (size_t i = 0; i < length(seg_str) - 1; ++i)
+	    {
+	      
+	      // Look at a slice of the reference without creating a copy.
+	      DnaString curr = seqan::infix(seg_str, 
+					    i, 
+					    i + 2);
+	      
+	      if (curr == donor_dinuc && !skip_donor)
+		motifs.fwd_donors.push_back(make_pair(seg.left + i, DnaSpliceStrings(0,0)));
+	      else if (curr == rev_acceptor_dinuc && !skip_rev_acceptor)
+		motifs.rev_acceptors.push_back(make_pair(seg.left + i, DnaSpliceStrings(0,0)));
+	    }
+	}
+    }
+  
+  if (talkative)
+    {
+      fprintf(stderr, "reporting synthetic splice junctions...\n");
+    }
+  for (MotifMap::iterator motif_itr = ims.begin(); motif_itr != ims.end(); ++motif_itr)
+    {
+      uint32_t ref_id = motif_itr->first;
+      
+      RefSequenceTable::Sequence* ref_str = rt.get_seq(ref_id);
+      
+      if (!ref_str)
+	{
+	  fprintf(stderr, "Error: couldn't get ref string for %u\n", ref_id);
+	  exit(1);
+	}	
+      
+      if (talkative)
+	fprintf(stderr, "Examining donor-acceptor pairings in %s\n", rt.get_name(ref_id));
+      IntronMotifs& motifs = motif_itr->second;
+      motifs.unique();
+      //motifs.attach_mer_counts(*ref_str);
+      motifs.attach_mers(*ref_str);
+      
+      vector<pair<size_t, DnaSpliceStrings> >& fwd_donors = motifs.fwd_donors;
+      vector<pair<size_t, DnaSpliceStrings> >& fwd_acceptors = motifs.fwd_acceptors;
+      vector<pair<size_t, DnaSpliceStrings> >& rev_acceptors = motifs.rev_acceptors;
+      vector<pair<size_t, DnaSpliceStrings> >& rev_donors = motifs.rev_donors;
+      
+      //const char* ref_name = rt.get_name(motif_itr->second.ref_id);
+      
+      JunctionRecorder recorder;
+      recorder.record(ref_id,
+		      fwd_donors, 
+		      fwd_acceptors, 
+		      false, 
+		      juncs,
+		      min_intron,
+		      max_intron, 
+		      max_juncs,
+		      half_splice_mer_len);
+      
+      recorder.record(ref_id, 
+		      rev_acceptors, 
+		      rev_donors, 
+		      true, 
+		      juncs,
+		      min_intron,
+		      max_intron, 
+		      max_juncs,
+		      half_splice_mer_len);
+    }
+  //fprintf(stderr, "Found %d total splices\n", num_juncs);
 }
 
 void find_gaps(RefSequenceTable& rt,
 	       vector<HitsForRead>& hits_for_read,
-	       std::set<Junction, skip_count_lt>& seg_juncs)
+	       std::set<Junction, skip_count_lt>& seg_juncs,
+	       eREAD read)
 {
-	vector<RefSeg> expected_don_acc_windows;
-	
-	if (hits_for_read.empty())
-		return;
-
-	size_t last_non_empty = hits_for_read.size() - 1;
-	while(last_non_empty >= 0 && hits_for_read[last_non_empty].hits.empty())
+  vector<RefSeg> expected_don_acc_windows;
+  
+  if (hits_for_read.empty())
+    return;
+  
+  size_t last_non_empty = hits_for_read.size() - 1;
+  while(last_non_empty >= 0 && hits_for_read[last_non_empty].hits.empty())
+    {
+      --last_non_empty;
+    }
+  
+  hits_for_read.resize(last_non_empty + 1);
+  for (size_t s = 0; s < hits_for_read.size(); ++s)
+    {
+      HitsForRead& curr = hits_for_read[s];
+      
+      for (size_t h = 0; h < curr.hits.size(); ++h)
 	{
-		--last_non_empty;
-	}
-	
-	hits_for_read.resize(last_non_empty + 1);
-	for (size_t s = 0; s < hits_for_read.size(); ++s)
-	{
-		HitsForRead& curr = hits_for_read[s];
-		
-		for (size_t h = 0; h < curr.hits.size(); ++h)
+	  bool found_left_partner = s == 0;
+	  bool found_right_partner = s == hits_for_read.size() - 1;
+	  bool found_distant_partner = false;
+	  BowtieHit& bh = curr.hits[h];
+	  if (s > 0)
+	    {
+	      // Look for a left partner for the current hit
+	      HitsForRead& left = hits_for_read[s - 1];
+	      
+	      for (size_t l = 0; l < left.hits.size(); ++l)
 		{
-			bool found_left_partner = s == 0;
-			bool found_right_partner = s == hits_for_read.size() - 1;
-			bool found_distant_partner = false;
-			BowtieHit& bh = curr.hits[h];
-			if (s > 0)
-			{
-				// Look for a left partner for the current hit
-				HitsForRead& left = hits_for_read[s - 1];
-				
-				for (size_t l = 0; l < left.hits.size(); ++l)
-				{
-					BowtieHit& lh = left.hits[l];
-					if (bh.antisense_align() != lh.antisense_align())
-						continue;
-					if ((bh.antisense_align() && bh.right() == lh.left()) ||
-						(!bh.antisense_align() && lh.right() == bh.left() ))
-					{
-						found_left_partner = true;
-						break;
-					}
-					if ((bh.antisense_align() && abs(bh.right() - lh.left()) < (int)max_segment_intron_length) ||
-						(!bh.antisense_align() && abs(lh.right() - bh.left()) < (int)max_segment_intron_length))
-					{
-						found_distant_partner = true;
-					}
-					
-				}
-			}
-			if (s < hits_for_read.size() - 1)
-			{
-				// Look for a right partner for the current hit
-				HitsForRead& right = hits_for_read[s + 1];
-				
-				for (size_t r = 0; r < right.hits.size(); ++r)
-				{
-					BowtieHit& rh = right.hits[r];
-					if (bh.antisense_align() != rh.antisense_align())
-						continue;
-					if ((bh.antisense_align() && rh.right() == bh.left()) ||
-						(!bh.antisense_align() && bh.right() == rh.left() ))
-					{
-						found_right_partner = true;
-						break;
-					}
-					if ((bh.antisense_align() && abs(rh.right() - bh.left()) < (int)max_segment_intron_length) ||
-						(!bh.antisense_align() && abs(bh.right() - rh.left()) < (int)max_segment_intron_length))
-					{
-						found_distant_partner = true;
-					}
-				}
-			}
-			if (!found_left_partner)
-			{
-				if (!bh.antisense_align())
-				{
-					RefSeg left_seg(bh.ref_id(), true, 0,0);
-					left_seg.left = max(0, bh.left() - (bh.read_len() + 1));
-					left_seg.right = bh.left() + 5; // num allowed bowtie mismatches
-					expected_don_acc_windows.push_back(left_seg);
-				}
-				else
-				{
-					RefSeg right_seg(bh.ref_id(), false, 0,0);
-					right_seg.left = max(0, bh.right() - 5);
-					right_seg.right = bh.right() + (bh.read_len() + 1); // num allowed bowtie mismatches
-					expected_don_acc_windows.push_back(right_seg);
-				}
-			}
-			if (!found_right_partner)
-			{
-				if (!bh.antisense_align())
-				{
-					RefSeg right_seg(bh.ref_id(), false, 0,0);
-					right_seg.left = max(0, bh.right() - 5);
-					right_seg.right = bh.right() + (bh.read_len() + 1); // num allowed bowtie mismatches
-					expected_don_acc_windows.push_back(right_seg);
-				}
-				else
-				{
-					RefSeg left_seg(bh.ref_id(), true, 0,0);
-					left_seg.left = max(0, bh.left() - (bh.read_len() + 1));
-					left_seg.right = bh.left() + 5; // num allowed bowtie mismatches
-					expected_don_acc_windows.push_back(left_seg);	
-				}
-			}
-			
+		  BowtieHit& lh = left.hits[l];
+		  if (bh.antisense_align() != lh.antisense_align())
+		    continue;
+		  if ((bh.antisense_align() && bh.right() == lh.left()) ||
+		      (!bh.antisense_align() && lh.right() == bh.left() ))
+		    {
+		      found_left_partner = true;
+		      break;
+		    }
+		  if ((bh.antisense_align() && abs(bh.right() - lh.left()) < (int)max_segment_intron_length) ||
+		      (!bh.antisense_align() && abs(lh.right() - bh.left()) < (int)max_segment_intron_length))
+		    {
+		      found_distant_partner = true;
+		    }
+		  
 		}
-		
+	    }
+	  if (s < hits_for_read.size() - 1)
+	    {
+	      // Look for a right partner for the current hit
+	      HitsForRead& right = hits_for_read[s + 1];
+	      
+	      for (size_t r = 0; r < right.hits.size(); ++r)
+		{
+		  BowtieHit& rh = right.hits[r];
+		  if (bh.antisense_align() != rh.antisense_align())
+		    continue;
+		  if ((bh.antisense_align() && rh.right() == bh.left()) ||
+		      (!bh.antisense_align() && bh.right() == rh.left() ))
+		    {
+		      found_right_partner = true;
+		      break;
+		    }
+		  if ((bh.antisense_align() && abs(rh.right() - bh.left()) < (int)max_segment_intron_length) ||
+		      (!bh.antisense_align() && abs(bh.right() - rh.left()) < (int)max_segment_intron_length))
+		    {
+		      found_distant_partner = true;
+		    }
+		}
+	    }
+	  if (!found_left_partner)
+	    {
+	      if (!bh.antisense_align())
+		{
+		  RefSeg left_seg(bh.ref_id(), true, bh.antisense_align(), read, 0, 0);
+		  left_seg.left = max(0, bh.left() - (bh.read_len() + 1));
+		  left_seg.right = bh.left() + 5; // num allowed bowtie mismatches
+		  expected_don_acc_windows.push_back(left_seg);
+		}
+	      else
+		{
+		  RefSeg right_seg(bh.ref_id(), false, bh.antisense_align(), read, 0, 0);
+		  right_seg.left = max(0, bh.right() - 5);
+		  right_seg.right = bh.right() + (bh.read_len() + 1); // num allowed bowtie mismatches
+		  expected_don_acc_windows.push_back(right_seg);
+		}
+	    }
+	  if (!found_right_partner)
+	    {
+	      if (!bh.antisense_align())
+		{
+		  RefSeg right_seg(bh.ref_id(), false, bh.antisense_align(), read, 0,0);
+		  right_seg.left = max(0, bh.right() - 5);
+		  right_seg.right = bh.right() + (bh.read_len() + 1); // num allowed bowtie mismatches
+		  expected_don_acc_windows.push_back(right_seg);
+		}
+	      else
+		{
+		  RefSeg left_seg(bh.ref_id(), true, bh.antisense_align(), read, 0, 0);
+		  left_seg.left = max(0, bh.left() - (bh.read_len() + 1));
+		  left_seg.right = bh.left() + 5; // num allowed bowtie mismatches
+		  expected_don_acc_windows.push_back(left_seg);	
+		}
+	    }
+	  
 	}
-	
-	juncs_from_ref_segs<RecordAllJuncs>(rt, 
-					    expected_don_acc_windows, 
-					    seg_juncs, 
-					    "GT", 
-					    "AG",  
-					    max_segment_intron_length, 
-					    min_segment_intron_length, 
-					    max_seg_juncs,
-					    false,
-					    0);
-	juncs_from_ref_segs<RecordAllJuncs>(rt, 
-					    expected_don_acc_windows, 
-					    seg_juncs, 
-					    "GC", 
-					    "AG", 
-					    max_segment_intron_length, 
-					    min_segment_intron_length, 
-					    max_seg_juncs,
-					    false,
-					    0);
-	juncs_from_ref_segs<RecordAllJuncs>(rt, 
-					    expected_don_acc_windows, 
-					    seg_juncs, 
-					    "AT", 
-					    "AC",  
-					    max_segment_intron_length, 
-					    min_segment_intron_length, 
-					    max_seg_juncs,
-					    false,
-					    0);
-	//juncs_from_ref_segs(rt, expected_don_acc_windows, juncs);
+      
+    }
+  
+  juncs_from_ref_segs<RecordAllJuncs>(rt, 
+				      expected_don_acc_windows, 
+				      seg_juncs, 
+				      "GT", 
+				      "AG",  
+				      max_segment_intron_length, 
+				      min_segment_intron_length, 
+				      max_seg_juncs,
+				      false,
+				      0);
+  juncs_from_ref_segs<RecordAllJuncs>(rt, 
+				      expected_don_acc_windows, 
+				      seg_juncs, 
+				      "GC", 
+				      "AG", 
+				      max_segment_intron_length, 
+				      min_segment_intron_length, 
+				      max_seg_juncs,
+				      false,
+				      0);
+  juncs_from_ref_segs<RecordAllJuncs>(rt, 
+				      expected_don_acc_windows, 
+				      seg_juncs, 
+				      "AT", 
+				      "AC",  
+				      max_segment_intron_length, 
+				      min_segment_intron_length, 
+				      max_seg_juncs,
+				      false,
+				      0);
 }
-
 
 
 MerTable mer_table;
 
 int seed_alignments = 0;
-
 int microaligned_segs = 0;
 
 map<RefSeg, vector<string>* > microexon_windows;
@@ -2355,68 +2375,66 @@ bool overlap_in_genome(int ll, int lr, int rl, int rr)
 void add_to_microexon_windows(uint32_t ref_id, 
 			      int left_boundary, 
 			      int right_boundary, 
-			      const string& dna_str)
+			      const string& dna_str,
+			      eREAD read)
 {
-	//bool found_matching_window = false;
-	//cerr << "adding: "<< dna_str  << endl;
-
-	RefSeg left_dummy(ref_id, false, left_boundary, right_boundary);
-	RefSeg right_dummy(ref_id, false, right_boundary, right_boundary + 1);
-	
-	map<RefSeg, vector<string>* >::iterator lb = microexon_windows.lower_bound(left_dummy);
-	map<RefSeg, vector<string>* >::iterator ub = microexon_windows.lower_bound(right_dummy);
-	vector<string>* new_vec = NULL;
-	if (lb == microexon_windows.end())
+  RefSeg left_dummy(ref_id, false, false, read, left_boundary, right_boundary);
+  RefSeg right_dummy(ref_id, false, false, read, right_boundary, right_boundary + 1);
+  
+  map<RefSeg, vector<string>* >::iterator lb = microexon_windows.lower_bound(left_dummy);
+  map<RefSeg, vector<string>* >::iterator ub = microexon_windows.lower_bound(right_dummy);
+  vector<string>* new_vec = NULL;
+  if (lb == microexon_windows.end())
+    {
+      microexon_windows.insert(make_pair(left_dummy, new vector<string>(1, dna_str)));
+      return;
+    }
+  
+  map<RefSeg, vector<string>* >::iterator first_to_be_erased = microexon_windows.end();
+  map<RefSeg, vector<string>* >::iterator last_to_be_erased = ub;
+  
+  while (lb != ub)
+    {
+      // everyone in this range that overlaps with the new interval needs to 
+      // be merged together.
+      if (overlap_in_genome(lb->first.left, lb->first.right, left_boundary, right_boundary))
 	{
-		microexon_windows.insert(make_pair(left_dummy, new vector<string>(1, dna_str)));
-		return;
+	  if (!new_vec)
+	    new_vec = new vector<string>();
+	  if (first_to_be_erased == microexon_windows.end())
+	    first_to_be_erased = lb;
+	  left_dummy.left = min(lb->first.left, left_boundary);
+	  left_dummy.right = max(lb->first.right, right_boundary);
+	  
+	  new_vec->insert(new_vec->end(), lb->second->begin(), lb->second->end()); 
+	  delete lb->second;
 	}
-	
-	map<RefSeg, vector<string>* >::iterator first_to_be_erased = microexon_windows.end();
-	map<RefSeg, vector<string>* >::iterator last_to_be_erased = ub;
-	
-	while (lb != ub)
+      else if (first_to_be_erased != microexon_windows.end())
 	{
-		// everyone in this range that overlaps with the new interval needs to 
-		// be merged together.
-		if (overlap_in_genome(lb->first.left, lb->first.right, left_boundary, right_boundary))
-		{
-			if (!new_vec)
-				new_vec = new vector<string>();
-			if (first_to_be_erased == microexon_windows.end())
-				first_to_be_erased = lb;
-			left_dummy.left = min(lb->first.left, left_boundary);
-			left_dummy.right = max(lb->first.right, right_boundary);
-			
-			new_vec->insert(new_vec->end(), lb->second->begin(), lb->second->end()); 
-			delete lb->second;
-		}
-		else if (first_to_be_erased != microexon_windows.end())
-		{
-			last_to_be_erased = lb;
-		}
-		
-		++lb;
+	  last_to_be_erased = lb;
 	}
-
-	if (first_to_be_erased != microexon_windows.end())
-	{
-		microexon_windows.erase(first_to_be_erased, last_to_be_erased);
-	}
-	
-	if (!new_vec)
-	{
-		// never found an overlapping window, so just add this one and bail
-		microexon_windows.insert(make_pair(left_dummy, new vector<string>(1, dna_str)));
-		return;
-	}
-	else
-	{
-		new_vec->push_back(dna_str);
-		microexon_windows.insert(make_pair(left_dummy, new_vec));
-		return;
-	}
-	
+      
+      ++lb;
+    }
+  
+  if (first_to_be_erased != microexon_windows.end())
+    {
+      microexon_windows.erase(first_to_be_erased, last_to_be_erased);
+    }
+  
+  if (!new_vec)
+    {
+      // never found an overlapping window, so just add this one and bail
+      microexon_windows.insert(make_pair(left_dummy, new vector<string>(1, dna_str)));
+      return;
+    }
+  else
+    {
+      new_vec->push_back(dna_str);
+      microexon_windows.insert(make_pair(left_dummy, new_vec));
+      return;
+    }
+  
 }
 
 void align_microexon_segs(RefSequenceTable& rt,
@@ -2505,172 +2523,168 @@ void look_for_hit_group(RefSequenceTable& rt,
 			int curr_file,
 			uint64_t insert_id,
 			vector<HitsForRead>& hits_for_read,
-			std::set<Junction, skip_count_lt>& juncs)
+			std::set<Junction, skip_count_lt>& juncs,
+			eREAD read)
 {
-	HitStream& curr = seg_files[curr_file];
-	
-	HitsForRead hit_group;
-	
-	int order = unmapped_reads.observation_order(insert_id);
-	
-	int seq_key_len = min((int)min_anchor_len, 6);
-	
-	while(true)
-	{
-		uint64_t next_group_id = curr.next_group_id();
-		int next_order = unmapped_reads.observation_order(next_group_id);
-		
-		// If we would have seen the hits by now, stop looking in this stream,
-		// but forward the search if possible.
-		if (order < next_order || next_group_id == 0)
-		{		
-			if (curr_file > 0)
-			{
-				look_for_hit_group(rt,
+  HitStream& curr = seg_files[curr_file];
+  HitsForRead hit_group;
+  int order = unmapped_reads.observation_order(insert_id);
+  int seq_key_len = min((int)min_anchor_len, 6);
+  
+  while(true)
+    {
+      uint64_t next_group_id = curr.next_group_id();
+      int next_order = unmapped_reads.observation_order(next_group_id);
+      
+      // If we would have seen the hits by now, stop looking in this stream,
+      // but forward the search if possible.
+      if (order < next_order || next_group_id == 0)
+	{		
+	  if (curr_file > 0)
+	    {
+	      look_for_hit_group(rt,
+				 reads_file,
+				 unmapped_reads,
+				 seg_files,
+				 curr_file - 1,
+				 insert_id,
+				 hits_for_read,
+				 juncs,
+				 read);
+	    }
+	  else if (!no_microexon_search)
+	    {
+	      char read_name[1024];
+	      char read_seq[1024];
+	      char read_alt_name[1024];
+	      char read_quals[1024];
+	      
+	      // The hits are missing for the leftmost segment, which means
+	      // we should try looking for junctions via seed and extend
+	      // using it (helps find junctions to microexons).
+	      bool got_read = get_read_from_stream(insert_id, 
 						   reads_file,
-						   unmapped_reads,
-						   seg_files,
-						   curr_file - 1,
-						   insert_id,
-						   hits_for_read,
-						   juncs);
-			}
-			else if (!no_microexon_search)
-			{
-				char read_name[1024];
-				char read_seq[1024];
-				char read_alt_name[1024];
-				char read_quals[1024];
-				
-				// The hits are missing for the leftmost segment, which means
-				// we should try looking for junctions via seed and extend
-				// using it (helps find junctions to microexons).
-				bool got_read = get_read_from_stream(insert_id, 
-								     reads_file,
-								     FASTQ,
-								     false,
-								     read_name, 
-								     read_seq,
-								     read_alt_name,
-								     read_quals);
-				
-				if (!got_read)
-					break;
-				
-				string fwd_read = read_seq;
-				if (color)
-				  // remove the primer and the adjacent color
-				  fwd_read.erase(0, 2);
-				
-				// make sure there are hits for all the other segs, all the 
-				// way to the root (right-most) one.
-				int empty_seg = 0;
-				for (size_t h = 1; h < hits_for_read.size(); ++h)
-				{
-					if (hits_for_read[h].hits.empty())
-						empty_seg = h;
-				}
-				
-				// if not, no microexon alignment for this segment
-				if (empty_seg != 0)
-					break;
-				
-				fwd_read = fwd_read.substr(0, segment_length);
-				string rev_read = fwd_read;
-
-				if (color)
-				  reverse(rev_read.begin(), rev_read.end());
-				else
-				  reverse_complement(rev_read);
-				
-				for (size_t h = 0; h < hits_for_read[empty_seg + 1].hits.size(); ++h)
-				{
-					const BowtieHit& bh = hits_for_read[empty_seg + 1].hits[h];
-					RefSequenceTable::Sequence* ref_str = rt.get_seq(bh.ref_id());
-					if (ref_str == NULL)
-						continue;
-					
-					int ref_len = length(*ref_str);
-					
-					int left_boundary;
-					int right_boundary;
-					bool antisense = bh.antisense_align();
-					vector<BowtieHit> empty_seg_hits;
-					seed_alignments++;
-					if (antisense)
-					{
-						left_boundary = max(0, bh.right() - (int)min_anchor_len);
-						right_boundary = min(ref_len - 2,
-								     left_boundary +  max_microexon_stretch);
-						if (right_boundary - left_boundary < 2 * seq_key_len)
-							continue;
-						
-						microaligned_segs++;
-						
-						add_to_microexon_windows(bh.ref_id(), left_boundary, right_boundary, rev_read); 
-					}
-					else
-					{
-						right_boundary = min(ref_len - 2,
-								     bh.left() + (int)min_anchor_len);
-						left_boundary = max(0, right_boundary -  max_microexon_stretch);
-						
-						if (right_boundary - left_boundary < 2 * seq_key_len)
-							continue;
-						
-						microaligned_segs++;
-						
-						add_to_microexon_windows(bh.ref_id(), left_boundary, right_boundary, fwd_read);  
-					}
-				}
-			}
-			break;
-		}
-		else if (curr.next_read_hits(hit_group))
+						   FASTQ,
+						   false,
+						   read_name, 
+						   read_seq,
+						   read_alt_name,
+						   read_quals);
+	      
+	      if (!got_read)
+		break;
+	      
+	      string fwd_read = read_seq;
+	      if (color)
+		// remove the primer and the adjacent color
+		fwd_read.erase(0, 2);
+	      
+	      // make sure there are hits for all the other segs, all the 
+	      // way to the root (right-most) one.
+	      int empty_seg = 0;
+	      for (size_t h = 1; h < hits_for_read.size(); ++h)
 		{
-
-			// If we found hits for the target group in the left stream,
-			// add them to the accumulating vector and continue the search
-			if (hit_group.insert_id == insert_id)
-			{	
-				hits_for_read[curr_file] = hit_group;
-				if (curr_file > 0)
-				{
-					// we need to look left (recursively) for the group we 
-					// just read for this stream.
-					look_for_hit_group(rt,
-							   reads_file,
-							   unmapped_reads,
-							   seg_files,
-							   curr_file - 1,
-							   insert_id,
-							   hits_for_read,
-							   juncs);
-					
-				}
-				break;
-			}
-			else if (curr_file > 0)
-			{
-				// If this is a different group, we need to start a whole new 
-				// search for it, with a whole new vector of hits.
-				vector<HitsForRead> hits_for_new_read(seg_files.size());
-				hits_for_new_read[curr_file] = hit_group;
-
-				
-				look_for_hit_group(rt,
-						   reads_file,
-						   unmapped_reads,
-						   seg_files,
-						   curr_file - 1,
-						   hit_group.insert_id,
-						   hits_for_new_read,
-						   juncs);
-				find_gaps(rt, hits_for_new_read, juncs);
-			}
-
+		  if (hits_for_read[h].hits.empty())
+		    empty_seg = h;
 		}
+	      
+	      // if not, no microexon alignment for this segment
+	      if (empty_seg != 0)
+		break;
+	      
+	      fwd_read = fwd_read.substr(0, segment_length);
+	      string rev_read = fwd_read;
+	      
+	      if (color)
+		reverse(rev_read.begin(), rev_read.end());
+	      else
+		reverse_complement(rev_read);
+	      
+	      for (size_t h = 0; h < hits_for_read[empty_seg + 1].hits.size(); ++h)
+		{
+		  const BowtieHit& bh = hits_for_read[empty_seg + 1].hits[h];
+		  RefSequenceTable::Sequence* ref_str = rt.get_seq(bh.ref_id());
+		  if (ref_str == NULL)
+		    continue;
+					
+		  int ref_len = length(*ref_str);
+		  
+		  int left_boundary;
+		  int right_boundary;
+		  bool antisense = bh.antisense_align();
+		  vector<BowtieHit> empty_seg_hits;
+		  seed_alignments++;
+		  if (antisense)
+		    {
+		      left_boundary = max(0, bh.right() - (int)min_anchor_len);
+		      right_boundary = min(ref_len - 2,
+					   left_boundary +  max_microexon_stretch);
+		      if (right_boundary - left_boundary < 2 * seq_key_len)
+			continue;
+		      
+		      microaligned_segs++;
+		      add_to_microexon_windows(bh.ref_id(), left_boundary, right_boundary, rev_read, read); 
+		    }
+		  else
+		    {
+		      right_boundary = min(ref_len - 2,
+					   bh.left() + (int)min_anchor_len);
+		      left_boundary = max(0, right_boundary -  max_microexon_stretch);
+		      
+		      if (right_boundary - left_boundary < 2 * seq_key_len)
+			continue;
+		      
+		      microaligned_segs++;
+		      add_to_microexon_windows(bh.ref_id(), left_boundary, right_boundary, fwd_read, read);
+		    }
+		}
+	    }
+	  break;
 	}
+      else if (curr.next_read_hits(hit_group))
+	{
+	  // If we found hits for the target group in the left stream,
+	  // add them to the accumulating vector and continue the search
+	  if (hit_group.insert_id == insert_id)
+	    {	
+	      hits_for_read[curr_file] = hit_group;
+	      if (curr_file > 0)
+		{
+		  // we need to look left (recursively) for the group we 
+		  // just read for this stream.
+		  look_for_hit_group(rt,
+				     reads_file,
+				     unmapped_reads,
+				     seg_files,
+				     curr_file - 1,
+				     insert_id,
+				     hits_for_read,
+				     juncs,
+				     read);
+		  
+		}
+	      break;
+	    }
+	  else if (curr_file > 0)
+	    {
+	      // If this is a different group, we need to start a whole new 
+	      // search for it, with a whole new vector of hits.
+	      vector<HitsForRead> hits_for_new_read(seg_files.size());
+	      hits_for_new_read[curr_file] = hit_group;
+	      
+	      look_for_hit_group(rt,
+				 reads_file,
+				 unmapped_reads,
+				 seg_files,
+				 curr_file - 1,
+				 hit_group.insert_id,
+				 hits_for_new_read,
+				 juncs,
+				 read);
+	      find_gaps(rt, hits_for_new_read, juncs, read);
+	    }
+	}
+    }
 }
 
 
@@ -2679,28 +2693,28 @@ bool process_next_hit_group(RefSequenceTable& rt,
 			    ReadTable& unmapped_reads,
 			    vector<HitStream>& seg_files, 
 			    size_t curr_file,
-			    std::set<Junction, skip_count_lt>& juncs)
+			    std::set<Junction, skip_count_lt>& juncs,
+			    eREAD read)
 {
-	HitStream& curr = seg_files[curr_file];
-	HitsForRead hit_group;
-	if (curr.next_read_hits(hit_group))
-	{
-		vector<HitsForRead> hits_for_read(seg_files.size());
-		hits_for_read.back() = hit_group;
-
-		//int ord = unmapped_reads.observation_order(hit_group.insert_id);
-		look_for_hit_group(rt,
-						   reads_file,
-						   unmapped_reads, 
-						   seg_files, 
-						   (int)curr_file - 1,
-						   hit_group.insert_id,
-						   hits_for_read,
-						   juncs);
-		find_gaps(rt, hits_for_read, juncs);
-		return true;
-	}
-	return false;
+  HitStream& curr = seg_files[curr_file];
+  HitsForRead hit_group;
+  if (curr.next_read_hits(hit_group))
+    {
+      vector<HitsForRead> hits_for_read(seg_files.size());
+      hits_for_read.back() = hit_group;
+      look_for_hit_group(rt,
+			 reads_file,
+			 unmapped_reads, 
+			 seg_files, 
+			 (int)curr_file - 1,
+			 hit_group.insert_id,
+			 hits_for_read,
+			 juncs,
+			 read);
+      find_gaps(rt, hits_for_read, juncs, read);
+      return true;
+    }
+  return false;
 }
 
 static const int UNCOVERED = 0;
@@ -2719,107 +2733,110 @@ uint8_t get_cov(const vector<uint8_t>& cov, uint32_t c)
 }
 
 void pair_covered_sites(ReadTable& it,
-						RefSequenceTable& rt,
-						vector<FILE*>& seg_files,
-						std::set<Junction, skip_count_lt>& cov_juncs,
-						size_t half_splice_mer_len)
+			RefSequenceTable& rt,
+			vector<FILE*>& seg_files,
+			std::set<Junction, skip_count_lt>& cov_juncs,
+			size_t half_splice_mer_len)
 {
-	//static int island_repeat_tolerance = 10;
-	BowtieHitFactory hit_factory(it,rt);
-	map<uint32_t, vector<bool> > coverage_map;
-	vector<RefSeg> expected_look_left_windows;
-	vector<RefSeg> expected_look_right_windows;
-	
-	//FILE* f_islands = fopen("islands.coords", "w");
-	
-	for (size_t f = 0; f < seg_files.size(); ++f)
+  BowtieHitFactory hit_factory(it,rt);
+  map<uint32_t, vector<bool> > coverage_map;
+  vector<RefSeg> expected_look_left_windows;
+  vector<RefSeg> expected_look_right_windows;
+  
+  for (size_t f = 0; f < seg_files.size(); ++f)
+    {
+      fprintf(stderr, "Adding hits from segment file %d to coverage map\n", (int)f);
+      FILE* fp = seg_files[f];
+      rewind(fp);
+      HitStream hs(fp, &hit_factory, false, false, false);
+      
+      HitsForRead hit_group;
+      while (hs.next_read_hits(hit_group))
 	{
-		fprintf(stderr, "Adding hits from segment file %d to coverage map\n", (int)f);
-		FILE* fp = seg_files[f];
-		rewind(fp);
-		HitStream hs(fp, &hit_factory, false, false, false);
-		
-		HitsForRead hit_group;
-		while (hs.next_read_hits(hit_group))
+	  for (size_t h = 0; h < hit_group.hits.size(); ++h)
+	    {
+	      BowtieHit& bh = hit_group.hits[h];
+	      
+	      pair<map<uint32_t, vector<bool> >::iterator, bool> ret = 
+		coverage_map.insert(make_pair(bh.ref_id(), vector<bool>()));
+	      vector<bool>& ref_cov = ret.first->second;
+	      
+	      size_t right_extent = bh.right();
+	      
+	      if (right_extent >= ref_cov.size())
 		{
-			for (size_t h = 0; h < hit_group.hits.size(); ++h)
-			{
-				BowtieHit& bh = hit_group.hits[h];
-				
-				pair<map<uint32_t, vector<bool> >::iterator, bool> ret = 
-				coverage_map.insert(make_pair(bh.ref_id(), vector<bool>()));
-				vector<bool>& ref_cov = ret.first->second;
-				
-				size_t right_extent = bh.right();
-				
-				if (right_extent >= ref_cov.size())
-				{
-					ref_cov.resize(right_extent + 1, 0);
-				}
-				
-				for (uint32_t c = (uint32_t)bh.left(); c < (uint32_t)bh.right(); ++c)
-				{
-					ref_cov[c] = true;
-				}
-			}
+		  ref_cov.resize(right_extent + 1, 0);
 		}
+	      
+	      for (uint32_t c = (uint32_t)bh.left(); c < (uint32_t)bh.right(); ++c)
+		{
+		  ref_cov[c] = true;
+		}
+	    }
 	}
-	
-	
-	static const int extend = 45;
-	//static const int repeat_tol = 5;
-	
-	int num_islands = 0;
-	
-	vector<RefSeg> expected_don_acc_windows;
-
-	fprintf(stderr, "Recording coverage islands\n");
-	size_t cov_bases = 0;
-	for (map<uint32_t, vector<bool> >::iterator itr = coverage_map.begin();
-		 itr != coverage_map.end();
-		 ++itr)
+    }
+  
+  static const int extend = 45;
+  int num_islands = 0;
+  
+  vector<RefSeg> expected_don_acc_windows;
+  
+  fprintf(stderr, "Recording coverage islands\n");
+  size_t cov_bases = 0;
+  for (map<uint32_t, vector<bool> >::iterator itr = coverage_map.begin();
+       itr != coverage_map.end();
+       ++itr)
+    {
+      vector<bool>& cov = itr->second;
+      
+      size_t island_left_edge = 0;
+      for (size_t c = 1; c < cov.size(); ++c)
 	{
-		vector<bool>& cov = itr->second;
-
-		size_t island_left_edge = 0;
-		for (size_t c = 1; c < cov.size(); ++c)
+	  if (cov[c])
+	    {
+	      cov_bases++;
+	      if (!cov[c - 1])
 		{
-			if (cov[c])
-			{
-				cov_bases++;
-				if (!cov[c - 1])
-				{
-					num_islands += 1;
-					
-					int edge = (int)c - extend;
-					edge = max(edge, 0);
-					island_left_edge = edge;
-				}
-			}
-			else
-			{
-				if (cov[c - 1])
-				{
-					expected_don_acc_windows.push_back(RefSeg(itr->first, true, island_left_edge, c + extend));
-					expected_don_acc_windows.push_back(RefSeg(itr->first, false, island_left_edge, c + extend));	
-				}
-			}
+		  num_islands += 1;
+		  
+		  int edge = (int)c - extend;
+		  edge = max(edge, 0);
+		  island_left_edge = edge;
 		}
+	    }
+	  else
+	    {
+	      if (cov[c - 1])
+		{
+		  expected_don_acc_windows.push_back(RefSeg(itr->first,
+							    true,
+							    false, /* not important */
+							    READ_DONTCARE,
+							    island_left_edge,
+							    c + extend));
+		  expected_don_acc_windows.push_back(RefSeg(itr->first,
+							    false,
+							    false, /* not important */
+							    READ_DONTCARE,
+							    island_left_edge,
+							    c + extend));	
+		}
+	    }
 	}
-	fprintf(stderr, "Found %d islands covering %ld bases\n", num_islands, cov_bases);
-	
-	juncs_from_ref_segs<RecordButterflyJuncs>(rt, 
-											  expected_don_acc_windows, 
-											  cov_juncs, 
-											  "GT", 
-											  "AG", 
-											  max_coverage_intron_length, 
-											  min_coverage_intron_length, 
-											  max_cov_juncs,
-											  true,
-											  half_splice_mer_len);
-	fprintf(stderr, "Found %ld potential intra-island junctions\n", cov_juncs.size());
-	//juncs.insert(island_juncs.begin(), island_juncs.end());
+    }
+  fprintf(stderr, "Found %d islands covering %ld bases\n", num_islands, cov_bases);
+  
+  juncs_from_ref_segs<RecordButterflyJuncs>(rt, 
+					    expected_don_acc_windows, 
+					    cov_juncs, 
+					    "GT", 
+					    "AG", 
+					    max_coverage_intron_length, 
+					    min_coverage_intron_length, 
+					    max_cov_juncs,
+					    true,
+					    half_splice_mer_len);
+  fprintf(stderr, "Found %ld potential intra-island junctions\n", cov_juncs.size());
 }
 
 void capture_island_ends(ReadTable& it,
@@ -2828,202 +2845,211 @@ void capture_island_ends(ReadTable& it,
 			 std::set<Junction, skip_count_lt>& cov_juncs,
 			 size_t half_splice_mer_len)
 {
-	//static int island_repeat_tolerance = 10;
-	BowtieHitFactory hit_factory(it,rt);
-	map<uint32_t, vector<bool> > coverage_map;
-	vector<RefSeg> expected_look_left_windows;
-	vector<RefSeg> expected_look_right_windows;
-	
-	for (size_t f = 0; f < seg_files.size(); ++f)
+  //static int island_repeat_tolerance = 10;
+  BowtieHitFactory hit_factory(it,rt);
+  map<uint32_t, vector<bool> > coverage_map;
+  vector<RefSeg> expected_look_left_windows;
+  vector<RefSeg> expected_look_right_windows;
+  
+  for (size_t f = 0; f < seg_files.size(); ++f)
+    {
+      fprintf(stderr, "Adding hits from segment file %d to coverage map\n", (int)f);
+      FILE* fp = seg_files[f];
+      rewind(fp);
+      HitStream hs(fp, &hit_factory, false, false, false);
+      
+      HitsForRead hit_group;
+      while (hs.next_read_hits(hit_group))
 	{
-		fprintf(stderr, "Adding hits from segment file %d to coverage map\n", (int)f);
-		FILE* fp = seg_files[f];
-		rewind(fp);
-		HitStream hs(fp, &hit_factory, false, false, false);
-		
-		HitsForRead hit_group;
-		while (hs.next_read_hits(hit_group))
+	  for (size_t h = 0; h < hit_group.hits.size(); ++h)
+	    {
+	      BowtieHit& bh = hit_group.hits[h];
+	      
+	      pair<map<uint32_t, vector<bool> >::iterator, bool> ret = 
+		coverage_map.insert(make_pair(bh.ref_id(), vector<bool>()));
+	      vector<bool>& ref_cov = ret.first->second;
+	      
+	      size_t right_extent = bh.right();
+	      
+	      if (right_extent >= ref_cov.size())
 		{
-			for (size_t h = 0; h < hit_group.hits.size(); ++h)
-			{
-				BowtieHit& bh = hit_group.hits[h];
-				
-				pair<map<uint32_t, vector<bool> >::iterator, bool> ret = 
-				coverage_map.insert(make_pair(bh.ref_id(), vector<bool>()));
-				vector<bool>& ref_cov = ret.first->second;
-				
-				size_t right_extent = bh.right();
-				
-				if (right_extent >= ref_cov.size())
-				{
-					ref_cov.resize(right_extent + 1, 0);
-				}
-				
-				for (uint32_t c = (uint32_t)bh.left(); c < (uint32_t)bh.right(); ++c)
-				{
-					ref_cov[c] = true;
-				}
-			}
+		  ref_cov.resize(right_extent + 1, 0);
 		}
+	      
+	      for (uint32_t c = (uint32_t)bh.left(); c < (uint32_t)bh.right(); ++c)
+		{
+		  ref_cov[c] = true;
+		}
+	    }
 	}
-	
-	static const int min_cov_length = segment_length + 2;
-	
-	long covered_bases = 0;
-	int long_enough_bases = 0;
-	int left_looking = 0;
-	int right_looking = 0;
-	static const int extend = 45;
-	static const int repeat_tol = 5;
-	
-	int num_islands = 0;
-	
-	for (map<uint32_t, vector<bool> >::iterator itr = coverage_map.begin();
-		 itr != coverage_map.end();
-		 ++itr)
+    }
+  
+  static const int min_cov_length = segment_length + 2;
+  
+  long covered_bases = 0;
+  int long_enough_bases = 0;
+  int left_looking = 0;
+  int right_looking = 0;
+  static const int extend = 45;
+  static const int repeat_tol = 5;
+  
+  int num_islands = 0;
+  
+  for (map<uint32_t, vector<bool> >::iterator itr = coverage_map.begin();
+       itr != coverage_map.end();
+       ++itr)
+    {
+      //fprintf (stderr, "Finding pairings in ref seg %u\n", (int)itr->first);
+      
+      vector<bool>& cov = itr->second;
+      vector<bool> long_enough(cov.size());
+      
+      size_t last_uncovered = 0;
+      
+      static const uint8_t min_cov = 1;
+      
+      for (size_t c = 1; c < cov.size(); ++c)
 	{
-		//fprintf (stderr, "Finding pairings in ref seg %u\n", (int)itr->first);
-		
-		vector<bool>& cov = itr->second;
-		vector<bool> long_enough(cov.size());
-
-		size_t last_uncovered = 0;
-		
-		static const uint8_t min_cov = 1;
-		
-		for (size_t c = 1; c < cov.size(); ++c)
+	  int c_cov = cov[c]; //get_cov(cov, c);
+	  if (c_cov < min_cov || c == (cov.size()) - 1)
+	    {
+	      int putative_exon_length = (int)c - (int)last_uncovered;
+	      int last_pos_cov = cov[c - 1]; //get_cov(cov,c - 1);
+	      if (last_pos_cov >= min_cov && putative_exon_length >= min_cov_length)
 		{
-			int c_cov = cov[c]; //get_cov(cov, c);
-			if (c_cov < min_cov || c == (cov.size()) - 1)
-			{
-				int putative_exon_length = (int)c - (int)last_uncovered;
-				int last_pos_cov = cov[c - 1]; //get_cov(cov,c - 1);
-				if (last_pos_cov >= min_cov && putative_exon_length >= min_cov_length)
-				{
-					//fprintf (stdout, "%s\t%d\t%d\n", rt.get_name(itr->first), last_uncovered + 1, c);
-					covered_bases += (c + 1 - last_uncovered);
-					//fprintf(stderr, "making new segment from %d to %d\n", last_uncovered + 1, c);
-					for (int l = (int)c; l > (int)last_uncovered; --l)
-					{
-						long_enough[l] = true;
-					}
-				}
-				last_uncovered = c;
-			}
+		  //fprintf (stdout, "%s\t%d\t%d\n", rt.get_name(itr->first), last_uncovered + 1, c);
+		  covered_bases += (c + 1 - last_uncovered);
+		  //fprintf(stderr, "making new segment from %d to %d\n", last_uncovered + 1, c);
+		  for (int l = (int)c; l > (int)last_uncovered; --l)
+		    {
+		      long_enough[l] = true;
+		    }
 		}
-		
-		
-		vector<bool>& ref_cov = long_enough;
-		vector<uint8_t> cov_state(ref_cov.size(), UNCOVERED);
-		
-		for (size_t c = 1; c < ref_cov.size(); ++c)
-		{
-			if (ref_cov[c])
-			{
-				long_enough_bases++;
-				if (!ref_cov[c - 1])
-				{
-					num_islands += 1;
-					
-					for (int r = (int)c - extend; 
-						 r >= 0 && r < (int)c + repeat_tol && r < (int)cov_state.size(); 
-						 ++r)
-					{
-						cov_state[r] |= LOOK_LEFT;
-					}
-				}
-			}
-			else
-			{
-				if (ref_cov[c - 1])
-				{
-					for (int l = (int)c - repeat_tol; 
-						 l >= 0 && l < (int)c + extend && l < (int)cov_state.size(); 
-						 ++l)
-					{
-						cov_state[l] |= LOOK_RIGHT;
-					}	
-				}
-			}
-		}
-
-		RefSeg* curr_look_left = NULL;
-		RefSeg* curr_look_right = NULL;
-		
-		for (size_t c = 1; c < cov_state.size(); ++c)
-		{
-			if (cov_state[c] & LOOK_LEFT)
-			{
-				left_looking++;
-				if (!(cov_state[c-1] & LOOK_LEFT))
-				{
-					expected_look_left_windows.push_back(RefSeg(itr->first, true, c, c + 1));
-					curr_look_left = &(expected_look_left_windows.back());
-				}
-				else if (curr_look_left)
-				{
-					curr_look_left->right++;
-				}
-			}
-			else
-			{
-				if ((cov_state[c-1] & LOOK_LEFT))
-				{
-					curr_look_left = NULL;
-				}
-			}
-			
-			if (cov_state[c] & LOOK_RIGHT)
-			{
-				right_looking++;
-				if (!(cov_state[c-1] & LOOK_RIGHT))
-				{
-					expected_look_right_windows.push_back(RefSeg(itr->first, false, c, c + 1));
-					curr_look_right = &(expected_look_right_windows.back());
-				}
-				else if (curr_look_right)
-				{
-					curr_look_right->right++;
-				}
-			}
-			else
-			{
-				if ((cov_state[c-1] & LOOK_RIGHT))
-				{
-					curr_look_right = NULL;
-				}
-			}
-		}
+	      last_uncovered = c;
+	    }
 	}
-	
-	fprintf(stderr, "Map covers %ld bases\n", covered_bases);
-	fprintf(stderr, "Map covers %d bases in sufficiently long segments\n", long_enough_bases);
-	fprintf(stderr, "Map contains %d good islands\n", num_islands + 1);
-	fprintf(stderr, "%d are left looking bases\n", left_looking);
-	fprintf(stderr, "%d are right looking bases\n", right_looking);
-	
-	vector<RefSeg> expected_don_acc_windows;
-	expected_don_acc_windows.insert(expected_don_acc_windows.end(),
-					expected_look_right_windows.begin(),
-					expected_look_right_windows.end());
-									  
-	expected_don_acc_windows.insert(expected_don_acc_windows.end(),
-					expected_look_left_windows.begin(),
-					expected_look_left_windows.end());
-	
-	coverage_map.clear();
-	juncs_from_ref_segs<RecordExtendableJuncs>(rt, 
-						   expected_don_acc_windows, 
-						   cov_juncs, 
-						   "GT", 
-						   "AG",  
-						   max_coverage_intron_length, 
-						   min_coverage_intron_length, 
-						   max_cov_juncs,
-						   true,
-						   half_splice_mer_len);
-	fprintf(stderr, "Found %ld potential island-end pairing junctions\n", cov_juncs.size());
-	//juncs.insert(island_juncs.begin(), island_juncs.end());
+      
+      vector<bool>& ref_cov = long_enough;
+      vector<uint8_t> cov_state(ref_cov.size(), UNCOVERED);
+      
+      for (size_t c = 1; c < ref_cov.size(); ++c)
+	{
+	  if (ref_cov[c])
+	    {
+	      long_enough_bases++;
+	      if (!ref_cov[c - 1])
+		{
+		  num_islands += 1;
+		  
+		  for (int r = (int)c - extend; 
+		       r >= 0 && r < (int)c + repeat_tol && r < (int)cov_state.size(); 
+		       ++r)
+		    {
+		      cov_state[r] |= LOOK_LEFT;
+		    }
+		}
+	    }
+	  else
+	    {
+	      if (ref_cov[c - 1])
+		{
+		  for (int l = (int)c - repeat_tol; 
+		       l >= 0 && l < (int)c + extend && l < (int)cov_state.size(); 
+		       ++l)
+		    {
+		      cov_state[l] |= LOOK_RIGHT;
+		    }	
+		}
+	    }
+	}
+      
+      RefSeg* curr_look_left = NULL;
+      RefSeg* curr_look_right = NULL;
+      
+      for (size_t c = 1; c < cov_state.size(); ++c)
+	{
+	  if (cov_state[c] & LOOK_LEFT)
+	    {
+	      left_looking++;
+	      if (!(cov_state[c-1] & LOOK_LEFT))
+		{
+		  expected_look_left_windows.push_back(RefSeg(itr->first,
+							      true,
+							      false, /* not important */
+							      READ_DONTCARE,
+							      c,
+							      c + 1));
+		  curr_look_left = &(expected_look_left_windows.back());
+		}
+	      else if (curr_look_left)
+		{
+		  curr_look_left->right++;
+		}
+	    }
+	  else
+	    {
+	      if ((cov_state[c-1] & LOOK_LEFT))
+		{
+		  curr_look_left = NULL;
+		}
+	    }
+	  
+	  if (cov_state[c] & LOOK_RIGHT)
+	    {
+	      right_looking++;
+	      if (!(cov_state[c-1] & LOOK_RIGHT))
+		{
+		  expected_look_right_windows.push_back(RefSeg(itr->first,
+							       false,
+							       false, /* not important */
+							       READ_DONTCARE,
+							       c,
+							       c + 1));
+		  curr_look_right = &(expected_look_right_windows.back());
+		}
+	      else if (curr_look_right)
+		{
+		  curr_look_right->right++;
+		}
+	    }
+	  else
+	    {
+	      if ((cov_state[c-1] & LOOK_RIGHT))
+		{
+		  curr_look_right = NULL;
+		}
+	    }
+	}
+    }
+  
+  fprintf(stderr, "Map covers %ld bases\n", covered_bases);
+  fprintf(stderr, "Map covers %d bases in sufficiently long segments\n", long_enough_bases);
+  fprintf(stderr, "Map contains %d good islands\n", num_islands + 1);
+  fprintf(stderr, "%d are left looking bases\n", left_looking);
+  fprintf(stderr, "%d are right looking bases\n", right_looking);
+  
+  vector<RefSeg> expected_don_acc_windows;
+  expected_don_acc_windows.insert(expected_don_acc_windows.end(),
+				  expected_look_right_windows.begin(),
+				  expected_look_right_windows.end());
+  
+  expected_don_acc_windows.insert(expected_don_acc_windows.end(),
+				  expected_look_left_windows.begin(),
+				  expected_look_left_windows.end());
+  
+  coverage_map.clear();
+  juncs_from_ref_segs<RecordExtendableJuncs>(rt, 
+					     expected_don_acc_windows, 
+					     cov_juncs, 
+					     "GT", 
+					     "AG",  
+					     max_coverage_intron_length, 
+					     min_coverage_intron_length, 
+					     max_cov_juncs,
+					     true,
+					     half_splice_mer_len);
+  fprintf(stderr, "Found %ld potential island-end pairing junctions\n", cov_juncs.size());
+  //juncs.insert(island_juncs.begin(), island_juncs.end());
 }
 
 
@@ -3032,38 +3058,36 @@ void process_segment_hits(RefSequenceTable& rt,
 			  vector<FILE*>& seg_files,
 			  BowtieHitFactory& hit_factory,
 			  ReadTable& it,
-			  std::set<Junction, skip_count_lt>& juncs)
+			  std::set<Junction, skip_count_lt>& juncs,
+			  eREAD read = READ_DONTCARE)
 {
-	
-	//get_seqs(reads_stream, it, false, false);
-	//get_seqs(reads_file, it, reads_format, false, false);
-	
-	vector<HitStream> hit_streams;
-	for (size_t i = 0; i < seg_files.size(); ++i)
-	{
-		HitStream hs(seg_files[i], &hit_factory, false, false, false);
-		
-		// if the next group id in this stream is zero, it's an empty stream,
-		// and we can simply skip it.
-		//if (hs.next_group_id() != 0)
-		hit_streams.push_back(hs);
-	}
-	
-	int num_group = 0;
-	while (process_next_hit_group(rt,
-				      reads_file,
-				      it, 
-				      hit_streams, 
-				      hit_streams.size() - 1,
-				      juncs) == true)
-	{
-		num_group++;
-		if (num_group % 500000 == 0)
-			fprintf(stderr, "\tProcessed %d root segment groups\n", num_group);
-	}
-	
-	fprintf(stderr, "Microaligned %d segments\n", microaligned_segs); 
-	
+  vector<HitStream> hit_streams;
+  for (size_t i = 0; i < seg_files.size(); ++i)
+    {
+      HitStream hs(seg_files[i], &hit_factory, false, false, false);
+      
+      // if the next group id in this stream is zero, it's an empty stream,
+      // and we can simply skip it.
+      //if (hs.next_group_id() != 0)
+      hit_streams.push_back(hs);
+    }
+  
+  int num_group = 0;
+  while (process_next_hit_group(rt,
+				reads_file,
+				it, 
+				hit_streams, 
+				hit_streams.size() - 1,
+				juncs,
+				read) == true)
+    {
+      num_group++;
+      if (num_group % 500000 == 0)
+	fprintf(stderr, "\tProcessed %d root segment groups\n", num_group);
+    }
+  
+  fprintf(stderr, "Microaligned %d segments\n", microaligned_segs); 
+  
 }
 
 void print_juncs(RefSequenceTable& rt, std::set<Junction, skip_count_lt>& juncs, const char* str)
@@ -3119,7 +3143,8 @@ void driver(istream& ref_stream,
 				     left_seg_files,
 				     hit_factory,
 				     it,
-				     seg_juncs);
+				     seg_juncs,
+				     READ_LEFT );
 		
 		fprintf( stderr, "done.\n");
 	}
@@ -3132,7 +3157,8 @@ void driver(istream& ref_stream,
 				     right_seg_files,
 				     hit_factory,
 				     it,
-				     seg_juncs);
+				     seg_juncs,
+				     READ_RIGHT);
 		fprintf( stderr, "done.\n");
 	}
 	fprintf(stderr, "Found %ld potential split-segment junctions\n", seg_juncs.size());
@@ -3203,12 +3229,9 @@ void driver(istream& ref_stream,
 				     max_cov_juncs,
 				     5);
 		juncs.insert(microexon_juncs.begin(), microexon_juncs.end());
-
-		// daehwan
 		print_juncs(rt, microexon_juncs, "microexon");
 	}
 
-	// daehwan
 	print_juncs(rt, seg_juncs, "seg");
 	print_juncs(rt, cov_juncs, "cov");
 	print_juncs(rt, butterfly_juncs, "buf");

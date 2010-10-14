@@ -37,9 +37,6 @@ int max_coverage_intron_length = 20000;
 int min_segment_intron_length = 50;
 int max_segment_intron_length = 500000;
 
-//uint32_t min_intron_length = 50;
-//uint32_t max_intron_length = 20000;
-
 uint32_t min_closure_exon_length = 100; 
 
 int island_extension = 25;
@@ -73,7 +70,7 @@ bool integer_quals = false;
 bool color = false;
 bool color_out = false;
 
-bool dUTP = false;
+eLIBRARY_TYPE library_type = LIBRARY_TYPE_NONE;
 
 extern void print_usage();
 
@@ -135,61 +132,63 @@ static float parseFloat(float lower, float upper, const char *errmsg, void (*pri
 
 const char *short_options = "";
 
-#define OPT_FASTA						33
-#define OPT_FASTQ						34
-#define OPT_MIN_ANCHOR					35
-#define OPT_SPLICE_MISMATCHES			36
-#define OPT_VERBOSE						37
-#define OPT_INSERT_LENGTH_MEAN			38
-#define OPT_INSERT_LENGTH_STD_DEV		39
-//#define OPT_COV_ISLAND_EXTENSION		40
-#define OPT_MIN_ISOFORM_FRACTION		41
-#define OPT_OUTPUT_DIR					42
-#define OPT_GENE_FILTER					43
-#define OPT_GFF_ANNOTATIONS				44
-#define OPT_MAX_MULTIHITS				46
-#define OPT_NO_CLOSURE_SEARCH			47
-#define OPT_NO_COVERAGE_SEARCH			48
-#define OPT_NO_MICROEXON_SEARCH			49
-#define OPT_SEGMENT_LENGTH				50
-#define OPT_SEGMENT_MISMATCHES			51
-#define OPT_MIN_CLOSURE_EXON			52
-#define OPT_MAX_CLOSURE_INTRON			53
-#define OPT_MIN_CLOSURE_INTRON			54
-#define OPT_MAX_COVERAGE_INTRON			55
-#define OPT_MIN_COVERAGE_INTRON			56
-#define OPT_MIN_SEGMENT_INTRON			57
-#define OPT_MAX_SEGMENT_INTRON			58
-#define OPT_MIN_REPORT_INTRON			59
-#define OPT_MAX_REPORT_INTRON			60
-#define OPT_IUM_READS					61
-#define OPT_BUTTERFLY_SEARCH			62
-#define OPT_SOLEXA_QUALS			    63
-#define OPT_PHRED64_QUALS				64
-#define OPT_SAM_HEADER                  65
-#define OPT_QUALS                  66
-#define OPT_INTEGER_QUALS                  67
-#define OPT_COLOR                  68
-#define OPT_COLOR_OUT                  69
-#define OPT_DUTP    70
+enum
+  {
+    OPT_FASTA = 33,
+    OPT_FASTQ,
+    OPT_MIN_ANCHOR,
+    OPT_SPLICE_MISMATCHES,
+    OPT_VERBOSE,
+    OPT_INSERT_LENGTH_MEAN,
+    OPT_INSERT_LENGTH_STD_DEV,
+    OPT_MIN_ISOFORM_FRACTION,
+    OPT_OUTPUT_DIR,
+    OPT_GENE_FILTER,
+    OPT_GFF_ANNOTATIONS,
+    OPT_MAX_MULTIHITS,
+    OPT_NO_CLOSURE_SEARCH,
+    OPT_NO_COVERAGE_SEARCH,
+    OPT_NO_MICROEXON_SEARCH,
+    OPT_SEGMENT_LENGTH,
+    OPT_SEGMENT_MISMATCHES,
+    OPT_MIN_CLOSURE_EXON,
+    OPT_MAX_CLOSURE_INTRON,
+    OPT_MIN_CLOSURE_INTRON,
+    OPT_MAX_COVERAGE_INTRON,
+    OPT_MIN_COVERAGE_INTRON,
+    OPT_MIN_SEGMENT_INTRON,
+    OPT_MAX_SEGMENT_INTRON,
+    OPT_MIN_REPORT_INTRON,
+    OPT_MAX_REPORT_INTRON,
+    OPT_IUM_READS,
+    OPT_BUTTERFLY_SEARCH,
+    OPT_SOLEXA_QUALS,
+    OPT_PHRED64_QUALS,
+    OPT_SAM_HEADER,
+    OPT_QUALS,
+    OPT_INTEGER_QUALS,
+    OPT_COLOR,
+    OPT_COLOR_OUT,
+    OPT_LIBRARY_TYPE
+  };
 
 static struct option long_options[] = {
-{"fasta",				no_argument,		0,	OPT_FASTA},
-{"fastq",				no_argument,		0,	OPT_FASTQ},
-{"min-anchor",			required_argument,	0,	OPT_MIN_ANCHOR},
-{"sam-header",			required_argument,	0,	OPT_SAM_HEADER},
+{"fasta",		no_argument,		0,	OPT_FASTA},
+{"fastq",		no_argument,		0,	OPT_FASTQ},
+{"min-anchor",		required_argument,	0,	OPT_MIN_ANCHOR},
+{"sam-header",		required_argument,	0,	OPT_SAM_HEADER},
 {"splice-mismatches",	required_argument,	0,	OPT_SPLICE_MISMATCHES},
-{"verbose",				no_argument,		0,	OPT_VERBOSE},
-{"inner-dist-mean",		required_argument,	0,	OPT_INSERT_LENGTH_MEAN},
+{"verbose",		no_argument,		0,	OPT_VERBOSE},
+{"inner-dist-mean",	required_argument,	0,	OPT_INSERT_LENGTH_MEAN},
 {"inner-dist-std-dev",	required_argument,	0,	OPT_INSERT_LENGTH_STD_DEV},
-{"output-dir",			required_argument,	0,	OPT_OUTPUT_DIR},
-{"gene-filter",			required_argument,	0,	OPT_GENE_FILTER},
-{"gff-annotations",		required_argument,	0,	OPT_GFF_ANNOTATIONS},
-{"max-multihits",		required_argument,	0,  OPT_MAX_MULTIHITS},
+{"output-dir",		required_argument,	0,	OPT_OUTPUT_DIR},
+{"gene-filter",		required_argument,	0,	OPT_GENE_FILTER},
+{"gff-annotations",	required_argument,	0,	OPT_GFF_ANNOTATIONS},
+{"max-multihits",	required_argument,	0,  OPT_MAX_MULTIHITS},
 {"no-closure-search",	no_argument,		0,  OPT_NO_CLOSURE_SEARCH},
 {"no-coverage-search",	no_argument,		0,  OPT_NO_COVERAGE_SEARCH},
 {"no-microexon-search",	no_argument,		0,  OPT_NO_MICROEXON_SEARCH},
-{"segment-length",		required_argument,	0,  OPT_SEGMENT_LENGTH},
+{"segment-length",	required_argument,	0,  OPT_SEGMENT_LENGTH},
 {"segment-mismatches",	required_argument,	0,  OPT_SEGMENT_MISMATCHES},
 {"min-closure-exon",	required_argument,	0,  OPT_MIN_CLOSURE_EXON},
 {"min-closure-intron",	required_argument,	0,  OPT_MIN_CLOSURE_INTRON},
@@ -201,15 +200,15 @@ static struct option long_options[] = {
 {"min-report-intron",	required_argument,	0,  OPT_MIN_REPORT_INTRON},
 {"max-report-intron",	required_argument,	0,  OPT_MAX_REPORT_INTRON},
 {"min-isoform-fraction",required_argument,	0,  OPT_MIN_ISOFORM_FRACTION},
-{"ium-reads",			required_argument,	0,  OPT_IUM_READS},
+{"ium-reads",		required_argument,	0,  OPT_IUM_READS},
 {"butterfly-search",	no_argument,		0,	OPT_BUTTERFLY_SEARCH},
-{"solexa-quals",		no_argument,		0,	OPT_SOLEXA_QUALS},
-{"phred64-quals",		no_argument,		0,	OPT_PHRED64_QUALS},
+{"solexa-quals",	no_argument,		0,	OPT_SOLEXA_QUALS},
+{"phred64-quals",	no_argument,		0,	OPT_PHRED64_QUALS},
 {"quals",		no_argument,		0,	OPT_QUALS},
-{"integer-quals",		no_argument,		0,	OPT_INTEGER_QUALS},
+{"integer-quals",	no_argument,		0,	OPT_INTEGER_QUALS},
 {"color",		no_argument,		0,	OPT_COLOR},
 {"color-out",		no_argument,		0,	OPT_COLOR_OUT},
-{"dUTP",		no_argument,		0,	OPT_DUTP},
+{"library-type",	required_argument,	0,	OPT_LIBRARY_TYPE},
   
 {0, 0, 0, 0} // terminator
 };
@@ -328,8 +327,8 @@ int parse_options(int argc, char** argv, void (*print_usage)())
     case OPT_COLOR_OUT:
       color_out = true;
       break;
-    case OPT_DUTP:
-      dUTP = true;
+    case OPT_LIBRARY_TYPE:
+      library_type = ILLUMINA_STRANDED_PAIRED_END;
       break;
     default:
       print_usage();

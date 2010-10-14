@@ -784,10 +784,6 @@ void print_hit(FILE* fout,
 	       const char* qualities,
 	       bool from_bowtie)
 {
-	//static const int buf_size = 256;
-	//char text_name[buf_size];
-	//char sequence[buf_size];
-	
 	string seq;
 	string quals;
 	if (sequence)
@@ -796,14 +792,11 @@ void print_hit(FILE* fout,
 		quals = qualities;
 		seq.resize(bh.read_len());
 		quals.resize(bh.read_len());
-		//if (bh.antisense_align())
-		//	reverse_complement(seq);
 	}
 	else
 	{
 		seq = "*";
 	}
-	
 	
 	if (qualities)
 	{
@@ -872,15 +865,11 @@ void print_hit(FILE* fout,
 			seq.c_str(),
 			quals.c_str());
 	
-	fprintf(fout,
-			"\tNM:i:%d",
-			bh.edit_dist());
-	
+	fprintf(fout, "\tNM:i:%d", bh.edit_dist());
+
 	if (!bh.contiguous())
 	  {
-	    fprintf(fout,
-		    "\tXS:A:%c",
-		    bh.antisense_splice() ? '-' : '+');
+	    fprintf(fout, "\tXS:A:%c", bh.antisense_splice() ? '-' : '+');
 	  }
 	
 	fprintf(fout, "\n");
