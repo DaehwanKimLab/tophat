@@ -98,8 +98,8 @@ public:
 							const BowtieHit& h1, 
 							const BowtieHit& h2)
 	{
-		assert (h1.ref_id() == h2.ref_id()); 
-		
+		assert (h1.ref_id() == h2.ref_id());
+	
 		int minor_hit_start, major_hit_start;
 		int minor_hit_end, major_hit_end;
 		if (h1.left() < h2.left())

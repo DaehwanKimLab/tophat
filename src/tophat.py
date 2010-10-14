@@ -48,7 +48,7 @@ Options:
     --integer-quals
     -C/--color                                 (Solid - color space)
     --color-out
-    --dUTP                                     (dUTP - strand-specific RNA seq)
+    --library-type                             (--illumina-stranded-paired-end)
     -p/--num-threads               <int>       [ default: 1            ]
     -G/--GFF                       <filename>
     -j/--raw-juncs                 <filename>
@@ -195,7 +195,7 @@ class TopHatParams:
                      integer_quals,
                      color,
                      color_out,
-                     dUTP,
+                     library_type,
                      seed_length,
                      reads_format,
                      mate_inner_dist,
@@ -214,7 +214,7 @@ class TopHatParams:
             self.integer_quals = integer_quals
             self.color = color
             self.color_out = color_out
-            self.dUTP = dUTP
+            self.library_type = library_type
             self.seed_length = seed_length
             self.reads_format = reads_format
             self.mate_inner_dist = mate_inner_dist
@@ -243,8 +243,8 @@ class TopHatParams:
                     self.integer_quals = True
                 elif option == "--color-out":
                     self.color_out = True
-                elif option == "--dUTP":
-                    self.dUTP = True
+                elif option == "--library-type":
+                    self.library_type = value
                 elif option in ("-s", "--seed-length"):
                     self.seed_length = int(value)
                 elif option in ("-r", "--mate-inner-dist"):
@@ -353,7 +353,7 @@ class TopHatParams:
                                            False,               # integer quals
                                            False,               # SOLiD - color space
                                            False,               # SOLiD - color out instead of base pair,
-                                           False,               # dUTP - strand-specific RNA-Seq
+                                           "",                  # illumina-stranded-paired-end
                                            None,                # seed_length
                                            "fastq",             # quality_format
                                            None,                # mate inner distance
@@ -405,6 +405,10 @@ class TopHatParams:
 
         if self.read_params.color == True and self.butterfly_search == True:
             print >> sys.stderr, "Error: butterfly-search in colorspace is not yet supported"
+            sys.exit(1)
+
+        if self.read_params.library_type != "" and self.read_params.library_type != "illumina-stranded-paired-end":
+            print >> sys.stderr, "Error: libary-type should be illumina-stranded-paired-end, which is only supported in the current version"
             sys.exit(1)
         
         self.search_params.max_closure_intron_length = min(self.splice_constraints.max_intron_length,
@@ -459,8 +463,8 @@ class TopHatParams:
             cmd.append("--color")
             if self.read_params.color_out == True:
                 cmd.append("--color-out")
-        if self.read_params.dUTP == True:
-            cmd.append("--dUTP")
+        if self.read_params.library_type != "":
+            cmd.extend(["--library-type", self.read_params.library_type])
         if self.read_params.phred64_quals == True:
             cmd.append("--phred64-quals")
         return cmd
@@ -481,7 +485,7 @@ class TopHatParams:
                                          "integer-quals",
                                          "color",
                                          "color-out",
-                                         "dUTP",
+                                         "library-type=",
                                          "num-threads=",
                                          "splice-mismatches=",
                                          "max-multihits=",
@@ -1074,7 +1078,7 @@ def check_reads(params, reads_files):
                                    params.integer_quals,
                                    params.color,
                                    params.color_out,
-                                   params.dUTP,
+                                   params.library_type,
                                    seed_len, 
                                    format, 
                                    params.mate_inner_dist, 
