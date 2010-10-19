@@ -48,7 +48,7 @@ Options:
     --integer-quals
     -C/--color                                 (Solid - color space)
     --color-out
-    --library-type                             (--illumina-stranded-paired-end)
+    --library-type                             (--illumina-unstranded, --illumina-stranded-paired-end, --illumina-stranded-single-end, solid-paired-end, solid-single-end)
     -p/--num-threads               <int>       [ default: 1            ]
     -G/--GFF                       <filename>
     -j/--raw-juncs                 <filename>
@@ -353,7 +353,7 @@ class TopHatParams:
                                            False,               # integer quals
                                            False,               # SOLiD - color space
                                            False,               # SOLiD - color out instead of base pair,
-                                           "",                  # illumina-stranded-paired-end
+                                           "",                  # library type (e.g. "illumina-stranded-pair-end")
                                            None,                # seed_length
                                            "fastq",             # quality_format
                                            None,                # mate inner distance
@@ -407,8 +407,11 @@ class TopHatParams:
             print >> sys.stderr, "Error: butterfly-search in colorspace is not yet supported"
             sys.exit(1)
 
-        if self.read_params.library_type != "" and self.read_params.library_type != "illumina-stranded-paired-end":
-            print >> sys.stderr, "Error: libary-type should be illumina-stranded-paired-end, which is only supported in the current version"
+        library_types = ["illumina-unstranded", "illumina-stranded-paired-end", "illumina-stranded-single-end",
+                         "solid-paired-end", "solid-single-end"]
+
+        if self.read_params.library_type != "" and self.read_params.library_type not in library_types:
+            print >> sys.stderr, "Error: libary-type should be one of", library_types
             sys.exit(1)
         
         self.search_params.max_closure_intron_length = min(self.splice_constraints.max_intron_length,
@@ -778,7 +781,7 @@ def get_index_sam_header(read_params, idx_prefix):
         #    print >> sam_header_file, line
 
         
-        print >> sam_header_file, "@HD\tVN:1.0\tSO:coordinate\tGO:reference"
+        print >> sam_header_file, "@HD\tVN:1.0\tSO:sorted"
     
         if read_params.read_group_id and read_params.sample_id:
             rg_str = "@RG\tID:%s\tSM:%s" % (read_params.read_group_id,
@@ -1337,7 +1340,32 @@ def build_juncs_index(min_anchor_length,
     external_splices_out_prefix = build_juncs_bwt_index(external_splices_out_prefix, color)
     return external_splices_out_prefix
 
-      
+# Print out the sam header, embedding the user's specified library properties.
+# FIXME: also needs SQ dictionary lines
+def write_sam_header(read_params, sam_file):
+    print >> sam_file, "@HD\tVN:1.0\tSO:sorted"
+    
+    if read_params.read_group_id and read_params.sample_id:
+        rg_str = "@RG\tID:%s\tSM:%s" % (read_params.read_group_id,
+                                        read_params.sample_id)
+        if read_params.library_id:
+            rg_str += "\tLB:%s" % read_params.library_id
+        if read_params.description:
+            rg_str += "\tDS:%s" % read_params.description
+        if read_params.seq_platform_unit:
+            rg_str += "\tPU:%s" % read_params.seq_platform_unit
+        if read_params.seq_center:
+            rg_str += "\tCN:%s" % read_params.seq_center
+        if read_params.mate_inner_dist:
+            rg_str += "\tPI:%s" % read_params.mate_inner_dist
+        if read_params.seq_run_date:
+            rg_str += "\tDT:%s" % read_params.seq_run_date
+        if read_params.seq_platform:
+            rg_str += "\tPL:%s" % read_params.seq_platform
+        
+        print >> sam_file, rg_str
+    print >> sam_file, "@PG\tID:TopHat\tVN:%s\tCL:%s" % (get_version(), run_cmd)
+            
 # Write final TopHat output, via tophat_reports and wiggles
 def compile_reports(params, sam_header_filename, left_maps, left_reads, right_maps, right_reads, gff_annotation):
     print >> sys.stderr, "[%s] Reporting output tracks" % right_now()
@@ -1625,24 +1653,22 @@ def junctions_from_closures(params,
 # map and segment maps.  Report junctions in segment.juncs.  Calls the executable
 # segment_juncs
 def junctions_from_segments(params,
-                            left_reads, 
+                            left_reads,
+                            left_reads_map,
                             left_seg_maps, 
                             right_reads,
+                            right_reads_map,
                             right_seg_maps,
                             unmapped_reads, 
                             reads_format, 
                             ref_fasta):
-    #print >> sys.stderr, "[%s] " % right_now()
     print >> sys.stderr, "[%s] Searching for junctions via segment mapping" % right_now()
-    #maps = [x for x in seg_maps if (os.path.exists(x) and os.path.getsize(x) > 0)]
-    #if len(maps) == 0:
-    #    return None
     slash = left_seg_maps[0].rfind('/')
     juncs_out = ""
     if slash != -1:
         juncs_out += left_seg_maps[0][:slash+1]
     juncs_out += "segment.juncs"
-    
+
     left_maps = ','.join(left_seg_maps)
     align_log = open(logging_dir + "segment_juncs.log", "w")
     align_cmd = [prog_path("segment_juncs")]
@@ -1653,10 +1679,11 @@ def junctions_from_segments(params,
                       ref_fasta,
                       juncs_out,
                       left_reads,
+                      left_reads_map,
                       left_maps])
     if right_seg_maps != None:
         right_maps = ','.join(right_seg_maps)
-        align_cmd.extend([right_reads, right_maps])            
+        align_cmd.extend([right_reads, right_reads_map, right_maps])            
     try:
         print >> run_log, " ".join(align_cmd)
         retcode = subprocess.call(align_cmd, 
@@ -1876,21 +1903,26 @@ def spliced_alignment(params,
     
     # Unless the user asked not to discover new junctions, start that process
     # here
-    if params.find_novel_juncs:    
+    if params.find_novel_juncs:
+        left_reads_map = maps[left_reads].unspliced_bwt
         left_seg_maps = maps[left_reads].seg_maps
         unmapped_reads = maps[left_reads].unmapped_segs
         if right_reads != None:
+            right_reads_map = maps[right_reads].unspliced_bwt
             right_seg_maps = maps[right_reads].seg_maps
             unmapped_reads.extend(maps[right_reads].unmapped_segs)
         else:
+            right_reads_map = None
             right_seg_maps = None
         
         # Call segment_juncs to infer a list of possible splice junctions from
         # the regions of the genome covered in the initial and segment maps
         juncs = junctions_from_segments(params, 
-                                        left_reads, 
+                                        left_reads,
+                                        left_reads_map,
                                         left_seg_maps, 
                                         right_reads,
+                                        right_reads_map,
                                         right_seg_maps,
                                         unmapped_reads,
                                         "fastq", 
@@ -2031,7 +2063,7 @@ def prog_path(program):
 
 # FIXME: this should get set during the make dist autotools phase of the build
 def get_version():
-   return "1.1.1"
+   return "1.1.0"
 
 def main(argv=None):
     warnings.filterwarnings("ignore", "tmpnam is a potential security risk")

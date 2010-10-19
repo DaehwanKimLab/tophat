@@ -365,6 +365,7 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 		uint32_t left = atoi(toks[num_extra_toks + left_window_edge_field].c_str()) + text_offset;
 		int spliced_read_len = strlen(seq_str);
 		int8_t left_splice_pos = atoi(splice_toks[0].c_str()) - left + 1;
+		if(left_splice_pos > spliced_read_len) left_splice_pos = spliced_read_len;		  
 		int8_t right_splice_pos = spliced_read_len - left_splice_pos;
 		
 		if (orientation == '+')
@@ -415,6 +416,7 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 		cigar.push_back(CigarOp(MATCH, left_splice_pos));
 		cigar.push_back(CigarOp(REF_SKIP, gap_len));
 		cigar.push_back(CigarOp(MATCH, right_splice_pos));
+
 		bh = create_hit(name,
 				contig,
 				left, 

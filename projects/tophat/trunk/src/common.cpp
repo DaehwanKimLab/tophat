@@ -128,8 +128,6 @@ static float parseFloat(float lower, float upper, const char *errmsg, void (*pri
     return -1;
 }
 
-
-
 const char *short_options = "";
 
 enum
@@ -328,7 +326,16 @@ int parse_options(int argc, char** argv, void (*print_usage)())
       color_out = true;
       break;
     case OPT_LIBRARY_TYPE:
-      library_type = ILLUMINA_STRANDED_PAIRED_END;
+      if (strcmp(optarg, "illumina-unstranded") == 0)
+	library_type = ILLUMINA_UNSTRANDED;
+      else if (strcmp(optarg, "illumina-stranded-paired-end") == 0)
+	library_type = ILLUMINA_STRANDED_PAIRED_END;
+      else if (strcmp(optarg, "illumina-stranded-single-end") == 0)
+	library_type = ILLUMINA_STRANDED_SINGLE_END;
+      else if (strcmp(optarg, "solid-paired-end") == 0)
+	library_type = SOLID_PAIRED_END;
+      else if (strcmp(optarg, "solid-single-end") == 0)
+	library_type = SOLID_SINGLE_END;
       break;
     default:
       print_usage();
