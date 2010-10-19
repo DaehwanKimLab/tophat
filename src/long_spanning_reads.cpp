@@ -176,13 +176,12 @@ void look_left_for_hit_group(ReadTable& unmapped_reads,
 }
 
 BowtieHit merge_sense_chain(std::set<Junction>& possible_juncs,
-							list<BowtieHit>& hit_chain)
+			    list<BowtieHit>& hit_chain)
 {
-	
 	uint32_t reference_id = hit_chain.front().ref_id();
 	uint64_t insert_id = hit_chain.front().insert_id();
 	
-	int	left = hit_chain.front().left();	
+	int left = hit_chain.front().left();	
 	
 	list<BowtieHit>::iterator prev_hit = hit_chain.begin();
 	list<BowtieHit>::iterator curr_hit = ++(hit_chain.begin());
@@ -198,7 +197,6 @@ BowtieHit merge_sense_chain(std::set<Junction>& possible_juncs,
 	  qual += i->qual();
 	  old_read_length += i->read_len();
 	}
-	
 	
 	while(curr_hit != hit_chain.end() && prev_hit != hit_chain.end())
 	{
@@ -218,9 +216,6 @@ BowtieHit merge_sense_chain(std::set<Junction>& possible_juncs,
 	
 	while(curr_hit != hit_chain.end() && prev_hit != hit_chain.end())
 	{
-//		BowtieHit& lh = *left_hit;
-//		BowtieHit& rh = *right_hit;
-		//printf ("rh = [%d,%d], lh = [%d,%d]\n", rh.left(), rh.right(), lh.left(), lh.right());
 		if (prev_hit->right() != curr_hit->left())
 		{
 			if (curr_hit->left() - prev_hit->right() < (int)min_report_intron_length)
@@ -242,14 +237,6 @@ BowtieHit merge_sense_chain(std::set<Junction>& possible_juncs,
 			
 			while (lb != ub && lb != possible_juncs.end())
 			{
-
-//				int lbl = lb->left;
-//				int lbr = lb->right;
-//				int rhr = right_hit->right();
-//				int rhl = right_hit->left();
-//				int lhl = left_hit->left();
-//				int lhr = left_hit->right();
-//				fprintf(stderr, "[%d]\t%d\t%d\n", (int)insert_id, lb->left, lb->right);
 				int dist_to_left = lb->left - prev_hit->right() + 1;
 				int dist_to_right = lb->right - curr_hit->left();
 				if ( abs(dist_to_left) <= 4 && abs(dist_to_right) <= 4 && dist_to_left == dist_to_right)
@@ -265,13 +252,6 @@ BowtieHit merge_sense_chain(std::set<Junction>& possible_juncs,
 					
 					new_left = prev_hit->left();
 					new_cigar = prev_hit->cigar();
-					
-//					int new_right_back_len = new_cigar.back().length;
-//					new_right_back_len += dist_to_left;
-//					
-//					vector<CigarOp> new_left_cig = left_hit->cigar();
-//					int new_left_front_len = new_left_cig.front().length;
-//					new_left_front_len -= dist_to_right;
 					
 					int new_left_back_len = new_cigar.back().length;
 					new_left_back_len += dist_to_left;
@@ -362,10 +342,12 @@ BowtieHit merge_sense_chain(std::set<Junction>& possible_juncs,
 		{
 			CigarOp& last = long_cigar.back();
 			last.length += cigar[0].length;
+
 			for (size_t b = 1; b < cigar.size(); ++b)
-			{
-				long_cigar.push_back(cigar[b]);
-			}
+			  {
+			    long_cigar.push_back(cigar[b]);
+
+			  }
 		}
 	}
 
@@ -641,8 +623,8 @@ bool valid_hit(const BowtieHit& bh)
 }
 
 void merge_segment_chain(std::set<Junction>& possible_juncs,
-						 vector<BowtieHit>& hits,
-						 vector<BowtieHit>& merged_hits)
+			 vector<BowtieHit>& hits,
+			 vector<BowtieHit>& merged_hits)
 {
 	if (hits.size() == 0)
 		return;
@@ -677,10 +659,10 @@ void merge_segment_chain(std::set<Junction>& possible_juncs,
 }
 
 bool dfs_seg_hits(std::set<Junction>& possible_juncs, 
-				  vector<HitsForRead>& seg_hits_for_read,
-				  size_t curr,
-				  vector<BowtieHit>& seg_hit_stack,
-				  vector<BowtieHit>& joined_hits)
+		  vector<HitsForRead>& seg_hits_for_read,
+		  size_t curr,
+		  vector<BowtieHit>& seg_hit_stack,
+		  vector<BowtieHit>& joined_hits)
 {
 	assert (!seg_hit_stack.empty());
 	bool join_success = false;
@@ -710,10 +692,10 @@ bool dfs_seg_hits(std::set<Junction>& possible_juncs,
 						// stack, recurse, and pop it when done.
 						seg_hit_stack.push_back(bh);
 						bool success = dfs_seg_hits(possible_juncs,
-													seg_hits_for_read, 
-													curr + 1,
-													seg_hit_stack,
-													joined_hits);
+									    seg_hits_for_read, 
+									    curr + 1,
+									    seg_hit_stack,
+									    joined_hits);
 						if (success)
 							join_success = true;
 						
@@ -731,10 +713,10 @@ bool dfs_seg_hits(std::set<Junction>& possible_juncs,
 						// stack, recurse, and pop it when done.
 						seg_hit_stack.push_back(bh);
 						bool success = dfs_seg_hits(possible_juncs,
-													seg_hits_for_read, 
-													curr + 1,
-													seg_hit_stack,
-													joined_hits);
+									    seg_hits_for_read, 
+									    curr + 1,
+									    seg_hit_stack,
+									    joined_hits);
 						if (success)
 							join_success = true;
 						
@@ -758,35 +740,35 @@ bool dfs_seg_hits(std::set<Junction>& possible_juncs,
 }
 
 bool join_segments_for_read(std::set<Junction>& possible_juncs,
-							vector<HitsForRead>& seg_hits_for_read,
-							vector<BowtieHit>& joined_hits)
+			    vector<HitsForRead>& seg_hits_for_read,
+			    vector<BowtieHit>& joined_hits)
 {	
-	vector<BowtieHit> seg_hit_stack;
-	bool join_success = false;
-	
-	for (size_t i = 0; i < seg_hits_for_read[0].hits.size(); ++i)
-	{
-		BowtieHit& bh = seg_hits_for_read[0].hits[i];
-		seg_hit_stack.push_back(bh);
-		bool success = dfs_seg_hits(possible_juncs,
-									seg_hits_for_read, 
-									1, 
-									seg_hit_stack,
-									joined_hits);
-		if (success)
-			join_success = true;
-		seg_hit_stack.pop_back();
-	}
-	
-	return join_success;
+  vector<BowtieHit> seg_hit_stack;
+  bool join_success = false;
+  
+  for (size_t i = 0; i < seg_hits_for_read[0].hits.size(); ++i)
+    {
+      BowtieHit& bh = seg_hits_for_read[0].hits[i];
+      seg_hit_stack.push_back(bh);
+      bool success = dfs_seg_hits(possible_juncs,
+				  seg_hits_for_read, 
+				  1, 
+				  seg_hit_stack,
+				  joined_hits);
+      if (success)
+	join_success = true;
+      seg_hit_stack.pop_back();
+    }
+  
+  return join_success;
 }
 
 void join_segment_hits(std::set<Junction>& possible_juncs, 
-					   ReadTable& unmapped_reads,
-					   RefSequenceTable& rt,
-					   FILE* reads_file,
-					   vector<HitStream>& contig_hits,
-					   vector<HitStream>& spliced_hits)
+		       ReadTable& unmapped_reads,
+		       RefSequenceTable& rt,
+		       FILE* reads_file,
+		       vector<HitStream>& contig_hits,
+		       vector<HitStream>& spliced_hits)
 {
 	uint32_t curr_contig_obs_order = 0xFFFFFFFF;
 	HitStream* last_seg_contig_stream = NULL;
@@ -837,22 +819,6 @@ void join_segment_hits(std::set<Junction>& possible_juncs,
 		else if  (curr_spliced_obs_order < curr_contig_obs_order)
 		{
 			
-			// Get hit group
-//			curr_hit_group = splice_itr->second;
-//			seg_hits_for_read.back() = curr_hit_group;
-//			
-//			read_in_process = curr_spliced_obs_order;
-//			
-//			++splice_itr;
-//			if (splice_itr != last_seg_spliced_stream->end())
-//			{
-//				curr_spliced_obs_order = splice_itr->first;
-//			}
-//			else
-//			{
-//				curr_spliced_obs_order = 0xFFFFFFFF;
-//			}
-			
 			last_seg_spliced_stream->next_read_hits(curr_hit_group);
 			seg_hits_for_read.back() = curr_hit_group;
 			
@@ -897,11 +863,11 @@ void join_segment_hits(std::set<Junction>& possible_juncs,
 		if (contig_hits.size() > 1)
 		{
 			look_left_for_hit_group(unmapped_reads, 
-									contig_hits, 
-									contig_hits.size() - 1,
-									spliced_hits,
-									curr_hit_group,
-									seg_hits_for_read);
+						contig_hits, 
+						contig_hits.size() - 1,
+						spliced_hits,
+						curr_hit_group,
+						seg_hits_for_read);
 		}
 		
 		if (!seg_hits_for_read.empty() && !seg_hits_for_read[0].hits.empty())
@@ -913,18 +879,18 @@ void join_segment_hits(std::set<Junction>& possible_juncs,
 			char read_quals[256];
 			
 			if (get_read_from_stream(insert_id,  
-									 reads_file,
-									 reads_format,
-									 false,
-									 read_name, 
-									 read_seq,
-									 read_alt_name,
-									 read_quals))
+						 reads_file,
+						 reads_format,
+						 false,
+						 read_name, 
+						 read_seq,
+						 read_alt_name,
+						 read_quals))
 			{
 				vector<BowtieHit> joined_hits;
 				join_segments_for_read(possible_juncs,
-									   seg_hits_for_read, 
-									   joined_hits);
+						       seg_hits_for_read, 
+						       joined_hits);
 				
 				sort(joined_hits.begin(), joined_hits.end());
 				vector<BowtieHit>::iterator new_end = unique(joined_hits.begin(), joined_hits.end());

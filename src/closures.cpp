@@ -302,14 +302,14 @@ public:
 
 	if (library_type == ILLUMINA_STRANDED_PAIRED_END)
 	  {
-	    if (bh_left.antisense_align())
-	      {
-		skip_rev = true;
-	      }
-	    else
-	      {
-		skip_fwd = true;
-	      }
+	    if (bh_left.antisense_align()) skip_rev = true;
+	    else skip_fwd = true;
+	  }
+
+	if (library_type == SOLID_PAIRED_END)
+	  {
+	    if (bh_left.antisense_align()) skip_fwd = true;
+	    else skip_rev = true;
 	  }
 
 	if (inner_dist > inner_dist_mean + 2 * inner_dist_std_dev)

@@ -2066,40 +2066,34 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
       if (!ref_str)
 	  continue;
 
-      bool skip_acceptor = false;
-      bool skip_rev_donor = false;
-      bool skip_donor = false;
-      bool skip_rev_acceptor = false;
+      bool skip_fwd = false;
+      bool skip_rev = false;
 
-      if (library_type == ILLUMINA_STRANDED_PAIRED_END)
+      if (library_type == ILLUMINA_STRANDED_PAIRED_END || library_type == ILLUMINA_STRANDED_SINGLE_END)
 	{
-	  // left reads come from the reversed transcript
 	  if (seg.read == READ_LEFT)
 	    {
-	      if (seg.antisense)
-		{
-		  skip_rev_donor = true;
-		  skip_rev_acceptor = true;
-		}
-	      else
-		{
-		  skip_donor = true;
-		  skip_acceptor = true;
-		}
+	      if (seg.antisense) skip_rev = true;
+	      else skip_fwd = true;
 	    }
-	  // right reads come from the transcript
 	  else if(seg.read == READ_RIGHT)
 	    {
-	      if (seg.antisense)
-		{
-		  skip_donor = true;
-		  skip_acceptor = true;
-		}
-	      else
-		{
-		  skip_rev_donor = true;
-		  skip_rev_acceptor = true;
-		}
+	      if (seg.antisense) skip_fwd = true;
+	      else skip_rev = true;
+	    }
+	}
+
+      if (library_type == SOLID_PAIRED_END || library_type == SOLID_SINGLE_END)
+	{
+	  if (seg.read == READ_LEFT)
+	    {
+	      if (seg.antisense) skip_fwd = true;
+	      else skip_rev = true;
+	    }
+	  else if(seg.read == READ_RIGHT)
+	    {
+	      if (seg.antisense) skip_rev = true;
+	      else skip_fwd = true;
 	    }
 	}
 
@@ -2127,9 +2121,9 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
 					    i, 
 					    i + 2);
 	      
-	      if (curr == acceptor_dinuc && !skip_acceptor)
+	      if (curr == acceptor_dinuc && !skip_fwd)
 		motifs.fwd_acceptors.push_back(make_pair(seg.left + i, DnaSpliceStrings(0,0)));
-	      else if (curr == rev_donor_dinuc && !skip_rev_donor)
+	      else if (curr == rev_donor_dinuc && !skip_rev)
 		motifs.rev_donors.push_back(make_pair(seg.left + i, DnaSpliceStrings(0,0)));
 	    }
 	}
@@ -2144,9 +2138,9 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
 					    i, 
 					    i + 2);
 	      
-	      if (curr == donor_dinuc && !skip_donor)
+	      if (curr == donor_dinuc && !skip_fwd)
 		motifs.fwd_donors.push_back(make_pair(seg.left + i, DnaSpliceStrings(0,0)));
-	      else if (curr == rev_acceptor_dinuc && !skip_rev_acceptor)
+	      else if (curr == rev_acceptor_dinuc && !skip_rev)
 		motifs.rev_acceptors.push_back(make_pair(seg.left + i, DnaSpliceStrings(0,0)));
 	    }
 	}
@@ -3049,7 +3043,6 @@ void capture_island_ends(ReadTable& it,
 					     true,
 					     half_splice_mer_len);
   fprintf(stderr, "Found %ld potential island-end pairing junctions\n", cov_juncs.size());
-  //juncs.insert(island_juncs.begin(), island_juncs.end());
 }
 
 
@@ -3111,8 +3104,10 @@ void print_juncs(RefSequenceTable& rt, std::set<Junction, skip_count_lt>& juncs,
 void driver(istream& ref_stream,
 	    FILE* juncs_out,
 	    FILE* left_reads_file,
+	    FILE* left_reads_map_file,
             vector<FILE*>& left_seg_files,
 	    FILE* right_reads_file,
+	    FILE* right_reads_map_file,
             vector<FILE*>& right_seg_files)
 {	
 	if (left_seg_files.size() == 0)
@@ -3166,7 +3161,15 @@ void driver(istream& ref_stream,
 	vector<FILE*> all_seg_files;
 	copy(left_seg_files.begin(), left_seg_files.end(), back_inserter(all_seg_files));
 	copy(right_seg_files.begin(), right_seg_files.end(), back_inserter(all_seg_files));
-	
+
+#if 0
+	// daehwan - check this out as Cole insists on using segments gives better results.
+	vector<FILE*> all_map_files;
+	all_map_files.push_back(left_reads_map_file);
+	all_map_files.push_back(right_reads_map_file);
+	copy(all_seg_files.begin(), all_seg_files.end(), back_inserter(all_map_files));
+#endif
+
 	if (!no_coverage_search || butterfly_search)
 	{
 		if (ium_reads != "")
@@ -3290,6 +3293,14 @@ int main(int argc, char** argv)
     }
   
   string left_reads_file_name = argv[optind++];
+
+  if(optind >= argc)
+    {
+      print_usage();
+      return 1;
+    }
+  
+  string left_reads_map_file_name = argv[optind++];
   
   if(optind >= argc)
     {
@@ -3298,13 +3309,21 @@ int main(int argc, char** argv)
     }
   
   string left_segment_file_list = argv[optind++];
-  
-  
+    
   string right_segment_file_list; 
   string right_reads_file_name;
+  string right_reads_map_file_name;
   if (optind < argc)
     {
       right_reads_file_name = argv[optind++];
+
+      if(optind >= argc)
+	{
+	  print_usage();
+	  return 1;
+	}
+      
+      right_reads_map_file_name = argv[optind++];
       
       if(optind >= argc)
 	{
@@ -3340,7 +3359,15 @@ int main(int argc, char** argv)
 	      left_reads_file_name.c_str());
       exit(1);
     }
-  
+
+  FILE* left_reads_map_file = fopen(left_reads_map_file_name.c_str(), "r");
+  if (!left_reads_map_file)
+    {
+      fprintf(stderr, "Error: cannot open %s for reading\n",
+	      left_reads_map_file_name.c_str());
+      exit(1);
+    }
+
   vector<string> left_segment_file_names;
   vector<FILE*> left_segment_files;
   tokenize(left_segment_file_list, ",",left_segment_file_names);
@@ -3358,6 +3385,7 @@ int main(int argc, char** argv)
   
   vector<FILE*> right_segment_files;
   FILE* right_reads_file = NULL;
+  FILE* right_reads_map_file = NULL;
   if (right_segment_file_list != "")
     {
       right_reads_file = fopen(right_reads_file_name.c_str(), "r");
@@ -3365,6 +3393,14 @@ int main(int argc, char** argv)
 	{
 	  fprintf(stderr, "Error: cannot open %s for reading\n",
 		  right_reads_file_name.c_str());
+	  exit(1);
+	}
+      
+      right_reads_map_file = fopen(left_reads_map_file_name.c_str(), "r");
+      if (!right_reads_map_file)
+	{
+	  fprintf(stderr, "Error: cannot open %s for reading\n",
+		  right_reads_map_file_name.c_str());
 	  exit(1);
 	}
       
@@ -3386,9 +3422,11 @@ int main(int argc, char** argv)
   
   driver(ref_stream, 
 	 juncs_file,
-	 left_reads_file, 
+	 left_reads_file,
+	 left_reads_map_file,
 	 left_segment_files, 
 	 right_reads_file,
+	 right_reads_map_file,
 	 right_segment_files);
   
   return 0;
