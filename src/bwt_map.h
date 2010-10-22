@@ -231,8 +231,9 @@ struct BowtieHit
 
   	const string& qual() const { return _qual; }
 	void qual(const string& qual) { _qual = qual; }
-
+  
         bool end() const { return _end; }
+  void end(bool end) { _end = end; }
 
 private:
 	
