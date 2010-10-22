@@ -367,6 +367,9 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 		int8_t left_splice_pos = atoi(splice_toks[0].c_str()) - left + 1;
 		if(left_splice_pos > spliced_read_len) left_splice_pos = spliced_read_len;		  
 		int8_t right_splice_pos = spliced_read_len - left_splice_pos;
+
+		if (right_splice_pos <= 0 && end)
+		 return false;
 		
 		if (orientation == '+')
 		{
@@ -430,8 +433,8 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 	}
 	else
 	{
-					fprintf(stderr, "Warning: found malformed splice record, skipping\n");
-		//			continue;
+	  fprintf(stderr, "Warning: found malformed splice record, skipping\n");
+	  //			continue;
 		return false;
 	}
 

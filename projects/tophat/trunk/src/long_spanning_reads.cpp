@@ -76,103 +76,82 @@ void get_seqs(istream& ref_stream,
 }
 
 
-void look_left_for_hit_group(ReadTable& unmapped_reads,
-			     vector<HitStream>& contig_hits,
-			     size_t curr_file,
-			     vector<HitStream>& spliced_hits,
-			     const HitsForRead& targets,
-			     vector<HitsForRead>& seg_hits_for_read)
+void look_right_for_hit_group(ReadTable& unmapped_reads,
+			      vector<HitStream>& contig_hits,
+			      size_t curr_file,
+			      vector<HitStream>& spliced_hits,
+			      const HitsForRead& targets,
+			      vector<HitsForRead>& seg_hits_for_read)
 {
-	int left_file = curr_file - 1;
-	
-	HitStream& left = contig_hits[left_file];
-	//HitStream& curr = seg_files[curr_file];
-	
-	uint64_t curr_next_group_id = targets.insert_id;
-
-	int curr_order = unmapped_reads.observation_order(curr_next_group_id);
-	
-	assert (curr_order != -1);
-	while(true)
+  int right_file = curr_file + 1;
+  
+  HitStream& right = contig_hits[right_file];
+  uint64_t curr_next_group_id = targets.insert_id;
+  int curr_order = unmapped_reads.observation_order(curr_next_group_id);
+  
+  assert (curr_order != -1);
+  while(true)
+    {
+      HitsForRead hit_group;
+      uint64_t right_next_group_id = right.next_group_id();
+      int right_order = unmapped_reads.observation_order(right_next_group_id);
+      
+      // If we would have seen the hits by now, bail out.
+      if (curr_order < right_order || right_order == -1)
 	{
-		HitsForRead hit_group;
-		uint64_t left_next_group_id = left.next_group_id();
-		int left_order = unmapped_reads.observation_order(left_next_group_id);
-		
-		// If we would have seen the hits by now, bail out.
-		if (curr_order < left_order || left_order == -1)
-		{
-			break;
-		}
-		if (left.next_read_hits(hit_group))
-		{
-			if (hit_group.insert_id == targets.insert_id)
-			{
-				// Some of the targets may be missing, we need to 
-				// process them individually
-				seg_hits_for_read[left_file] = hit_group;
-				break;
-			}
-		}
+	  break;
 	}
-	
-	HitsForRead& curr_seg_hits = seg_hits_for_read[left_file];
-	
-	if (left_file < (int)spliced_hits.size() && left_file >= 0)
+      if (right.next_read_hits(hit_group))
 	{
-//		vector<pair<uint32_t, HitsForRead> >::iterator splice_itr;
-//		pair<uint32_t, HitsForRead> dummy = make_pair(curr_order, HitsForRead());
-//		splice_itr = lower_bound(spliced_hits[left_file].begin(),
-//								 spliced_hits[left_file].end(),
-//								 dummy,
-//								 key_lt);
-//		
-//		if (splice_itr != spliced_hits[left_file].end() &&
-//			splice_itr->first == (uint32_t)curr_order)
-//		{
-//			HitsForRead& spliced_group = splice_itr->second;
-//			curr_seg_hits.insert_id = splice_itr->second.insert_id;
-//			
-//			curr_seg_hits.hits.insert(curr_seg_hits.hits.end(),
-//									  spliced_group.hits.begin(),
-//									  spliced_group.hits.end());
-//		}
-		
-		// Scan forward in the spliced hits file for this hit group
-		HitsForRead spliced_group;
-		HitsForRead curr_spliced_group;
-		while (spliced_hits[left_file].next_group_id() > 0 && 
-			   spliced_hits[left_file].next_group_id() <= (uint32_t)curr_order)
-		{
-			spliced_hits[left_file].next_read_hits(curr_spliced_group);
-			
-			if (curr_spliced_group.insert_id == (uint32_t)curr_order)
-			{
-				spliced_group = curr_spliced_group;
-				break;
-			}
-		}
-		
-		if (!spliced_group.hits.empty())
-		{
-			curr_seg_hits.insert_id = spliced_group.insert_id;
-			curr_seg_hits.hits.insert(curr_seg_hits.hits.end(),
-									  spliced_group.hits.begin(),
-									  spliced_group.hits.end());
-		}
+	  if (hit_group.insert_id == targets.insert_id)
+	    {
+	      // Some of the targets may be missing, we need to 
+	      // process them individually
+	      seg_hits_for_read[right_file] = hit_group;
+	      break;
+	    }
 	}
-	
-	if (curr_seg_hits.hits.empty())
-		return;
-	else if (left_file > 0)
+    }
+  
+  HitsForRead& curr_seg_hits = seg_hits_for_read[right_file];
+  
+  if (right_file < (int)spliced_hits.size() && right_file >= 0)
+    {
+      // Scan forward in the spliced hits file for this hit group
+      HitsForRead spliced_group;
+      HitsForRead curr_spliced_group;
+      while (spliced_hits[right_file].next_group_id() > 0 && 
+	     spliced_hits[right_file].next_group_id() <= (uint32_t)curr_order)
 	{
-		look_left_for_hit_group(unmapped_reads, 
-								contig_hits, 
-								curr_file - 1,
-								spliced_hits,
-								curr_seg_hits,
-								seg_hits_for_read);
+	  spliced_hits[right_file].next_read_hits(curr_spliced_group);
+	  
+	  if (curr_spliced_group.insert_id == (uint32_t)curr_order)
+	    {
+	      spliced_group = curr_spliced_group;
+	      break;
+	    }
 	}
+      
+      if (!spliced_group.hits.empty())
+	{
+	  curr_seg_hits.insert_id = spliced_group.insert_id;
+	  curr_seg_hits.hits.insert(curr_seg_hits.hits.end(),
+				    spliced_group.hits.begin(),
+				    spliced_group.hits.end());
+	}
+    }
+  
+  if (curr_seg_hits.hits.empty())
+    return;
+  else if (right_file + 1 < contig_hits.size())
+    {
+      look_right_for_hit_group(unmapped_reads, 
+			      contig_hits, 
+			      curr_file + 1,
+			      spliced_hits,
+			      curr_seg_hits,
+			      seg_hits_for_read);
+    }
 }
 
 BowtieHit merge_sense_chain(std::set<Junction>& possible_juncs,
@@ -770,152 +749,154 @@ void join_segment_hits(std::set<Junction>& possible_juncs,
 		       vector<HitStream>& contig_hits,
 		       vector<HitStream>& spliced_hits)
 {
-	uint32_t curr_contig_obs_order = 0xFFFFFFFF;
-	HitStream* last_seg_contig_stream = NULL;
-	uint64_t next_contig_id = 0;
+  uint32_t curr_contig_obs_order = 0xFFFFFFFF;
+  HitStream* first_seg_contig_stream = NULL;
+  uint64_t next_contig_id = 0;
+  
+  if (contig_hits.size())
+    {
+      first_seg_contig_stream = &(contig_hits.front());
+      next_contig_id = first_seg_contig_stream->next_group_id();
+      curr_contig_obs_order = unmapped_reads.observation_order(next_contig_id);
+    }
+  
+  HitsForRead curr_hit_group;
 	
-	if (contig_hits.size())
+  uint32_t curr_spliced_obs_order = 0xFFFFFFFF;
+  HitStream* first_seg_spliced_stream = NULL;
+  uint64_t next_spliced_id = 0;
+  
+  if (spliced_hits.size())
+    {
+      first_seg_spliced_stream = &(spliced_hits.front());
+      next_spliced_id = first_seg_spliced_stream->next_group_id();
+      curr_spliced_obs_order = unmapped_reads.observation_order(next_spliced_id);	
+    }
+  
+  while(curr_contig_obs_order != 0xFFFFFFFF || 
+	curr_spliced_obs_order != 0xFFFFFFFF)
+    {
+      uint32_t read_in_process;
+      vector<HitsForRead> seg_hits_for_read;
+      seg_hits_for_read.resize(contig_hits.size());
+      
+      if (curr_contig_obs_order < curr_spliced_obs_order)
 	{
-		last_seg_contig_stream = &(contig_hits.back());
-		next_contig_id = last_seg_contig_stream->next_group_id();
-		curr_contig_obs_order = unmapped_reads.observation_order(next_contig_id);
+	  first_seg_contig_stream->next_read_hits(curr_hit_group);
+	  seg_hits_for_read.front() = curr_hit_group;
+	  
+	  next_contig_id = first_seg_contig_stream->next_group_id();
+	  uint32_t next_order = unmapped_reads.observation_order(next_contig_id);
+	  
+	  read_in_process = curr_contig_obs_order;
+	  curr_contig_obs_order = next_order;
 	}
-	
-	HitsForRead curr_hit_group;
-	
-	uint32_t curr_spliced_obs_order = 0xFFFFFFFF;
-	HitStream* last_seg_spliced_stream = NULL;
-	uint64_t next_spliced_id = 0;
-	
-	if (spliced_hits.size())
+      else if  (curr_spliced_obs_order < curr_contig_obs_order)
 	{
-		last_seg_spliced_stream = &(spliced_hits.back());
-		next_spliced_id = last_seg_spliced_stream->next_group_id();
-		curr_spliced_obs_order = unmapped_reads.observation_order(next_spliced_id);	
+	  first_seg_spliced_stream->next_read_hits(curr_hit_group);
+	  seg_hits_for_read.front() = curr_hit_group;
+			
+	  next_spliced_id = first_seg_spliced_stream->next_group_id();
+	  uint32_t next_order = unmapped_reads.observation_order(next_spliced_id);
+	  
+	  read_in_process = curr_spliced_obs_order;
+	  curr_spliced_obs_order = next_order;
 	}
-	
-	//size_t spliced_num = last_seg_spliced_stream->size();
-	
-	while(curr_contig_obs_order != 0xFFFFFFFF || 
-		  curr_spliced_obs_order != 0xFFFFFFFF)
+      else if (curr_contig_obs_order == curr_spliced_obs_order &&
+	       curr_contig_obs_order != 0xFFFFFFFF && 
+	       curr_spliced_obs_order != 0xFFFFFFFF)
 	{
-		uint32_t read_in_process;
-		vector<HitsForRead> seg_hits_for_read;
-		seg_hits_for_read.resize(contig_hits.size());
-		
-		if (curr_contig_obs_order < curr_spliced_obs_order)
-		{
-			// Get hit group
-			last_seg_contig_stream->next_read_hits(curr_hit_group);
-			seg_hits_for_read.back() = curr_hit_group;
-			
-			//uint64_t last_id = next_contig_id;
-			next_contig_id = last_seg_contig_stream->next_group_id();
-			uint32_t next_order = unmapped_reads.observation_order(next_contig_id);
-			
-			read_in_process = curr_contig_obs_order;
-			curr_contig_obs_order = next_order;
-		}
-		else if  (curr_spliced_obs_order < curr_contig_obs_order)
-		{
-			
-			last_seg_spliced_stream->next_read_hits(curr_hit_group);
-			seg_hits_for_read.back() = curr_hit_group;
-			
-			//uint64_t last_id = next_contig_id;
-			next_spliced_id = last_seg_spliced_stream->next_group_id();
-			uint32_t next_order = unmapped_reads.observation_order(next_spliced_id);
-			
-			read_in_process = curr_spliced_obs_order;
-			curr_spliced_obs_order = next_order;
-		}
-		else if (curr_contig_obs_order == curr_spliced_obs_order &&
-				 curr_contig_obs_order != 0xFFFFFFFF && 
-				 curr_spliced_obs_order != 0xFFFFFFFF)
-		{
-			last_seg_contig_stream->next_read_hits(curr_hit_group);
-			
-			HitsForRead curr_spliced_group;
-			last_seg_spliced_stream->next_read_hits(curr_spliced_group);
-			
-			curr_hit_group.hits.insert(curr_hit_group.hits.end(),
-									   curr_spliced_group.hits.begin(),
-									   curr_spliced_group.hits.end());
-			seg_hits_for_read.back() = curr_hit_group;
-			
-			
-			read_in_process = curr_spliced_obs_order;
-			
-			next_contig_id = last_seg_contig_stream->next_group_id();
-			uint32_t next_order = unmapped_reads.observation_order(next_contig_id);
-			
-			next_spliced_id = last_seg_spliced_stream->next_group_id();
-			uint32_t next_spliced_order = unmapped_reads.observation_order(next_spliced_id);
-			
-			curr_spliced_obs_order = next_spliced_order;
-			curr_contig_obs_order = next_order;
-		}
-		else
-		{
-			break;
-		}
-		
-		if (contig_hits.size() > 1)
-		{
-			look_left_for_hit_group(unmapped_reads, 
-						contig_hits, 
-						contig_hits.size() - 1,
-						spliced_hits,
-						curr_hit_group,
-						seg_hits_for_read);
-		}
-		
-		if (!seg_hits_for_read.empty() && !seg_hits_for_read[0].hits.empty())
-		{
-			uint64_t insert_id = seg_hits_for_read[0].hits[0].insert_id();
-			char read_name[256];
-			char read_seq[256];
-			char read_alt_name[256];
-			char read_quals[256];
-			
-			if (get_read_from_stream(insert_id,  
-						 reads_file,
-						 reads_format,
-						 false,
-						 read_name, 
-						 read_seq,
-						 read_alt_name,
-						 read_quals))
-			{
-				vector<BowtieHit> joined_hits;
-				join_segments_for_read(possible_juncs,
-						       seg_hits_for_read, 
-						       joined_hits);
-				
-				sort(joined_hits.begin(), joined_hits.end());
-				vector<BowtieHit>::iterator new_end = unique(joined_hits.begin(), joined_hits.end());
-				joined_hits.erase(new_end, joined_hits.end());
+	  first_seg_contig_stream->next_read_hits(curr_hit_group);
+	  
+	  HitsForRead curr_spliced_group;
+	  first_seg_spliced_stream->next_read_hits(curr_spliced_group);
+	  
+	  curr_hit_group.hits.insert(curr_hit_group.hits.end(),
+				     curr_spliced_group.hits.begin(),
+				     curr_spliced_group.hits.end());
+	  seg_hits_for_read.front() = curr_hit_group;
+	  read_in_process = curr_spliced_obs_order;
+	  
+	  next_contig_id = first_seg_contig_stream->next_group_id();
+	  uint32_t next_order = unmapped_reads.observation_order(next_contig_id);
+	  
+	  next_spliced_id = first_seg_spliced_stream->next_group_id();
+	  uint32_t next_spliced_order = unmapped_reads.observation_order(next_spliced_id);
+	  
+	  curr_spliced_obs_order = next_spliced_order;
+	  curr_contig_obs_order = next_order;
+	}
+      else
+	{
+	  break;
+	}
+      
+      if (contig_hits.size() > 1)
+	{
+	  look_right_for_hit_group(unmapped_reads, 
+				  contig_hits, 
+				  0,
+				  spliced_hits,
+				  curr_hit_group,
+				  seg_hits_for_read);
+	}
 
-				for (size_t i = 0; i < joined_hits.size(); i++)
-				{
-					const char* ref_name = rt.get_name(joined_hits[i].ref_id());
-					if (color && !color_out)
-					  print_hit(stdout, read_name, joined_hits[i], ref_name, joined_hits[i].seq().c_str(), joined_hits[i].qual().c_str(), true);
-					else
-					  print_hit(stdout, read_name, joined_hits[i], ref_name, read_seq, read_quals, false);
-				}
-			}
-			else
-			{
-				fprintf(stderr, "Error: could not get read # %d from stream\n", read_in_process);
-				exit(1);
-			}
-		}
-		else
-		{
-			//fprintf(stderr, "Warning: couldn't join segments for read # %d\n", read_in_process);
-		}	
+      size_t last_non_empty = seg_hits_for_read.size() - 1;
+      while(last_non_empty >= 0 && seg_hits_for_read[last_non_empty].hits.empty())
+	{
+	  --last_non_empty;
 	}
+
+      seg_hits_for_read.resize(last_non_empty + 1);
+      if (!seg_hits_for_read[last_non_empty].hits[0].end())
+	continue;
+            
+      if (!seg_hits_for_read.empty() && !seg_hits_for_read[0].hits.empty())
+	{
+	  uint64_t insert_id = seg_hits_for_read[0].hits[0].insert_id();
+	  char read_name[256];
+	  char read_seq[256];
+	  char read_alt_name[256];
+	  char read_quals[256];
+	  
+	  if (get_read_from_stream(insert_id,  
+				   reads_file,
+				   reads_format,
+				   false,
+				   read_name, 
+				   read_seq,
+				   read_alt_name,
+				   read_quals))
+	    {
+	      vector<BowtieHit> joined_hits;
+	      join_segments_for_read(possible_juncs,
+				     seg_hits_for_read, 
+				     joined_hits);
+	      
+	      sort(joined_hits.begin(), joined_hits.end());
+	      vector<BowtieHit>::iterator new_end = unique(joined_hits.begin(), joined_hits.end());
+	      joined_hits.erase(new_end, joined_hits.end());
+	      
+	      for (size_t i = 0; i < joined_hits.size(); i++)
+		{
+		  const char* ref_name = rt.get_name(joined_hits[i].ref_id());
+		  if (color && !color_out)
+		    print_hit(stdout, read_name, joined_hits[i], ref_name, joined_hits[i].seq().c_str(), joined_hits[i].qual().c_str(), true);
+		  else
+		    print_hit(stdout, read_name, joined_hits[i], ref_name, read_seq, read_quals, false);
+		}
+	    }
+	  else
+	    {
+	      fprintf(stderr, "Error: could not get read # %d from stream\n", read_in_process);
+	      exit(1);
+	    }
+	}
+      else
+	{
+	  //fprintf(stderr, "Warning: couldn't join segments for read # %d\n", read_in_process);
+	}	
+    }
 }					   
 
 void driver(vector<FILE*> possible_juncs_files,
