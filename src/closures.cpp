@@ -300,13 +300,13 @@ public:
 	bool skip_fwd = false;
 	bool skip_rev = false;
 
-	if (library_type == ILLUMINA_STRANDED_PAIRED_END)
+	if (library_type == FR_FIRSTSTRAND)
 	  {
 	    if (bh_left.antisense_align()) skip_rev = true;
 	    else skip_fwd = true;
 	  }
 
-	if (library_type == SOLID_PAIRED_END)
+	if (library_type == FR_UNSTRANDED || library_type == FR_SECONDSTRAND)
 	  {
 	    if (bh_left.antisense_align()) skip_fwd = true;
 	    else skip_rev = true;
