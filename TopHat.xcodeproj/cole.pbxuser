@@ -10,26 +10,6 @@
 		vrLen = 614;
 		vrLoc = 1218;
 	};
-	ED16F024124E3FD300350FC6 /* PBXTextBookmark */ = {
-		isa = PBXTextBookmark;
-		fRef = ED6D6259118B5B8C00A682F4 /* configure.ac */;
-		name = "configure.ac: 118";
-		rLen = 0;
-		rLoc = 3434;
-		rType = 0;
-		vrLen = 724;
-		vrLoc = 0;
-	};
-	ED16F025124E3FD300350FC6 /* PBXTextBookmark */ = {
-		isa = PBXTextBookmark;
-		fRef = ED6D6252118B5B6B00A682F4 /* tophat.py */;
-		name = "tophat.py: 637";
-		rLen = 33;
-		rLoc = 29527;
-		rType = 0;
-		vrLen = 1733;
-		vrLoc = 30404;
-	};
 	ED2A44BD11DE77C7009AD73B /* gtf_juncs.cpp */ = {
 		uiCtxt = {
 			sepNavIntBoundsRect = "{{0, 0}, {1125, 2093}}";
@@ -138,7 +118,7 @@
 		ignoreCount = 0;
 		lineNumber = 39;
 		location = gtf_juncs;
-		modificationTime = 303965233.069224;
+		modificationTime = 308506171.612034;
 		originalNumberOfMultipleMatches = 1;
 		state = 2;
 	};
@@ -325,15 +305,95 @@
 		vrLen = 1185;
 		vrLoc = 5072;
 	};
-	ED41B43F125E3D800000B5A2 /* PBXTextBookmark */ = {
+	ED41B4FC1268F5210000B5A2 /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = ED6D6255118B5B7300A682F4 /* Makefile.am */;
+		name = "Makefile.am: 220";
+		rLen = 0;
+		rLoc = 6727;
+		rType = 0;
+		vrLen = 1222;
+		vrLoc = 6335;
+	};
+	ED41B4FD1268F5210000B5A2 /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = ED6D6259118B5B8C00A682F4 /* configure.ac */;
+		name = "configure.ac: 6";
+		rLen = 0;
+		rLoc = 146;
+		rType = 0;
+		vrLen = 1149;
+		vrLoc = 0;
+	};
+	ED41B4FE1268F5210000B5A2 /* PBXTextBookmark */ = {
 		isa = PBXTextBookmark;
 		fRef = ED6D6252118B5B6B00A682F4 /* tophat.py */;
-		name = "tophat.py: 637";
-		rLen = 33;
-		rLoc = 29527;
+		name = "tophat.py: 2030";
+		rLen = 0;
+		rLoc = 85383;
 		rType = 0;
-		vrLen = 1866;
-		vrLoc = 24775;
+		vrLen = 1830;
+		vrLoc = 84281;
+	};
+	ED41B4FF1268F5210000B5A2 /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = ED6D6252118B5B6B00A682F4 /* tophat.py */;
+		name = "tophat.py: 2030";
+		rLen = 0;
+		rLoc = 85383;
+		rType = 0;
+		vrLen = 2187;
+		vrLoc = 33937;
+	};
+	ED41B86212777D850000B5A2 /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = ED6D6252118B5B6B00A682F4 /* tophat.py */;
+		name = "tophat.py: 2013";
+		rLen = 0;
+		rLoc = 85383;
+		rType = 0;
+		vrLen = 2181;
+		vrLoc = 33964;
+	};
+	ED41B86312777D850000B5A2 /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = ED6D6259118B5B8C00A682F4 /* configure.ac */;
+		name = "configure.ac: 6";
+		rLen = 0;
+		rLoc = 146;
+		rType = 0;
+		vrLen = 1196;
+		vrLoc = 0;
+	};
+	ED41B86712777DB50000B5A2 /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = ED6D6259118B5B8C00A682F4 /* configure.ac */;
+		name = "configure.ac: 6";
+		rLen = 0;
+		rLoc = 146;
+		rType = 0;
+		vrLen = 1196;
+		vrLoc = 0;
+	};
+	ED41B86812777DB50000B5A2 /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = ED6D6252118B5B6B00A682F4 /* tophat.py */;
+		name = "tophat.py: 2013";
+		rLen = 0;
+		rLoc = 85383;
+		rType = 0;
+		vrLen = 2181;
+		vrLoc = 33964;
+	};
+	ED41B86912777DB50000B5A2 /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = ED6D6252118B5B6B00A682F4 /* tophat.py */;
+		name = "tophat.py: 2065";
+		rLen = 0;
+		rLoc = 87296;
+		rType = 0;
+		vrLen = 1790;
+		vrLoc = 86302;
 	};
 	ED5C74DB118B5B0700397B5E /* Project object */ = {
 		activeBuildConfigurationName = Debug;
@@ -391,7 +451,7 @@
 				PBXFileTableDataSourceColumnSortingKey = PBXFileDataSource_Filename_ColumnID;
 				PBXFileTableDataSourceColumnWidthsKey = (
 					20,
-					733,
+					703,
 					20,
 					48,
 					43,
@@ -430,13 +490,11 @@
 					PBXFileDataSource_Warnings_ColumnID,
 				);
 			};
-			PBXPerProjectTemplateStateSaveDate = 308171265;
-			PBXWorkspaceStateSaveDate = 308171265;
+			PBXPerProjectTemplateStateSaveDate = 309820795;
+			PBXWorkspaceStateSaveDate = 309820795;
 		};
 		perUserProjectItems = {
 			ED16F014124CCD8400350FC6 = ED16F014124CCD8400350FC6 /* PBXTextBookmark */;
-			ED16F024124E3FD300350FC6 = ED16F024124E3FD300350FC6 /* PBXTextBookmark */;
-			ED16F025124E3FD300350FC6 = ED16F025124E3FD300350FC6 /* PBXTextBookmark */;
 			ED2A450B11DE82AF009AD73B = ED2A450B11DE82AF009AD73B /* PBXTextBookmark */;
 			ED2A450C11DE82AF009AD73B = ED2A450C11DE82AF009AD73B /* PBXTextBookmark */;
 			ED2A450D11DE82AF009AD73B = ED2A450D11DE82AF009AD73B /* PBXTextBookmark */;
@@ -457,7 +515,15 @@
 			ED2A45E311E2A727009AD73B = ED2A45E311E2A727009AD73B /* PBXTextBookmark */;
 			ED2A45E411E2A727009AD73B = ED2A45E411E2A727009AD73B /* PBXTextBookmark */;
 			ED41B43E125E3D800000B5A2 = ED41B43E125E3D800000B5A2 /* PBXTextBookmark */;
-			ED41B43F125E3D800000B5A2 = ED41B43F125E3D800000B5A2 /* PBXTextBookmark */;
+			ED41B4FC1268F5210000B5A2 = ED41B4FC1268F5210000B5A2 /* PBXTextBookmark */;
+			ED41B4FD1268F5210000B5A2 = ED41B4FD1268F5210000B5A2 /* PBXTextBookmark */;
+			ED41B4FE1268F5210000B5A2 = ED41B4FE1268F5210000B5A2 /* PBXTextBookmark */;
+			ED41B4FF1268F5210000B5A2 = ED41B4FF1268F5210000B5A2 /* PBXTextBookmark */;
+			ED41B86212777D850000B5A2 /* PBXTextBookmark */ = ED41B86212777D850000B5A2 /* PBXTextBookmark */;
+			ED41B86312777D850000B5A2 /* PBXTextBookmark */ = ED41B86312777D850000B5A2 /* PBXTextBookmark */;
+			ED41B86712777DB50000B5A2 /* PBXTextBookmark */ = ED41B86712777DB50000B5A2 /* PBXTextBookmark */;
+			ED41B86812777DB50000B5A2 /* PBXTextBookmark */ = ED41B86812777DB50000B5A2 /* PBXTextBookmark */;
+			ED41B86912777DB50000B5A2 /* PBXTextBookmark */ = ED41B86912777DB50000B5A2 /* PBXTextBookmark */;
 			EDBBA2B611DD3C040015175B = EDBBA2B611DD3C040015175B /* PBXTextBookmark */;
 			EDBBA2B811DD3C040015175B = EDBBA2B811DD3C040015175B /* PBXTextBookmark */;
 			EDBBA33D11DD59D50015175B = EDBBA33D11DD59D50015175B /* PBXTextBookmark */;
@@ -646,9 +712,9 @@
 	};
 	ED6D6252118B5B6B00A682F4 /* tophat.py */ = {
 		uiCtxt = {
-			sepNavIntBoundsRect = "{{0, 0}, {1069, 28444}}";
-			sepNavSelRange = "{29527, 33}";
-			sepNavVisRange = "{24775, 1866}";
+			sepNavIntBoundsRect = "{{0, 0}, {881, 28808}}";
+			sepNavSelRange = "{87296, 0}";
+			sepNavVisRange = "{86302, 1790}";
 		};
 	};
 	ED6D6253118B5B6B00A682F4 /* wiggles.cpp */ = {
@@ -660,9 +726,9 @@
 	};
 	ED6D6255118B5B7300A682F4 /* Makefile.am */ = {
 		uiCtxt = {
-			sepNavIntBoundsRect = "{{0, 0}, {918, 3549}}";
-			sepNavSelRange = "{7024, 0}";
-			sepNavVisRange = "{4954, 434}";
+			sepNavIntBoundsRect = "{{0, 0}, {911, 3393}}";
+			sepNavSelRange = "{6727, 0}";
+			sepNavVisRange = "{6335, 1222}";
 		};
 	};
 	ED6D6256118B5B8C00A682F4 /* AUTHORS */ = {
@@ -674,9 +740,9 @@
 	};
 	ED6D6259118B5B8C00A682F4 /* configure.ac */ = {
 		uiCtxt = {
-			sepNavIntBoundsRect = "{{0, 0}, {911, 2106}}";
-			sepNavSelRange = "{3434, 0}";
-			sepNavVisRange = "{0, 724}";
+			sepNavIntBoundsRect = "{{0, 0}, {881, 2262}}";
+			sepNavSelRange = "{146, 0}";
+			sepNavVisRange = "{0, 1196}";
 		};
 	};
 	ED74232411AC65E1007FBF56 /* tophat_reports */ = {
@@ -791,7 +857,7 @@
 		ignoreCount = 0;
 		lineNumber = 358;
 		location = tophat_reports;
-		modificationTime = 303965233.058482;
+		modificationTime = 308506171.609388;
 		originalNumberOfMultipleMatches = 1;
 		state = 2;
 	};
@@ -809,7 +875,7 @@
 		ignoreCount = 0;
 		lineNumber = 368;
 		location = tophat_reports;
-		modificationTime = 303965233.06113;
+		modificationTime = 308506171.609808;
 		originalNumberOfMultipleMatches = 1;
 		state = 2;
 	};
@@ -827,7 +893,7 @@
 		ignoreCount = 0;
 		lineNumber = 806;
 		location = tophat_reports;
-		modificationTime = 303965233.06193;
+		modificationTime = 308506171.610226;
 		originalNumberOfMultipleMatches = 1;
 		state = 2;
 	};
@@ -886,7 +952,7 @@
 		ignoreCount = 0;
 		lineNumber = 754;
 		location = tophat_reports;
-		modificationTime = 303965233.062617;
+		modificationTime = 308506171.610653;
 		originalNumberOfMultipleMatches = 1;
 		state = 2;
 	};
@@ -914,7 +980,7 @@
 		ignoreCount = 0;
 		lineNumber = 320;
 		location = tophat_reports;
-		modificationTime = 303965233.063314;
+		modificationTime = 308506171.611203;
 		originalNumberOfMultipleMatches = 1;
 		state = 2;
 	};
@@ -932,7 +998,7 @@
 		ignoreCount = 0;
 		lineNumber = 393;
 		location = tophat_reports;
-		modificationTime = 303965233.06461;
+		modificationTime = 308506171.611627;
 		originalNumberOfMultipleMatches = 1;
 		state = 2;
 	};
@@ -1161,7 +1227,7 @@
 		hitCount = 0;
 		ignoreCount = 0;
 		lineNumber = 595;
-		modificationTime = 303965233.073347;
+		modificationTime = 308506171.6124511;
 		originalNumberOfMultipleMatches = 1;
 		state = 0;
 	};
@@ -1178,7 +1244,7 @@
 		hitCount = 0;
 		ignoreCount = 0;
 		lineNumber = 615;
-		modificationTime = 303965233.074268;
+		modificationTime = 308506171.612853;
 		originalNumberOfMultipleMatches = 1;
 		state = 0;
 	};
@@ -1195,7 +1261,7 @@
 		hitCount = 0;
 		ignoreCount = 0;
 		lineNumber = 689;
-		modificationTime = 303965233.074937;
+		modificationTime = 308506171.613252;
 		originalNumberOfMultipleMatches = 1;
 		state = 0;
 	};
@@ -1212,7 +1278,7 @@
 		hitCount = 0;
 		ignoreCount = 0;
 		lineNumber = 98;
-		modificationTime = 303965233.075754;
+		modificationTime = 308506171.613651;
 		originalNumberOfMultipleMatches = 1;
 		state = 0;
 	};
@@ -1229,7 +1295,7 @@
 		hitCount = 0;
 		ignoreCount = 0;
 		lineNumber = 65;
-		modificationTime = 303966017.207148;
+		modificationTime = 308506171.614047;
 		originalNumberOfMultipleMatches = 1;
 		state = 0;
 	};
@@ -1247,7 +1313,7 @@
 		ignoreCount = 0;
 		lineNumber = 130;
 		location = gtf_juncs;
-		modificationTime = 303965233.077203;
+		modificationTime = 308506171.6144511;
 		originalNumberOfMultipleMatches = 1;
 		state = 2;
 	};
@@ -1265,7 +1331,7 @@
 		ignoreCount = 0;
 		lineNumber = 43;
 		location = gtf_juncs;
-		modificationTime = 303965233.0783271;
+		modificationTime = 308506171.614859;
 		originalNumberOfMultipleMatches = 1;
 		state = 2;
 	};
@@ -1283,7 +1349,7 @@
 		ignoreCount = 0;
 		lineNumber = 90;
 		location = gtf_juncs;
-		modificationTime = 303965233.079145;
+		modificationTime = 308506171.615264;
 		originalNumberOfMultipleMatches = 1;
 		state = 2;
 	};
@@ -1300,7 +1366,7 @@
 		hitCount = 0;
 		ignoreCount = 0;
 		lineNumber = 31;
-		modificationTime = 303966017.1749129;
+		modificationTime = 308506171.615684;
 		originalNumberOfMultipleMatches = 1;
 		state = 0;
 	};
@@ -1317,7 +1383,7 @@
 		hitCount = 0;
 		ignoreCount = 0;
 		lineNumber = 34;
-		modificationTime = 303966017.206319;
+		modificationTime = 308506171.616097;
 		originalNumberOfMultipleMatches = 1;
 		state = 0;
 	};
@@ -1335,7 +1401,7 @@
 		ignoreCount = 0;
 		lineNumber = 71;
 		location = gtf_juncs;
-		modificationTime = 303965233.091672;
+		modificationTime = 308506171.616509;
 		originalNumberOfMultipleMatches = 1;
 		state = 2;
 	};
@@ -1353,7 +1419,7 @@
 		ignoreCount = 0;
 		lineNumber = 564;
 		location = gtf_juncs;
-		modificationTime = 303965233.092717;
+		modificationTime = 308506171.616937;
 		originalNumberOfMultipleMatches = 1;
 		state = 2;
 	};

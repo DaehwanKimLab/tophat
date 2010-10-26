@@ -284,7 +284,7 @@
 								</array>
 							</array>
 							<key>PBXSmartGroupTreeModuleOutlineStateVisibleRectKey</key>
-							<string>{{0, 699}, {185, 733}}</string>
+							<string>{{0, 620}, {185, 990}}</string>
 						</dict>
 						<key>PBXTopSmartGroupGIDs</key>
 						<array/>
@@ -294,14 +294,14 @@
 					<key>GeometryConfiguration</key>
 					<dict>
 						<key>Frame</key>
-						<string>{{0, 0}, {202, 751}}</string>
+						<string>{{0, 0}, {202, 1008}}</string>
 						<key>GroupTreeTableConfiguration</key>
 						<array>
 							<string>MainColumn</string>
 							<real>185</real>
 						</array>
 						<key>RubberWindowFrame</key>
-						<string>741 386 1179 792 0 0 1920 1178 </string>
+						<string>741 129 1149 1049 0 0 1920 1178 </string>
 					</dict>
 					<key>Module</key>
 					<string>PBXSmartGroupTreeModule</string>
@@ -312,6 +312,8 @@
 					<key>Dock</key>
 					<array>
 						<dict>
+							<key>BecomeActive</key>
+							<true/>
 							<key>ContentConfiguration</key>
 							<dict>
 								<key>PBXProjectModuleGUID</key>
@@ -329,7 +331,7 @@
 										<key>_historyCapacity</key>
 										<integer>0</integer>
 										<key>bookmark</key>
-										<string>ED41B43F125E3D800000B5A2</string>
+										<string>ED41B86912777DB50000B5A2</string>
 										<key>history</key>
 										<array>
 											<string>EDBBA2B611DD3C040015175B</string>
@@ -365,9 +367,10 @@
 											<string>EDD94BDC1205E4ED00AA1086</string>
 											<string>EDD94ED31210DEA900AA1086</string>
 											<string>ED16F014124CCD8400350FC6</string>
-											<string>ED16F024124E3FD300350FC6</string>
 											<string>ED41B43E125E3D800000B5A2</string>
-											<string>ED16F025124E3FD300350FC6</string>
+											<string>ED41B4FC1268F5210000B5A2</string>
+											<string>ED41B86712777DB50000B5A2</string>
+											<string>ED41B86812777DB50000B5A2</string>
 										</array>
 									</dict>
 									<key>SplitCount</key>
@@ -381,18 +384,18 @@
 							<key>GeometryConfiguration</key>
 							<dict>
 								<key>Frame</key>
-								<string>{{0, 0}, {972, 600}}</string>
+								<string>{{0, 0}, {942, 728}}</string>
 								<key>RubberWindowFrame</key>
-								<string>741 386 1179 792 0 0 1920 1178 </string>
+								<string>741 129 1149 1049 0 0 1920 1178 </string>
 							</dict>
 							<key>Module</key>
 							<string>PBXNavigatorGroup</string>
 							<key>Proportion</key>
-							<string>600pt</string>
+							<string>728pt</string>
 						</dict>
 						<dict>
 							<key>Proportion</key>
-							<string>146pt</string>
+							<string>275pt</string>
 							<key>Tabs</key>
 							<array>
 								<dict>
@@ -406,9 +409,9 @@
 									<key>GeometryConfiguration</key>
 									<dict>
 										<key>Frame</key>
-										<string>{{10, 27}, {972, 119}}</string>
+										<string>{{10, 27}, {942, 248}}</string>
 										<key>RubberWindowFrame</key>
-										<string>741 386 1179 792 0 0 1920 1178 </string>
+										<string>741 129 1149 1049 0 0 1920 1178 </string>
 									</dict>
 									<key>Module</key>
 									<string>XCDetailModule</string>
@@ -424,7 +427,7 @@
 									<key>GeometryConfiguration</key>
 									<dict>
 										<key>Frame</key>
-										<string>{{10, 27}, {979, 275}}</string>
+										<string>{{10, 27}, {942, 242}}</string>
 									</dict>
 									<key>Module</key>
 									<string>PBXProjectFindModule</string>
@@ -471,7 +474,7 @@
 						</dict>
 					</array>
 					<key>Proportion</key>
-					<string>972pt</string>
+					<string>942pt</string>
 				</dict>
 			</array>
 			<key>Name</key>
@@ -490,11 +493,11 @@
 			</array>
 			<key>TableOfContents</key>
 			<array>
-				<string>ED41B43B125BC9250000B5A2</string>
+				<string>ED41B86412777D850000B5A2</string>
 				<string>1CA23ED40692098700951B8B</string>
-				<string>ED41B43C125BC9250000B5A2</string>
+				<string>ED41B86512777D850000B5A2</string>
 				<string>ED5C74E3118B5B0800397B5E</string>
-				<string>ED41B43D125BC9250000B5A2</string>
+				<string>ED41B86612777D850000B5A2</string>
 				<string>1CA23EDF0692099D00951B8B</string>
 				<string>1CA23EE00692099D00951B8B</string>
 				<string>1CA23EE10692099D00951B8B</string>
@@ -687,7 +690,7 @@
 		<string>/Users/cole/develop/tophat/TopHat.xcodeproj</string>
 	</array>
 	<key>WindowString</key>
-	<string>741 386 1179 792 0 0 1920 1178 </string>
+	<string>741 129 1149 1049 0 0 1920 1178 </string>
 	<key>WindowToolsV3</key>
 	<array>
 		<dict>

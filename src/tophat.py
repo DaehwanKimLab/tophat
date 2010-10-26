@@ -2062,7 +2062,7 @@ def prog_path(program):
 
 # FIXME: this should get set during the make dist autotools phase of the build
 def get_version():
-   return "1.1.0"
+   return "1.1.2"
 
 def main(argv=None):
     warnings.filterwarnings("ignore", "tmpnam is a potential security risk")
