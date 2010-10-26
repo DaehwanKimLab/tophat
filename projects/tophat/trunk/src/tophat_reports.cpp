@@ -220,7 +220,15 @@ bool rewrite_sam_hit(const RefSequenceTable& rt,
         strcat(rebuf, mate_buf);
     }
 
-    if (library_type == ILLUMINA_STRANDED_PAIRED_END)
+    if (library_type == FR_FIRSTSTRAND)
+    {
+      if (insert_side == FRAG_LEFT )
+	strcat(rebuf, "\tXS:A:-");
+      else
+	strcat(rebuf, "\tXS:A:+");
+    }
+
+    else if (library_type == FR_UNSTRANDED || library_type == FR_SECONDSTRAND)
     {
       if (insert_side == FRAG_LEFT )
 	strcat(rebuf, "\tXS:A:+");
@@ -375,13 +383,22 @@ bool rewrite_sam_hit(const RefSequenceTable& rt,
       strcat(rebuf, mate_buf);
     }
   
-  if (library_type == ILLUMINA_STRANDED_PAIRED_END || library_type == SOLID_PAIRED_END)
+  if (library_type == FR_FIRSTSTRAND)
+    {
+      if (insert_side == FRAG_LEFT )
+	strcat(rebuf, "\tXS:A:-");
+      else
+	strcat(rebuf, "\tXS:A:+");
+    }
+
+    else if (library_type == FR_UNSTRANDED || library_type == FR_SECONDSTRAND)
     {
       if (insert_side == FRAG_LEFT )
 	strcat(rebuf, "\tXS:A:+");
       else
 	strcat(rebuf, "\tXS:A:-");
     }
+
   
   strcat(rebuf, "\n");
   

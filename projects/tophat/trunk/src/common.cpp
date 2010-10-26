@@ -326,16 +326,18 @@ int parse_options(int argc, char** argv, void (*print_usage)())
       color_out = true;
       break;
     case OPT_LIBRARY_TYPE:
-      if (strcmp(optarg, "illumina-unstranded") == 0)
-	library_type = ILLUMINA_UNSTRANDED;
-      else if (strcmp(optarg, "illumina-stranded-paired-end") == 0)
-	library_type = ILLUMINA_STRANDED_PAIRED_END;
-      else if (strcmp(optarg, "illumina-stranded-single-end") == 0)
-	library_type = ILLUMINA_STRANDED_SINGLE_END;
-      else if (strcmp(optarg, "solid-paired-end") == 0)
-	library_type = SOLID_PAIRED_END;
-      else if (strcmp(optarg, "solid-single-end") == 0)
-	library_type = SOLID_SINGLE_END;
+      if (strcmp(optarg, "fr-unstranded") == 0)
+	library_type = FR_UNSTRANDED;
+      else if (strcmp(optarg, "fr-firststrand") == 0)
+	library_type = FR_FIRSTSTRAND;
+      else if (strcmp(optarg, "fr-secondstrand") == 0)
+	library_type = FR_SECONDSTRAND;
+      else if (strcmp(optarg, "ff-unstranded") == 0)
+	library_type = FF_UNSTRANDED;
+      else if (strcmp(optarg, "ff-firststrand") == 0)
+	library_type = FF_FIRSTSTRAND;
+      else if (strcmp(optarg, "ff-secondstrand") == 0)
+	library_type = FF_SECONDSTRAND;
       break;
     default:
       print_usage();

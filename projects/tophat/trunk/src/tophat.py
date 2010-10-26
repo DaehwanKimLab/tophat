@@ -48,7 +48,7 @@ Options:
     --integer-quals
     -C/--color                                 (Solid - color space)
     --color-out
-    --library-type                             (--illumina-unstranded, --illumina-stranded-paired-end, --illumina-stranded-single-end, solid-paired-end, solid-single-end)
+    --library-type                             (--fr-unstranded, --fr-firststrand, --fr-secondstrand, --ff-unstranded, --ff-firststrand, --ff-secondstrand)
     -p/--num-threads               <int>       [ default: 1            ]
     -G/--GFF                       <filename>
     -j/--raw-juncs                 <filename>
@@ -407,8 +407,7 @@ class TopHatParams:
             print >> sys.stderr, "Error: butterfly-search in colorspace is not yet supported"
             sys.exit(1)
 
-        library_types = ["illumina-unstranded", "illumina-stranded-paired-end", "illumina-stranded-single-end",
-                         "solid-paired-end", "solid-single-end"]
+        library_types = ["fr-unstranded", "fr-firststrand", "fr-secondstrand"]
 
         if self.read_params.library_type != "" and self.read_params.library_type not in library_types:
             print >> sys.stderr, "Error: libary-type should be one of", library_types

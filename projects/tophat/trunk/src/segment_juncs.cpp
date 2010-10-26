@@ -2069,7 +2069,7 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
       bool skip_fwd = false;
       bool skip_rev = false;
 
-      if (library_type == ILLUMINA_STRANDED_PAIRED_END || library_type == ILLUMINA_STRANDED_SINGLE_END)
+      if (library_type == FR_FIRSTSTRAND)
 	{
 	  if (seg.read == READ_LEFT)
 	    {
@@ -2083,7 +2083,7 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
 	    }
 	}
 
-      if (library_type == SOLID_PAIRED_END || library_type == SOLID_SINGLE_END)
+      if (library_type == FR_UNSTRANDED || library_type == FR_SECONDSTRAND)
 	{
 	  if (seg.read == READ_LEFT)
 	    {
