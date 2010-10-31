@@ -16,7 +16,6 @@
 		ED2A456311E2401E009AD73B /* tokenize.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D624F118B5B6B00A682F4 /* tokenize.cpp */; };
 		ED2A456411E2401E009AD73B /* common.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D6235118B5B5800A682F4 /* common.cpp */; };
 		ED2A456511E2401E009AD73B /* junctions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D6242118B5B6300A682F4 /* junctions.cpp */; };
-		ED2A456611E2401E009AD73B /* GArgs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EDBBA55E11DE75750015175B /* GArgs.cpp */; };
 		ED2A456711E2401E009AD73B /* GBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EDBBA56011DE75750015175B /* GBase.cpp */; };
 		ED2A456811E2401E009AD73B /* gdna.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EDBBA56211DE75750015175B /* gdna.cpp */; };
 		ED2A456911E2401E009AD73B /* GFaSeqGet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EDBBA56611DE75750015175B /* GFaSeqGet.cpp */; };
@@ -44,7 +43,6 @@
 		EDBBA54D11DE75370015175B /* junctions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED6D6242118B5B6300A682F4 /* junctions.cpp */; };
 		EDBBA55211DE75370015175B /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = EDBBA31311DD58610015175B /* libz.dylib */; };
 		EDBBA55311DE75370015175B /* libbam.a in Frameworks */ = {isa = PBXBuildFile; fileRef = EDBBA31511DD588C0015175B /* libbam.a */; };
-		EDBBA56D11DE75760015175B /* GArgs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EDBBA55E11DE75750015175B /* GArgs.cpp */; };
 		EDBBA56E11DE75760015175B /* GBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EDBBA56011DE75750015175B /* GBase.cpp */; };
 		EDBBA56F11DE75760015175B /* gdna.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EDBBA56211DE75750015175B /* gdna.cpp */; };
 		EDBBA57111DE75760015175B /* GFaSeqGet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EDBBA56611DE75750015175B /* GFaSeqGet.cpp */; };
@@ -124,15 +122,12 @@
 		EDBBA31311DD58610015175B /* libz.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libz.dylib; path = /usr/lib/libz.dylib; sourceTree = "<absolute>"; };
 		EDBBA31511DD588C0015175B /* libbam.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbam.a; path = /usr/local/libIntel64/libbam.a; sourceTree = "<absolute>"; };
 		EDBBA55711DE75370015175B /* gtf_juncs */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = gtf_juncs; sourceTree = BUILT_PRODUCTS_DIR; };
-		EDBBA55E11DE75750015175B /* GArgs.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = GArgs.cpp; path = src/GArgs.cpp; sourceTree = "<group>"; };
-		EDBBA55F11DE75750015175B /* GArgs.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = GArgs.h; path = src/GArgs.h; sourceTree = "<group>"; };
 		EDBBA56011DE75750015175B /* GBase.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = GBase.cpp; path = src/GBase.cpp; sourceTree = "<group>"; };
 		EDBBA56111DE75750015175B /* GBase.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = GBase.h; path = src/GBase.h; sourceTree = "<group>"; };
 		EDBBA56211DE75750015175B /* gdna.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = gdna.cpp; path = src/gdna.cpp; sourceTree = "<group>"; };
 		EDBBA56311DE75750015175B /* gdna.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = gdna.h; path = src/gdna.h; sourceTree = "<group>"; };
 		EDBBA56611DE75750015175B /* GFaSeqGet.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = GFaSeqGet.cpp; path = src/GFaSeqGet.cpp; sourceTree = "<group>"; };
 		EDBBA56711DE75750015175B /* GFaSeqGet.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = GFaSeqGet.h; path = src/GFaSeqGet.h; sourceTree = "<group>"; };
-		EDBBA56811DE75750015175B /* GFastaFile.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = GFastaFile.h; path = src/GFastaFile.h; sourceTree = "<group>"; };
 		EDBBA56911DE75750015175B /* GHash.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = GHash.hh; path = src/GHash.hh; sourceTree = "<group>"; };
 		EDBBA56A11DE75750015175B /* GList.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = GList.hh; path = src/GList.hh; sourceTree = "<group>"; };
 		EDBBA56B11DE75750015175B /* GStr.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = GStr.cpp; path = src/GStr.cpp; sourceTree = "<group>"; };
@@ -228,15 +223,12 @@
 				ED6D6252118B5B6B00A682F4 /* tophat.py */,
 				ED6D6253118B5B6B00A682F4 /* wiggles.cpp */,
 				ED6D6254118B5B6B00A682F4 /* wiggles.h */,
-				EDBBA55E11DE75750015175B /* GArgs.cpp */,
-				EDBBA55F11DE75750015175B /* GArgs.h */,
 				EDBBA56011DE75750015175B /* GBase.cpp */,
 				EDBBA56111DE75750015175B /* GBase.h */,
 				EDBBA56211DE75750015175B /* gdna.cpp */,
 				EDBBA56311DE75750015175B /* gdna.h */,
 				EDBBA56611DE75750015175B /* GFaSeqGet.cpp */,
 				EDBBA56711DE75750015175B /* GFaSeqGet.h */,
-				EDBBA56811DE75750015175B /* GFastaFile.h */,
 				EDBBA56911DE75750015175B /* GHash.hh */,
 				EDBBA56A11DE75750015175B /* GList.hh */,
 				EDBBA56B11DE75750015175B /* GStr.cpp */,
@@ -381,7 +373,6 @@
 				ED2A456311E2401E009AD73B /* tokenize.cpp in Sources */,
 				ED2A456411E2401E009AD73B /* common.cpp in Sources */,
 				ED2A456511E2401E009AD73B /* junctions.cpp in Sources */,
-				ED2A456611E2401E009AD73B /* GArgs.cpp in Sources */,
 				ED2A456711E2401E009AD73B /* GBase.cpp in Sources */,
 				ED2A456811E2401E009AD73B /* gdna.cpp in Sources */,
 				ED2A456911E2401E009AD73B /* GFaSeqGet.cpp in Sources */,
@@ -419,7 +410,6 @@
 				EDBBA54111DE75370015175B /* tokenize.cpp in Sources */,
 				EDBBA54A11DE75370015175B /* common.cpp in Sources */,
 				EDBBA54D11DE75370015175B /* junctions.cpp in Sources */,
-				EDBBA56D11DE75760015175B /* GArgs.cpp in Sources */,
 				EDBBA56E11DE75760015175B /* GBase.cpp in Sources */,
 				EDBBA56F11DE75760015175B /* gdna.cpp in Sources */,
 				EDBBA57111DE75760015175B /* GFaSeqGet.cpp in Sources */,
