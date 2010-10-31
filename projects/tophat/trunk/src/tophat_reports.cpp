@@ -118,11 +118,11 @@ enum FragmentType {FRAG_UNPAIRED, FRAG_LEFT, FRAG_RIGHT};
 
 bool rewrite_sam_hit(const RefSequenceTable& rt,
                      const BowtieHit& bh,
-		     const char* bwt_buf,
-		     char* rebuf, 
-		     char* read_alt_name,
-		     const FragmentAlignmentGrade& grade,
-		     FragmentType insert_side,
+                     const char* bwt_buf,
+                     char* rebuf, 
+                     char* read_alt_name,
+                     const FragmentAlignmentGrade& grade,
+                     FragmentType insert_side,
                      int num_hits,
                      const BowtieHit* next_hit)
 {
@@ -137,7 +137,7 @@ bool rewrite_sam_hit(const RefSequenceTable& rt,
 	}
 	
 	*rebuf = 0;
-	
+
 	for (size_t t = 0; t < sam_toks.size(); ++t)
 	{
 		switch(t)
@@ -147,7 +147,7 @@ bool rewrite_sam_hit(const RefSequenceTable& rt,
 				sam_toks[t] = read_alt_name;
 				break;
 			}
-			
+                
 			case 1:
 			{
 				// SAM FLAG
@@ -186,7 +186,7 @@ bool rewrite_sam_hit(const RefSequenceTable& rt,
 				sam_toks[t] = mapq_buf;
 				break;
 			}
-
+                
 			default:
 				break;
 		}	
@@ -219,23 +219,55 @@ bool rewrite_sam_hit(const RefSequenceTable& rt,
                 next_hit->left() + 1);
         strcat(rebuf, mate_buf);
     }
-
-    if (library_type == FR_FIRSTSTRAND)
+    
+    // FIXME: this code is still a bit brittle, because it contains no 
+    // consistency check that the mates are on opposite strands (a current protocol
+    // requirement, and that the strand indicated by the alignment is consistent
+    // with the orientation of the splices (though that should be handled upstream).
+    if (bh.contiguous())
     {
-      if (insert_side == FRAG_LEFT )
-	strcat(rebuf, "\tXS:A:-");
-      else
-	strcat(rebuf, "\tXS:A:+");
-    }
+        if (library_type == FR_FIRSTSTRAND)
+        {
+            if (insert_side == FRAG_LEFT )
+            {
+                if (bh.antisense_align())
+                    strcat(rebuf, "\tXS:A:-");
+                else 
+                    strcat(rebuf, "\tXS:A:+");
 
-    else if (library_type == FR_UNSTRANDED || library_type == FR_SECONDSTRAND)
-    {
-      if (insert_side == FRAG_LEFT )
-	strcat(rebuf, "\tXS:A:+");
-      else
-	strcat(rebuf, "\tXS:A:-");
+            }
+            else
+            {
+                if (bh.antisense_align())
+                    strcat(rebuf, "\tXS:A:+");
+                else 
+                    strcat(rebuf, "\tXS:A:-");
+            }
+        }
+        
+        else if (library_type == FR_SECONDSTRAND)
+        {
+            if (insert_side == FRAG_LEFT )
+            {
+                if (bh.antisense_align())
+                    strcat(rebuf, "\tXS:A:+");
+                else 
+                    strcat(rebuf, "\tXS:A:-");
+            }
+            else
+            {
+                if (bh.antisense_align())
+                    strcat(rebuf, "\tXS:A:-");
+                else 
+                    strcat(rebuf, "\tXS:A:+");
+            }
+        }
+        else if (library_type == FR_UNSTRANDED)
+        {
+           // No addition of XS tags, we don't know the strand. 
+        }
     }
-
+    
     strcat(rebuf, "\n");
     
     return true;

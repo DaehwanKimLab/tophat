@@ -273,18 +273,21 @@
 								<string>ED74236411AC692C007FBF56</string>
 								<string>ED6D622C118B5B4000A682F4</string>
 								<string>1C37FBAC04509CD000000102</string>
+								<string>EDBE4609127E1CE20056D528</string>
+								<string>EDBE460A127E1CE20056D528</string>
+								<string>EDBE460B127E1CE20056D528</string>
+								<string>EDBE460C127E1CE20056D528</string>
 								<string>1C37FAAC04509CD000000102</string>
 							</array>
 							<key>PBXSmartGroupTreeModuleOutlineStateSelectionKey</key>
 							<array>
 								<array>
-									<integer>51</integer>
 									<integer>2</integer>
 									<integer>0</integer>
 								</array>
 							</array>
 							<key>PBXSmartGroupTreeModuleOutlineStateVisibleRectKey</key>
-							<string>{{0, 620}, {185, 990}}</string>
+							<string>{{0, 860}, {185, 990}}</string>
 						</dict>
 						<key>PBXTopSmartGroupGIDs</key>
 						<array/>
@@ -319,7 +322,7 @@
 								<key>PBXProjectModuleGUID</key>
 								<string>ED5C74E3118B5B0800397B5E</string>
 								<key>PBXProjectModuleLabel</key>
-								<string>tophat.py</string>
+								<string>tophat_reports.cpp</string>
 								<key>PBXSplitModuleInNavigatorKey</key>
 								<dict>
 									<key>Split0</key>
@@ -327,11 +330,11 @@
 										<key>PBXProjectModuleGUID</key>
 										<string>ED5C74E4118B5B0800397B5E</string>
 										<key>PBXProjectModuleLabel</key>
-										<string>tophat.py</string>
+										<string>tophat_reports.cpp</string>
 										<key>_historyCapacity</key>
 										<integer>0</integer>
 										<key>bookmark</key>
-										<string>ED41B86912777DB50000B5A2</string>
+										<string>EDBE460F127E1CE20056D528</string>
 										<key>history</key>
 										<array>
 											<string>EDBBA2B611DD3C040015175B</string>
@@ -364,13 +367,14 @@
 											<string>ED2A45E411E2A727009AD73B</string>
 											<string>EDD94BDA1205E4ED00AA1086</string>
 											<string>EDD94BDB1205E4ED00AA1086</string>
-											<string>EDD94BDC1205E4ED00AA1086</string>
 											<string>EDD94ED31210DEA900AA1086</string>
 											<string>ED16F014124CCD8400350FC6</string>
 											<string>ED41B43E125E3D800000B5A2</string>
 											<string>ED41B4FC1268F5210000B5A2</string>
 											<string>ED41B86712777DB50000B5A2</string>
-											<string>ED41B86812777DB50000B5A2</string>
+											<string>EDBE45F9127E194A0056D528</string>
+											<string>EDBE460D127E1CE20056D528</string>
+											<string>EDBE460E127E1CE20056D528</string>
 										</array>
 									</dict>
 									<key>SplitCount</key>
@@ -384,18 +388,18 @@
 							<key>GeometryConfiguration</key>
 							<dict>
 								<key>Frame</key>
-								<string>{{0, 0}, {942, 728}}</string>
+								<string>{{0, 0}, {942, 722}}</string>
 								<key>RubberWindowFrame</key>
 								<string>741 129 1149 1049 0 0 1920 1178 </string>
 							</dict>
 							<key>Module</key>
 							<string>PBXNavigatorGroup</string>
 							<key>Proportion</key>
-							<string>728pt</string>
+							<string>722pt</string>
 						</dict>
 						<dict>
 							<key>Proportion</key>
-							<string>275pt</string>
+							<string>281pt</string>
 							<key>Tabs</key>
 							<array>
 								<dict>
@@ -409,9 +413,7 @@
 									<key>GeometryConfiguration</key>
 									<dict>
 										<key>Frame</key>
-										<string>{{10, 27}, {942, 248}}</string>
-										<key>RubberWindowFrame</key>
-										<string>741 129 1149 1049 0 0 1920 1178 </string>
+										<string>{{10, 27}, {942, 254}}</string>
 									</dict>
 									<key>Module</key>
 									<string>XCDetailModule</string>
@@ -465,7 +467,9 @@
 									<key>GeometryConfiguration</key>
 									<dict>
 										<key>Frame</key>
-										<string>{{10, 27}, {979, 360}}</string>
+										<string>{{10, 27}, {942, 254}}</string>
+										<key>RubberWindowFrame</key>
+										<string>741 129 1149 1049 0 0 1920 1178 </string>
 									</dict>
 									<key>Module</key>
 									<string>PBXBuildResultsModule</string>
@@ -493,11 +497,11 @@
 			</array>
 			<key>TableOfContents</key>
 			<array>
-				<string>ED41B86412777D850000B5A2</string>
+				<string>EDBE45FC127E194A0056D528</string>
 				<string>1CA23ED40692098700951B8B</string>
-				<string>ED41B86512777D850000B5A2</string>
+				<string>EDBE45FD127E194A0056D528</string>
 				<string>ED5C74E3118B5B0800397B5E</string>
-				<string>ED41B86612777D850000B5A2</string>
+				<string>EDBE45FE127E194A0056D528</string>
 				<string>1CA23EDF0692099D00951B8B</string>
 				<string>1CA23EE00692099D00951B8B</string>
 				<string>1CA23EE10692099D00951B8B</string>

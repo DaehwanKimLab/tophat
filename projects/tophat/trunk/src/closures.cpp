@@ -306,7 +306,7 @@ public:
 	    else skip_fwd = true;
 	  }
 
-	if (library_type == FR_UNSTRANDED || library_type == FR_SECONDSTRAND)
+	if (library_type == FR_SECONDSTRAND)
 	  {
 	    if (bh_left.antisense_align()) skip_fwd = true;
 	    else skip_rev = true;

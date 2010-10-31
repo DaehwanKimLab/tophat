@@ -2083,7 +2083,7 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
 	    }
 	}
 
-      if (library_type == FR_UNSTRANDED || library_type == FR_SECONDSTRAND)
+      if (library_type == FR_SECONDSTRAND)
 	{
 	  if (seg.read == READ_LEFT)
 	    {
