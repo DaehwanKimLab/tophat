@@ -137,7 +137,7 @@ bool rewrite_sam_hit(const RefSequenceTable& rt,
 	}
 	
 	*rebuf = 0;
-
+    
 	for (size_t t = 0; t < sam_toks.size(); ++t)
 	{
 		switch(t)
@@ -225,43 +225,23 @@ bool rewrite_sam_hit(const RefSequenceTable& rt,
     // requirement, and that the strand indicated by the alignment is consistent
     // with the orientation of the splices (though that should be handled upstream).
     if (bh.contiguous())
-      {
+    {
         if (library_type == FR_FIRSTSTRAND)
-	  {
-            if (insert_side == FRAG_LEFT )
-	      {
-                if (bh.antisense_align())
-		  strcat(rebuf, "\tXS:A:-");
-                else 
-		  strcat(rebuf, "\tXS:A:+");
-            }
-            else
-	      {
-		if (bh.antisense_align())
-		  strcat(rebuf, "\tXS:A:+");
-		else 
-		  strcat(rebuf, "\tXS:A:-");
-	      }
-	  }
+        {
+            if (bh.antisense_align())
+                strcat(rebuf, "\tXS:A:+");
+            else 
+                strcat(rebuf, "\tXS:A:-");
+        }
         
         else if (library_type == FR_SECONDSTRAND)
-	  {
-            if (insert_side == FRAG_LEFT )
-	      {
-                if (bh.antisense_align())
-		  strcat(rebuf, "\tXS:A:+");
-                else 
-		  strcat(rebuf, "\tXS:A:-");
-	      }
-            else
-	      {
-                if (bh.antisense_align())
-		  strcat(rebuf, "\tXS:A:-");
-                else 
-		  strcat(rebuf, "\tXS:A:+");
-	      }
-	  }
-      }
+        {
+            if (bh.antisense_align())
+                strcat(rebuf, "\tXS:A:-");
+            else 
+                strcat(rebuf, "\tXS:A:+");
+        }
+    }
     
     strcat(rebuf, "\n");
     
@@ -270,192 +250,192 @@ bool rewrite_sam_hit(const RefSequenceTable& rt,
 
 bool rewrite_sam_hit(const RefSequenceTable& rt,
                      const BowtieHit& bh,
-		     const char* bwt_buf,
-		     char* rebuf, 
-		     char* read_alt_name,
-		     const InsertAlignmentGrade& grade,
-		     FragmentType insert_side,
-		     const BowtieHit* partner,
+                     const char* bwt_buf,
+                     char* rebuf, 
+                     char* read_alt_name,
+                     const InsertAlignmentGrade& grade,
+                     FragmentType insert_side,
+                     const BowtieHit* partner,
                      int num_hits,
                      const BowtieHit* next_hit)
 {
-  // Rewrite this hit, filling in the alt name, mate mapping
-  // and setting the pair flag
-  vector<string> sam_toks;
-  tokenize(bwt_buf, "\t", sam_toks);
-  char* slash_pos = strrchr(read_alt_name,'/');
-  if (slash_pos)
+    // Rewrite this hit, filling in the alt name, mate mapping
+    // and setting the pair flag
+    vector<string> sam_toks;
+    tokenize(bwt_buf, "\t", sam_toks);
+    char* slash_pos = strrchr(read_alt_name,'/');
+    if (slash_pos)
     {
-      *slash_pos = 0;
+        *slash_pos = 0;
     }
-  
-  *rebuf = 0;
-  
-  for (size_t t = 0; t < sam_toks.size(); ++t)
-    {
-      switch(t)
-	{
-	case 0: //QNAME
-	  {
-	    sam_toks[t] = read_alt_name;
-	    break;
-	  }
-	case 1: //SAM FLAG
-	  {
-	    // 0x0010 (strand of query) is assumed to be set correctly
-	    // to begin with
-	    
-	    int flag = atoi(sam_toks[1].c_str());
-	    flag |= 0x0001;
-	    if (insert_side == FRAG_LEFT)
-	      flag |= 0x0040;
-	    else if (insert_side == FRAG_RIGHT)
-	      flag |= 0x0080;
-	    
-	    if (grade.happy() && partner)
-	      flag |= 0x0002;
-				
-	    if (partner)
-	      {
-		if (partner->antisense_align())
-		  flag |= 0x0020;
-	      }
-	    else
-	      {
-		flag |= 0x0008;
-	      }
-	    
-	    char flag_buf[64];
-	    sprintf(flag_buf, "%d", flag);
-	    sam_toks[t] = flag_buf;
-	    break;
-	  }
-	  
-	case 4: //MAPQ
-	  {
-	    int mapQ;
-	    if (grade.num_alignments > 1)
-	      {
-		double err_prob = 1 - (1.0 / grade.num_alignments);
-		mapQ = (int)(-10.0 * log(err_prob) / log(10.0));
-	      }
-	    else
-	      {
-		mapQ = 255;
-	      }
-	    char mapq_buf[64];
-	    sprintf(mapq_buf, "%d", mapQ);
-	    sam_toks[t] = mapq_buf;
-	    break;
-	  }
-	case 6: //MRNM
-	  {
-	    if (partner)
-	      {
-		//FIXME: this won't be true forever.  Someday, we will report 
-		//alignments of pairs not on the same contig.  
-		sam_toks[t] = "=";
-	      }
-	    else
-	      {
-		sam_toks[t] = "*";
-	      }
-	    break;
-	  }
-	case 7: //MPOS
-	  {
-	    if (partner)
-	      {
-		char pos_buf[64];
-		int partner_pos = partner->left() + 1;  // SAM is 1-indexed
-		
-		sprintf(pos_buf, "%d", partner_pos);
-		sam_toks[t] = pos_buf;
-		break;
-	      }
-	    else
-	      {
-		sam_toks[t] = "0";
-	      }
-	  }
-	default:
-	  break;
-	}	
-      strcat (rebuf, sam_toks[t].c_str());
-      if (t != sam_toks.size() - 1)
-	strcat(rebuf, "\t");
-    }
-  
-  char nh_buf[2048];
-  sprintf(nh_buf, "\tNH:i:%d", num_hits);
-  strcat(rebuf, nh_buf);
     
-  if (next_hit)
+    *rebuf = 0;
+    
+    for (size_t t = 0; t < sam_toks.size(); ++t)
     {
-      const char* nh_ref_name = rt.get_name(next_hit->ref_id());
-      assert (nh_ref_name != NULL);
-      const char* curr_ref_name = rt.get_name(bh.ref_id());
-      assert (curr_ref_name != NULL);
-      
-      char mate_buf[2048];
-      bool same_contig = !strcmp(curr_ref_name, nh_ref_name);
-      
-      assert (num_hits > 1);
-      
-      sprintf(mate_buf, 
-	      "\tCC:Z:%s\tCP:i:%d",
-	      same_contig ? "=" : nh_ref_name, 
-	      next_hit->left() + 1);
-      
-      strcat(rebuf, mate_buf);
-    }
-
-  // FIXME: this code is still a bit brittle, because it contains no 
-  // consistency check that the mates are on opposite strands (a current protocol
-  // requirement, and that the strand indicated by the alignment is consistent
-  // with the orientation of the splices (though that should be handled upstream).
-  if (bh.contiguous() && grade.opposite_strands)
-    {
-      if (library_type == FR_FIRSTSTRAND)
+        switch(t)
         {
-	  if (insert_side == FRAG_LEFT )
+            case 0: //QNAME
             {
-	      if (bh.antisense_align())
-		strcat(rebuf, "\tXS:A:-");
-	      else 
-		strcat(rebuf, "\tXS:A:+");
+                sam_toks[t] = read_alt_name;
+                break;
             }
-	  else
+            case 1: //SAM FLAG
             {
-	      if (bh.antisense_align())
-		strcat(rebuf, "\tXS:A:+");
-	      else 
-		strcat(rebuf, "\tXS:A:-");
+                // 0x0010 (strand of query) is assumed to be set correctly
+                // to begin with
+                
+                int flag = atoi(sam_toks[1].c_str());
+                flag |= 0x0001;
+                if (insert_side == FRAG_LEFT)
+                    flag |= 0x0040;
+                else if (insert_side == FRAG_RIGHT)
+                    flag |= 0x0080;
+                
+                if (grade.happy() && partner)
+                    flag |= 0x0002;
+				
+                if (partner)
+                {
+                    if (partner->antisense_align())
+                        flag |= 0x0020;
+                }
+                else
+                {
+                    flag |= 0x0008;
+                }
+                
+                char flag_buf[64];
+                sprintf(flag_buf, "%d", flag);
+                sam_toks[t] = flag_buf;
+                break;
+            }
+                
+            case 4: //MAPQ
+            {
+                int mapQ;
+                if (grade.num_alignments > 1)
+                {
+                    double err_prob = 1 - (1.0 / grade.num_alignments);
+                    mapQ = (int)(-10.0 * log(err_prob) / log(10.0));
+                }
+                else
+                {
+                    mapQ = 255;
+                }
+                char mapq_buf[64];
+                sprintf(mapq_buf, "%d", mapQ);
+                sam_toks[t] = mapq_buf;
+                break;
+            }
+            case 6: //MRNM
+            {
+                if (partner)
+                {
+                    //FIXME: this won't be true forever.  Someday, we will report 
+                    //alignments of pairs not on the same contig.  
+                    sam_toks[t] = "=";
+                }
+                else
+                {
+                    sam_toks[t] = "*";
+                }
+                break;
+            }
+            case 7: //MPOS
+            {
+                if (partner)
+                {
+                    char pos_buf[64];
+                    int partner_pos = partner->left() + 1;  // SAM is 1-indexed
+                    
+                    sprintf(pos_buf, "%d", partner_pos);
+                    sam_toks[t] = pos_buf;
+                    break;
+                }
+                else
+                {
+                    sam_toks[t] = "0";
+                }
+            }
+            default:
+                break;
+        }	
+        strcat (rebuf, sam_toks[t].c_str());
+        if (t != sam_toks.size() - 1)
+            strcat(rebuf, "\t");
+    }
+    
+    char nh_buf[2048];
+    sprintf(nh_buf, "\tNH:i:%d", num_hits);
+    strcat(rebuf, nh_buf);
+    
+    if (next_hit)
+    {
+        const char* nh_ref_name = rt.get_name(next_hit->ref_id());
+        assert (nh_ref_name != NULL);
+        const char* curr_ref_name = rt.get_name(bh.ref_id());
+        assert (curr_ref_name != NULL);
+        
+        char mate_buf[2048];
+        bool same_contig = !strcmp(curr_ref_name, nh_ref_name);
+        
+        assert (num_hits > 1);
+        
+        sprintf(mate_buf, 
+                "\tCC:Z:%s\tCP:i:%d",
+                same_contig ? "=" : nh_ref_name, 
+                next_hit->left() + 1);
+        
+        strcat(rebuf, mate_buf);
+    }
+    
+    // FIXME: this code is still a bit brittle, because it contains no 
+    // consistency check that the mates are on opposite strands (a current protocol
+    // requirement, and that the strand indicated by the alignment is consistent
+    // with the orientation of the splices (though that should be handled upstream).
+    if (bh.contiguous() && grade.opposite_strands)
+    {
+        if (library_type == FR_FIRSTSTRAND)
+        {
+            if (insert_side == FRAG_LEFT )
+            {
+                if (bh.antisense_align())
+                    strcat(rebuf, "\tXS:A:+");
+                else 
+                    strcat(rebuf, "\tXS:A:-");
+            }
+            else
+            {
+                if (bh.antisense_align())
+                    strcat(rebuf, "\tXS:A:-");
+                else 
+                    strcat(rebuf, "\tXS:A:+");
             }
         }
-      
-      else if (library_type == FR_SECONDSTRAND)
+        
+        else if (library_type == FR_SECONDSTRAND)
         {
-	  if (insert_side == FRAG_LEFT )
+            if (insert_side == FRAG_LEFT )
             {
-	      if (bh.antisense_align())
-		strcat(rebuf, "\tXS:A:+");
-	      else 
-		strcat(rebuf, "\tXS:A:-");
+                if (bh.antisense_align())
+                    strcat(rebuf, "\tXS:A:-");
+                else 
+                    strcat(rebuf, "\tXS:A:+");
             }
-	  else
+            else
             {
-	      if (bh.antisense_align())
-		strcat(rebuf, "\tXS:A:-");
-	      else 
-		strcat(rebuf, "\tXS:A:+");
+                if (bh.antisense_align())
+                    strcat(rebuf, "\tXS:A:+");
+                else 
+                    strcat(rebuf, "\tXS:A:-");
             }
         }
     }
-  
-  strcat(rebuf, "\n");
-  
-  return true;
+    
+    strcat(rebuf, "\n");
+    
+    return true;
 }
 
 struct lex_hit_sort

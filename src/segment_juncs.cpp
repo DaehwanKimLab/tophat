@@ -2036,168 +2036,168 @@ struct RecordButterflyJuncs
 
 template <class JunctionRecorder>
 void juncs_from_ref_segs(RefSequenceTable& rt,
-			 vector<RefSeg>& expected_don_acc_windows,
-			 PotentialJuncs& juncs,
-			 const DnaString& donor_dinuc,
-			 const DnaString& acceptor_dinuc,
-			 int max_intron,
-			 int min_intron,
-			 size_t max_juncs,
-			 bool talkative,
-			 size_t half_splice_mer_len)
+                         vector<RefSeg>& expected_don_acc_windows,
+                         PotentialJuncs& juncs,
+                         const DnaString& donor_dinuc,
+                         const DnaString& acceptor_dinuc,
+                         int max_intron,
+                         int min_intron,
+                         size_t max_juncs,
+                         bool talkative,
+                         size_t half_splice_mer_len)
 {	
 	
-  typedef map<uint32_t, IntronMotifs> MotifMap;
-  
-  MotifMap ims;
+    typedef map<uint32_t, IntronMotifs> MotifMap;
+    
+    MotifMap ims;
 	
-  seqan::DnaStringReverseComplement rev_donor_dinuc(donor_dinuc);
-  seqan::DnaStringReverseComplement rev_acceptor_dinuc(acceptor_dinuc);
-  
-  if (talkative)
-    fprintf(stderr, "Collecting potential splice sites in islands\n");
-  
-  for (size_t r = 0; r < expected_don_acc_windows.size(); ++r)
+    seqan::DnaStringReverseComplement rev_donor_dinuc(donor_dinuc);
+    seqan::DnaStringReverseComplement rev_acceptor_dinuc(acceptor_dinuc);
+    
+    if (talkative)
+        fprintf(stderr, "Collecting potential splice sites in islands\n");
+    
+    for (size_t r = 0; r < expected_don_acc_windows.size(); ++r)
     {
-      const RefSeg& seg = expected_don_acc_windows[r];
-      
-      RefSequenceTable::Sequence* ref_str = rt.get_seq(seg.ref_id);
-      
-      if (!ref_str)
-	  continue;
-
-      bool skip_fwd = false;
-      bool skip_rev = false;
-
-      if (library_type == FR_FIRSTSTRAND)
-	{
-	  if (seg.read == READ_LEFT)
-	    {
-	      if (seg.antisense) skip_rev = true;
-	      else skip_fwd = true;
-	    }
-	  else if(seg.read == READ_RIGHT)
-	    {
-	      if (seg.antisense) skip_fwd = true;
-	      else skip_rev = true;
-	    }
-	}
-
-      if (library_type == FR_SECONDSTRAND)
-	{
-	  if (seg.read == READ_LEFT)
-	    {
-	      if (seg.antisense) skip_fwd = true;
-	      else skip_rev = true;
-	    }
-	  else if(seg.read == READ_RIGHT)
-	    {
-	      if (seg.antisense) skip_rev = true;
-	      else skip_fwd = true;
-	    }
-	}
-
-      pair<map<uint32_t, IntronMotifs>::iterator, bool> ret = 
-	ims.insert(make_pair(seg.ref_id, IntronMotifs(seg.ref_id)));
+        const RefSeg& seg = expected_don_acc_windows[r];
+        
+        RefSequenceTable::Sequence* ref_str = rt.get_seq(seg.ref_id);
+        
+        if (!ref_str)
+            continue;
+        
+        bool skip_fwd = false;
+        bool skip_rev = false;
+        
+        if (library_type == FR_FIRSTSTRAND)
+        {
+            if (seg.read == READ_LEFT)
+            {
+                if (seg.antisense) skip_rev = true;
+                else skip_fwd = true;
+            }
+            else if(seg.read == READ_RIGHT)
+            {
+                if (seg.antisense) skip_fwd = true;
+                else skip_rev = true;
+            }
+        }
+        
+        if (library_type == FR_SECONDSTRAND)
+        {
+            if (seg.read == READ_LEFT)
+            {
+                if (seg.antisense) skip_fwd = true;
+                else skip_rev = true;
+            }
+            else if(seg.read == READ_RIGHT)
+            {
+                if (seg.antisense) skip_rev = true;
+                else skip_fwd = true;
+            }
+        }
+        
+        pair<map<uint32_t, IntronMotifs>::iterator, bool> ret = 
+        ims.insert(make_pair(seg.ref_id, IntronMotifs(seg.ref_id)));
 		
-      IntronMotifs& motifs = ret.first->second;
-      
-      if (seg.left < 0 || seg.right >= (int)length(*ref_str) - 1)
-	continue;
-      
-      DnaString seg_str = seqan::infix(*ref_str, seg.left, seg.right);
-      
-      if (seg.points_left)
-	{
-	  // A ref segment that "points left" is one that was flanked 
-	  // on the right by a partial bowtie hit, indicating that we
-	  // should be looking for an intron to the left of the hit
-	  // In this seg, that means either an "AG" or an "AC"
+        IntronMotifs& motifs = ret.first->second;
+        
+        if (seg.left < 0 || seg.right >= (int)length(*ref_str) - 1)
+            continue;
+        
+        DnaString seg_str = seqan::infix(*ref_str, seg.left, seg.right);
+        
+        if (seg.points_left)
+        {
+            // A ref segment that "points left" is one that was flanked 
+            // on the right by a partial bowtie hit, indicating that we
+            // should be looking for an intron to the left of the hit
+            // In this seg, that means either an "AG" or an "AC"
 			
-	  for (size_t i = 0; i < length(seg_str) - 1; ++i)
-	    {
-	      // Look at a slice of the reference without creating a copy.
-	      DnaString curr = seqan::infix(seg_str, 
-					    i, 
-					    i + 2);
-	      
-	      if (curr == acceptor_dinuc && !skip_fwd)
-		motifs.fwd_acceptors.push_back(make_pair(seg.left + i, DnaSpliceStrings(0,0)));
-	      else if (curr == rev_donor_dinuc && !skip_rev)
-		motifs.rev_donors.push_back(make_pair(seg.left + i, DnaSpliceStrings(0,0)));
-	    }
-	}
-      else
-	{
-	  // A right pointing ref seg wants either a "GT" or a "CT"
-	  for (size_t i = 0; i < length(seg_str) - 1; ++i)
-	    {
-	      
-	      // Look at a slice of the reference without creating a copy.
-	      DnaString curr = seqan::infix(seg_str, 
-					    i, 
-					    i + 2);
-	      
-	      if (curr == donor_dinuc && !skip_fwd)
-		motifs.fwd_donors.push_back(make_pair(seg.left + i, DnaSpliceStrings(0,0)));
-	      else if (curr == rev_acceptor_dinuc && !skip_rev)
-		motifs.rev_acceptors.push_back(make_pair(seg.left + i, DnaSpliceStrings(0,0)));
-	    }
-	}
+            for (size_t i = 0; i < length(seg_str) - 1; ++i)
+            {
+                // Look at a slice of the reference without creating a copy.
+                DnaString curr = seqan::infix(seg_str, 
+                                              i, 
+                                              i + 2);
+                
+                if (curr == acceptor_dinuc && !skip_fwd)
+                    motifs.fwd_acceptors.push_back(make_pair(seg.left + i, DnaSpliceStrings(0,0)));
+                else if (curr == rev_donor_dinuc && !skip_rev)
+                    motifs.rev_donors.push_back(make_pair(seg.left + i, DnaSpliceStrings(0,0)));
+            }
+        }
+        else
+        {
+            // A right pointing ref seg wants either a "GT" or a "CT"
+            for (size_t i = 0; i < length(seg_str) - 1; ++i)
+            {
+                
+                // Look at a slice of the reference without creating a copy.
+                DnaString curr = seqan::infix(seg_str, 
+                                              i, 
+                                              i + 2);
+                
+                if (curr == donor_dinuc && !skip_fwd)
+                    motifs.fwd_donors.push_back(make_pair(seg.left + i, DnaSpliceStrings(0,0)));
+                else if (curr == rev_acceptor_dinuc && !skip_rev)
+                    motifs.rev_acceptors.push_back(make_pair(seg.left + i, DnaSpliceStrings(0,0)));
+            }
+        }
     }
-  
-  if (talkative)
+    
+    if (talkative)
     {
-      fprintf(stderr, "reporting synthetic splice junctions...\n");
+        fprintf(stderr, "reporting synthetic splice junctions...\n");
     }
-  for (MotifMap::iterator motif_itr = ims.begin(); motif_itr != ims.end(); ++motif_itr)
+    for (MotifMap::iterator motif_itr = ims.begin(); motif_itr != ims.end(); ++motif_itr)
     {
-      uint32_t ref_id = motif_itr->first;
-      
-      RefSequenceTable::Sequence* ref_str = rt.get_seq(ref_id);
-      
-      if (!ref_str)
-	{
-	  fprintf(stderr, "Error: couldn't get ref string for %u\n", ref_id);
-	  exit(1);
-	}	
-      
-      if (talkative)
-	fprintf(stderr, "Examining donor-acceptor pairings in %s\n", rt.get_name(ref_id));
-      IntronMotifs& motifs = motif_itr->second;
-      motifs.unique();
-      //motifs.attach_mer_counts(*ref_str);
-      motifs.attach_mers(*ref_str);
-      
-      vector<pair<size_t, DnaSpliceStrings> >& fwd_donors = motifs.fwd_donors;
-      vector<pair<size_t, DnaSpliceStrings> >& fwd_acceptors = motifs.fwd_acceptors;
-      vector<pair<size_t, DnaSpliceStrings> >& rev_acceptors = motifs.rev_acceptors;
-      vector<pair<size_t, DnaSpliceStrings> >& rev_donors = motifs.rev_donors;
-      
-      //const char* ref_name = rt.get_name(motif_itr->second.ref_id);
-      
-      JunctionRecorder recorder;
-      recorder.record(ref_id,
-		      fwd_donors, 
-		      fwd_acceptors, 
-		      false, 
-		      juncs,
-		      min_intron,
-		      max_intron, 
-		      max_juncs,
-		      half_splice_mer_len);
-      
-      recorder.record(ref_id, 
-		      rev_acceptors, 
-		      rev_donors, 
-		      true, 
-		      juncs,
-		      min_intron,
-		      max_intron, 
-		      max_juncs,
-		      half_splice_mer_len);
+        uint32_t ref_id = motif_itr->first;
+        
+        RefSequenceTable::Sequence* ref_str = rt.get_seq(ref_id);
+        
+        if (!ref_str)
+        {
+            fprintf(stderr, "Error: couldn't get ref string for %u\n", ref_id);
+            exit(1);
+        }	
+        
+        if (talkative)
+            fprintf(stderr, "Examining donor-acceptor pairings in %s\n", rt.get_name(ref_id));
+        IntronMotifs& motifs = motif_itr->second;
+        motifs.unique();
+        //motifs.attach_mer_counts(*ref_str);
+        motifs.attach_mers(*ref_str);
+        
+        vector<pair<size_t, DnaSpliceStrings> >& fwd_donors = motifs.fwd_donors;
+        vector<pair<size_t, DnaSpliceStrings> >& fwd_acceptors = motifs.fwd_acceptors;
+        vector<pair<size_t, DnaSpliceStrings> >& rev_acceptors = motifs.rev_acceptors;
+        vector<pair<size_t, DnaSpliceStrings> >& rev_donors = motifs.rev_donors;
+        
+        //const char* ref_name = rt.get_name(motif_itr->second.ref_id);
+        
+        JunctionRecorder recorder;
+        recorder.record(ref_id,
+                        fwd_donors, 
+                        fwd_acceptors, 
+                        false, 
+                        juncs,
+                        min_intron,
+                        max_intron, 
+                        max_juncs,
+                        half_splice_mer_len);
+        
+        recorder.record(ref_id, 
+                        rev_acceptors, 
+                        rev_donors, 
+                        true, 
+                        juncs,
+                        min_intron,
+                        max_intron, 
+                        max_juncs,
+                        half_splice_mer_len);
     }
-  //fprintf(stderr, "Found %d total splices\n", num_juncs);
+    //fprintf(stderr, "Found %d total splices\n", num_juncs);
 }
 
 void find_gaps(RefSequenceTable& rt,

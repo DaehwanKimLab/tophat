@@ -273,21 +273,18 @@
 								<string>ED74236411AC692C007FBF56</string>
 								<string>ED6D622C118B5B4000A682F4</string>
 								<string>1C37FBAC04509CD000000102</string>
-								<string>EDBE4609127E1CE20056D528</string>
-								<string>EDBE460A127E1CE20056D528</string>
-								<string>EDBE460B127E1CE20056D528</string>
-								<string>EDBE460C127E1CE20056D528</string>
 								<string>1C37FAAC04509CD000000102</string>
 							</array>
 							<key>PBXSmartGroupTreeModuleOutlineStateSelectionKey</key>
 							<array>
 								<array>
+									<integer>50</integer>
 									<integer>2</integer>
 									<integer>0</integer>
 								</array>
 							</array>
 							<key>PBXSmartGroupTreeModuleOutlineStateVisibleRectKey</key>
-							<string>{{0, 860}, {185, 990}}</string>
+							<string>{{0, 152}, {185, 990}}</string>
 						</dict>
 						<key>PBXTopSmartGroupGIDs</key>
 						<array/>
@@ -304,7 +301,7 @@
 							<real>185</real>
 						</array>
 						<key>RubberWindowFrame</key>
-						<string>741 129 1149 1049 0 0 1920 1178 </string>
+						<string>473 129 1149 1049 0 0 1920 1178 </string>
 					</dict>
 					<key>Module</key>
 					<string>PBXSmartGroupTreeModule</string>
@@ -334,7 +331,7 @@
 										<key>_historyCapacity</key>
 										<integer>0</integer>
 										<key>bookmark</key>
-										<string>EDBE460F127E1CE20056D528</string>
+										<string>EDBE46FC127F35740056D528</string>
 										<key>history</key>
 										<array>
 											<string>EDBBA2B611DD3C040015175B</string>
@@ -362,7 +359,6 @@
 											<string>ED2A455411DE8530009AD73B</string>
 											<string>ED2A455911DE893B009AD73B</string>
 											<string>ED2A45E011E2A727009AD73B</string>
-											<string>ED2A45E211E2A727009AD73B</string>
 											<string>ED2A45E311E2A727009AD73B</string>
 											<string>ED2A45E411E2A727009AD73B</string>
 											<string>EDD94BDA1205E4ED00AA1086</string>
@@ -374,7 +370,9 @@
 											<string>ED41B86712777DB50000B5A2</string>
 											<string>EDBE45F9127E194A0056D528</string>
 											<string>EDBE460D127E1CE20056D528</string>
-											<string>EDBE460E127E1CE20056D528</string>
+											<string>EDBE4612127F13E40056D528</string>
+											<string>EDBE4613127F13E40056D528</string>
+											<string>EDBE468E127F21730056D528</string>
 										</array>
 									</dict>
 									<key>SplitCount</key>
@@ -388,18 +386,18 @@
 							<key>GeometryConfiguration</key>
 							<dict>
 								<key>Frame</key>
-								<string>{{0, 0}, {942, 722}}</string>
+								<string>{{0, 0}, {942, 716}}</string>
 								<key>RubberWindowFrame</key>
-								<string>741 129 1149 1049 0 0 1920 1178 </string>
+								<string>473 129 1149 1049 0 0 1920 1178 </string>
 							</dict>
 							<key>Module</key>
 							<string>PBXNavigatorGroup</string>
 							<key>Proportion</key>
-							<string>722pt</string>
+							<string>716pt</string>
 						</dict>
 						<dict>
 							<key>Proportion</key>
-							<string>281pt</string>
+							<string>287pt</string>
 							<key>Tabs</key>
 							<array>
 								<dict>
@@ -413,7 +411,9 @@
 									<key>GeometryConfiguration</key>
 									<dict>
 										<key>Frame</key>
-										<string>{{10, 27}, {942, 254}}</string>
+										<string>{{10, 27}, {942, 260}}</string>
+										<key>RubberWindowFrame</key>
+										<string>473 129 1149 1049 0 0 1920 1178 </string>
 									</dict>
 									<key>Module</key>
 									<string>XCDetailModule</string>
@@ -468,8 +468,6 @@
 									<dict>
 										<key>Frame</key>
 										<string>{{10, 27}, {942, 254}}</string>
-										<key>RubberWindowFrame</key>
-										<string>741 129 1149 1049 0 0 1920 1178 </string>
 									</dict>
 									<key>Module</key>
 									<string>PBXBuildResultsModule</string>
@@ -497,11 +495,11 @@
 			</array>
 			<key>TableOfContents</key>
 			<array>
-				<string>EDBE45FC127E194A0056D528</string>
+				<string>EDBE4690127F21730056D528</string>
 				<string>1CA23ED40692098700951B8B</string>
-				<string>EDBE45FD127E194A0056D528</string>
+				<string>EDBE4691127F21730056D528</string>
 				<string>ED5C74E3118B5B0800397B5E</string>
-				<string>EDBE45FE127E194A0056D528</string>
+				<string>EDBE4692127F21730056D528</string>
 				<string>1CA23EDF0692099D00951B8B</string>
 				<string>1CA23EE00692099D00951B8B</string>
 				<string>1CA23EE10692099D00951B8B</string>
@@ -694,7 +692,7 @@
 		<string>/Users/cole/develop/tophat/TopHat.xcodeproj</string>
 	</array>
 	<key>WindowString</key>
-	<string>741 129 1149 1049 0 0 1920 1178 </string>
+	<string>473 129 1149 1049 0 0 1920 1178 </string>
 	<key>WindowToolsV3</key>
 	<array>
 		<dict>
