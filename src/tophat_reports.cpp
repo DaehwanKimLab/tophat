@@ -194,7 +194,7 @@ bool rewrite_sam_hit(const RefSequenceTable& rt,
 		if (t != sam_toks.size() - 1)
 			strcat(rebuf, "\t");
 	}
-    
+	
     char nh_buf[2048];
     
     sprintf(nh_buf, 
@@ -225,48 +225,43 @@ bool rewrite_sam_hit(const RefSequenceTable& rt,
     // requirement, and that the strand indicated by the alignment is consistent
     // with the orientation of the splices (though that should be handled upstream).
     if (bh.contiguous())
-    {
+      {
         if (library_type == FR_FIRSTSTRAND)
-        {
+	  {
             if (insert_side == FRAG_LEFT )
-            {
+	      {
                 if (bh.antisense_align())
-                    strcat(rebuf, "\tXS:A:-");
+		  strcat(rebuf, "\tXS:A:-");
                 else 
-                    strcat(rebuf, "\tXS:A:+");
-
+		  strcat(rebuf, "\tXS:A:+");
             }
             else
-            {
-                if (bh.antisense_align())
-                    strcat(rebuf, "\tXS:A:+");
-                else 
-                    strcat(rebuf, "\tXS:A:-");
-            }
-        }
+	      {
+		if (bh.antisense_align())
+		  strcat(rebuf, "\tXS:A:+");
+		else 
+		  strcat(rebuf, "\tXS:A:-");
+	      }
+	  }
         
         else if (library_type == FR_SECONDSTRAND)
-        {
+	  {
             if (insert_side == FRAG_LEFT )
-            {
+	      {
                 if (bh.antisense_align())
-                    strcat(rebuf, "\tXS:A:+");
+		  strcat(rebuf, "\tXS:A:+");
                 else 
-                    strcat(rebuf, "\tXS:A:-");
-            }
+		  strcat(rebuf, "\tXS:A:-");
+	      }
             else
-            {
+	      {
                 if (bh.antisense_align())
-                    strcat(rebuf, "\tXS:A:-");
+		  strcat(rebuf, "\tXS:A:-");
                 else 
-                    strcat(rebuf, "\tXS:A:+");
-            }
-        }
-        else if (library_type == FR_UNSTRANDED)
-        {
-           // No addition of XS tags, we don't know the strand. 
-        }
-    }
+		  strcat(rebuf, "\tXS:A:+");
+	      }
+	  }
+      }
     
     strcat(rebuf, "\n");
     
@@ -414,23 +409,49 @@ bool rewrite_sam_hit(const RefSequenceTable& rt,
       
       strcat(rebuf, mate_buf);
     }
-  
-  if (library_type == FR_FIRSTSTRAND)
-    {
-      if (insert_side == FRAG_LEFT )
-	strcat(rebuf, "\tXS:A:-");
-      else
-	strcat(rebuf, "\tXS:A:+");
-    }
 
-    else if (library_type == FR_UNSTRANDED || library_type == FR_SECONDSTRAND)
+  // FIXME: this code is still a bit brittle, because it contains no 
+  // consistency check that the mates are on opposite strands (a current protocol
+  // requirement, and that the strand indicated by the alignment is consistent
+  // with the orientation of the splices (though that should be handled upstream).
+  if (bh.contiguous() && grade.opposite_strands)
     {
-      if (insert_side == FRAG_LEFT )
-	strcat(rebuf, "\tXS:A:+");
-      else
-	strcat(rebuf, "\tXS:A:-");
+      if (library_type == FR_FIRSTSTRAND)
+        {
+	  if (insert_side == FRAG_LEFT )
+            {
+	      if (bh.antisense_align())
+		strcat(rebuf, "\tXS:A:-");
+	      else 
+		strcat(rebuf, "\tXS:A:+");
+            }
+	  else
+            {
+	      if (bh.antisense_align())
+		strcat(rebuf, "\tXS:A:+");
+	      else 
+		strcat(rebuf, "\tXS:A:-");
+            }
+        }
+      
+      else if (library_type == FR_SECONDSTRAND)
+        {
+	  if (insert_side == FRAG_LEFT )
+            {
+	      if (bh.antisense_align())
+		strcat(rebuf, "\tXS:A:+");
+	      else 
+		strcat(rebuf, "\tXS:A:-");
+            }
+	  else
+            {
+	      if (bh.antisense_align())
+		strcat(rebuf, "\tXS:A:-");
+	      else 
+		strcat(rebuf, "\tXS:A:+");
+            }
+        }
     }
-
   
   strcat(rebuf, "\n");
   
@@ -805,10 +826,10 @@ void get_junctions_from_best_hits(HitStream& left_hs,
 				
 				InsertAlignmentGrade grade;
 				insert_best_alignments(curr_left_hit_group, 
-									   curr_right_hit_group, 
-									   grade,
-									   left_best_hits,
-									   right_best_hits);
+						       curr_right_hit_group, 
+						       grade,
+						       left_best_hits,
+						       right_best_hits);
 				
 				update_junctions(left_best_hits, junctions);
 				update_junctions(right_best_hits, junctions);
