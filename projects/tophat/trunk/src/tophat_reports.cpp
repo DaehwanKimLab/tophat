@@ -153,13 +153,13 @@ bool rewrite_sam_hit(const RefSequenceTable& rt,
 				// SAM FLAG
 				if (insert_side != FRAG_UNPAIRED)
 				{
-					int flag = 0;
+					int flag = atoi(sam_toks[1].c_str());;
 					// mark this guys as a singleton mate
 					flag |= 0x0001;
 					if (insert_side == FRAG_LEFT)
-						flag |= 0x0040;
+					  flag |= 0x0040;
 					else if (insert_side == FRAG_RIGHT)
-						flag |= 0x0080;
+					  flag |= 0x0080;
 					flag |= 0x0008;
 					
 					char flag_buf[64];

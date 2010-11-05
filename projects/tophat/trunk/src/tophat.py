@@ -240,7 +240,6 @@ class TopHatParams:
                     self.integer_quals = True
                 elif option in ("-C", "--color"):
                     self.color = True
-                    self.integer_quals = True
                 elif option == "--color-out":
                     self.color_out = True
                 elif option == "--library-type":
@@ -350,7 +349,7 @@ class TopHatParams:
         self.read_params = self.ReadParams(False,               # solexa_scale
                                            False,
                                            False,               # quals
-                                           False,               # integer quals
+                                           None,                # integer quals
                                            False,               # SOLiD - color space
                                            False,               # SOLiD - color out instead of base pair,
                                            "",                  # library type (e.g. "illumina-stranded-pair-end")
@@ -823,6 +822,7 @@ def check_bowtie():
     if bowtie_version == None:
         print >> sys.stderr, "Error: Bowtie not found on this system"
         sys.exit(1)
+    # daehwan - check
     elif bowtie_version[1] < 12 or bowtie_version[2] < 3:
         print >> sys.stderr, "Error: TopHat requires Bowtie 0.12.3 or later"
         sys.exit(1)
@@ -856,7 +856,7 @@ def get_samtools_version():
         return samtools_version
     except OSError, o:
        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
-           print >> sys.stderr, fail_str, "Error: bowtie not found on this system"
+           print >> sys.stderr, fail_str, "Error: samtools not found on this system"
        sys.exit(1)
 
 # Make sure the SAM tools are installed and are recent enough to be useful
@@ -907,7 +907,7 @@ def fq_next(f, fname, color):
        seq_len = len(seqstr)
        #at least one line of quality data should follow  
        qstrlen=0  
-       #now read next lines as quality values until seq_len is reached  
+       #now read next lines as quality values until seq_len is reached
        while True:
           line=fline()
           if not line : break #end of file  
@@ -915,7 +915,7 @@ def fq_next(f, fname, color):
           qstrlen=len(qstr)  
           if (not color and qstrlen >= seq_len) or (color and qstrlen + 1 >= seq_len):  
                break # qv string has reached the length of seq string
-          #loop until qv has the same length as seq  
+          #loop until qv has the same length as seq
        if (not color and seq_len != qstrlen) or (color and seq_len != qstrlen + 1):
            raise ValueError("Length mismatch between sequence and quality strings "+ \
                                 "for %s (%i vs %i)." \
@@ -1072,6 +1072,9 @@ def check_reads(params, reads_files):
         elif params.phred64_quals:
             quality_scale = "phred64 (reads generated with GA pipeline version >= 1.3)"
         print >> sys.stderr, "\tquality scale:\t %s" % quality_scale
+    elif format == "fasta":
+        if params.color == True:
+            params.integer_quals = True
     
     #print seed_len, format, solexa_scale
     return TopHatParams.ReadParams(params.solexa_quals,
@@ -1464,6 +1467,7 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
             print >> sys.stderr, fail_str, "Error: tophat_reports not found on this system"
         sys.exit(1)
     return (coverage, junctions)
+
 
 # Split up each read in a FASTQ file into multiple segments. Creates a FASTQ file
 # for each segment  This function needs to be fixed to support mixed read length
@@ -2062,7 +2066,7 @@ def prog_path(program):
 
 # FIXME: this should get set during the make dist autotools phase of the build
 def get_version():
-   return "1.1.2"
+   return "1.1.0"
 
 def main(argv=None):
     warnings.filterwarnings("ignore", "tmpnam is a potential security risk")
@@ -2185,7 +2189,8 @@ def main(argv=None):
             for t in tmp_files:
                 os.remove(tmp_dir+t)
             os.rmdir(tmp_dir)
-        
+
+
         finish_time = datetime.now()
         duration = finish_time - start_time
         print >> sys.stderr,"-----------------------------------------------"
