@@ -91,6 +91,9 @@ void insert_best_alignments(const HitsForRead& left_hits,
 	{
 	  const BowtieHit& lh = left[i];
 	  const BowtieHit& rh = right[j];
+
+	  if (lh.ref_id() != rh.ref_id())
+	    continue;
 	  
 	  InsertAlignmentGrade g(lh, rh, min_mate_inner_dist, max_mate_inner_dist);
 
