@@ -66,9 +66,9 @@ struct InsertAlignmentGrade
 	}
 	
 	InsertAlignmentGrade(const BowtieHit& h1, 
-						 const BowtieHit& h2, 
-						 int min_inner_distance,
-						 int max_inner_distance) :
+			     const BowtieHit& h2, 
+			     int min_inner_distance,
+			     int max_inner_distance) :
 		  too_close(false),
    		  too_far(false),
 		  num_spliced(0),

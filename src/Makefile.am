@@ -135,7 +135,8 @@ bin_PROGRAMS = \
 dist_bin_SCRIPTS = \
 	contig_to_chr_coords.py \
 	tophat.py \
-	bed_to_juncs.py
+	bed_to_juncs.py \
+	sra_to_solid.py
 
 
 #-- tophat library for linking convienence
