@@ -50,12 +50,12 @@ Options:
     --color-out
     --library-type                             (--fr-unstranded, --fr-firststrand, --fr-secondstrand, --ff-unstranded, --ff-firststrand, --ff-secondstrand)
     -p/--num-threads               <int>       [ default: 1            ]
-    -G/--GFF                       <filename>
+    -G/--GTF                       <filename>
     -j/--raw-juncs                 <filename>
     -r/--mate-inner-dist           <int>       
     --mate-std-dev                 <int>       [ default: 20           ]
     --no-novel-juncs                           
-    --no-gff-juncs                             
+    --no-gtf-juncs                             
     --no-coverage-search
     --coverage-search                                              
     --no-closure-search
@@ -446,7 +446,7 @@ class TopHatParams:
             cmd.extend(["--inner-dist-mean", str(self.read_params.mate_inner_dist),
                         "--inner-dist-std-dev", str(self.read_params.mate_inner_dist_std_dev)])
         if self.gff_annotation != None:
-            cmd.extend(["--gff-annotations", str(self.gff_annotation)])
+            cmd.extend(["--gtf-annotations", str(self.gff_annotation)])
         if self.closure_search == False:
             cmd.append("--no-closure-search")
         if self.coverage_search == False:
@@ -495,10 +495,10 @@ class TopHatParams:
                                          "min-anchor-length=",
                                          "min-intron-length=",
                                          "max-intron-length=",
-                                         "GFF=",
+                                         "GTF=",
                                          "raw-juncs=",
                                          "no-novel-juncs",
-                                         "no-gff-juncs",
+                                         "no-gtf-juncs",
                                          "skip-check-reads",
                                          "mate-inner-dist=",
                                          "mate-std-dev=",
@@ -552,13 +552,13 @@ class TopHatParams:
                 raise Usage(use_message)
             if option in ("-g", "--max-gene-family"):
                 self.max_hits = int(value)
-            if option in ("-G", "--GFF"):
+            if option in ("-G", "--GTF"):
                 self.gff_annotation = value
             if option in ("-j", "--raw-juncs"):
                 self.raw_junctions = value
             if option == "--no-novel-juncs":
                 self.find_novel_juncs = False
-            if option == "--no-gff-juncs":
+            if option == "--no-gtf-juncs":
                 self.find_GFF_juncs = False
             if option == "--skip-check-reads":
                 self.skip_check_reads = True
@@ -582,7 +582,7 @@ class TopHatParams:
                 self.segment_mismatches = int(value)
             if option in ("-o", "--output-dir"):
                 custom_out_dir = value + "/"
-            if option == "--tmp-dir"):
+            if option == "--tmp-dir":
                 custom_tmp_dir = value + "/"
                 
         if custom_out_dir != None:
@@ -1257,7 +1257,7 @@ def tmp_name():
 
 # Retrieve a .juncs file from a GFF file by calling the gtf_juncs executable
 def get_gtf_juncs(gff_annotation):
-    print >> sys.stderr, "[%s] Reading known junctions from GFF file" % (right_now())
+    print >> sys.stderr, "[%s] Reading known junctions from GTF file" % (right_now())
     gtf_juncs_log = open(logging_dir + "gtf_juncs.log", "w")
     
     gff_prefix = gff_annotation.split('/')[-1].split('.')[0]
@@ -1274,10 +1274,10 @@ def get_gtf_juncs(gff_annotation):
                                   stdout=gtf_juncs_out)
         # cvg_islands returned an error
         if retcode == 1:
-            print >> sys.stderr, "\tWarning: TopHat did not find any junctions in GFF file"
+            print >> sys.stderr, "\tWarning: TopHat did not find any junctions in GTF file"
             return (False, gtf_juncs_out_name) 
         elif retcode < 0:
-            print >> sys.stderr, fail_str, "Error: GFF junction extraction failed with err =", retcode
+            print >> sys.stderr, fail_str, "Error: GTF junction extraction failed with err =", retcode
             sys.exit(1)
     # cvg_islands not found
     except OSError, o:
