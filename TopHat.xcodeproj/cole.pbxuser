@@ -19,7 +19,7 @@
 		fRef = ED6D6252118B5B6B00A682F4 /* tophat.py */;
 		name = "tophat.py: 2067";
 		rLen = 0;
-		rLoc = 87268;
+		rLoc = 87264;
 		rType = 0;
 		vrLen = 1663;
 		vrLoc = 22710;
@@ -29,7 +29,7 @@
 		fRef = ED6D6252118B5B6B00A682F4 /* tophat.py */;
 		name = "tophat.py: 2067";
 		rLen = 0;
-		rLoc = 87268;
+		rLoc = 87264;
 		rType = 0;
 		vrLen = 1223;
 		vrLoc = 1383;
@@ -53,6 +53,16 @@
 		rType = 0;
 		vrLen = 1129;
 		vrLoc = 48751;
+	};
+	ED10EC671285B27F00DDA9B2 /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = ED6D6252118B5B6B00A682F4 /* tophat.py */;
+		name = "tophat.py: 1964";
+		rLen = 0;
+		rLoc = 82972;
+		rType = 0;
+		vrLen = 1137;
+		vrLoc = 82453;
 	};
 	ED16F014124CCD8400350FC6 /* PBXTextBookmark */ = {
 		isa = PBXTextBookmark;
@@ -474,6 +484,7 @@
 			ED10EC641285AF8900DDA9B2 /* PBXTextBookmark */ = ED10EC641285AF8900DDA9B2 /* PBXTextBookmark */;
 			ED10EC651285AF8900DDA9B2 /* PBXTextBookmark */ = ED10EC651285AF8900DDA9B2 /* PBXTextBookmark */;
 			ED10EC661285B0E000DDA9B2 /* PBXTextBookmark */ = ED10EC661285B0E000DDA9B2 /* PBXTextBookmark */;
+			ED10EC671285B27F00DDA9B2 /* PBXTextBookmark */ = ED10EC671285B27F00DDA9B2 /* PBXTextBookmark */;
 			ED16F014124CCD8400350FC6 = ED16F014124CCD8400350FC6 /* PBXTextBookmark */;
 			ED2A450B11DE82AF009AD73B = ED2A450B11DE82AF009AD73B /* PBXTextBookmark */;
 			ED2A450C11DE82AF009AD73B = ED2A450C11DE82AF009AD73B /* PBXTextBookmark */;
@@ -701,9 +712,9 @@
 	};
 	ED6D6252118B5B6B00A682F4 /* tophat.py */ = {
 		uiCtxt = {
-			sepNavIntBoundsRect = "{{0, 0}, {911, 28886}}";
-			sepNavSelRange = "{49443, 0}";
-			sepNavVisRange = "{48751, 1129}";
+			sepNavIntBoundsRect = "{{0, 0}, {911, 28678}}";
+			sepNavSelRange = "{82972, 0}";
+			sepNavVisRange = "{82453, 1137}";
 		};
 	};
 	ED6D6253118B5B6B00A682F4 /* wiggles.cpp */ = {
@@ -1154,7 +1165,7 @@
 		fRef = ED6D6252118B5B6B00A682F4 /* tophat.py */;
 		name = "tophat.py: 2065";
 		rLen = 0;
-		rLoc = 87268;
+		rLoc = 87264;
 		rType = 0;
 		vrLen = 1839;
 		vrLoc = 86302;

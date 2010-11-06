@@ -1961,7 +1961,7 @@ def spliced_alignment(params,
         print >> sys.stderr, "Warning: junction database is empty!"
     else:  
         # index the junction sequences with bowtie-build
-        junc_idx_prefix = "tmp/segment_juncs"
+        junc_idx_prefix = "segment_juncs"
         build_juncs_index(3,
                           segment_len,
                           junc_idx_prefix, 
