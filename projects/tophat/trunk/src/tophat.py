@@ -65,6 +65,7 @@ Options:
     --butterfly-search
     --no-butterfly-search
     --keep-tmp
+    --tmp-dir                      <dirname>
     
 Advanced Options:
 
@@ -525,7 +526,8 @@ class TopHatParams:
                                          "rg-platform-unit=",
                                          "rg-center=",
                                          "rg-date=",
-                                         "rg-platform="])
+                                         "rg-platform=",
+                                         "tmp-dir="])
         except getopt.error, msg:
             raise Usage(msg)
         
@@ -534,6 +536,13 @@ class TopHatParams:
         self.read_params.parse_options(opts)
         self.search_params.parse_options(opts)
         
+        global output_dir
+        global logging_dir
+        global tmp_dir
+        global sam_header
+        
+        custom_tmp_dir = None
+        custom_out_dir = None
         # option processing
         for option, value in opts:
             if option in ("-v", "--version"):
@@ -572,16 +581,19 @@ class TopHatParams:
             if option == "--segment-mismatches":
                 self.segment_mismatches = int(value)
             if option in ("-o", "--output-dir"):
-                global output_dir
-                global logging_dir
-                global tmp_dir
-                global sam_header
-                output_dir = value + "/"
-                logging_dir = output_dir + "logs/"
-                tmp_dir = output_dir + "tmp/"
-                sam_header = tmp_dir + "stub_header.sam"
+                custom_out_dir = value + "/"
+            if option == "--tmp-dir"):
+                custom_tmp_dir = value + "/"
                 
-            
+        if custom_out_dir != None:
+            output_dir = custom_out_dir + "/"
+            logging_dir = output_dir + "logs/"
+            tmp_dir = output_dir + "tmp/"
+            sam_header = tmp_dir + "stub_header.sam" 
+        if custom_tmp_dir != None:
+            tmp_dir = custom_tmp_dir
+            sam_header = tmp_dir + "stub_header.sam" 
+    
         if len(args) < 2:
             raise Usage(use_message)
         return args
