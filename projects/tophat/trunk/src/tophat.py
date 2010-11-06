@@ -665,7 +665,7 @@ def bowtie_idx_to_fa(idx_prefix):
     print >> sys.stderr, "[%s] Reconstituting reference FASTA file from Bowtie index" % (right_now())
     
     try:    
-        tmp_fasta_file_name = output_dir + idx_name + ".fa"
+        tmp_fasta_file_name = tmp_dir + idx_name + ".fa"
         tmp_fasta_file = open(tmp_fasta_file_name, "w")
 
         inspect_log = open(logging_dir + "bowtie_inspect_recons.log", "w")
@@ -1123,7 +1123,7 @@ def formatTD(td):
 # polyA reads.
 def prep_reads(params, reads_list, quals_list, output_name):    
     reads_suffix = ".fq"
-    kept_reads_filename = output_dir + output_name + reads_suffix
+    kept_reads_filename = tmp_dir + output_name + reads_suffix
     
     if os.path.exists(kept_reads_filename):
         os.remove(kept_reads_filename)
@@ -1262,7 +1262,7 @@ def get_gtf_juncs(gff_annotation):
     
     gff_prefix = gff_annotation.split('/')[-1].split('.')[0]
     
-    gtf_juncs_out_name  = output_dir + gff_prefix + ".juncs"
+    gtf_juncs_out_name  = tmp_dir + gff_prefix + ".juncs"
     gtf_juncs_out = open(gtf_juncs_out_name, "w")
     
     #gtf_juncs_cmd = [bin_dir + "gtf_juncs", gff_annotation]
@@ -1326,7 +1326,7 @@ def build_juncs_index(min_anchor_length,
     juncs_file_list = ",".join(external_juncs)
     juncs_db_log = open(logging_dir + "juncs_db.log", "w")
     
-    external_splices_out_prefix  = output_dir + juncs_prefix
+    external_splices_out_prefix  = tmp_dir + juncs_prefix
     external_splices_out_name = external_splices_out_prefix + ".fa"
     
     external_splices_out = open(external_splices_out_name, "w")
@@ -1880,7 +1880,7 @@ def spliced_alignment(params,
         if num_segs > 1:
             # split up the IUM reads into segments
             read_segments = split_reads(unmapped_unspliced,
-                                        output_dir + "tmp/" + prefix, 
+                                        tmp_dir + prefix, 
                                         False,
                                         params.read_params.color,
                                         segment_len)
@@ -1987,7 +1987,7 @@ def spliced_alignment(params,
                 ordering = maps[reads].segs[i]
                 seg_out = tmp_dir + seg[tmp+1:extension] + "_to_spliced.bwtout"
                 (seg_map, unmapped) = bowtie(params,
-                                             output_dir + junc_idx_prefix, 
+                                             tmp_dir + junc_idx_prefix, 
                                              seg,
                                              "fastq",
                                              seg_out,

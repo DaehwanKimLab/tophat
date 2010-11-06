@@ -1,5 +1,59 @@
 // !$*UTF8*$!
 {
+	ED10EC5E1285ADA200DDA9B2 /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = ED6D6251118B5B6B00A682F4 /* tophat_reports.cpp */;
+		name = "tophat_reports.cpp: 400";
+		rLen = 0;
+		rLoc = 10587;
+		rType = 0;
+		vrLen = 1036;
+		vrLoc = 10171;
+	};
+	ED10EC5F1285ADA200DDA9B2 /* PBXBookmark */ = {
+		isa = PBXBookmark;
+		fRef = ED6D6252118B5B6B00A682F4 /* tophat.py */;
+	};
+	ED10EC601285ADA200DDA9B2 /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = ED6D6252118B5B6B00A682F4 /* tophat.py */;
+		name = "tophat.py: 2067";
+		rLen = 0;
+		rLoc = 87268;
+		rType = 0;
+		vrLen = 1663;
+		vrLoc = 22710;
+	};
+	ED10EC641285AF8900DDA9B2 /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = ED6D6252118B5B6B00A682F4 /* tophat.py */;
+		name = "tophat.py: 2067";
+		rLen = 0;
+		rLoc = 87268;
+		rType = 0;
+		vrLen = 1223;
+		vrLoc = 1383;
+	};
+	ED10EC651285AF8900DDA9B2 /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = ED6D6252118B5B6B00A682F4 /* tophat.py */;
+		name = "tophat.py: 585";
+		rLen = 0;
+		rLoc = 28207;
+		rType = 0;
+		vrLen = 1258;
+		vrLoc = 27237;
+	};
+	ED10EC661285B0E000DDA9B2 /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = ED6D6252118B5B6B00A682F4 /* tophat.py */;
+		name = "tophat.py: 1126";
+		rLen = 0;
+		rLoc = 49443;
+		rType = 0;
+		vrLen = 1129;
+		vrLoc = 48751;
+	};
 	ED16F014124CCD8400350FC6 /* PBXTextBookmark */ = {
 		isa = PBXTextBookmark;
 		fRef = ED2A457711E240E4009AD73B /* sam_juncs.cpp */;
@@ -371,7 +425,7 @@
 				PBXFileTableDataSourceColumnSortingKey = PBXFileDataSource_Filename_ColumnID;
 				PBXFileTableDataSourceColumnWidthsKey = (
 					20,
-					703,
+					733,
 					20,
 					48,
 					43,
@@ -410,10 +464,16 @@
 					PBXFileDataSource_Warnings_ColumnID,
 				);
 			};
-			PBXPerProjectTemplateStateSaveDate = 310321518;
-			PBXWorkspaceStateSaveDate = 310321518;
+			PBXPerProjectTemplateStateSaveDate = 310750602;
+			PBXWorkspaceStateSaveDate = 310750602;
 		};
 		perUserProjectItems = {
+			ED10EC5E1285ADA200DDA9B2 /* PBXTextBookmark */ = ED10EC5E1285ADA200DDA9B2 /* PBXTextBookmark */;
+			ED10EC5F1285ADA200DDA9B2 /* PBXBookmark */ = ED10EC5F1285ADA200DDA9B2 /* PBXBookmark */;
+			ED10EC601285ADA200DDA9B2 /* PBXTextBookmark */ = ED10EC601285ADA200DDA9B2 /* PBXTextBookmark */;
+			ED10EC641285AF8900DDA9B2 /* PBXTextBookmark */ = ED10EC641285AF8900DDA9B2 /* PBXTextBookmark */;
+			ED10EC651285AF8900DDA9B2 /* PBXTextBookmark */ = ED10EC651285AF8900DDA9B2 /* PBXTextBookmark */;
+			ED10EC661285B0E000DDA9B2 /* PBXTextBookmark */ = ED10EC661285B0E000DDA9B2 /* PBXTextBookmark */;
 			ED16F014124CCD8400350FC6 = ED16F014124CCD8400350FC6 /* PBXTextBookmark */;
 			ED2A450B11DE82AF009AD73B = ED2A450B11DE82AF009AD73B /* PBXTextBookmark */;
 			ED2A450C11DE82AF009AD73B = ED2A450C11DE82AF009AD73B /* PBXTextBookmark */;
@@ -451,18 +511,18 @@
 			EDBE4613127F13E40056D528 = EDBE4613127F13E40056D528 /* PBXTextBookmark */;
 			EDBE4614127F13E40056D528 = EDBE4614127F13E40056D528 /* PBXTextBookmark */;
 			EDBE4615127F13E40056D528 = EDBE4615127F13E40056D528 /* PBXTextBookmark */;
-			EDBE468E127F21730056D528 /* PBXTextBookmark */ = EDBE468E127F21730056D528 /* PBXTextBookmark */;
-			EDBE468F127F21730056D528 /* PBXTextBookmark */ = EDBE468F127F21730056D528 /* PBXTextBookmark */;
-			EDBE4699127F227C0056D528 /* PBXTextBookmark */ = EDBE4699127F227C0056D528 /* PBXTextBookmark */;
-			EDBE46BC127F2E870056D528 /* PBXTextBookmark */ = EDBE46BC127F2E870056D528 /* PBXTextBookmark */;
-			EDBE46C2127F301F0056D528 /* PBXTextBookmark */ = EDBE46C2127F301F0056D528 /* PBXTextBookmark */;
-			EDBE46E4127F32270056D528 /* PBXTextBookmark */ = EDBE46E4127F32270056D528 /* PBXTextBookmark */;
-			EDBE46EB127F32BB0056D528 /* PBXTextBookmark */ = EDBE46EB127F32BB0056D528 /* PBXTextBookmark */;
-			EDBE46F2127F33840056D528 /* PBXTextBookmark */ = EDBE46F2127F33840056D528 /* PBXTextBookmark */;
-			EDBE46F9127F33C90056D528 /* PBXTextBookmark */ = EDBE46F9127F33C90056D528 /* PBXTextBookmark */;
-			EDBE46FA127F33F20056D528 /* PBXTextBookmark */ = EDBE46FA127F33F20056D528 /* PBXTextBookmark */;
-			EDBE46FB127F354C0056D528 /* PBXTextBookmark */ = EDBE46FB127F354C0056D528 /* PBXTextBookmark */;
-			EDBE46FC127F35740056D528 /* PBXTextBookmark */ = EDBE46FC127F35740056D528 /* PBXTextBookmark */;
+			EDBE468E127F21730056D528 = EDBE468E127F21730056D528 /* PBXTextBookmark */;
+			EDBE468F127F21730056D528 = EDBE468F127F21730056D528 /* PBXTextBookmark */;
+			EDBE4699127F227C0056D528 = EDBE4699127F227C0056D528 /* PBXTextBookmark */;
+			EDBE46BC127F2E870056D528 = EDBE46BC127F2E870056D528 /* PBXTextBookmark */;
+			EDBE46C2127F301F0056D528 = EDBE46C2127F301F0056D528 /* PBXTextBookmark */;
+			EDBE46E4127F32270056D528 = EDBE46E4127F32270056D528 /* PBXTextBookmark */;
+			EDBE46EB127F32BB0056D528 = EDBE46EB127F32BB0056D528 /* PBXTextBookmark */;
+			EDBE46F2127F33840056D528 = EDBE46F2127F33840056D528 /* PBXTextBookmark */;
+			EDBE46F9127F33C90056D528 = EDBE46F9127F33C90056D528 /* PBXTextBookmark */;
+			EDBE46FA127F33F20056D528 = EDBE46FA127F33F20056D528 /* PBXTextBookmark */;
+			EDBE46FB127F354C0056D528 = EDBE46FB127F354C0056D528 /* PBXTextBookmark */;
+			EDBE46FC127F35740056D528 = EDBE46FC127F35740056D528 /* PBXTextBookmark */;
 			EDD94BDA1205E4ED00AA1086 = EDD94BDA1205E4ED00AA1086 /* PBXTextBookmark */;
 			EDD94BDB1205E4ED00AA1086 = EDD94BDB1205E4ED00AA1086 /* PBXTextBookmark */;
 			EDD94ED31210DEA900AA1086 = EDD94ED31210DEA900AA1086 /* PBXTextBookmark */;
@@ -634,16 +694,16 @@
 	};
 	ED6D6251118B5B6B00A682F4 /* tophat_reports.cpp */ = {
 		uiCtxt = {
-			sepNavIntBoundsRect = "{{0, 0}, {881, 15964}}";
+			sepNavIntBoundsRect = "{{0, 0}, {911, 15678}}";
 			sepNavSelRange = "{10587, 0}";
-			sepNavVisRange = "{9836, 1735}";
+			sepNavVisRange = "{10171, 1036}";
 		};
 	};
 	ED6D6252118B5B6B00A682F4 /* tophat.py */ = {
 		uiCtxt = {
-			sepNavIntBoundsRect = "{{0, 0}, {881, 28795}}";
-			sepNavSelRange = "{87296, 0}";
-			sepNavVisRange = "{86302, 1839}";
+			sepNavIntBoundsRect = "{{0, 0}, {911, 28886}}";
+			sepNavSelRange = "{49443, 0}";
+			sepNavVisRange = "{48751, 1129}";
 		};
 	};
 	ED6D6253118B5B6B00A682F4 /* wiggles.cpp */ = {
@@ -1094,7 +1154,7 @@
 		fRef = ED6D6252118B5B6B00A682F4 /* tophat.py */;
 		name = "tophat.py: 2065";
 		rLen = 0;
-		rLoc = 87296;
+		rLoc = 87268;
 		rType = 0;
 		vrLen = 1839;
 		vrLoc = 86302;
@@ -1319,7 +1379,7 @@
 		hitCount = 0;
 		ignoreCount = 0;
 		lineNumber = 595;
-		modificationTime = 310326146.499382;
+		modificationTime = 310326146.4993819;
 		originalNumberOfMultipleMatches = 1;
 		state = 0;
 	};
@@ -1511,7 +1571,7 @@
 		ignoreCount = 0;
 		lineNumber = 564;
 		location = gtf_juncs;
-		modificationTime = 310326146.50439;
+		modificationTime = 310326146.5043901;
 		originalNumberOfMultipleMatches = 1;
 		state = 2;
 	};
