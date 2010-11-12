@@ -120,7 +120,7 @@
 		EDBBA30411DD4F3F0015175B /* ax_bam.m4 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = ax_bam.m4; sourceTree = "<group>"; };
 		EDBBA30511DD4F480015175B /* ax_check_zlib.m4 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = ax_check_zlib.m4; sourceTree = "<group>"; };
 		EDBBA31311DD58610015175B /* libz.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libz.dylib; path = /usr/lib/libz.dylib; sourceTree = "<absolute>"; };
-		EDBBA31511DD588C0015175B /* libbam.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbam.a; path = /usr/local/libIntel64/libbam.a; sourceTree = "<absolute>"; };
+		EDBBA31511DD588C0015175B /* libbam.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbam.a; path = /usr/local/lib/libbam.a; sourceTree = "<absolute>"; };
 		EDBBA55711DE75370015175B /* gtf_juncs */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = gtf_juncs; sourceTree = BUILT_PRODUCTS_DIR; };
 		EDBBA56011DE75750015175B /* GBase.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = GBase.cpp; path = src/GBase.cpp; sourceTree = "<group>"; };
 		EDBBA56111DE75750015175B /* GBase.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = GBase.h; path = src/GBase.h; sourceTree = "<group>"; };
