@@ -231,18 +231,38 @@ bool rewrite_sam_hit(const RefSequenceTable& rt,
     {
         if (library_type == FR_FIRSTSTRAND)
         {
-            if (bh.antisense_align())
-                strcat(rebuf, "\tXS:A:+");
-            else 
-                strcat(rebuf, "\tXS:A:-");
+            if (insert_side == FRAG_LEFT )
+            {
+                if (bh.antisense_align())
+                    strcat(rebuf, "\tXS:A:+");
+                else 
+                    strcat(rebuf, "\tXS:A:-");
+            }
+            else
+            {
+                if (bh.antisense_align())
+                    strcat(rebuf, "\tXS:A:-");
+                else 
+                    strcat(rebuf, "\tXS:A:+");
+            }
         }
         
         else if (library_type == FR_SECONDSTRAND)
         {
-            if (bh.antisense_align())
-                strcat(rebuf, "\tXS:A:-");
-            else 
-                strcat(rebuf, "\tXS:A:+");
+            if (insert_side == FRAG_LEFT )
+            {
+                if (bh.antisense_align())
+                    strcat(rebuf, "\tXS:A:-");
+                else 
+                    strcat(rebuf, "\tXS:A:+");
+            }
+            else
+            {
+                if (bh.antisense_align())
+                    strcat(rebuf, "\tXS:A:+");
+                else 
+                    strcat(rebuf, "\tXS:A:-");
+            }
         }
     }
     
