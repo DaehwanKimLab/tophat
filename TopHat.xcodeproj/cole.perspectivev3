@@ -278,7 +278,7 @@
 							<key>PBXSmartGroupTreeModuleOutlineStateSelectionKey</key>
 							<array>
 								<array>
-									<integer>51</integer>
+									<integer>50</integer>
 									<integer>2</integer>
 									<integer>0</integer>
 								</array>
@@ -319,7 +319,7 @@
 								<key>PBXProjectModuleGUID</key>
 								<string>ED5C74E3118B5B0800397B5E</string>
 								<key>PBXProjectModuleLabel</key>
-								<string>tophat.py</string>
+								<string>tophat_reports.cpp</string>
 								<key>PBXSplitModuleInNavigatorKey</key>
 								<dict>
 									<key>Split0</key>
@@ -327,11 +327,11 @@
 										<key>PBXProjectModuleGUID</key>
 										<string>ED5C74E4118B5B0800397B5E</string>
 										<key>PBXProjectModuleLabel</key>
-										<string>tophat.py</string>
+										<string>tophat_reports.cpp</string>
 										<key>_historyCapacity</key>
 										<integer>0</integer>
 										<key>bookmark</key>
-										<string>ED7CFAAB1290BB7200DB052B</string>
+										<string>ED7CFACE1290DF7400DB052B</string>
 										<key>history</key>
 										<array>
 											<string>EDBBA2B611DD3C040015175B</string>
@@ -364,8 +364,8 @@
 											<string>EDD94BDB1205E4ED00AA1086</string>
 											<string>EDD94ED31210DEA900AA1086</string>
 											<string>ED16F014124CCD8400350FC6</string>
-											<string>ED10EC5E1285ADA200DDA9B2</string>
-											<string>ED7CFAA61290B57A00DB052B</string>
+											<string>ED7CFACC1290DF7400DB052B</string>
+											<string>ED7CFACD1290DF7400DB052B</string>
 										</array>
 									</dict>
 									<key>SplitCount</key>
@@ -379,18 +379,18 @@
 							<key>GeometryConfiguration</key>
 							<dict>
 								<key>Frame</key>
-								<string>{{0, 0}, {972, 405}}</string>
+								<string>{{0, 0}, {972, 552}}</string>
 								<key>RubberWindowFrame</key>
 								<string>741 386 1179 792 0 0 1920 1178 </string>
 							</dict>
 							<key>Module</key>
 							<string>PBXNavigatorGroup</string>
 							<key>Proportion</key>
-							<string>405pt</string>
+							<string>552pt</string>
 						</dict>
 						<dict>
 							<key>Proportion</key>
-							<string>341pt</string>
+							<string>194pt</string>
 							<key>Tabs</key>
 							<array>
 								<dict>
@@ -404,9 +404,7 @@
 									<key>GeometryConfiguration</key>
 									<dict>
 										<key>Frame</key>
-										<string>{{10, 27}, {972, 314}}</string>
-										<key>RubberWindowFrame</key>
-										<string>741 386 1179 792 0 0 1920 1178 </string>
+										<string>{{10, 27}, {972, 167}}</string>
 									</dict>
 									<key>Module</key>
 									<string>XCDetailModule</string>
@@ -422,7 +420,9 @@
 									<key>GeometryConfiguration</key>
 									<dict>
 										<key>Frame</key>
-										<string>{{10, 27}, {972, 296}}</string>
+										<string>{{10, 27}, {972, 167}}</string>
+										<key>RubberWindowFrame</key>
+										<string>741 386 1179 792 0 0 1920 1178 </string>
 									</dict>
 									<key>Module</key>
 									<string>PBXProjectFindModule</string>
