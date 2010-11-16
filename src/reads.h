@@ -10,6 +10,7 @@
  */
 
 #include <string>
+#include <sstream>
 #include "common.h"
 
 using std::string;
@@ -44,16 +45,25 @@ void reverse_complement(string& seq);
 string convert_color_to_bp(const string& color);
 string convert_bp_to_color(const string& bp, bool remove_primer = false);
 
+template <class Type>
+string DnaString_to_string(const Type& dnaString)
+{
+  std::string result;
+  std::stringstream ss(std::stringstream::in | std::stringstream::out);
+  ss << dnaString >> result;
+  return result;
+}
+
 class ReadTable;
 
 bool get_read_from_stream(uint64_t insert_id,
-						  FILE* reads_file,
-						  ReadFormat reads_format,
-						  bool strip_slash,
-						  char read_name [], 
-						  char read_seq  [],
-						  char read_alt_name [],
-						  char read_qual []);
+			  FILE* reads_file,
+			  ReadFormat reads_format,
+			  bool strip_slash,
+			  char read_name [], 
+			  char read_seq  [],
+			  char read_alt_name [],
+			  char read_qual []);
 
 class FLineReader { //simple text line reader class, buffering last line read
   int len;
