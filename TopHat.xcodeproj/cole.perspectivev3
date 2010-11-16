@@ -278,13 +278,14 @@
 							<key>PBXSmartGroupTreeModuleOutlineStateSelectionKey</key>
 							<array>
 								<array>
-									<integer>51</integer>
+									<integer>77</integer>
+									<integer>69</integer>
 									<integer>2</integer>
 									<integer>0</integer>
 								</array>
 							</array>
 							<key>PBXSmartGroupTreeModuleOutlineStateVisibleRectKey</key>
-							<string>{{0, 616}, {185, 733}}</string>
+							<string>{{0, 820}, {185, 733}}</string>
 						</dict>
 						<key>PBXTopSmartGroupGIDs</key>
 						<array/>
@@ -319,7 +320,7 @@
 								<key>PBXProjectModuleGUID</key>
 								<string>ED5C74E3118B5B0800397B5E</string>
 								<key>PBXProjectModuleLabel</key>
-								<string>tophat.py</string>
+								<string>configure.ac</string>
 								<key>PBXSplitModuleInNavigatorKey</key>
 								<dict>
 									<key>Split0</key>
@@ -327,11 +328,11 @@
 										<key>PBXProjectModuleGUID</key>
 										<string>ED5C74E4118B5B0800397B5E</string>
 										<key>PBXProjectModuleLabel</key>
-										<string>tophat.py</string>
+										<string>configure.ac</string>
 										<key>_historyCapacity</key>
 										<integer>0</integer>
 										<key>bookmark</key>
-										<string>ED7CFAD31292D0F700DB052B</string>
+										<string>ED7CFAD61292D13F00DB052B</string>
 										<key>history</key>
 										<array>
 											<string>EDBBA2B611DD3C040015175B</string>
@@ -365,7 +366,8 @@
 											<string>ED7CFACF1292D0F700DB052B</string>
 											<string>ED7CFAD01292D0F700DB052B</string>
 											<string>ED7CFAD11292D0F700DB052B</string>
-											<string>ED7CFAD21292D0F700DB052B</string>
+											<string>ED7CFAD41292D13F00DB052B</string>
+											<string>ED7CFAD51292D13F00DB052B</string>
 										</array>
 									</dict>
 									<key>SplitCount</key>
