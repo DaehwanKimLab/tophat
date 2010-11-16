@@ -518,6 +518,9 @@
 			ED7CFAD11292D0F700DB052B /* PBXTextBookmark */ = ED7CFAD11292D0F700DB052B /* PBXTextBookmark */;
 			ED7CFAD21292D0F700DB052B /* PBXTextBookmark */ = ED7CFAD21292D0F700DB052B /* PBXTextBookmark */;
 			ED7CFAD31292D0F700DB052B /* PBXTextBookmark */ = ED7CFAD31292D0F700DB052B /* PBXTextBookmark */;
+			ED7CFAD41292D13F00DB052B /* PBXTextBookmark */ = ED7CFAD41292D13F00DB052B /* PBXTextBookmark */;
+			ED7CFAD51292D13F00DB052B /* PBXTextBookmark */ = ED7CFAD51292D13F00DB052B /* PBXTextBookmark */;
+			ED7CFAD61292D13F00DB052B /* PBXTextBookmark */ = ED7CFAD61292D13F00DB052B /* PBXTextBookmark */;
 			EDBBA2B611DD3C040015175B = EDBBA2B611DD3C040015175B /* PBXTextBookmark */;
 			EDBBA2B811DD3C040015175B = EDBBA2B811DD3C040015175B /* PBXTextBookmark */;
 			EDBBA33D11DD59D50015175B = EDBBA33D11DD59D50015175B /* PBXTextBookmark */;
@@ -723,9 +726,9 @@
 	};
 	ED6D6252118B5B6B00A682F4 /* tophat.py */ = {
 		uiCtxt = {
-			sepNavIntBoundsRect = "{{0, 0}, {911, 28860}}";
-			sepNavSelRange = "{62263, 0}";
-			sepNavVisRange = "{61743, 1807}";
+			sepNavIntBoundsRect = "{{0, 0}, {911, 28990}}";
+			sepNavSelRange = "{87992, 0}";
+			sepNavVisRange = "{87191, 1159}";
 		};
 	};
 	ED6D6253118B5B6B00A682F4 /* wiggles.cpp */ = {
@@ -751,9 +754,9 @@
 	};
 	ED6D6259118B5B8C00A682F4 /* configure.ac */ = {
 		uiCtxt = {
-			sepNavIntBoundsRect = "{{0, 0}, {881, 2262}}";
+			sepNavIntBoundsRect = "{{0, 0}, {911, 2223}}";
 			sepNavSelRange = "{146, 0}";
-			sepNavVisRange = "{0, 1196}";
+			sepNavVisRange = "{0, 859}";
 		};
 	};
 	ED74232411AC65E1007FBF56 /* tophat_reports */ = {
@@ -1011,6 +1014,36 @@
 		rType = 0;
 		vrLen = 1807;
 		vrLoc = 61743;
+	};
+	ED7CFAD41292D13F00DB052B /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = ED6D6252118B5B6B00A682F4 /* tophat.py */;
+		name = "tophat.py: 2085";
+		rLen = 0;
+		rLoc = 87992;
+		rType = 0;
+		vrLen = 1159;
+		vrLoc = 87191;
+	};
+	ED7CFAD51292D13F00DB052B /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = ED6D6259118B5B8C00A682F4 /* configure.ac */;
+		name = "configure.ac: 6";
+		rLen = 0;
+		rLoc = 146;
+		rType = 0;
+		vrLen = 859;
+		vrLoc = 0;
+	};
+	ED7CFAD61292D13F00DB052B /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = ED6D6259118B5B8C00A682F4 /* configure.ac */;
+		name = "configure.ac: 6";
+		rLen = 0;
+		rLoc = 146;
+		rType = 0;
+		vrLen = 859;
+		vrLoc = 0;
 	};
 	EDB0A13211D3E14300DB9D11 /* tophat.mk */ = {
 		uiCtxt = {
