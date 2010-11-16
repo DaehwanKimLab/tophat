@@ -1755,7 +1755,8 @@ def join_mapped_segments(params,
     #alignments_out = open(alignments_out_name, "w")
     
     align_cmd.extend(params.cmd())
-    
+
+    align_cmd.append(ref_fasta)
     align_cmd.extend([ reads,
                        possible_juncs,
                        contig_seg_maps])

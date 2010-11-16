@@ -253,28 +253,16 @@ string convert_bp_to_color(const string& bp, bool remove_primer)
 {
   if (bp.length() <= 1)
     return "";
-  
-#if 0
-    { 'AA':'0', 'CC':'0', 'GG':'0', 'TT':'0',
-      'AC':'1', 'CA':'1', 'GT':'1', 'TG':'1',
-      'AG':'2', 'CT':'2', 'GA':'2', 'TC':'2',
-      'AT':'3', 'CG':'3', 'GC':'3', 'TA':'3',
-      'A.':'4', 'C.':'4', 'G.':'4', 'T.':'4',
-      '.A':'4', '.C':'4', '.G':'4', '.T':'4',
-      '.N':'4', 'AN':'4', 'CN':'4', 'GN':'4',
-      'TN':'4', 'NA':'4', 'NC':'4', 'NG':'4',
-      'NT':'4', 'NN':'4', 'N.':'4', '..':'4' }
-#endif
 
-    char base = toupper(bp[0]);
-    string color;
-    if (!remove_primer)
-      color.push_back(base);
-    
+  char base = toupper(bp[0]);
+  string color;
+  if (!remove_primer)
+    color.push_back(base);
+  
   for (string::size_type i = 1; i < bp.length(); ++i)
     {
       char next = toupper(bp[i]);
-
+      
       if ((base == 'A' || base == 'G' || base == 'C' || base == 'T') && base == next)
 	color.push_back('0');
       else if (check_color(base, next, 'A', 'C') || check_color(base, next, 'G', 'T'))
@@ -293,13 +281,13 @@ string convert_bp_to_color(const string& bp, bool remove_primer)
 }
 
 bool get_read_from_stream(uint64_t insert_id,
-						  FILE* reads_file,
-						  ReadFormat reads_format,
-						  bool strip_slash,
-						  char read_name [], 
-						  char read_seq  [],
-						  char read_alt_name [], 
-						  char read_qual [])
+			  FILE* reads_file,
+			  ReadFormat reads_format,
+			  bool strip_slash,
+			  char read_name [], 
+			  char read_seq  [],
+			  char read_alt_name [], 
+			  char read_qual [])
 {
 	
 	Read read;
