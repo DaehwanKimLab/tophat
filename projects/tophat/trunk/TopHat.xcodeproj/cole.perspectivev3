@@ -278,13 +278,13 @@
 							<key>PBXSmartGroupTreeModuleOutlineStateSelectionKey</key>
 							<array>
 								<array>
-									<integer>50</integer>
+									<integer>51</integer>
 									<integer>2</integer>
 									<integer>0</integer>
 								</array>
 							</array>
 							<key>PBXSmartGroupTreeModuleOutlineStateVisibleRectKey</key>
-							<string>{{0, 643}, {185, 733}}</string>
+							<string>{{0, 616}, {185, 733}}</string>
 						</dict>
 						<key>PBXTopSmartGroupGIDs</key>
 						<array/>
@@ -301,7 +301,7 @@
 							<real>185</real>
 						</array>
 						<key>RubberWindowFrame</key>
-						<string>741 386 1179 792 0 0 1920 1178 </string>
+						<string>501 236 1179 792 0 0 1680 1028 </string>
 					</dict>
 					<key>Module</key>
 					<string>PBXSmartGroupTreeModule</string>
@@ -319,7 +319,7 @@
 								<key>PBXProjectModuleGUID</key>
 								<string>ED5C74E3118B5B0800397B5E</string>
 								<key>PBXProjectModuleLabel</key>
-								<string>tophat_reports.cpp</string>
+								<string>tophat.py</string>
 								<key>PBXSplitModuleInNavigatorKey</key>
 								<dict>
 									<key>Split0</key>
@@ -327,15 +327,14 @@
 										<key>PBXProjectModuleGUID</key>
 										<string>ED5C74E4118B5B0800397B5E</string>
 										<key>PBXProjectModuleLabel</key>
-										<string>tophat_reports.cpp</string>
+										<string>tophat.py</string>
 										<key>_historyCapacity</key>
 										<integer>0</integer>
 										<key>bookmark</key>
-										<string>ED7CFACE1290DF7400DB052B</string>
+										<string>ED7CFAD31292D0F700DB052B</string>
 										<key>history</key>
 										<array>
 											<string>EDBBA2B611DD3C040015175B</string>
-											<string>EDBBA2B811DD3C040015175B</string>
 											<string>EDBBA33D11DD59D50015175B</string>
 											<string>EDBBA39611DD5F8F0015175B</string>
 											<string>EDBBA3D911DD7DFE0015175B</string>
@@ -344,7 +343,6 @@
 											<string>EDBBA5A511DE76590015175B</string>
 											<string>EDBBA5A711DE76590015175B</string>
 											<string>ED2A450B11DE82AF009AD73B</string>
-											<string>ED2A450C11DE82AF009AD73B</string>
 											<string>ED2A450D11DE82AF009AD73B</string>
 											<string>ED2A450E11DE82AF009AD73B</string>
 											<string>ED2A450F11DE82AF009AD73B</string>
@@ -364,8 +362,10 @@
 											<string>EDD94BDB1205E4ED00AA1086</string>
 											<string>EDD94ED31210DEA900AA1086</string>
 											<string>ED16F014124CCD8400350FC6</string>
-											<string>ED7CFACC1290DF7400DB052B</string>
-											<string>ED7CFACD1290DF7400DB052B</string>
+											<string>ED7CFACF1292D0F700DB052B</string>
+											<string>ED7CFAD01292D0F700DB052B</string>
+											<string>ED7CFAD11292D0F700DB052B</string>
+											<string>ED7CFAD21292D0F700DB052B</string>
 										</array>
 									</dict>
 									<key>SplitCount</key>
@@ -381,7 +381,7 @@
 								<key>Frame</key>
 								<string>{{0, 0}, {972, 552}}</string>
 								<key>RubberWindowFrame</key>
-								<string>741 386 1179 792 0 0 1920 1178 </string>
+								<string>501 236 1179 792 0 0 1680 1028 </string>
 							</dict>
 							<key>Module</key>
 							<string>PBXNavigatorGroup</string>
@@ -422,7 +422,7 @@
 										<key>Frame</key>
 										<string>{{10, 27}, {972, 167}}</string>
 										<key>RubberWindowFrame</key>
-										<string>741 386 1179 792 0 0 1920 1178 </string>
+										<string>501 236 1179 792 0 0 1680 1028 </string>
 									</dict>
 									<key>Module</key>
 									<string>PBXProjectFindModule</string>
@@ -685,7 +685,7 @@
 		<string>/Users/cole/develop/tophat/TopHat.xcodeproj</string>
 	</array>
 	<key>WindowString</key>
-	<string>741 386 1179 792 0 0 1920 1178 </string>
+	<string>501 236 1179 792 0 0 1680 1028 </string>
 	<key>WindowToolsV3</key>
 	<array>
 		<dict>

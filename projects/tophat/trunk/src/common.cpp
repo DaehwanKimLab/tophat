@@ -181,7 +181,7 @@ static struct option long_options[] = {
 {"inner-dist-std-dev",	required_argument,	0,	OPT_INSERT_LENGTH_STD_DEV},
 {"output-dir",		required_argument,	0,	OPT_OUTPUT_DIR},
 {"gene-filter",		required_argument,	0,	OPT_GENE_FILTER},
-{"gff-annotations",	required_argument,	0,	OPT_GFF_ANNOTATIONS},
+{"gtf-annotations",	required_argument,	0,	OPT_GFF_ANNOTATIONS},
 {"max-multihits",	required_argument,	0,  OPT_MAX_MULTIHITS},
 {"no-closure-search",	no_argument,		0,  OPT_NO_CLOSURE_SEARCH},
 {"no-coverage-search",	no_argument,		0,  OPT_NO_COVERAGE_SEARCH},
