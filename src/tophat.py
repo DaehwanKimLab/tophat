@@ -1437,10 +1437,12 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
         print >> run_log, " ".join(sam_to_bam_cmd) + " > " + tmp_bam
         sam_to_bam_log = open(logging_dir + "accepted_hits_sam_to_bam.log", "w")
         tmp_bam_file = open(tmp_bam, "w")
-        subprocess.call(sam_to_bam_cmd, 
-                        stdout=tmp_bam_file,
-                        stderr=sam_to_bam_log)
-                        
+        ret = subprocess.call(sam_to_bam_cmd, 
+                              stdout=tmp_bam_file,
+                              stderr=sam_to_bam_log)
+        if ret != 0:
+            print >> sys.stderr, "Error: could not convert to BAM with samtools"
+            sys.exit(1)
         sort_cmd = ["samtools", "sort", tmp_bam, output_dir + "accepted_hits"]
         print >> run_log, " ".join(sort_cmd)
 #        sorted_map_name = tmp_name()
@@ -1459,10 +1461,12 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
 #                    
                 
         sort_bam_log = open(logging_dir + "accepted_hits_bam_sort.log", "w")
-        subprocess.call(sort_cmd, 
+        ret = subprocess.call(sort_cmd, 
                         stdout=open('/dev/null'),
                         stderr=sort_bam_log)
-                        
+        if ret != 0:
+            print >> sys.stderr, "Error: could not sort BAM file with samtools"
+            sys.exit(1)                
 #        print >> run_log, "mv %s %s" % (sorted_map, output_dir + accepted_hits)
 #        os.rename(sorted_map_name, output_dir + accepted_hits) 
 
