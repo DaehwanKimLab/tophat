@@ -131,7 +131,8 @@ struct BowtieHit
 	            _antisense_aln == rhs._antisense_aln &&
 	            _left == rhs._left && 
 	            _antisense_splice == rhs._antisense_splice &&
-		    _edit_dist == rhs._edit_dist && 
+		    // daehwan - check this for colorspace reads
+		    (color || (!color && _edit_dist == rhs._edit_dist)) && 
 	            /* DO NOT USE ACCEPTED IN COMPARISON */
 	            _cigar == rhs._cigar);
     }
