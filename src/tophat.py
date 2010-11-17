@@ -1466,7 +1466,9 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
                         stderr=sort_bam_log)
         if ret != 0:
             print >> sys.stderr, "Error: could not sort BAM file with samtools"
-            sys.exit(1)                
+            sys.exit(1)        
+            
+        os.remove(accepted_hits_sam)
 #        print >> run_log, "mv %s %s" % (sorted_map, output_dir + accepted_hits)
 #        os.rename(sorted_map_name, output_dir + accepted_hits) 
 
