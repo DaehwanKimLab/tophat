@@ -36,19 +36,19 @@ uint32_t get_junctions_from_gff(FILE* ref_mRNA_file,
                                 RefSequenceTable& rt)
 {
     
-    uint32_t num_juncs_reported = 0;
+	uint32_t num_juncs_reported = 0;
     
-    GList<GSeqData> ref_rnas;
+	GList<GSeqData> ref_rnas;
 	
 	if (ref_mRNA_file)
 	{
-		//read_mRNAs(ref_mRNA_file, false, ref_rnas, ref_rnas, NULL, -1, false);
-		read_mRNAs(ref_mRNA_file, ref_rnas);
+		//read_mRNAs(ref_mRNA_file, ref_rnas);
+		read_transcripts(ref_mRNA_file, ref_rnas);
 	}
     
-    set<pair<string, pair<int, int> > > uniq_juncs;
+	set<pair<string, pair<int, int> > > uniq_juncs;
     
-    // Geo groups them by chr.
+	// Geo groups them by chr.
 	if (ref_rnas.Count()>0) //if any ref data was loaded
 	{
 		for (int j = 0; j < ref_rnas.Count(); ++j) 

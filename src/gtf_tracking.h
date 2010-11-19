@@ -55,12 +55,22 @@ class GFastaHandler {
      }
      
    void init(const char* fpath) {
-     if (fpath==NULL) return;
+     if (fpath==NULL || fpath[0]==0) return;
+     if (!fileExists(fpath))
+       GError("Error: file/directory %s does not exist!\n",fpath);
      fastaPath=Gstrdup(fpath);
      if (fastaPath!=NULL) {
          if (fileExists(fastaPath)>1) { //exists and it's not a directory
             GStr fainame(fastaPath);
-            fainame.append(".fai");
+            //the .fai name might have been given directly
+            if (fainame.rindex(".fai")==fainame.length()-4) {
+               //.fai index file given directly
+               fastaPath[fainame.length()-4]=0;
+               if (!fileExists(fastaPath))
+                  GError("Error: cannot find fasta file for index %s !\n", fastaPath);
+               }
+              else fainame.append(".fai");
+            //fainame.append(".fai");
             faIdx=new GFastaIndex(fastaPath,fainame.chars());
             GStr fainamecwd(fainame);
             int ip=-1;
@@ -1130,11 +1140,12 @@ int parse_mRNAs(GList<GffObj>& mrnas,
 				 GList<GSeqData>& glstdata,
 				 bool is_ref_set=true,
 				 bool check_for_dups=false,
-				 int qfidx=-1);
+				 int qfidx=-1, bool only_multiexon=false);
 
 //reading a mRNAs from a gff file and grouping them into loci
 void read_mRNAs(FILE* f, GList<GSeqData>& seqdata, GList<GSeqData>* ref_data=NULL, 
-              bool check_for_dups=false, int qfidx=-1, const char* fname=NULL, bool checkseq=false);
+              bool check_for_dups=false, int qfidx=-1, const char* fname=NULL, 
+              bool checkseq=false, bool only_multiexon=false);
 
 void read_transcripts(FILE* f, GList<GSeqData>& seqdata);
 

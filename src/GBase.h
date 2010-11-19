@@ -1,10 +1,12 @@
 #ifndef G_BASE_DEFINED
 #define G_BASE_DEFINED
-
+#ifndef _POSIX_SOURCE
+//mostly for MinGW
+#define _POSIX_SOURCE
+#endif
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
-
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -12,11 +14,40 @@
 #include <limits.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#if defined __WIN32__ || defined _WIN32
+#include <stdint.h>
+
+#if defined __WIN32__ || defined WIN32 || defined _WIN32 || defined _WIN32_
+  #ifndef __WIN32__
+    #define __WIN32__
+  #endif
   #include <windows.h>
+  #include <io.h>
+  #define CHPATHSEP '\\'
+  #undef off_t
+  #define off_t int64_t
+  #ifdef _fseeki64
+    #define fseeko(stream, offset, origin) _fseeki64(stream, offset, origin)
+  #else
+    /*
+    #define _DEFINE_WIN32_FSEEKO
+    int fseeko(FILE *stream, off_t offset, int whence);
+    */
+    #define fseeko fseek
+  #endif
+  #ifdef _ftelli64
+    #define ftello(stream) _ftelli64(stream)
+  #else
+    /*
+    #define _DEFINE_WIN32_FTELLO
+    off_t ftello(FILE *stream);
+    */
+    #define ftello ftell
+  #endif
+ #else
+  #define CHPATHSEP '/'
+  #include <unistd.h>
 #endif
 
-#include <stdint.h>
 
 #ifdef DEBUG
 #undef NDEBUG
@@ -28,25 +59,21 @@ typedef uint32_t uint32;
 typedef unsigned char uchar;
 typedef unsigned char byte;
 
-// If long is natively 64 bit, use the regular fseek and ftell
-#ifdef _NATIVE_64
- #define ftello ftell
- #define fseeko fseek
-#endif
-
 #ifndef MAXUINT
 #define MAXUINT ((unsigned int)-1)
 #endif
-/*
-#if defined(_NATIVE_64) || defined(_LP64) || defined(__LP64__)
- typedef long int64;
- typedef unsigned long uint64;
-#else
- //assume 32bit environment with long long for int64 stuff
- typedef long long int64;
- typedef unsigned long long uint64;
+
+#ifndef MAXINT
+#define MAXINT INT_MAX
 #endif
-*/
+
+#ifndef MAX_UINT
+#define MAX_UINT ((unsigned int)-1)
+#endif
+
+#ifndef MAX_INT
+#define MAX_INT INT_MAX
+#endif
 
 typedef int64_t int64;
 typedef uint64_t uint64;
@@ -63,15 +90,6 @@ typedef uint64_t uint64;
 
 /****************************************************************************/
 #define ERR_ALLOC "Error allocating memory.\n"
-#if defined (__WIN32__) || defined (WIN32) || defined (_WIN32)
-  #define CHPATHSEP '\\'
-  #include <io.h>
-  #define ftello ftell
-  #define fseeko fseek
- #else
-  #define CHPATHSEP '/'
-  #include <unistd.h>
-#endif
 
 //-------------------
 
@@ -124,20 +142,20 @@ typedef void GFreeProc(pointer item); //usually just delete,
                                      GError(ERR_ALLOC)
 #define GFREE(ptr)       GFree((pointer*)(&ptr))
 
-inline char* min(char *arg1, char *arg2) {
+inline char* strMin(char *arg1, char *arg2) {
     return (strcmp(arg1, arg2) < 0)? arg1 : arg2;
 }
+
+inline char* strMax(char *arg1, char *arg2) {
+    return (strcmp(arg2, arg1) < 0)? arg1 : arg2;
+}
+
 
 inline int iround(double x) {
    return (int)floor(x + 0.5);
 }
 
-
 /****************************************************************************/
-
-inline char* max(char *arg1, char *arg2) {
-    return (strcmp(arg2, arg1) < 0)? arg1 : arg2;
-}
 
 inline int Gintcmp(int a, int b) {
  //return (a>b)? 1 : ((a==b)?0:-1);
@@ -150,38 +168,53 @@ int Gstrcmp(char* a, char* b);
 int Gstricmp(const char* a, const char* b);
 
 inline void swap(int &arg1, int &arg2){
- arg1 ^= arg2 ^= arg1 ^= arg2;
+ //arg1 ^= arg2;
+ //arg2 ^= arg1;
+ //arg1 ^= arg2;
+ register int swp=arg1;
+ arg1=arg2; arg2=swp;
  }
 
-inline void swap(char* &arg1, char* &arg2){
+inline void swap(char* &arg1, char* &arg2){ //swap pointers!
  register char* swp=arg1;
  arg1=arg2; arg2=swp;
  }
 
-inline void swap(unsigned int &arg1, unsigned int &arg2)
-{ arg1 ^= arg2 ^= arg1 ^= arg2; }
+inline void swap(uint &arg1, uint &arg2) {
+  register uint swp=arg1;
+  arg1=arg2; arg2=swp;
+  }
 
-inline void swap(short &arg1, short &arg2)
-{ arg1 ^= arg2 ^= arg1 ^= arg2; }
+inline void swap(short &arg1, short &arg2) {
+  register short swp=arg1;
+  arg1=arg2; arg2=swp;
+  }
 
-inline void swap(unsigned short &arg1, unsigned short &arg2)
-{ arg1 ^= arg2 ^= arg1 ^= arg2; }
+inline void swap(unsigned short &arg1, unsigned short &arg2) {
+  register unsigned short swp=arg1;
+  arg1=arg2; arg2=swp;
+  }
 
-inline void swap(long &arg1, long &arg2)
-{ arg1 ^= arg2 ^= arg1 ^= arg2; }
+inline void swap(long &arg1, long &arg2) {
+  register long swp=arg1;
+  arg1=arg2; arg2=swp;
+  }
 
-inline void swap(unsigned long &arg1, unsigned long &arg2)
-{ arg1 ^= arg2 ^= arg1 ^= arg2; }
+inline void swap(unsigned long &arg1, unsigned long &arg2) {
+  register unsigned long swp=arg1;
+  arg1=arg2; arg2=swp;
+  }
 
-inline void swap(char &arg1, char &arg2)
-{ arg1 ^= arg2 ^= arg1 ^= arg2; }
 
-inline void swap(unsigned char &arg1, unsigned char &arg2)
-{ arg1 ^= arg2 ^= arg1 ^= arg2; }
+inline void swap(char &arg1, char &arg2) {
+  register char swp=arg1;
+  arg1=arg2; arg2=swp;
+  }
 
-inline void swap(bool &arg1, bool &arg2)
-{ arg1 ^= arg2 ^= arg1 ^= arg2; }
-
+inline void swap(unsigned char &arg1, unsigned char &arg2) {
+  register unsigned char swp=arg1;
+  arg1=arg2; arg2=swp;
+  }
 
 /**************** Memory management ***************************/
 
@@ -274,20 +307,24 @@ class GSeg {
   //check for overlap with other segment
   uint len() { return end-start+1; }
   bool overlap(GSeg* d) {
-     return start<d->start ? (d->start<=end) : (start<=d->end);
+     //return start<d->start ? (d->start<=end) : (start<=d->end);
+     return (start<=d->end && end>=d->start);
      }
 
   bool overlap(GSeg& d) {
-     return start<d.start ? (d.start<=end) : (start<=d.end);
+     //return start<d.start ? (d.start<=end) : (start<=d.end);
+     return (start<=d.end && end>=d.start);
      }
 
   bool overlap(GSeg& d, int fuzz) {
-     return start<d.start ? (d.start<=end+fuzz) : (start<=d.end+fuzz);
+     //return start<d.start ? (d.start<=end+fuzz) : (start<=d.end+fuzz);
+     return (start<=d.end+fuzz && end+fuzz>=d.start);
      }
 
   bool overlap(uint s, uint e) {
-    if (s>e) { swap(s,e); }
-     return start<s ? (s<=end) : (start<=e);
+     if (s>e) { swap(s,e); }
+     //return start<s ? (s<=end) : (start<=e);
+     return (start<=e && end>=s);
      }
 
   //return the length of overlap between two segments
@@ -339,6 +376,7 @@ class GSeg {
 
 //GLineReader -- text line reading/buffering class
 class GLineReader {
+   bool closeFile;
    int len;
    int allocated;
    char* buf;
@@ -368,7 +406,17 @@ class GLineReader {
                            // the given file position
    void pushBack() { if (lcount>0) pushed=true; } // "undo" the last getLine request
             // so the next call will in fact return the same line
+   GLineReader(const char* fname) {
+      FILE* f=fopen(fname, "rb");
+      if (f==NULL) GError("Error opening file '%s'!\n",fname);
+      closeFile=true;
+      init(f);
+      }
    GLineReader(FILE* stream=NULL, off_t fpos=0) {
+     closeFile=false;
+     init(stream,fpos);
+     }
+   void init(FILE* stream, off_t fpos=0) {
      len=0;
      isEOF=false;
      allocated=1024;
@@ -381,6 +429,7 @@ class GLineReader {
      }
    ~GLineReader() {
      GFREE(buf);
+     if (closeFile) fclose(file);
      }
 };
 
@@ -406,7 +455,7 @@ int fileExists(const char* fname);
 //        2 if it's a regular file
 //        3 otherwise (?)
 
-off_t fileSize(const char* fpath);
+int64 fileSize(const char* fpath);
 
 //write a formatted fasta record, fasta formatted
 void writeFasta(FILE *fw, const char* seqid, const char* descr,
