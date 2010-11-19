@@ -175,6 +175,9 @@ libtophat_a_SOURCES = \
 	bwt_map.cpp \
 	common.cpp \
 	junctions.cpp \
+	insertions.cpp \
+	deletions.cpp \
+	align_status.cpp \
 	fragments.cpp \
 	tokenize.cpp \
 	inserts.cpp \

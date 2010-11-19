@@ -30,13 +30,10 @@
 
 #include "common.h"
 #include "bwt_map.h"
-//#include "closures.h"
 #include "tokenize.h"
 #include "junctions.h"
-
-//#ifdef PAIRED_END
-//#include "inserts.h"
-//#endif
+#include "insertions.h"
+#include "deletions.h"
 
 using namespace std;
 using namespace seqan;
@@ -48,7 +45,7 @@ using std::set;
 static int read_length = -1;
 void print_usage()
 {
-    fprintf(stderr, "Usage:   juncs_db <min_anchor> <read_length> <splice_coords1,...,splice_coordsN> <ref.fa>\n");
+    fprintf(stderr, "Usage:   juncs_db <min_anchor> <read_length> <splice_coords1,...,splice_coordsN> <insertion_coords1,...,insertion_coordsN> <deletion_coords1,...,deletion_coordsN> <ref.fa>\n");
 }
 
 typedef vector<string> Mapped;
@@ -61,6 +58,44 @@ bool splice_junc_lt(const pair<size_t, size_t>& lhs,
 	else
 		return lhs.second < rhs.second;
 }
+
+/**
+ * Given an insertion set, this code will print FASTA entries
+ * for the surrounding sequence. The names of the FASTA entries
+ * contain information about the exact location and nature of the
+ * insertion. The entry is generally of the form
+ * <contig>|<left end of fasta sequence>|<position of insertion>-<sequence of insertion>|<right end of fasta sequence>|ins|<[fwd|rev]>
+ */ 
+template<typename TStr>
+void print_insertion(const Insertion& insertion,
+				  int read_len,
+				  TStr& ref_str,
+				  const string& ref_name,
+				  ostream& splice_db)
+{
+	int half_splice_len = read_len - min_anchor_len;
+
+	size_t left_start, right_start;
+	size_t left_end, right_end;
+	if (insertion.left >= 0 && insertion.left <= length(ref_str))
+	{
+		left_start = (int)insertion.left - half_splice_len + 1 >= 0 ? (int)insertion.left - half_splice_len + 1 : 0;
+		left_end = left_start + half_splice_len;
+		
+		right_start = (int)left_end; 
+		right_end = right_start + half_splice_len  < length(ref_str) ? right_start + half_splice_len : length(ref_str);
+		
+		Infix<RefSequenceTable::Sequence>::Type left_splice = infix(ref_str, left_start, left_end);
+		Infix<RefSequenceTable::Sequence>::Type right_splice = infix(ref_str, right_start, right_end); 
+		
+		splice_db << ">" << ref_name << "|" << left_start << "|" << insertion.left << "-" << insertion.sequence 
+			  << "|" << right_end << "|ins|" << ("fwd")  << endl;
+
+		splice_db << left_splice << insertion.sequence << right_splice << endl;
+	}
+		
+}
+
 
 template<typename TStr>
 void print_splice(const Junction& junction,
@@ -156,7 +191,9 @@ static int parseInt(int lower, char* arg, const char *errmsg) {
 //	return 0;
 //}
 
-void driver(const vector<FILE*>& splice_coords_files, 
+void driver(const vector<FILE*>& splice_coords_files,
+			const vector<FILE*>& insertion_coords_files,
+			const vector<FILE*>& deletion_coords_files, 
 			ifstream& ref_stream)
 {	
 	char splice_buf[2048];
@@ -197,7 +234,87 @@ void driver(const vector<FILE*>& splice_coords_files,
 			junctions.insert(make_pair<Junction, JunctionStats>(Junction(ref_id, left_coord, right_coord, antisense), JunctionStats()));
 		}
 	}
-	
+
+
+	/*
+	 * Read in the deletion coordinates
+	 * and store in a set
+	 */	
+	std::set<Deletion> deletions;
+	for(size_t i=0; i < deletion_coords_files.size(); ++i){
+		FILE* deletion_coords = deletion_coords_files[i];
+		if(!deletion_coords){
+			continue;
+		} 
+		while (fgets(splice_buf, 2048, deletion_coords))
+		{
+			char* nl = strrchr(splice_buf, '\n');
+			char* buf = splice_buf;
+			if (nl) *nl = 0;
+			
+			/**
+			 Fields are:
+			 1) reference name
+			 2) left coord of splice (last char of the left exon)
+			 3) right coord of splice (first char of the right exon)
+			 */
+			
+			char* ref_name                   = strsep((char**)&buf, "\t");
+			char* scan_left_coord            = strsep((char**)&buf, "\t");
+			char* scan_right_coord           = strsep((char**)&buf, "\t");
+			
+			if (!scan_left_coord || !scan_right_coord)
+			{
+				fprintf(stderr,"Error: malformed deletion coordinate record\n");
+				exit(1);
+			}
+
+			/*
+			 * Note that when reading in a deletion, the left co-ord is the position of the 
+			 * first deleted based. Since we are co-opting the junction data structure, need
+			 * to fix up this location
+			 */
+			uint32_t ref_id = rt.get_id(ref_name, NULL, 0);
+			uint32_t left_coord = atoi(scan_left_coord);
+			uint32_t right_coord = atoi(scan_right_coord);
+			deletions.insert(Deletion(ref_id, left_coord - 1, right_coord, false));
+		}
+	}
+
+	/*
+	 * Read in the insertion coordinates
+	 * and store in a set
+	 */
+	std::set<Insertion> insertions;
+	for(size_t i=0; i < insertion_coords_files.size(); ++i){
+		FILE* insertion_coords = insertion_coords_files[i];
+		if(!insertion_coords){
+			continue;
+		} 
+		while(fgets(splice_buf, 2048, insertion_coords)){
+			char* nl = strrchr(splice_buf, '\n');
+			char* buf = splice_buf;
+			if (nl) *nl = 0;
+			
+			char* ref_name = strsep((char**)&buf, "\t");
+			char* scan_left_coord = strsep((char**)&buf, "\t");
+			char* scan_right_coord = strsep((char**)&buf, "\t");
+			char* scan_sequence = strsep((char**)&buf, "\t");
+
+			if (!scan_left_coord || !scan_sequence || !scan_right_coord)
+			{
+				fprintf(stderr,"Error: malformed insertion coordinate record\n");
+				exit(1);
+			}
+
+			uint32_t ref_id = rt.get_id(ref_name,NULL,0);
+			uint32_t left_coord = atoi(scan_left_coord);
+			std::string sequence(scan_sequence);
+			insertions.insert(Insertion(ref_id, left_coord, sequence));
+		}
+	}
+
+
 	typedef RefSequenceTable::Sequence Reference;
 	
 	while(ref_stream.good() && 
@@ -231,6 +348,77 @@ void driver(const vector<FILE*>& splice_coords_files,
 			++itr;
 		}
 	}
+
+
+	ref_stream.clear();
+	ref_stream.seekg(0, ios::beg);
+
+
+	while(ref_stream.good() && 
+		  !ref_stream.eof()) 
+	{
+		Reference ref_str;
+		string name;
+
+		readMeta(ref_stream, name, Fasta());
+		string::size_type space_pos = name.find_first_of(" \t\r");
+		if (space_pos != string::npos)
+		{
+			name.resize(space_pos);
+		}
+		
+		read(ref_stream, ref_str, Fasta());
+		
+		uint32_t refid = rt.get_id(name, NULL,0);
+		Deletion dummy_left(refid, 0, 0, true);
+		Deletion dummy_right(refid, 0xFFFFFFFF, 0xFFFFFFFF, true);
+		
+		pair<std::set<Deletion>::iterator, std::set<Deletion>::iterator> r;
+		r.first = deletions.lower_bound(dummy_left);
+		r.second = deletions.upper_bound(dummy_right);
+		
+		std::set<Deletion>::iterator itr = r.first;
+		
+		while(itr != r.second && itr != deletions.end())
+		{
+			print_splice((Junction)*itr, read_length, itr->antisense ? "del|rev" : "del|fwd", ref_str, name, cout);
+			++itr;
+		}
+	}
+
+	ref_stream.clear();
+	ref_stream.seekg(0, ios::beg);
+
+
+
+	while(ref_stream.good() && 
+		  !ref_stream.eof()) 
+	{
+		Reference ref_str;
+		string name;
+
+		readMeta(ref_stream, name, Fasta());
+		string::size_type space_pos = name.find_first_of(" \t\r");
+		if (space_pos != string::npos)
+		{
+			name.resize(space_pos);
+		}
+		
+		read(ref_stream, ref_str, Fasta());
+		
+		uint32_t refid = rt.get_id(name, NULL,0);
+		Insertion dummy_left(refid, 0, "");
+		Insertion dummy_right(refid, 0xFFFFFFFF, "");
+	
+		std::set<Insertion>::iterator itr = insertions.lower_bound(dummy_left);
+		std::set<Insertion>::iterator upper   = insertions.upper_bound(dummy_right);
+
+		while(itr != upper && itr != insertions.end()){
+			print_insertion(*itr, read_length, ref_str, name, cout);	
+			++itr;
+		}	
+	}
+
 }
 
 int main(int argc, char** argv)
@@ -286,6 +474,57 @@ int main(int argc, char** argv)
 		print_usage();
 		return 1;
 	}
+
+	/*
+	 * Read in the insertion co-ordinates
+	 */
+	string insertion_coords_file_list = argv[optind++];
+	vector<string> insertion_coords_file_names;
+	vector<FILE*> insertion_coords_files;
+	tokenize(insertion_coords_file_list, ",", insertion_coords_file_names);
+	for(size_t s = 0; s < insertion_coords_file_names.size(); ++s)
+	{
+		FILE* insertion_coords_file = fopen(insertion_coords_file_names[s].c_str(),"r");
+		if(!insertion_coords_file)
+		{
+			fprintf(stderr, "Warning: cannot open %s for reading\n",
+					insertion_coords_file_names[s].c_str());
+			continue;
+		}
+		insertion_coords_files.push_back(insertion_coords_file);
+	}
+	if(optind >= argc)
+	{
+		print_usage();
+		return 1;
+	}
+
+
+	/*
+	 * Read in the deletion co-ordinates
+	 */
+	string deletion_coords_file_list = argv[optind++];
+	vector<string> deletion_coords_file_names;
+	vector<FILE*> deletion_coords_files;
+	tokenize(deletion_coords_file_list, ",", deletion_coords_file_names);
+	for(size_t s = 0; s < deletion_coords_file_names.size(); ++s)
+	{
+		FILE* deletion_coords_file = fopen(deletion_coords_file_names[s].c_str(),"r");
+		if(!deletion_coords_file)
+		{
+			fprintf(stderr, "Warning: cannot open %s for reading\n",
+					deletion_coords_file_names[s].c_str());
+			continue;
+		}
+		deletion_coords_files.push_back(deletion_coords_file);
+	}
+	if(optind >= argc)
+	{
+		print_usage();
+		return 1;
+	}
+
+
 	
 	string ref_file_name = argv[optind++];
 	ifstream ref_stream(ref_file_name.c_str());
@@ -297,6 +536,6 @@ int main(int argc, char** argv)
 		exit(1);
 	}
     
-	driver(coords_files, ref_stream);
+	driver(coords_files, insertion_coords_files, deletion_coords_files, ref_stream);
     return 0;
 }

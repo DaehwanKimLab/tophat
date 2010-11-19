@@ -15,6 +15,20 @@
 #include <cstdio>
 #include <string>
 
+/*
+ * Maximum allowable length of an
+ * an insertion. Used mainly in
+ * segment_juncs.cpp
+ */
+extern unsigned int max_insertion_length;
+
+/*
+ * Maximum allowable length of a
+ * deletion. Used mainly in segment_juncs.cpp
+ * and long_spanning_reads.cpp
+ */
+extern unsigned int max_deletion_length;
+
 extern int inner_dist_mean;
 extern int inner_dist_std_dev;
 extern int max_mate_inner_dist; 

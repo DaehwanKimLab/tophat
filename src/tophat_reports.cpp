@@ -34,6 +34,9 @@
 #include "common.h"
 #include "bwt_map.h"
 #include "junctions.h"
+#include "insertions.h"
+#include "deletions.h"
+#include "align_status.h"
 #include "fragments.h"
 #include "wiggles.h"
 #include "tokenize.h"
@@ -455,7 +458,6 @@ bool rewrite_sam_hit(const RefSequenceTable& rt,
             }
         }
     }
-    
     strcat(rebuf, "\n");
     
     return true;
@@ -499,7 +501,7 @@ void print_sam_for_hits(const RefSequenceTable& rt,
   char read_quals[buf_size];
   
   char rebuf[buf_size];
-  
+
   lex_hit_sort s(rt, hits);
   vector<uint32_t> index_vector;
   for (size_t i = 0; i < hits.hits.size(); ++i)
@@ -548,7 +550,7 @@ void print_sam_for_hits(const RefSequenceTable& rt,
 			FILE* fout)
 {
   assert (left_hits.insert_id == right_hits.insert_id);
-  
+
   static const int buf_size = 2048;
   char left_read_name[buf_size];
   char left_read_seq[buf_size];
@@ -687,6 +689,24 @@ void print_sam_for_hits(const RefSequenceTable& rt,
     }
 }
 
+/**
+ * Given all of the hits for a particular read, update the read counts for insertions and deletions.
+ * @param hits hits The alignments for a particular read
+ * @param insertions Maps from an insertion to the number of supporting reads for that insertion
+ * @param deletions Maps from a deletion to the number of supporting reads for that deletion
+ */ 
+void update_insertions_and_deletions(const HitsForRead& hits,
+					InsertionSet& insertions,
+					DeletionSet& deletions)
+{
+	for (size_t i = 0; i < hits.hits.size(); ++i)
+	{
+		const BowtieHit& bh = hits.hits[i];
+		insertions_from_alignment(bh, insertions);
+		deletions_from_alignment(bh, deletions);
+	}
+}					
+
 
 
 void update_junctions(const HitsForRead& hits,
@@ -741,9 +761,9 @@ void exclude_hits_on_filtered_junctions(const JunctionSet& junctions,
 }
 
 void get_junctions_from_best_hits(HitStream& left_hs,
-								  HitStream& right_hs,
-								  ReadTable& it, 
-								  JunctionSet& junctions)
+				  HitStream& right_hs,
+				  ReadTable& it, 
+				  JunctionSet& junctions)
 {
 	HitsForRead curr_left_hit_group;
 	HitsForRead curr_right_hit_group;
@@ -856,6 +876,8 @@ void driver(FILE* left_map,
             FILE* right_map,
 	    FILE* right_reads,
             FILE* junctions_out,
+	    FILE* insertions_out,
+	    FILE* deletions_out,
 	    FILE* accepted_hits_out)
 {	
     ReadTable it;
@@ -863,8 +885,8 @@ void driver(FILE* left_map,
     
     SAMHitFactory hit_factory(it,rt);
     
-    HitStream left_hs(left_map, &hit_factory, false, true, true);
-    HitStream right_hs(right_map, &hit_factory, false, true, true);
+    HitStream left_hs(left_map, &hit_factory, false, true, true, true);
+    HitStream right_hs(right_map, &hit_factory, false, true, true, true);
     
     JunctionSet junctions;
     
@@ -903,6 +925,8 @@ void driver(FILE* left_map,
       fprintf(stderr, "Warning: %lu small overhang junctions!\n", small_overhangs);
     
     JunctionSet final_junctions; // the junctions formed from best hits
+    InsertionSet final_insertions;
+    DeletionSet final_deletions;
     
     fprintf (stderr, "Reporting final accepted alignments...");
     
@@ -924,6 +948,7 @@ void driver(FILE* left_map,
 	    fragment_best_alignments(curr_left_hit_group, grade, best_hits);
 	    
 	    update_junctions(best_hits, final_junctions);
+	    update_insertions_and_deletions(best_hits, final_insertions, final_deletions);
 	    
 	    print_sam_for_hits(rt,
 			       best_hits, 
@@ -936,7 +961,7 @@ void driver(FILE* left_map,
 	    left_hs.next_read_hits(curr_left_hit_group);
 	    curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
 	  }
-	
+
 	// Chew up right singletons
 	while (curr_left_obs_order > curr_right_obs_order &&
 	       curr_right_obs_order != 0xFFFFFFFF)
@@ -946,11 +971,12 @@ void driver(FILE* left_map,
 	    FragmentAlignmentGrade grade;
 	    
 	    exclude_hits_on_filtered_junctions(junctions, curr_right_hit_group);
-			
+
 	    // Process hit for right singleton, select best alignments
 	    fragment_best_alignments(curr_right_hit_group,grade, best_hits);
 	    
 	    update_junctions(best_hits, final_junctions);
+	    update_insertions_and_deletions(best_hits, final_insertions, final_deletions);
 	    
 	    print_sam_for_hits(rt,
                                best_hits, 
@@ -963,7 +989,7 @@ void driver(FILE* left_map,
 	    right_hs.next_read_hits(curr_right_hit_group);
 	    curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
 	  }
-	
+
 	// Since we have both left hits and right hits for this insert,
 	// Find the best pairing and print both
 	while (curr_left_obs_order == curr_right_obs_order &&
@@ -981,7 +1007,8 @@ void driver(FILE* left_map,
 		fragment_best_alignments(curr_right_hit_group, grade, right_best_hits);
 				
 		update_junctions(right_best_hits, final_junctions);
-		
+		update_insertions_and_deletions(right_best_hits, final_insertions, final_deletions);
+				
 		print_sam_for_hits(rt,
                                    right_best_hits, 
 				   grade, 
@@ -999,6 +1026,7 @@ void driver(FILE* left_map,
 		fragment_best_alignments(curr_left_hit_group, grade, left_best_hits);
 		
 		update_junctions(left_best_hits, final_junctions);
+		update_insertions_and_deletions(left_best_hits, final_insertions, final_deletions);			
 		
 		print_sam_for_hits(rt,
                                    left_best_hits, 
@@ -1020,10 +1048,12 @@ void driver(FILE* left_map,
 				       grade,
 				       left_best_hits,
 				       right_best_hits);
-		
+
 		update_junctions(left_best_hits, final_junctions);
 		update_junctions(right_best_hits, final_junctions);
-		
+		update_insertions_and_deletions(left_best_hits, final_insertions, final_deletions);
+		update_insertions_and_deletions(right_best_hits, final_insertions, final_deletions);
+
 		print_sam_for_hits(rt,
                                    left_best_hits,
 				   right_best_hits,
@@ -1040,7 +1070,7 @@ void driver(FILE* left_map,
 	    curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
 	  }
       }
-    
+
     fprintf (stderr, "done\n");
     
     small_overhangs = 0;
@@ -1063,9 +1093,19 @@ void driver(FILE* left_map,
     
 //	if (small_overhangs > 0)
 //		fprintf(stderr, "Warning: %lu small overhang junctions!\n", small_overhangs);
-    
+	
     fprintf (stderr, "Printing junction BED track...");
     print_junctions(junctions_out, final_junctions, rt);
+    fprintf (stderr, "done\n");
+    
+    fprintf (stderr, "Printing insertions...");
+    print_insertions(insertions_out, final_insertions,rt);
+    fclose(insertions_out);
+    fprintf (stderr, "done\n");
+    
+    fprintf (stderr, "Printing deletions...");
+    print_deletions(deletions_out, final_deletions, rt);
+    fclose(deletions_out);
     fprintf (stderr, "done\n");
     
     fprintf(stderr, "Found %lu junctions from happy spliced reads\n", final_junctions.size());
@@ -1073,7 +1113,7 @@ void driver(FILE* left_map,
 
 void print_usage()
 {
-    fprintf(stderr, "Usage:   tophat_reports <junctions.bed> <accepted_hits.sam> <left_map1,...,left_mapN> <left_reads.fq>  [right_map1,...,right_mapN] [right_reads.fq]\n");
+    fprintf(stderr, "Usage:   tophat_reports <junctions.bed> <insertions.vcf> <deletions.vcf> <accepted_hits.sam> <left_map1,...,left_mapN> <left_reads.fq>  [right_map1,...,right_mapN] [right_reads.fq]\n");
 	
 	//    fprintf(stderr, "Usage:   tophat_reports <coverage.wig> <junctions.bed> <accepted_hits.sam> <map1.bwtout> [splice_map1.sbwtout]\n");
 }
@@ -1102,10 +1142,24 @@ int main(int argc, char** argv)
       print_usage();
       return 1;
     }
-  
-  string accepted_hits_file_name = argv[optind++];
-  
-  if(optind >= argc)
+
+    string insertions_file_name = argv[optind++];
+    if(optind >= argc)
+    {
+	print_usage();
+	return 1;
+    }
+
+    string deletions_file_name = argv[optind++];
+    if(optind >= argc)
+    {
+	print_usage();
+	return 1;
+    }
+	
+    string accepted_hits_file_name = argv[optind++];
+	
+    if(optind >= argc)
     {
       print_usage();
       return 1;
@@ -1169,14 +1223,31 @@ int main(int argc, char** argv)
 	      junctions_file_name.c_str());
       exit(1);
     }
-  
-  
-  // Open the SAM file as "a", because the python driver will write the
-  // header to this guy.  This is ugly and should be done differently, but
-  // the long term solution is to emit BAM records directly, so this is fine
-  // for now.
-  FILE* accepted_hits_file = fopen(accepted_hits_file_name.c_str(), "a");
-  if (accepted_hits_file == NULL)
+
+    FILE* insertions_file = fopen(insertions_file_name.c_str(), "w");
+    if (insertions_file == NULL)
+    {
+	fprintf(stderr, "Error: cannot open VCF file %s for writing\n",
+		insertions_file_name.c_str());
+	exit(1);
+    }
+
+
+    FILE* deletions_file = fopen(deletions_file_name.c_str(), "w");
+    if (deletions_file == NULL)
+    {
+	fprintf(stderr, "Error: cannot open VCF file %s for writing\n",
+		deletions_file_name.c_str());
+	exit(1);
+    }
+
+    
+    // Open the SAM file as "a", because the python driver will write the
+    // header to this guy.  This is ugly and should be done differently, but
+    // the long term solution is to emit BAM records directly, so this is fine
+    // for now.
+    FILE* accepted_hits_file = fopen(accepted_hits_file_name.c_str(), "a");
+    if (accepted_hits_file == NULL)
     {
       fprintf(stderr, "Error: cannot open SAM file %s for writing\n",
 	      accepted_hits_file_name.c_str());
@@ -1190,12 +1261,14 @@ int main(int argc, char** argv)
 	      left_reads_filename.c_str());
         exit(1);
     }
-  
+
   driver(left_map,
 	 left_reads_file,
 	 right_map,
 	 right_reads_file,
 	 junctions_file,
+	 insertions_file,
+	 deletions_file,
 	 accepted_hits_file);
   
   return 0;

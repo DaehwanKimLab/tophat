@@ -218,6 +218,7 @@ struct BowtieHit
 	}
 	
 	const vector<CigarOp>& cigar() const { return _cigar; }
+
 	
 	bool contiguous() const 
 	{ 
@@ -331,7 +332,7 @@ public:
                 exit(1);
             }
             
-            for (size_t i = 0; i < fh->header->n_targets; ++i)
+            for (size_t i = 0; i < (size_t)fh->header->n_targets; ++i)
             {
                 const char* name = fh->header->target_name[i];
                 uint32_t len  = fh->header->target_len[i];
@@ -746,9 +747,6 @@ void get_mapped_reads(FILE* bwtf,
 //bool status_equivalent(MateStatusMask left, MateStatusMask right);
 typedef uint32_t MateStatusMask;
 
-enum AlignStatus {UNALIGNED, SPLICED, CONTIGUOUS};
-AlignStatus status(const BowtieHit* align);
-
 void add_hits_to_coverage(const HitList& hits, vector<unsigned short>& DoC);
 void add_hit_to_coverage(const BowtieHit& bh, vector<unsigned int>& DoC);
 
@@ -761,5 +759,10 @@ void print_hit(FILE* fout,
 	       const char* sequence,
 	       const char* qualities,
 	       bool from_bowtie = false);
+
+/**
+ * Convert a vector of CigarOps to a string representation 
+ */
+std::string print_cigar(vector<CigarOp>& bh_cigar);
 
 #endif
