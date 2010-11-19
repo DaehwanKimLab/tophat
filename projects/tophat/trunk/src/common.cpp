@@ -20,6 +20,10 @@
 
 using namespace std;
 
+unsigned int max_insertion_length = 3;
+unsigned int max_deletion_length = 3;
+
+
 int inner_dist_mean = 200;
 int inner_dist_std_dev = 20;
 int max_mate_inner_dist = -1; 
@@ -167,7 +171,9 @@ enum
     OPT_INTEGER_QUALS,
     OPT_COLOR,
     OPT_COLOR_OUT,
-    OPT_LIBRARY_TYPE
+    OPT_LIBRARY_TYPE,
+    OPT_MAX_DELETION_LENGTH,
+    OPT_MAX_INSERTION_LENGTH    
   };
 
 static struct option long_options[] = {
@@ -207,6 +213,8 @@ static struct option long_options[] = {
 {"color",		no_argument,		0,	OPT_COLOR},
 {"color-out",		no_argument,		0,	OPT_COLOR_OUT},
 {"library-type",	required_argument,	0,	OPT_LIBRARY_TYPE},
+{"max-deletion-length", required_argument, 0, OPT_MAX_DELETION_LENGTH},
+{"max-insertion-length", required_argument, 0, OPT_MAX_INSERTION_LENGTH},
   
 {0, 0, 0, 0} // terminator
 };
@@ -339,6 +347,12 @@ int parse_options(int argc, char** argv, void (*print_usage)())
       else if (strcmp(optarg, "ff-secondstrand") == 0)
 	library_type = FF_SECONDSTRAND;
       break;
+    case OPT_MAX_DELETION_LENGTH:
+      max_deletion_length = parseInt(0, "--max-deletion-length must be at least 0", print_usage);
+      break;
+    case OPT_MAX_INSERTION_LENGTH:
+      max_insertion_length = parseInt(0, "--max-insertion-length must be at least 0", print_usage);
+      break;
     default:
       print_usage();
       return 1;
@@ -351,13 +365,13 @@ int parse_options(int argc, char** argv, void (*print_usage)())
 
 // Error routine (prints error message and exits!)
 void err_exit(const char* format,...){
-    va_list arguments;
-    va_start(arguments,format);
-    vfprintf(stderr,format,arguments);
-    va_end(arguments);
-    #ifdef DEBUG
-     // trigger a core dump for later inspection
-     abort();
-    #endif
-    exit(1);
-  }
+  va_list arguments;
+  va_start(arguments,format);
+  vfprintf(stderr,format,arguments);
+  va_end(arguments);
+#ifdef DEBUG
+  // trigger a core dump for later inspection
+  abort();
+#endif
+  exit(1);
+}

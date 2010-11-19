@@ -41,6 +41,8 @@ Options:
     -I/--max-intron                <int>       [ default: 500000       ]
     -g/--max-multihits             <int>       [ default: 40           ]
     -F/--min-isoform-fraction      <float>     [ default: 0.15         ]
+    --max-insertion-length         <int>       [ default: 3            ]
+    --max-deletion-length          <int>       [ default: 3            ]
     --solexa-quals                          
     --solexa1.3-quals                          (same as phred64-quals)
     --phred64-quals                            (same as solexa1.3-quals)
@@ -52,6 +54,8 @@ Options:
     -p/--num-threads               <int>       [ default: 1            ]
     -G/--GTF                       <filename>
     -j/--raw-juncs                 <filename>
+    --insertions		   <filename>
+    --deletions			   <filename>
     -r/--mate-inner-dist           <int>       
     --mate-std-dev                 <int>       [ default: 20           ]
     --no-novel-juncs                           
@@ -386,6 +390,10 @@ class TopHatParams:
         self.max_hits = 40
         self.segment_length = 25
         self.segment_mismatches = 2
+        self.max_insertion_length = 3
+        self.max_deletion_length = 3
+        self.raw_insertions = None
+        self.raw_deletions = None
         self.closure_search = None
         self.coverage_search = None
         self.microexon_search = False
@@ -421,7 +429,25 @@ class TopHatParams:
 
         self.search_params.max_coverage_intron_length = min(self.splice_constraints.max_intron_length,
                                                             self.search_params.max_coverage_intron_length)
+
+        if self.read_params.color:
+            print >> sys.stderr, "TopHat currently doesn't support indel finding for colorspace reads"
+            max_insertion_length = 0
+            max_deletion_length = 0
         
+        if self.max_insertion_length >= self.segment_length:
+            print >> sys.stderr, "Error: the max insertion length ("+self.max_insertion_length+") can not be equal to or greater than the segment length ("+self.segment_length+")"
+            sys.exit(-1)
+
+        if self.max_insertion_length < 0:
+            print >> sys.stderr, "Error: the max insertion length ("+self.max_insertion_length+") can not be less than 0"
+
+        if self.max_deletion_length >= self.splice_constraints.min_intron_length:
+            print >> sys.stderr, "Error: the max deletion length ("+self.max_deletion_length+") can not be equal to or greater than the min intron length ("+self.splice_constraints.min_intron_length+")"
+
+        if self.max_deletion_length < 0:
+            print >> sys.stderr, "Error: the max deletion length ("+self.max_deletion_length+") can not be less than 0"
+
     def cmd(self):
         cmd = ["--min-anchor", str(self.splice_constraints.min_anchor_length),
                "--splice-mismatches", str(self.splice_constraints.splice_mismatches),
@@ -439,7 +465,9 @@ class TopHatParams:
                "--max-coverage-intron", str(self.search_params.max_coverage_intron_length),
                "--min-segment-intron", str(self.search_params.min_segment_intron_length),
                "--max-segment-intron", str(self.search_params.max_segment_intron_length),
-               "--sam-header", sam_header]
+               "--sam-header", sam_header,
+               "--max-insertion-length", str(self.max_insertion_length),
+               "--max-deletion-length", str(self.max_deletion_length)]
         
                
         if self.read_params.mate_inner_dist != None:
@@ -527,7 +555,11 @@ class TopHatParams:
                                          "rg-center=",
                                          "rg-date=",
                                          "rg-platform=",
-                                         "tmp-dir="])
+                                         "tmp-dir="
+                                         "max-insertion-length=",
+                                         "min-insertion-length=",
+                                         "insertions=",
+                                         "deletions="])
         except getopt.error, msg:
             raise Usage(msg)
         
@@ -580,6 +612,14 @@ class TopHatParams:
                 self.segment_length = int(value)
             if option == "--segment-mismatches":
                 self.segment_mismatches = int(value)
+            if option == "--max-insertion-length":
+                self.max_insertion_length = int(value)
+            if option == "--max-deletion-length": 
+                self.max_deletion_length = int(value)
+            if option == "--insertions":
+                self.raw_insertions = value
+            if option == "--deletions":
+                self.raw_deletions = value 
             if option in ("-o", "--output-dir"):
                 custom_out_dir = value + "/"
             if option == "--tmp-dir":
@@ -1318,12 +1358,18 @@ def build_juncs_bwt_index(external_splice_prefix, color):
 def build_juncs_index(min_anchor_length, 
                       read_length,
                       juncs_prefix, 
-                      external_juncs,  
+                      external_juncs,
+                      external_insertions,
+                      external_deletions,  
                       reference_fasta,
                       color):
     print >> sys.stderr, "[%s] Retrieving sequences for splices" % (right_now())
     
     juncs_file_list = ",".join(external_juncs)
+    insertions_file_list = ",".join(external_insertions)
+    deletions_file_list = ",".join(external_deletions)
+
+
     juncs_db_log = open(logging_dir + "juncs_db.log", "w")
     
     external_splices_out_prefix  = tmp_dir + juncs_prefix
@@ -1335,6 +1381,8 @@ def build_juncs_index(min_anchor_length,
                     str(min_anchor_length),
                     str(read_length),
                     juncs_file_list,
+                    insertions_file_list,
+                    deletions_file_list,
                     reference_fasta]            
     try:    
         print >> run_log, " ".join(juncs_db_cmd)
@@ -1393,6 +1441,8 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
     
     report_log = open(logging_dir + "reports.log", "w")
     junctions = output_dir + "junctions.bed"
+    insertions = output_dir + "insertions.bed"
+    deletions = output_dir + "deletions.bed" 
     coverage =  "coverage.wig"
     accepted_hits_sam = tmp_dir + "accepted_hits.sam"
     accepted_hits_bam = output_dir + "accepted_hits.bam"
@@ -1404,6 +1454,8 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
     report_cmd.extend(params.cmd())
         
     report_cmd.extend([junctions,
+                       insertions,
+                       deletions,
                        accepted_hits_sam,
                        left_maps,
                        left_reads])
@@ -1671,7 +1723,8 @@ def junctions_from_closures(params,
     return [juncs_out]
 
 # Find possible junctions by examining coverage and split segments in the initial
-# map and segment maps.  Report junctions in segment.juncs.  Calls the executable
+# map and segment maps.  Report junctions, insertions, and deletions in segment.juncs,
+# segment.insertions, and segment.deletions.  Calls the executable
 # segment_juncs
 def junctions_from_segments(params,
                             left_reads,
@@ -1690,6 +1743,16 @@ def junctions_from_segments(params,
         juncs_out += left_seg_maps[0][:slash+1]
     juncs_out += "segment.juncs"
 
+    insertions_out = ""
+    if slash != -1:
+        insertions_out += left_seg_maps[0][:slash+1]
+    insertions_out += "segment.insertions"
+
+    deletions_out = ""
+    if slash != 1:
+        deletions_out += left_seg_maps[0][:slash+1]
+    deletions_out += "segment.deletions"
+
     left_maps = ','.join(left_seg_maps)
     align_log = open(logging_dir + "segment_juncs.log", "w")
     align_cmd = [prog_path("segment_juncs")]
@@ -1699,6 +1762,8 @@ def junctions_from_segments(params,
     align_cmd.extend(["--ium-reads", ",".join(unmapped_reads),
                       ref_fasta,
                       juncs_out,
+                      insertions_out,
+                      deletions_out,
                       left_reads,
                       left_reads_map,
                       left_maps])
@@ -1720,7 +1785,7 @@ def junctions_from_segments(params,
            print >> sys.stderr, fail_str, "Error: segment_juncs not found on this system"
         sys.exit(1)
 
-    return [juncs_out]
+    return [juncs_out, insertions_out, deletions_out]
 
 # Joins mapped segments into full-length read alignments via the executable
 # long_spanning_reads
@@ -1729,12 +1794,18 @@ def join_mapped_segments(params,
                          reads,
                          ref_fasta,
                          possible_juncs,
+                         possible_insertions,
+                         possible_deletions,
                          contig_seg_maps,
                          spliced_seg_maps,
                          alignments_out_name):
     print >> sys.stderr, "[%s] Joining segment hits" % right_now()
     contig_seg_maps = ','.join(contig_seg_maps)
+
     possible_juncs = ','.join(possible_juncs)
+    possible_insertions = ",".join(possible_insertions)
+    possible_deletions = ",".join(possible_deletions)
+
     
     align_log = open(logging_dir + "long_spanning_reads.log", "w")
     align_cmd = [prog_path("long_spanning_reads")]
@@ -1761,6 +1832,8 @@ def join_mapped_segments(params,
     align_cmd.append(ref_fasta)
     align_cmd.extend([ reads,
                        possible_juncs,
+                       possible_insertions,
+                       possible_deletions,
                        contig_seg_maps])
     if spliced_seg_maps != None:
         spliced_seg_maps = ','.join(spliced_seg_maps)
@@ -1794,10 +1867,18 @@ def spliced_alignment(params,
                       segment_len,
                       left_reads,
                       right_reads,
-                      user_supplied_junctions):
+                      user_supplied_junctions,
+                      user_supplied_insertions,
+                      user_supplied_deletions):
     
     possible_juncs = []
     possible_juncs.extend(user_supplied_junctions)
+
+    possible_insertions = []
+    possible_insertions.extend(user_supplied_insertions)
+
+    possible_deletions = []
+    possible_deletions.extend(user_supplied_deletions)
     
     left_maps = []
     right_maps = []
@@ -1861,6 +1942,8 @@ def spliced_alignment(params,
                              reads,
                              ref_fasta,
                              ["/dev/null"],
+			     ["/dev/null"],
+			     ["/dev/null"],
                              [unspliced_map],
                              [],
                              unspliced_sam)
@@ -1950,7 +2033,11 @@ def spliced_alignment(params,
                                         "fastq", 
                                         ref_fasta)
         if os.path.getsize(juncs[0]) != 0:
-            possible_juncs.extend(juncs)
+            possible_juncs.append(juncs[0])
+        if os.path.getsize(juncs[1]) != 0:
+            possible_insertions.append(juncs[1])
+        if os.path.getsize(juncs[2]) != 0:
+            possible_deletions.append(juncs[2])
     
         # Optionally, and for paired reads only, use a closure search to 
         # discover addtional junctions
@@ -1973,6 +2060,8 @@ def spliced_alignment(params,
                           segment_len,
                           junc_idx_prefix, 
                           possible_juncs,
+                          possible_insertions,
+                          possible_deletions,
                           ref_fasta,
                           params.read_params.color)
     
@@ -2011,6 +2100,8 @@ def spliced_alignment(params,
                              reads,
                              ref_fasta,
                              possible_juncs,
+                             possible_insertions,
+                             possible_deletions,
                              maps[reads].seg_maps,
                              spliced_seg_maps,
                              mapped_reads)
@@ -2085,7 +2176,7 @@ def prog_path(program):
 
 # FIXME: this should get set during the make dist autotools phase of the build
 def get_version():
-   return "1.1.4"
+   return "1.2.0"
 
 def main(argv=None):
     warnings.filterwarnings("ignore", "tmpnam is a potential security risk")
@@ -2146,12 +2237,22 @@ def main(argv=None):
             params.read_params = check_reads(params.read_params, reads_list)
             
         user_supplied_juncs = []
+        user_supplied_insertions = []
+        user_supplied_deletions = []
+
         if params.gff_annotation != None and params.find_GFF_juncs == True:
             (found_juncs, gtf_juncs) = get_gtf_juncs(params.gff_annotation)
             if found_juncs == True:
                 user_supplied_juncs.append(gtf_juncs)
         if params.raw_junctions != None:
             user_supplied_juncs.append(params.raw_junctions)
+
+        if params.raw_insertions != None:
+            user_supplied_insertions.append(params.raw_insertions)
+
+        if params.raw_deletions != None:
+            user_supplied_deletions.append(params.raw_deletions)
+
                 
         # Now start the time consuming stuff
         left_kept_reads = prep_reads(params,
@@ -2180,7 +2281,9 @@ def main(argv=None):
                                     params.segment_length,
                                     left_kept_reads,
                                     right_kept_reads,
-                                    user_supplied_juncs)
+                                    user_supplied_juncs,
+                                    user_supplied_insertions,
+                                    user_supplied_deletions)
                                     
         left_maps = mapping[left_kept_reads]
         #left_unmapped_reads = mapping[1]

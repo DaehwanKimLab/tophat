@@ -38,13 +38,15 @@
 #include "reads.h"
 
 #include "junctions.h"
+#include "insertions.h"
+#include "deletions.h"
 
 using namespace seqan;
 using namespace std;
 
 void print_usage()
 {
-    fprintf(stderr, "Usage:   long_spanning_reads <reads.fa/.fq> <possible_juncs1,...,possible_juncsN> <seg1.bwtout,...,segN.bwtout> [spliced_seg1.bwtout,...,spliced_segN.bwtout]\n");
+    fprintf(stderr, "Usage:   long_spanning_reads <reads.fa/.fq> <possible_juncs1,...,possible_juncsN> <possible_insertions1,...,possible_insertionsN> <possible_deletions1,...,possible_deletionsN> <seg1.bwtout,...,segN.bwtout> [spliced_seg1.bwtout,...,spliced_segN.bwtout]\n");
 }
 
 bool key_lt(const pair<uint32_t, HitsForRead>& lhs,
@@ -58,20 +60,20 @@ void get_seqs(istream& ref_stream,
 	      bool keep_seqs = true,
 	      bool strip_slash = false)
 {    
-    while(ref_stream.good() &&
-          !ref_stream.eof())
+  while(ref_stream.good() &&
+	!ref_stream.eof())
     {
-		RefSequenceTable::Sequence* ref_str = new RefSequenceTable::Sequence();
-        string name;
-        readMeta(ref_stream, name, Fasta());
-		string::size_type space_pos = name.find_first_of(" \t\r");
-		if (space_pos != string::npos)
-		{
-			name.resize(space_pos);
-		}
-		seqan::read(ref_stream, *ref_str, Fasta());
-		
-        rt.get_id(name, keep_seqs ? ref_str : NULL, 0);
+      RefSequenceTable::Sequence* ref_str = new RefSequenceTable::Sequence();
+      string name;
+      readMeta(ref_stream, name, Fasta());
+      string::size_type space_pos = name.find_first_of(" \t\r");
+      if (space_pos != string::npos)
+	{
+	  name.resize(space_pos);
+	}
+      seqan::read(ref_stream, *ref_str, Fasta());
+      
+      rt.get_id(name, keep_seqs ? ref_str : NULL, 0);
     }	
 }
 
@@ -154,11 +156,13 @@ void look_right_for_hit_group(ReadTable& unmapped_reads,
     }
 }
 
+
 // daehwan
 // should fix edit_dist for colorspace reads
 BowtieHit merge_sense_chain(RefSequenceTable& rt,
 			    const string& read_seq,
 			    std::set<Junction>& possible_juncs,
+			    std::set<Insertion>& possible_insertions,
 			    list<BowtieHit>& hit_chain)
 {
   uint32_t reference_id = hit_chain.front().ref_id();
@@ -183,9 +187,13 @@ BowtieHit merge_sense_chain(RefSequenceTable& rt,
   
   while(curr_hit != hit_chain.end() && prev_hit != hit_chain.end())
     {
+      /*
+       * Note that the gap size may be negative, since left() and right() return
+       * signed integers, this will be OK.
+       */
       int gap  = curr_hit->left() - prev_hit->right();
-      if (gap > 0 && 
-	  (gap < min_report_intron_length || gap > max_report_intron_length))
+      if (gap < -(int)max_insertion_length  || (gap > (int)max_deletion_length && 
+						(gap < min_report_intron_length || gap > max_report_intron_length)))
 	{
 	  return BowtieHit();
 	}
@@ -193,15 +201,152 @@ BowtieHit merge_sense_chain(RefSequenceTable& rt,
       ++prev_hit;
       ++curr_hit;
     }
-
+  
   prev_hit = hit_chain.begin();
   curr_hit = ++(hit_chain.begin());
   
   int curr_position = 1;
   while(curr_hit != hit_chain.end() && prev_hit != hit_chain.end())
     {
+      if (prev_hit->right() > curr_hit->left()){
+	if( prev_hit->right() - curr_hit->left() >= (int)max_insertion_length){
+	  return BowtieHit();
+	}
+	
+	/*
+	 * This code is assuming that the cigar strings end and start with a match
+	 * While segment alignments can actually end with an insertion or deletion, the hope
+	 * is that in those cases, the right and left ends of the alignments will correctly
+	 * line up, so we won't get to this bit of code
+	 */
+	if (prev_hit->cigar().back().opcode != MATCH || curr_hit->cigar().front().opcode != MATCH){
+	  return BowtieHit();
+	}
+	
+	if (prev_hit->antisense_splice() != curr_hit->antisense_splice()){
+	  /*
+	   * There is no way that we can splice these together into a valid
+	   * alignment
+	   */
+	  return BowtieHit();
+	}
+	
+	
+	std::set<Insertion>::iterator lb,ub;
+	/*
+	 * Note, this offset is determined by the min-anchor length supplied to
+	 * juncs_db, which is currently hard-coded at 3 in tophat.py
+	 * as this value determines what sort of read segments
+	 * should be able to align directly to the splice sequences
+	 */	
+	int left_boundary = prev_hit->right() - 4;
+	int right_boundary = curr_hit->left() + 4;
+	
+	/*
+	 * Create a dummy sequence to represent the maximum possible insertion
+	 */
+	std::string maxInsertedSequence = "";
+	maxInsertedSequence.resize(max_insertion_length,'A');
+	
+	lb = possible_insertions.upper_bound(Insertion(reference_id, left_boundary, ""));
+	ub = possible_insertions.upper_bound(Insertion(reference_id, right_boundary, maxInsertedSequence));	
+	
+	bool found_closure = false;
+	/*
+	 * Note that antisense_splice is the same for prev and curr
+	 */
+	bool antisense_closure = prev_hit->antisense_splice();
+	vector<CigarOp> new_cigar;
+	int new_left = -1;
+	
+	while(lb != ub && lb != possible_insertions.end()){
+	  /*
+	   * Only check to see if the length of the insertion
+	   * makes sense with respect to the distance between the 
+	   * segments. There is no check fo the actual seequence relative
+	   * to the putative insertion. This will work for low coverage regions
+	   * but in high coverage, there will eventually be the same insertion with
+	   * a different inserted sequence (due to sequencign errors), 
+	   * leading to multiple closures. On the bright side,
+	   * should enforce that all sequences have the same inserted sequence for the same
+	   * insertion. The best way to fix this would probably be to run some sort 
+	   * of consensus procedure on the insertions produced from segment_juncs.cpp before
+	   * they are used to create splice junctions.
+	   */
+	  if(((int)lb->sequence.size()) == (prev_hit->right() - curr_hit->left())){
+	    if (found_closure)
+	      {
+		fprintf(stderr, "Warning: multiple closures found for insertion read # %d\n", (int)insert_id);
+		return BowtieHit();
+	      }
+	    found_closure = true;
+	    new_left = prev_hit->left();
+	    new_cigar = prev_hit->cigar();
+	    
+	    /*
+	     * Need to make a new insert operation betwee the two match character that begin
+	     * and end the intersection of these two junction. Note that we necessarily assume
+	     * that this insertion can't span beyond the boundaries of these reads. That should
+	     * probably be better enforced somewhere 
+	     */
+	    
+	    new_cigar.back().length -= (prev_hit->right() - 1 - lb->left);
+	    new_cigar.push_back(CigarOp(INS, lb->sequence.size()));
+	    vector<CigarOp> new_right_cigar = curr_hit->cigar();
+	    new_right_cigar.front().length += (prev_hit->right() - 1 - lb->left - lb->sequence.size());				
+	    
+	    /*
+	     * Finish stitching together the new cigar string
+	     */	
+	    for (size_t c = 0; c < new_right_cigar.size(); ++c){
+	      new_cigar.push_back(new_right_cigar[c]);
+	    }
+	    
+	  }
+	  ++lb;
+	}
+
+	if (found_closure)
+	  {
+	    // If we got here, it means there's exactly one closure.
+	    bool end = false;
+	    BowtieHit merged_hit(reference_id,
+				 insert_id,
+				 new_left,
+				 new_cigar,
+				 false,
+				 antisense_closure,
+				 prev_hit->edit_dist() + curr_hit->edit_dist(),
+				 prev_hit->splice_mms() + curr_hit->splice_mms(),
+				 end);
+	    
+	    prev_hit = hit_chain.erase(prev_hit,++curr_hit);
+	    /*
+	     * prev_hit now points PAST the last element removed
+	     */
+	    prev_hit = hit_chain.insert(prev_hit, merged_hit);
+	    /*
+	     * merged_hit has been inserted before the old position of
+	     * prev_hit. New location of prev_hit is merged_hit
+	     */
+	    curr_hit = prev_hit;
+	    curr_hit++;
+	    continue;
+	  }
+	else
+	  {
+	    //fprintf (stderr, "Couldn't get sense closure for insertion read #%d\n", (int)insert_id);
+	    // If we get here, we couldn't even find a closure for the hits
+	    return BowtieHit();
+	  }
+      }
+      
       if (prev_hit->right() < curr_hit->left())
 	{
+	  
+	  if (curr_hit->left() - prev_hit->right() < (int)min_report_intron_length && curr_hit->left() - prev_hit->right() > (int)max_deletion_length)
+	    return BowtieHit();
+
 	  std::set<Junction>::iterator lb,ub;
 	  
 	  int left_boundary = prev_hit->right() - 4;
@@ -232,6 +377,7 @@ BowtieHit merge_sense_chain(RefSequenceTable& rt,
 		    {
 		      if (color)
 			{
+
 			  new_cmp_str = DnaString_to_string(seqan::infix(*ref_str, prev_hit->right() - 1, lb->left + 1));
 			  old_cmp_str = DnaString_to_string(seqan::infix(*ref_str, curr_hit->left() - 1, lb->right));
 			  
@@ -308,8 +454,12 @@ BowtieHit merge_sense_chain(RefSequenceTable& rt,
 		    new_cigar.back().length = new_left_back_len;					  
 		  else
 		    new_cigar.pop_back();
-		  
-		  new_cigar.push_back(CigarOp(REF_SKIP, lb->right - lb->left - 1));
+
+		  if((lb->right - lb->left - 1) <= max_deletion_length){
+		    new_cigar.push_back(CigarOp(DEL, lb->right - lb->left - 1));
+		  }else{
+		    new_cigar.push_back(CigarOp(REF_SKIP, lb->right - lb->left - 1));
+		  }
 		  new_right_cig.front().length = new_right_front_len;
 		  size_t c = new_right_front_len > 0 ? 0 : 1;
 		  for (; c < new_right_cig.size(); ++c)
@@ -359,7 +509,20 @@ BowtieHit merge_sense_chain(RefSequenceTable& rt,
     {
       num_mismatches += s->edit_dist();
       num_splice_mms += s->splice_mms();
-      if (!s->contiguous())
+
+      /*
+       * Check whether the sequence contains any reference skips. Previously,
+       * this was just a check to see whether the sequence was contiguous; however
+       * we don't want to count an indel event as a splice
+       */
+      bool containsSplice = false;
+      for(vector<CigarOp>::const_iterator itr = s->cigar().begin(); itr != s->cigar().end(); ++itr){
+	if(itr->opcode == REF_SKIP){
+	  containsSplice = true;
+	  break;
+	}
+      } 
+      if (containsSplice)
 	{
 	  if (s->antisense_splice())
 	    {
@@ -382,13 +545,22 @@ BowtieHit merge_sense_chain(RefSequenceTable& rt,
       else
 	{
 	  CigarOp& last = long_cigar.back();
-	  last.length += cigar[0].length;
-	  
-	  for (size_t b = 1; b < cigar.size(); ++b)
-	    {
-	      long_cigar.push_back(cigar[b]);
-	      
-	    }
+	  /*
+	   * If necessary, merge the back and front
+	   * cigar operations
+	   */
+	  if(last.opcode == cigar[0].opcode){
+	    last.length += cigar[0].length;
+	    for (size_t b = 1; b < cigar.size(); ++b)
+	      {
+		long_cigar.push_back(cigar[b]);
+	      }
+	  }else{
+	    for(size_t b = 0; b < cigar.size(); ++b)
+	      {
+		long_cigar.push_back(cigar[b]);
+	      }
+	  }
 	}
     }
   
@@ -419,6 +591,7 @@ BowtieHit merge_sense_chain(RefSequenceTable& rt,
 BowtieHit merge_antisense_chain(RefSequenceTable& rt,
 				const string& read_seq,
 				std::set<Junction>& possible_juncs,
+				std::set<Insertion>& possible_insertions,
 				list<BowtieHit>& hit_chain)
 {
   assert(hit_chain.size() > 1);
@@ -447,8 +620,8 @@ BowtieHit merge_antisense_chain(RefSequenceTable& rt,
   while(curr_hit != hit_chain.end() && prev_hit != hit_chain.end())
     {
       int gap  = prev_hit->left() - curr_hit->right();
-      if (gap > 0 && 
-	  (gap < min_report_intron_length || gap > max_report_intron_length))
+      if (gap < -(int)max_insertion_length || ( gap > (int)max_deletion_length && 
+						(gap < min_report_intron_length || gap > max_report_intron_length)))
 	{
 	  return BowtieHit();
 	}
@@ -463,9 +636,138 @@ BowtieHit merge_antisense_chain(RefSequenceTable& rt,
   int curr_position = 1;
   while(curr_hit != hit_chain.end() && prev_hit != hit_chain.end())
     {
+      /*
+       * Check for a possible insertion on hte boundary of these semgented alignments
+       * Note that the logic here should be very similar to the logic in merge_sense_chain
+       * excpet that prev_hit is on the right and curr_hit is on the left
+       * <left------curr_hit---right><left----prev_hit-----right>
+       */
+      if (curr_hit->right() > prev_hit->left()){
+	if( curr_hit->right() - prev_hit->left() >= (int)max_insertion_length){
+	  return BowtieHit();
+	}
+	
+	/*
+	 * This code is assuming that the cigar strings end and start with a match
+	 */
+	if (curr_hit->cigar().back().opcode != MATCH || prev_hit->cigar().front().opcode != MATCH){
+	  return BowtieHit();
+	}
+	
+	if (prev_hit->antisense_splice() != curr_hit->antisense_splice()){
+	  /*
+	   * There is no way that we can splice these together into a valid
+	   * alignment
+	   */
+	  return BowtieHit();
+	}
+	
+	
+	std::set<Insertion>::iterator lb,ub;
+	/*
+	 * Note, this offset is determined by the min-anchor length supplied to
+	 * juncs_db, which is currently hard-coded at 3 in tophat.py
+	 * as this value determines what sort of read segments
+	 * should be able to align directly to the splice sequences
+	 */	
+	int left_boundary = curr_hit->right() - 4;
+	int right_boundary = prev_hit->left() + 4;
+	
+	/*
+	 * Create a dummy sequence to represent the maximum possible insertion
+	 */
+	std::string maxInsertedSequence = "";
+	maxInsertedSequence.resize(max_insertion_length,'A');
+	
+	lb = possible_insertions.upper_bound(Insertion(reference_id, left_boundary, ""));
+	ub = possible_insertions.upper_bound(Insertion(reference_id, right_boundary, maxInsertedSequence));	
+	
+	bool found_closure = false;
+	/*
+	 * Note that antisense_splice is the same for prev and curr
+	 */
+	bool antisense_closure = curr_hit->antisense_splice();
+	vector<CigarOp> new_cigar;
+	int new_left = -1;
+	
+	while(lb != ub && lb != possible_insertions.end()){
+	  /*
+	   * Only check to see if the length of the insertion
+	   * makes sense with respect to the distance between the 
+	   * segments. There is no check fo the actual seequence relative
+	   * to the putative insertion. This will work for low coverage regions
+	   * but in high coverage, there will eventually be the same insertion with
+	   * a different inserted sequence, leading to multiple closures. On the bright side,
+	   * should enforce that all sequences have the same inserted sequence for the same
+	   * insertion.
+	   */
+	  if(((int)lb->sequence.size()) == (curr_hit->right() - prev_hit->left())){
+	    if (found_closure)
+	      {
+		fprintf(stderr, "Warning: multiple closures found for insertion read # %d\n", (int)insert_id);
+		return BowtieHit();
+	      }
+	    found_closure = true;
+	    new_left = curr_hit->left();
+	    new_cigar = curr_hit->cigar();
+	    
+	    /*
+	     * Need to make a new insert operation betwee the two match character that begin
+	     * and end the intersection of these two junction. Note that we necessarily assume
+	     * that this insertion can't span beyond the boundaries of these reads. That should
+	     * probably be better enforced somewhere 
+	     */
+	    
+	    new_cigar.back().length -= (curr_hit->right() - 1 - lb->left);
+	    new_cigar.push_back(CigarOp(INS, lb->sequence.size()));
+	    vector<CigarOp> new_right_cigar = prev_hit->cigar();
+	    new_right_cigar.front().length += (curr_hit->right() - 1 - lb->left - lb->sequence.size());				
+	    
+	    /*
+	     * Finish stitching together the new cigar string
+	     */	
+	    for (size_t c = 0; c < new_right_cigar.size(); ++c){
+	      new_cigar.push_back(new_right_cigar[c]);
+	    }
+	    
+	  }
+	  ++lb;
+	}
+	
+	if (found_closure)
+	  {
+	    // If we got here, it means there's exactly one closure.
+	    bool end = false;
+	    BowtieHit merged_hit(reference_id,
+				 insert_id,
+				 new_left,
+				 new_cigar,
+				 true,
+				 antisense_closure,
+				 prev_hit->edit_dist() + curr_hit->edit_dist(),
+				 prev_hit->splice_mms() + curr_hit->splice_mms(),
+				 end);
+				
+	    prev_hit = hit_chain.erase(prev_hit,++curr_hit);
+	    hit_chain.insert(prev_hit, merged_hit);
+	    curr_hit = prev_hit;
+	    curr_hit++;
+	    continue;
+	  }
+	else
+	  {
+	    //fprintf (stderr, "Couldn't get sense closure for insertion read #%d\n", (int)insert_id);
+	    // If we get here, we couldn't even find a closure for the hits
+	    return BowtieHit();
+	  }
+      }
+      
       if (curr_hit->right() < prev_hit->left())
 	{
-	  std::set<Junction>::iterator lb,ub;
+	  if (prev_hit->left() - curr_hit->right() < (int)min_report_intron_length && (prev_hit->left() - curr_hit->right()) > (int)max_deletion_length)
+	    return BowtieHit();
+	  
+	  std::set<Junction>::iterator lb, ub;
 	  
 	  int left_boundary = curr_hit->right() - 4;
 	  int right_boundary = prev_hit->left() + 4;
@@ -573,7 +875,17 @@ BowtieHit merge_antisense_chain(RefSequenceTable& rt,
 		  else
 		    new_cigar.pop_back();
 				  
-		  new_cigar.push_back(CigarOp(REF_SKIP, lb->right - lb->left - 1));
+		  /*
+		   * FIXME, currently just differentiating between a deletion and a 
+		   * reference skip based on length. However, would probably be better
+		   * to denote the difference explicitly, this would allow the user
+		   * to supply their own (very large) deletions
+		   */
+		  if((lb->right - lb->left - 1) <= max_deletion_length)
+		    new_cigar.push_back(CigarOp(DEL, lb->right - lb->left - 1));
+		  else
+		    new_cigar.push_back(CigarOp(REF_SKIP, lb->right - lb->left - 1));
+
 		  new_left_cig.front().length = new_prev_len;
 		  
 		  size_t c = new_prev_len > 0 ? 0 : 1;
@@ -598,11 +910,20 @@ BowtieHit merge_antisense_chain(RefSequenceTable& rt,
 				   prev_hit->edit_dist() + curr_hit->edit_dist() + (color ? 0 : new_diff_mismatches),
 				   prev_hit->splice_mms() + curr_hit->splice_mms(),
 				   end);
-	      
 	      prev_hit = hit_chain.erase(prev_hit,++curr_hit);
-	      hit_chain.insert(prev_hit, merged_hit);
+	      /*
+	       * Prev hit now points PAST the last element deleted
+	       */
+	      prev_hit = hit_chain.insert(prev_hit, merged_hit);
+	      /*
+	       * merged_hit was inserted BEFORE the old location of prev hit.
+	       * prev_hit was updated to be the new location of merged_hit
+	       */
 	      curr_hit = prev_hit;
 	      curr_hit++;
+	      /*
+	       * curr_hit is the entry past the newly inserted bowtie hit
+	       */
 	      continue;
 	    }
 	  else
@@ -614,7 +935,7 @@ BowtieHit merge_antisense_chain(RefSequenceTable& rt,
       ++curr_hit;
       ++curr_position;
     }
-  
+
   bool saw_antisense_splice = false;
   bool saw_sense_splice = false;
   vector<CigarOp> long_cigar;
@@ -624,7 +945,20 @@ BowtieHit merge_antisense_chain(RefSequenceTable& rt,
     {
       num_mismatches += s->edit_dist();
       num_splice_mms += s->splice_mms();
-      if (!s->contiguous())
+      
+      /*
+       * Check whether the sequence contains any reference skips. Previously,
+       * this was just a check to see whether the sequence was contiguous; however
+       * we don't want to count a deletion event as a splice
+       */
+      bool containsSplice = false;
+      for(vector<CigarOp>::const_iterator itr = s->cigar().begin(); itr != s->cigar().end(); ++itr){
+	if(itr->opcode == REF_SKIP){
+	  containsSplice = true;
+	  break;
+	}
+      } 
+      if (containsSplice)
 	{
 	  if (s->antisense_splice())
 	    {
@@ -647,11 +981,22 @@ BowtieHit merge_antisense_chain(RefSequenceTable& rt,
       else
 	{
 	  CigarOp& last = long_cigar.back();
-	  last.length += cigar[0].length;
-	  for (size_t b = 1; b < cigar.size(); ++b)
-	    {
-	      long_cigar.push_back(cigar[b]);
-	    }
+	  /*
+	   * If necessary, merge the back and front
+	   * cigar operations
+	   */
+	  if(last.opcode == cigar[0].opcode){
+	    last.length += cigar[0].length;
+	    for (size_t b = 1; b < cigar.size(); ++b)
+	      {
+		long_cigar.push_back(cigar[b]);
+	      }
+	  }else{
+	    for(size_t b = 0; b < cigar.size(); ++b)
+	      {
+		long_cigar.push_back(cigar[b]);
+	      }
+	  }
 	}
     }
   
@@ -684,16 +1029,39 @@ int gap_too_short = 0;
 bool valid_hit(const BowtieHit& bh)
 {
 	if (bh.insert_id())
-	{		
-		// validate the cigar chain - no gaps shorter than an intron, etc.
-		for (size_t i = 0; i < bh.cigar().size(); ++i)
-		{
-			const CigarOp& cig = bh.cigar()[i];
-			if (cig.opcode == REF_SKIP && cig.length < (uint64_t)min_report_intron_length)
-			{
-				gap_too_short++;
+	{	
+		/*	
+		 * validate the cigar chain - no gaps shorter than an intron, etc.
+		 * also,
+		 * 	-Don't start or end with an indel or refskip
+		 *	-Only a match operation is allowed is allowed
+		 *	 adjacent to an indel or refskip
+		 *      -Indels should confrom to length restrictions
+		 */
+		const CigarOp* prevCig = &(bh.cigar()[0]); 
+		const CigarOp* currCig = &(bh.cigar()[1]);
+		for (size_t i = 1; i < bh.cigar().size(); ++i){
+			currCig = &(bh.cigar()[i]);
+			if(currCig->opcode != MATCH && prevCig->opcode != MATCH){
 				return false;
 			}
+			if(currCig->opcode == INS){
+				if(currCig->length > max_insertion_length){
+					return false;
+				}
+			}
+			if(currCig->opcode == DEL){
+				if(currCig->length > max_deletion_length){
+					return false;
+				}
+			}
+			if(currCig->opcode == REF_SKIP){
+				if(currCig->length < (uint64_t)min_report_intron_length){
+					gap_too_short++;
+					return false;
+				}
+			}
+			prevCig = currCig;
 		}
 		if (bh.cigar().front().opcode != MATCH || 
 			bh.cigar().back().opcode != MATCH /* ||
@@ -716,6 +1084,7 @@ bool valid_hit(const BowtieHit& bh)
 void merge_segment_chain(RefSequenceTable& rt,
 			 const string& read_seq,
 			 std::set<Junction>& possible_juncs,
+			 std::set<Insertion>& possible_insertions,
 			 vector<BowtieHit>& hits,
 			 vector<BowtieHit>& merged_hits)
 {
@@ -731,11 +1100,11 @@ void merge_segment_chain(RefSequenceTable& rt,
 
 		if (hit_chain.front().antisense_align())
 		{
-		  bh = merge_antisense_chain(rt, read_seq, possible_juncs, hit_chain);
+		  bh = merge_antisense_chain(rt, read_seq, possible_juncs, possible_insertions, hit_chain);
 		}
 		else
 		{
-		  bh = merge_sense_chain(rt, read_seq, possible_juncs, hit_chain);
+		  bh = merge_sense_chain(rt, read_seq, possible_juncs, possible_insertions, hit_chain);
 		}
 	}
 	else
@@ -743,8 +1112,6 @@ void merge_segment_chain(RefSequenceTable& rt,
 		bh = hits[0];
 	}
 	
-//	if (valid_hit(bh))
-//		print_hit(stdout, read_name, bh, ref_name, read_seq, read_quals);
 	if (valid_hit(bh))
 	{
 		merged_hits.push_back(bh);
@@ -753,7 +1120,8 @@ void merge_segment_chain(RefSequenceTable& rt,
 
 bool dfs_seg_hits(RefSequenceTable& rt,
 		  const string& read_seq,
-		  std::set<Junction>& possible_juncs, 
+		  std::set<Junction>& possible_juncs,
+		  std::set<Insertion>& possible_insertions, 
 		  vector<HitsForRead>& seg_hits_for_read,
 		  size_t curr,
 		  vector<BowtieHit>& seg_hit_stack,
@@ -768,6 +1136,7 @@ bool dfs_seg_hits(RefSequenceTable& rt,
 		{
 			BowtieHit& bh = seg_hits_for_read[curr].hits[i];
 			BowtieHit& back = seg_hit_stack.back();
+			
 			bool consistent_sense = bh.antisense_align() == back.antisense_align();
 			bool same_contig = bh.ref_id() == back.ref_id();
 			
@@ -778,10 +1147,10 @@ bool dfs_seg_hits(RefSequenceTable& rt,
 			{
 				if (bh.antisense_align())
 				{
-					int bh_r = bh.right();
-					int back_left = seg_hit_stack.back().left();
-					if (bh_r + max_report_intron_length >= back_left &&
-						back_left >= bh_r)
+					unsigned int bh_r = bh.right();
+					unsigned int back_left = seg_hit_stack.back().left();
+					if ((bh_r + max_report_intron_length >= back_left &&
+						back_left >= bh_r) || (back_left + max_insertion_length >= bh_r && back_left < bh_r))
 					{
 						// these hits are compatible, so push bh onto the 
 						// stack, recurse, and pop it when done.
@@ -789,6 +1158,7 @@ bool dfs_seg_hits(RefSequenceTable& rt,
 						bool success = dfs_seg_hits(rt,
 									    read_seq,
 									    possible_juncs,
+									    possible_insertions,
 									    seg_hits_for_read, 
 									    curr + 1,
 									    seg_hit_stack,
@@ -801,10 +1171,11 @@ bool dfs_seg_hits(RefSequenceTable& rt,
 				}
 				else
 				{
-					int bh_l = bh.left();
-					int back_right = seg_hit_stack.back().right();
-					if (back_right + max_report_intron_length >= bh_l  &&
-						bh_l >= back_right)
+					unsigned int bh_l = bh.left();
+
+					unsigned int back_right = seg_hit_stack.back().right();
+					if ((back_right + max_report_intron_length >= bh_l  &&
+						bh_l >= back_right) || (bh_l + max_insertion_length >= back_right && bh_l < back_right))
 					{
 						// these hits are compatible, so push bh onto the 
 						// stack, recurse, and pop it when done.
@@ -812,10 +1183,12 @@ bool dfs_seg_hits(RefSequenceTable& rt,
 						bool success = dfs_seg_hits(rt,
 									    read_seq,
 									    possible_juncs,
+									    possible_insertions,
 									    seg_hits_for_read, 
 									    curr + 1,
 									    seg_hit_stack,
 									    joined_hits);
+
 						if (success)
 							join_success = true;
 						
@@ -830,9 +1203,10 @@ bool dfs_seg_hits(RefSequenceTable& rt,
 	  merge_segment_chain(rt,
 			      read_seq,
 			      possible_juncs,
+			      possible_insertions,
 			      seg_hit_stack,
 			      joined_hits);
-		return join_success = true;
+	  return join_success = true;
 	}
 	return join_success;
 }
@@ -840,6 +1214,7 @@ bool dfs_seg_hits(RefSequenceTable& rt,
 bool join_segments_for_read(RefSequenceTable& rt,
 			    const string& read_seq,
 			    std::set<Junction>& possible_juncs,
+			    std::set<Insertion>& possible_insertions,
 			    vector<HitsForRead>& seg_hits_for_read,
 			    vector<BowtieHit>& joined_hits)
 {	
@@ -853,6 +1228,7 @@ bool join_segments_for_read(RefSequenceTable& rt,
       bool success = dfs_seg_hits(rt,
 				  read_seq,
 				  possible_juncs,
+				  possible_insertions,
 				  seg_hits_for_read, 
 				  1, 
 				  seg_hit_stack,
@@ -865,7 +1241,7 @@ bool join_segments_for_read(RefSequenceTable& rt,
   return join_success;
 }
 
-void join_segment_hits(std::set<Junction>& possible_juncs, 
+void join_segment_hits(std::set<Junction>& possible_juncs, std::set<Insertion>& possible_insertions, 
 		       ReadTable& unmapped_reads,
 		       RefSequenceTable& rt,
 		       FILE* reads_file,
@@ -995,6 +1371,7 @@ void join_segment_hits(std::set<Junction>& possible_juncs,
 	      join_segments_for_read(rt,
 				     read_seq,
 				     possible_juncs,
+				     possible_insertions,
 				     seg_hits_for_read, 
 				     joined_hits);
 	      
@@ -1026,6 +1403,8 @@ void join_segment_hits(std::set<Junction>& possible_juncs,
 
 void driver(istream& ref_stream,
 	    vector<FILE*> possible_juncs_files,
+	    vector<FILE*>& possible_insertions_files,
+	    vector<FILE*>& possible_deletions_files,
 	    vector<FILE*>& spliced_seg_files,
 	    vector<FILE*>& seg_files,
 	    FILE* reads_file)
@@ -1082,21 +1461,6 @@ void driver(istream& ref_stream,
 		
 		HitStream hs(spliced_seg_files[i], fac, true, false, false, need_seq, need_qual);
 		spliced_hits.push_back(hs);
-		
-		//HitsForRead hit_group;
-
-//		spliced_hits.push_back(vector<pair<uint32_t, HitsForRead> >());
-//		while (hs.next_read_hits(hit_group))
-//		{
-//			if (hit_group.insert_id)
-//			{
-//				uint32_t key  = it.observation_order(hit_group.insert_id);
-//				spliced_hits[i].push_back(make_pair(key,hit_group));
-//			}
-//		}
-		
-		//sort(spliced_hits[i].begin(), spliced_hits[i].end(), key_lt);
-		//fprintf(stderr, "%d items\n", (int)spliced_hits[i].size());
 			
 	}
 	fprintf(stderr, "done\n");
@@ -1122,8 +1486,78 @@ void driver(istream& ref_stream,
 		}
 	}
 	fprintf(stderr, "done\n");
+
 	
-	join_segment_hits(possible_juncs, it, rt, reads_file, contig_hits, spliced_hits);
+	fprintf(stderr, "Loading deletions...");
+	
+	for (size_t i = 0; i < possible_deletions_files.size(); ++i)
+	{
+		char splice_buf[2048];
+		FILE* deletions_file = possible_deletions_files[i];
+		if(!deletions_file){
+			continue;
+		} 
+		while(fgets(splice_buf, 2048, deletions_file)){
+			char* nl = strrchr(splice_buf, '\n');
+			char* buf = splice_buf;
+			if (nl) *nl = 0;
+			
+			char* ref_name = strsep((char**)&buf, "\t");
+			char* scan_left_coord = strsep((char**)&buf, "\t");
+			char* scan_right_coord = strsep((char**)&buf, "\t");
+
+			if (!scan_left_coord || !scan_right_coord)
+			{
+				fprintf(stderr,"Error: malformed deletion coordinate record\n");
+				exit(1);
+			}
+
+			uint32_t ref_id = rt.get_id(ref_name,NULL,0);
+			uint32_t left_coord = atoi(scan_left_coord);
+			uint32_t right_coord = atoi(scan_right_coord);
+			possible_juncs.insert((Junction)Deletion(ref_id, left_coord - 1,right_coord, false));
+		}
+	}
+	fprintf(stderr, "done\n");
+
+
+	/*
+	 * Read the insertions from the list of insertion
+	 * files into a set
+	 */
+	std::set<Insertion> possible_insertions;
+	for (size_t i=0; i < possible_insertions_files.size(); ++i)
+	{
+		char splice_buf[2048];	
+		FILE* insertions_file = possible_insertions_files[i];
+		if(!insertions_file){
+			continue;
+		} 
+		while(fgets(splice_buf, 2048, insertions_file)){
+			char* nl = strrchr(splice_buf, '\n');
+			char* buf = splice_buf;
+			if (nl) *nl = 0;
+			
+			char* ref_name = strsep((char**)&buf, "\t");
+			char* scan_left_coord = strsep((char**)&buf, "\t");
+			char* scan_right_coord = strsep((char**)&buf, "\t");
+			char* scan_sequence = strsep((char**)&buf, "\t");
+
+
+			if (!scan_left_coord || !scan_sequence || !scan_right_coord)
+			{
+				fprintf(stderr,"Error: malformed insertion coordinate record\n");
+				exit(1);
+			}
+
+			uint32_t ref_id = rt.get_id(ref_name,NULL,0);
+			uint32_t left_coord = atoi(scan_left_coord);
+			std::string sequence(scan_sequence);
+			possible_insertions.insert(Insertion(ref_id, left_coord, sequence));
+		}
+	}
+	
+	join_segment_hits(possible_juncs, possible_insertions, it, rt, reads_file, contig_hits, spliced_hits);
 
 	for (size_t fac = 0; fac < factories.size(); ++fac)
 	{
@@ -1146,7 +1580,6 @@ int main(int argc, char** argv)
       return 1;
     }
 
-  // daehwan
   string ref_file_name = argv[optind++];
   
   if(optind >= argc)
@@ -1163,7 +1596,7 @@ int main(int argc, char** argv)
       print_usage();
       return 1;
     }
-  
+
   string juncs_file_list = argv[optind++];
   
   if(optind >= argc)
@@ -1171,24 +1604,38 @@ int main(int argc, char** argv)
       print_usage();
       return 1;
     }
-
-  ifstream ref_stream(ref_file_name.c_str(), ifstream::in);
-  if (!ref_stream.good())
-    {
-      fprintf(stderr, "Error: cannot open %s for reading\n",
-	      ref_file_name.c_str());
-      exit(1);
-    }
+  
+  string insertions_file_list = argv[optind++];
+  if(optind >= argc)
+      {
+	print_usage();
+	return 1;
+      }
     
+    string deletions_file_list = argv[optind++];
+
+    if(optind >= argc)
+      {
+	print_usage();
+	return 1;
+      }
+    
+   
   string segment_file_list = argv[optind++];
   string spliced_segment_file_list;
   if(optind < argc)
     {
       spliced_segment_file_list = argv[optind++];
     }
-  
-  fprintf(stderr, "Opening %s for reading\n",
-	  reads_file_name.c_str());
+
+    ifstream ref_stream(ref_file_name.c_str(), ifstream::in);
+  if (!ref_stream.good())
+    {
+      fprintf(stderr, "Error: cannot open %s for reading\n",
+	      ref_file_name.c_str());
+      exit(1);
+    }
+
   FILE* reads_file = fopen(reads_file_name.c_str(), "r");
   if (!reads_file)
     {
@@ -1213,11 +1660,54 @@ int main(int argc, char** argv)
         }
       juncs_files.push_back(juncs_file);
     }
-  
-  vector<string> segment_file_names;
-  vector<FILE*> segment_files;
-  tokenize(segment_file_list, ",",segment_file_names);
-  for (size_t i = 0; i < segment_file_names.size(); ++i)
+
+    /*
+     * Read in the deletion file names
+     */
+    vector<string> deletions_file_names;
+    vector<FILE*> deletions_files;
+    tokenize(deletions_file_list, ",",deletions_file_names);
+    for (size_t i = 0; i < deletions_file_names.size(); ++i)
+    {
+		fprintf(stderr, "Opening %s for reading\n",
+			deletions_file_names[i].c_str());
+        FILE* deletions_file = fopen(deletions_file_names[i].c_str(), "r");
+        if (deletions_file == NULL)
+        {
+            fprintf(stderr, "Warning: cannot open %s for reading\n",
+                    deletions_file_names[i].c_str());
+            continue;
+        }
+        deletions_files.push_back(deletions_file);
+    }
+
+    /*
+     * Read in the list of filenames that contain
+     * insertion coordinates
+     */
+	    
+    vector<string> insertions_file_names;
+    vector<FILE*> insertions_files;
+    tokenize(insertions_file_list, ",",insertions_file_names);
+    for (size_t i = 0; i < insertions_file_names.size(); ++i)
+    {
+		fprintf(stderr, "Opening %s for reading\n",
+						insertions_file_names[i].c_str());
+        FILE* insertions_file = fopen(insertions_file_names[i].c_str(), "r");
+        if (insertions_file == NULL)
+        {
+            fprintf(stderr, "Warning: cannot open %s for reading\n",
+                    insertions_file_names[i].c_str());
+            continue;
+        }
+        insertions_files.push_back(insertions_file);
+    }
+
+
+    vector<string> segment_file_names;
+    vector<FILE*> segment_files;
+    tokenize(segment_file_list, ",",segment_file_names);
+    for (size_t i = 0; i < segment_file_names.size(); ++i)
     {
       fprintf(stderr, "Opening %s for reading\n",
 	      segment_file_names[i].c_str());
@@ -1257,7 +1747,7 @@ int main(int argc, char** argv)
 	}
     }
   
-  driver(ref_stream, juncs_files, spliced_segment_files, segment_files, reads_file);
+  driver(ref_stream, juncs_files, insertions_files, deletions_files, spliced_segment_files, segment_files, reads_file);
   
   return 0;
 }
