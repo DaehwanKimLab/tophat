@@ -2394,7 +2394,6 @@ void find_insertions_and_deletions(RefSequenceTable& rt,
 		std::set<Deletion>& deletions,
 		std::set<Insertion>& insertions){
 
-
 	if(hits_for_read.empty()){
 			return;
 	}
@@ -3485,7 +3484,7 @@ void driver(istream& ref_stream,
 	
 	if (left_seg_files.size() > 1)
 	{
-		fprintf( stderr, "Loading left segment hits...");
+		fprintf( stderr, "Loading left segment hits...\n");
 		process_segment_hits(rt,
 				     left_reads_file,
 				     left_reads_file_for_indel_discovery,
@@ -3501,7 +3500,7 @@ void driver(istream& ref_stream,
 	
 	if (right_seg_files.size() > 1)
 	{
-		fprintf( stderr, "Loading right segment hits...");
+		fprintf( stderr, "Loading right segment hits...\n");
 		process_segment_hits(rt,
 				     right_reads_file,
 				     right_reads_file_for_indel_discovery,
