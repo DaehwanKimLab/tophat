@@ -45,6 +45,15 @@ void reverse_complement(string& seq);
 string convert_color_to_bp(const string& color);
 string convert_bp_to_color(const string& bp, bool remove_primer = false);
 
+/*
+  This is a dynamic programming to decode a colorspace read, which is from BWA paper.
+
+  Heng Li and Richard Durbin
+  Fast and accurate short read alignment with Burrows–Wheeler transform
+ */
+void BWA_decode(const string& color, const string& qual, const string& ref, string& decode);
+
+  
 template <class Type>
 string DnaString_to_string(const Type& dnaString)
 {

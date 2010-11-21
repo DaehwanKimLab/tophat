@@ -249,6 +249,20 @@ string convert_color_to_bp(const string& color)
 
 #define check_color(b1, b2, c1, c2) ((b1 == c1 && b2 == c2) || (b1 == c2 && b2 == c1))
 
+#define two_bps_to_color(b1, b2, c)				      \
+  if (((b1) == 'A' || (b1) == 'G' || (b1) == 'C' || (b1) == 'T') && (b1) == (b2)) \
+  c = '0'; \
+  else if (check_color((b1), (b2), 'A', 'C') || check_color((b1), (b2), 'G', 'T')) \
+  c = '1'; \
+  else if (check_color((b1), (b2), 'A', 'G') || check_color((b1), (b2), 'C', 'T')) \
+  c = '2'; \
+  else if (check_color((b1), (b2), 'A', 'T') || check_color((b1), (b2), 'C', 'G')) \
+  c = '3'; \
+  else \
+  c = '4';
+ 
+
+// daehwan - this this out
 string convert_bp_to_color(const string& bp, bool remove_primer)
 {
   if (bp.length() <= 1)
@@ -262,22 +276,110 @@ string convert_bp_to_color(const string& bp, bool remove_primer)
   for (string::size_type i = 1; i < bp.length(); ++i)
     {
       char next = toupper(bp[i]);
-      
-      if ((base == 'A' || base == 'G' || base == 'C' || base == 'T') && base == next)
-	color.push_back('0');
-      else if (check_color(base, next, 'A', 'C') || check_color(base, next, 'G', 'T'))
-	color.push_back('1');
-      else if (check_color(base, next, 'A', 'G') || check_color(base, next, 'C', 'T'))
-	color.push_back('2');
-      else if (check_color(base, next, 'A', 'T') || check_color(base, next, 'C', 'G'))
-	color.push_back('3');
-      else
-	color.push_back('4');
+
+      char c = '0';
+      two_bps_to_color(base, next, c);
+      color.push_back(c);
 
       base = next;
     }
 
   return color;
+}
+
+/*
+ */
+void BWA_decode(const string& color, const string& qual, const string& ref, string& decode)
+{
+  assert(color.length() == ref.length() - 1);
+  
+  const size_t max_length = 256;
+  const unsigned int max_value = max_length * 0xff;
+  size_t length = color.length();
+  if (length < 1 || length + 1 > max_length)
+    {
+      return;
+    }
+
+  unsigned int f[max_length * 4];
+  char ptr[max_length * 4];
+
+  unsigned int q_prev = 0;
+  for (unsigned int i = 0; i < length + 1; ++i)
+    {
+      unsigned int q = (unsigned int) (qual.length() <= i ? 'I' : qual[i]) - 33;
+      for (unsigned int j = 0; j < 4; ++j)
+	{
+	  size_t i_j = i * 4 + j;
+	  if (i == 0)
+	    {
+	      f[i_j] = "ACGT"[j] == ref[i] ? 0 : q;
+	      ptr[i_j] = 4;
+	      continue;
+	    }
+
+	  f[i_j] = max_value;
+	  char base = "ACGT"[j];
+	  for (unsigned int k = 0; k < 4; ++k)
+	    {
+	      char base_prev = "ACGT"[k];
+	      char ref_color;
+	      two_bps_to_color(base_prev, base, ref_color);
+
+	      char base_prev_prev = "ACGTN"[ptr[(i-1)*4 + k]];
+	      char ref_color_prev;
+	      two_bps_to_color(base_prev_prev, base_prev, ref_color_prev);
+
+	      char color_curr = color[i-1];
+	      char color_prev = i >= 2 ? color[i-2] : '4';	      
+
+	      int q_hat = 0;
+	      if (color_prev == ref_color_prev && color_prev != '4')
+		{
+		  if (color_curr == ref_color)
+		    q_hat = q + q_prev;
+		  else
+		    q_hat = q_prev - q;
+		}
+	      else if (color_curr == ref_color)
+		{
+		  q_hat = q - q_prev;
+		}
+
+	      unsigned int f_k = f[(i-1) * 4 + k] +
+		(base == ref[i] ? 0 : q_hat) +
+		(color_curr == ref_color ? 0 : q);
+
+	      if (f_k < f[i_j])
+		{
+		  f[i_j] = f_k;
+		  ptr[i_j] = k;
+		}
+	    }
+	}
+
+      q_prev = q;
+    }
+
+  unsigned int min_index = 0;
+  unsigned int min_f = f[length * 4];
+  for (unsigned int i = 1; i < 4; ++i)
+    {
+      unsigned int temp_f = f[length * 4 + i];
+      if (temp_f < min_f)
+	{
+	  min_f = temp_f;
+	  min_index = i;
+	}
+    }
+
+  decode.resize(length + 1);
+  decode[length] = "ACGT"[min_index];
+  for (unsigned int i = length; i > 0; --i)
+    {
+      min_index = ptr[i * 4 + min_index];
+      decode[i-1] = "ACGT"[min_index];
+    }
 }
 
 bool get_read_from_stream(uint64_t insert_id,
@@ -289,45 +391,41 @@ bool get_read_from_stream(uint64_t insert_id,
 			  char read_alt_name [], 
 			  char read_qual [])
 {
-	
-	Read read;
-	FLineReader fr(reads_file);
-	//while(!feof(reads_file))
-    while(!fr.isEof())
+  Read read;
+  FLineReader fr(reads_file);
+  while(!fr.isEof())
+    {
+      read.clear();
+      
+      // Get the next read from the file
+      if (!next_fasta_record(fr, read.name, read.seq, reads_format))
+	break;
+      
+      if (reads_format == FASTQ)
 	{
-		read.clear();
+	  if (!next_fastq_record(fr, read.seq, read.alt_name, read.qual, reads_format))
+	    break;
+	}
+      
+      
+      if (strip_slash)
+	{
+	  string::size_type slash = read.name.rfind("/");
+	  if (slash != string::npos)
+	    read.name.resize(slash);
+	}
+      
+      if ((uint64_t)atoi(read.name.c_str()) == insert_id)
+	{
+	  if (read_name) strcpy(read_name, read.name.c_str());
+	  if (read_seq) strcpy(read_seq, read.seq.c_str());
+	  if (read_alt_name) strcpy(read_alt_name, read.alt_name.c_str());
+	  if (read_qual) strcpy(read_qual, read.qual.c_str());
+	  return true;
+	}
 		
-		// Get the next read from the file
-		if (!next_fasta_record(fr, read.name, read.seq, reads_format))
-		  break;
-
-		if (reads_format == FASTQ)
-		{
-		  if (!next_fastq_record(fr, read.seq, read.alt_name, read.qual, reads_format))
-				break;
-		}
-		
-		
-		if (strip_slash)
-		{
-			string::size_type slash = read.name.rfind("/");
-			if (slash != string::npos)
-				read.name.resize(slash);
-		}
-		
-		if ((uint64_t)atoi(read.name.c_str()) == insert_id)
-		{
-			if (read_name) strcpy(read_name, read.name.c_str());
-			if (read_seq) strcpy(read_seq, read.seq.c_str());
-			if (read_alt_name) strcpy(read_alt_name, read.alt_name.c_str());
-			if (read_qual) strcpy(read_qual, read.qual.c_str());
-			return true;
-		}
-		
-        //rt.get_id(read.name, ref_str);
+      //rt.get_id(read.name, ref_str);
     }	
-	
-	return false;
+  
+  return false;
 }
-
-

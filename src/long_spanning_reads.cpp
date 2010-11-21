@@ -157,10 +157,9 @@ void look_right_for_hit_group(ReadTable& unmapped_reads,
 }
 
 
-// daehwan
-// should fix edit_dist for colorspace reads
 BowtieHit merge_sense_chain(RefSequenceTable& rt,
 			    const string& read_seq,
+			    const string& read_quals,
 			    std::set<Junction>& possible_juncs,
 			    std::set<Insertion>& possible_insertions,
 			    list<BowtieHit>& hit_chain)
@@ -343,10 +342,6 @@ BowtieHit merge_sense_chain(RefSequenceTable& rt,
       
       if (prev_hit->right() < curr_hit->left())
 	{
-	  
-	  if (curr_hit->left() - prev_hit->right() < (int)min_report_intron_length && curr_hit->left() - prev_hit->right() > (int)max_deletion_length)
-	    return BowtieHit();
-
 	  std::set<Junction>::iterator lb,ub;
 	  
 	  int left_boundary = prev_hit->right() - 4;
@@ -365,76 +360,120 @@ BowtieHit merge_sense_chain(RefSequenceTable& rt,
 	    {
 	      int dist_to_left = lb->left - prev_hit->right() + 1;
 	      int dist_to_right = lb->right - curr_hit->left();
-	      if ( abs(dist_to_left) <= 4 && abs(dist_to_right) <= 4 && dist_to_left == dist_to_right)
+	      if (abs(dist_to_left) <= 4 && abs(dist_to_right) <= 4 && dist_to_left == dist_to_right)
 		{
 		  RefSequenceTable::Sequence* ref_str = rt.get_seq(curr_hit->ref_id());
 		  if (!ref_str)
 		    break;
 		  
-		  string new_cmp_str, old_cmp_str;
+		  Dna5String new_cmp_str, old_cmp_str;
 		  int new_mismatch = 0, old_mismatch = 0;
+		  string new_patch_str; // this is for colorspace reads
 		  if (dist_to_left > 0)
 		    {
+		      new_cmp_str = seqan::infix(*ref_str, prev_hit->right(), lb->left + 1);
+		      old_cmp_str = seqan::infix(*ref_str, curr_hit->left(), lb->right);
+
+		      string new_seq;
 		      if (color)
 			{
+			  string ref = DnaString_to_string(seqan::infix(*ref_str, prev_hit->right() - 1, lb->left + 1));
+			  string color = read_seq.substr(1 + curr_position * segment_length, dist_to_left);
+			  string qual = read_quals.substr(curr_position * segment_length, dist_to_left);
+			  BWA_decode(color, qual, ref, new_seq);
+			  new_seq = new_seq.substr(1);
+			  // cout << "ref: " << ref << "\t" << color << " => " << new_seq << endl;
+			}
 
-			  new_cmp_str = DnaString_to_string(seqan::infix(*ref_str, prev_hit->right() - 1, lb->left + 1));
-			  old_cmp_str = DnaString_to_string(seqan::infix(*ref_str, curr_hit->left() - 1, lb->right));
-			  
-			  new_cmp_str = convert_bp_to_color(new_cmp_str, true);
-			  old_cmp_str = convert_bp_to_color(old_cmp_str, true);
-			}
-		      else
-			{
-			  new_cmp_str = DnaString_to_string(seqan::infix(*ref_str, prev_hit->right(), lb->left + 1));
-			  old_cmp_str = DnaString_to_string(seqan::infix(*ref_str, curr_hit->left(), lb->right));
-			}
-		      
-		      const string& curr_seq = color ? read_seq.substr(1 + curr_position * segment_length, 4) : curr_hit->seq();
+		      const string& curr_old_seq = curr_hit->seq();
+		      const string& curr_seq = color ? new_seq : curr_hit->seq();
 		      for (size_t i = 0; i < dist_to_left; ++i)
 			{
 			  if (curr_seq[i] != new_cmp_str[i])
 			    ++new_mismatch;
 			  
-			  if (curr_seq[i] != old_cmp_str[i])
+			  if (curr_old_seq[i] != old_cmp_str[i])
 			    ++old_mismatch;
 			}
+
+		      if (color)
+			new_patch_str = curr_seq.substr(0, dist_to_left);
 		    }
 		  else if (dist_to_left < 0)
 		    {
+		      new_cmp_str = seqan::infix(*ref_str, lb->right, curr_hit->left());
+		      old_cmp_str = seqan::infix(*ref_str, lb->left + 1, prev_hit->right());
+
+		      size_t abs_dist = -dist_to_left;
+		      string new_seq;
 		      if (color)
 			{
-			  new_cmp_str = DnaString_to_string(seqan::infix(*ref_str, lb->right - 1, curr_hit->left()));
-			  old_cmp_str = DnaString_to_string(seqan::infix(*ref_str, lb->left, prev_hit->right()));
-			  
-			  new_cmp_str = convert_bp_to_color(new_cmp_str, true);
-			  old_cmp_str = convert_bp_to_color(old_cmp_str, true);
+			  string ref = DnaString_to_string(seqan::infix(*ref_str, lb->left, lb->left + 1));
+			  ref += DnaString_to_string(seqan::infix(*ref_str, lb->right, curr_hit->left()));
+
+			  string color = read_seq.substr(1 + curr_position * segment_length - abs_dist, abs_dist);
+			  string qual = read_quals.substr(curr_position * segment_length - abs_dist, abs_dist);
+			  BWA_decode(color, qual, ref, new_seq);
+			  new_seq = new_seq.substr(1);
+			  // cout << "ref: " << ref << "\t" << color << " => " << new_seq << endl;
 			}
-		      else
-			{
-			  new_cmp_str = DnaString_to_string(seqan::infix(*ref_str, lb->right, curr_hit->left()));
-			  old_cmp_str = DnaString_to_string(seqan::infix(*ref_str, lb->left + 1, prev_hit->right()));
-			}
-		      
-		      size_t abs_dist = -dist_to_left;
-		      const string& prev_seq = color ? read_seq.substr(1 + curr_position * segment_length - 4, 4) : prev_hit->seq();
-		      size_t seg_length = prev_seq.length();
+
+		      const string& prev_old_seq = prev_hit->seq();
+		      size_t prev_old_seq_len = prev_old_seq.length();
+		      const string& prev_seq = color ? new_seq : prev_hit->seq();
+		      size_t prev_seq_len = prev_seq.length();
 		      for (size_t i = 0; i < abs_dist; ++i)
 			{
-			  char ch = prev_seq[seg_length - (abs_dist - i)];
-			  if (ch != new_cmp_str[i])
+			  if (prev_seq[prev_seq_len - (abs_dist - i)] != new_cmp_str[i])
 			    ++new_mismatch;
-			  if (ch != old_cmp_str[i])
+			  if (prev_old_seq[prev_old_seq_len - (abs_dist - i)] != old_cmp_str[i])
 			    ++old_mismatch;
 			}
+
+		      if (color)
+			new_patch_str = prev_seq.substr(prev_seq_len - abs_dist, abs_dist);
 		    }
 		  
 		  int temp_diff_mismatches = new_mismatch - old_mismatch;
+
+		  // daehwan
+		  /*
+		  cout << "dist: " << dist_to_left << endl;
+		  cout << "prev: "
+		       << seqan::infix(*ref_str, prev_hit->left(), prev_hit->right())
+		       << "\t"
+		       << seqan::infix(*ref_str, prev_hit->right(), prev_hit->right() + 4)
+		       << endl;
+		  cout << prev_hit->seq() << endl;
+		  cout << "curr: "
+		       << seqan::infix(*ref_str, curr_hit->left() - 4, curr_hit->left())
+		       << "\t"
+		       << seqan::infix(*ref_str, curr_hit->left(), curr_hit->right())
+		       << endl;
+		  cout << curr_hit->seq() << endl;
+		  cout << "new str: " << new_cmp_str << endl;
+		  cout << "old str: " << old_cmp_str << endl;
+		  cout << "new mismatch: " << new_mismatch << endl;
+		  cout << "old mismatch: " << old_mismatch << endl;
+
+		  cout << seq << endl;
+		  */
+		  
 		  if (temp_diff_mismatches >= new_diff_mismatches || new_mismatch >= 2)
 		    {
 		      ++lb;
 		      continue;
 		    }
+
+		  if (color)
+		    {
+		      if (dist_to_left > 0)
+			seq.replace(curr_position * segment_length, dist_to_left, new_patch_str);
+		      else if (dist_to_left < 0)
+			seq.replace(curr_position * segment_length + dist_to_left, -dist_to_left, new_patch_str);
+		    }
+
+		  // cout << seq << endl;
 		  
 		  antisense_closure = lb->antisense;
 		  found_closure = true;
@@ -477,7 +516,7 @@ BowtieHit merge_sense_chain(RefSequenceTable& rt,
 				   new_cigar,
 				   false,
 				   antisense_closure,
-				   prev_hit->edit_dist() + curr_hit->edit_dist() + (color ? 0 : new_diff_mismatches),
+				   prev_hit->edit_dist() + curr_hit->edit_dist() + new_diff_mismatches,
 				   prev_hit->splice_mms() + curr_hit->splice_mms(),
 				   end);
 	      
@@ -590,6 +629,7 @@ BowtieHit merge_sense_chain(RefSequenceTable& rt,
 
 BowtieHit merge_antisense_chain(RefSequenceTable& rt,
 				const string& read_seq,
+				const string& read_quals,
 				std::set<Junction>& possible_juncs,
 				std::set<Insertion>& possible_insertions,
 				list<BowtieHit>& hit_chain)
@@ -615,8 +655,16 @@ BowtieHit merge_antisense_chain(RefSequenceTable& rt,
       old_read_length += i->read_len();
     }
 
-  string rev_read_seq = read_seq;
-  reverse(rev_read_seq.begin() + 1, rev_read_seq.end());
+  string rev_read_seq, rev_read_quals;
+  if (color)
+    {
+      rev_read_seq = read_seq;
+      reverse(rev_read_seq.begin() + 1, rev_read_seq.end());
+
+      rev_read_quals = read_quals;
+      reverse(rev_read_quals.begin(), rev_read_quals.end());
+    }
+
   while(curr_hit != hit_chain.end() && prev_hit != hit_chain.end())
     {
       int gap  = prev_hit->left() - curr_hit->right();
@@ -764,9 +812,6 @@ BowtieHit merge_antisense_chain(RefSequenceTable& rt,
       
       if (curr_hit->right() < prev_hit->left())
 	{
-	  if (prev_hit->left() - curr_hit->right() < (int)min_report_intron_length && (prev_hit->left() - curr_hit->right()) > (int)max_deletion_length)
-	    return BowtieHit();
-	  
 	  std::set<Junction>::iterator lb, ub;
 	  
 	  int left_boundary = curr_hit->right() - 4;
@@ -792,72 +837,119 @@ BowtieHit merge_antisense_chain(RefSequenceTable& rt,
 		  if (!ref_str)
 		    break;
 
-		  string new_cmp_str, old_cmp_str;
+		  Dna5String new_cmp_str, old_cmp_str;
 		  int new_mismatch = 0, old_mismatch = 0;
+		  string new_patch_str; // this is for colorspace reads
 		  if (dist_to_left > 0)
 		    {
+		      new_cmp_str = seqan::infix(*ref_str, curr_hit->right(), lb->left + 1);
+		      old_cmp_str = seqan::infix(*ref_str, prev_hit->left(), lb->right);
+		      
+		      string new_seq;
 		      if (color)
 			{
-			  new_cmp_str = DnaString_to_string(seqan::infix(*ref_str, curr_hit->right() - 1, lb->left + 1));
-			  old_cmp_str = DnaString_to_string(seqan::infix(*ref_str, prev_hit->left() - 1, lb->right));
-			  
-			  new_cmp_str = convert_bp_to_color(new_cmp_str, true);
-			  old_cmp_str = convert_bp_to_color(old_cmp_str, true);
+			  string ref = DnaString_to_string(seqan::infix(*ref_str, curr_hit->right() - 1, lb->left + 1));
+			  string color = rev_read_seq.substr(rev_read_seq.length() - (curr_position * segment_length) - 1, dist_to_left);
+			  string qual = rev_read_quals.substr(rev_read_quals.length() - (curr_position * segment_length) - 1, dist_to_left);
+			  BWA_decode(color, qual, ref, new_seq);
+			  new_seq = new_seq.substr(1);
+			  // cout << "ref: " << ref << "\t" << color << " => " << new_seq << endl;
 			}
-		      else
-			{
-			  new_cmp_str = DnaString_to_string(seqan::infix(*ref_str, curr_hit->right(), lb->left + 1));
-			  old_cmp_str = DnaString_to_string(seqan::infix(*ref_str, prev_hit->left(), lb->right));
-			}
-		      const string& prev_seq = color ?
-			rev_read_seq.substr(rev_read_seq.length() - (curr_position * segment_length) - 1, 4) :
-			prev_hit->seq();
+
+		      const string& prev_old_seq = prev_hit->seq();
+		      const string& prev_seq = color ? new_seq : prev_hit->seq();
 		      for (size_t i = 0; i < dist_to_left; ++i)
 			{
 			  if (prev_seq[i] != new_cmp_str[i])
 			    ++new_mismatch;
 			  
-			  if (prev_seq[i] != old_cmp_str[i])
+			  if (prev_old_seq[i] != old_cmp_str[i])
 			    ++old_mismatch;
 			}
+
+		      if (color)
+			new_patch_str = prev_seq.substr(0, dist_to_left);
 		    }
 		  else if (dist_to_left < 0)
 		    {
+		      new_cmp_str = seqan::infix(*ref_str, lb->right, prev_hit->left());
+		      old_cmp_str = seqan::infix(*ref_str, lb->left + 1, curr_hit->right());
+
+		      size_t abs_dist = -dist_to_left;		      
+		      string new_seq;
 		      if (color)
 			{
-			  new_cmp_str = DnaString_to_string(seqan::infix(*ref_str, lb->right - 1, prev_hit->left()));
-			  old_cmp_str = DnaString_to_string(seqan::infix(*ref_str, lb->left, curr_hit->right()));
-			  
-			  new_cmp_str = convert_bp_to_color(new_cmp_str, true);
-			  old_cmp_str = convert_bp_to_color(old_cmp_str, true);
+			  string ref = DnaString_to_string(seqan::infix(*ref_str, lb->left, lb->left + 1));
+			  ref += DnaString_to_string(seqan::infix(*ref_str, lb->right, prev_hit->left()));
+			  string color = rev_read_seq.substr(rev_read_seq.length() - (curr_position * segment_length) - 1 - abs_dist, abs_dist);
+			  string qual = read_quals.substr(rev_read_quals.length() - (curr_position * segment_length) - 1 - abs_dist, abs_dist);
+			  BWA_decode(color, qual, ref, new_seq);
+			  new_seq = new_seq.substr(1);
+			  // cout << "ref: " << ref << "\t" << color << " => " << new_seq << endl;
 			}
-		      else
-			{
-			  new_cmp_str = DnaString_to_string(seqan::infix(*ref_str, lb->right, prev_hit->left()));
-			  old_cmp_str = DnaString_to_string(seqan::infix(*ref_str, lb->left + 1, curr_hit->right()));
-			}
-		      const string& curr_seq = color ?
-			rev_read_seq.substr(rev_read_seq.length() - (curr_position * segment_length) - 5, 4) :
-			curr_hit->seq();
-		      size_t abs_dist = -dist_to_left;
-		      size_t seg_length = curr_seq.length();
+
+		      const string& curr_old_seq = curr_hit->seq();
+		      size_t curr_old_seq_len = curr_old_seq.length();
+		      const string& curr_seq = color ? new_seq : curr_hit->seq();
+		      size_t curr_seq_len = curr_seq.length();
 		      for (size_t i = 0; i < abs_dist; ++i)
 			{
-			  char ch = curr_seq[seg_length - (abs_dist - i)];
-			  if (ch != new_cmp_str[i])
+			  if (curr_seq[curr_seq_len - (abs_dist - i)] != new_cmp_str[i])
 			    ++new_mismatch;
-			  if (ch != old_cmp_str[i])
+			  if (curr_old_seq[curr_old_seq_len - (abs_dist - i)] != old_cmp_str[i])
 			    ++old_mismatch;
 			}
+
+		      if (color)
+			new_patch_str = curr_seq.substr(curr_seq_len - abs_dist, abs_dist);
 		    }
 		  
 		  int temp_diff_mismatches = new_mismatch - old_mismatch;
+
+		  // daehwan
+		  /*
+		  cout << rev_read_seq << endl;
+		  cout << "dist: " << dist_to_left << endl;
+		  cout << "curr: "
+		       << seqan::infix(*ref_str, curr_hit->left(), curr_hit->right())		       
+		       << "\t"
+		       << seqan::infix(*ref_str, curr_hit->right(), curr_hit->right() + 4)
+		       << endl;
+		  cout << curr_hit->seq() << endl;
+		  cout << rev_read_seq.substr(rev_read_seq.length() - ((curr_position + 1) * segment_length), segment_length)
+		       << endl;
+		  cout << "prev: "
+		       << seqan::infix(*ref_str, prev_hit->left() - 4, prev_hit->left())
+		       << "\t"
+		       << seqan::infix(*ref_str, prev_hit->left(), prev_hit->right())
+		       << endl;
+		  cout << prev_hit->seq() << endl;
+		  cout << rev_read_seq.substr(rev_read_seq.length() - (curr_position * segment_length), segment_length)
+		       << endl;
+		  cout << "new str: " << new_cmp_str << endl;
+		  cout << "old str: " << old_cmp_str << endl;
+		  cout << "new mismatch: " << new_mismatch << endl;
+		  cout << "old mismatch: " << old_mismatch << endl;
+
+		  cout << seq << endl;
+		  */
+
 		  if (temp_diff_mismatches >= new_diff_mismatches || new_mismatch >= 2)
 		    {
 		      ++lb;
 		      continue;
 		    }
-		  
+
+		  if (color)
+		    {
+		      if (dist_to_left > 0)
+			seq.replace(curr_position * segment_length, dist_to_left, new_patch_str);
+		      else if (dist_to_left < 0)
+			seq.replace(curr_position * segment_length + dist_to_left, -dist_to_left, new_patch_str);
+		    }
+
+		  // cout << seq << endl;
+	  
 		  new_diff_mismatches = temp_diff_mismatches;
 		  
 		  new_left = curr_hit->left();
@@ -907,7 +999,7 @@ BowtieHit merge_antisense_chain(RefSequenceTable& rt,
 				   new_cigar,
 				   true,
 				   antisense_closure,
-				   prev_hit->edit_dist() + curr_hit->edit_dist() + (color ? 0 : new_diff_mismatches),
+				   prev_hit->edit_dist() + curr_hit->edit_dist() + new_diff_mismatches,
 				   prev_hit->splice_mms() + curr_hit->splice_mms(),
 				   end);
 	      prev_hit = hit_chain.erase(prev_hit,++curr_hit);
@@ -1083,6 +1175,7 @@ bool valid_hit(const BowtieHit& bh)
 
 void merge_segment_chain(RefSequenceTable& rt,
 			 const string& read_seq,
+			 const string& read_quals,
 			 std::set<Junction>& possible_juncs,
 			 std::set<Insertion>& possible_insertions,
 			 vector<BowtieHit>& hits,
@@ -1100,11 +1193,11 @@ void merge_segment_chain(RefSequenceTable& rt,
 
 		if (hit_chain.front().antisense_align())
 		{
-		  bh = merge_antisense_chain(rt, read_seq, possible_juncs, possible_insertions, hit_chain);
+		  bh = merge_antisense_chain(rt, read_seq, read_quals, possible_juncs, possible_insertions, hit_chain);
 		}
 		else
 		{
-		  bh = merge_sense_chain(rt, read_seq, possible_juncs, possible_insertions, hit_chain);
+		  bh = merge_sense_chain(rt, read_seq, read_quals, possible_juncs, possible_insertions, hit_chain);
 		}
 	}
 	else
@@ -1120,6 +1213,7 @@ void merge_segment_chain(RefSequenceTable& rt,
 
 bool dfs_seg_hits(RefSequenceTable& rt,
 		  const string& read_seq,
+		  const string& read_quals,
 		  std::set<Junction>& possible_juncs,
 		  std::set<Insertion>& possible_insertions, 
 		  vector<HitsForRead>& seg_hits_for_read,
@@ -1157,6 +1251,7 @@ bool dfs_seg_hits(RefSequenceTable& rt,
 						seg_hit_stack.push_back(bh);
 						bool success = dfs_seg_hits(rt,
 									    read_seq,
+									    read_quals,
 									    possible_juncs,
 									    possible_insertions,
 									    seg_hits_for_read, 
@@ -1182,6 +1277,7 @@ bool dfs_seg_hits(RefSequenceTable& rt,
 						seg_hit_stack.push_back(bh);
 						bool success = dfs_seg_hits(rt,
 									    read_seq,
+									    read_quals,
 									    possible_juncs,
 									    possible_insertions,
 									    seg_hits_for_read, 
@@ -1202,6 +1298,7 @@ bool dfs_seg_hits(RefSequenceTable& rt,
 	{
 	  merge_segment_chain(rt,
 			      read_seq,
+			      read_quals,
 			      possible_juncs,
 			      possible_insertions,
 			      seg_hit_stack,
@@ -1213,6 +1310,7 @@ bool dfs_seg_hits(RefSequenceTable& rt,
 
 bool join_segments_for_read(RefSequenceTable& rt,
 			    const string& read_seq,
+			    const string& read_quals,
 			    std::set<Junction>& possible_juncs,
 			    std::set<Insertion>& possible_insertions,
 			    vector<HitsForRead>& seg_hits_for_read,
@@ -1227,6 +1325,7 @@ bool join_segments_for_read(RefSequenceTable& rt,
       seg_hit_stack.push_back(bh);
       bool success = dfs_seg_hits(rt,
 				  read_seq,
+				  read_quals,
 				  possible_juncs,
 				  possible_insertions,
 				  seg_hits_for_read, 
@@ -1370,6 +1469,7 @@ void join_segment_hits(std::set<Junction>& possible_juncs, std::set<Insertion>& 
 	      vector<BowtieHit> joined_hits;
 	      join_segments_for_read(rt,
 				     read_seq,
+				     read_quals,
 				     possible_juncs,
 				     possible_insertions,
 				     seg_hits_for_read, 
@@ -1422,14 +1522,7 @@ void driver(istream& ref_stream,
 	ReadTable it;
 
 	bool need_seq = true;
-	bool need_qual = false;
-	if (color && !color_out)
-	  {
-	    need_qual = true;
-	  }
-	
-	//HitFactory hit_factory(it,rt);
-	
+	bool need_qual = color;
 	rewind(reads_file);
 	
 	//vector<HitTable> seg_hits;
@@ -1455,8 +1548,8 @@ void driver(istream& ref_stream,
 			anchor_length = min_anchor_len;
 		//HitFactory* fac = new SplicedBowtieHitFactory(it, rt, i == 0 || i == spliced_seg_files.size() - 1);
 		HitFactory* fac = new SplicedBowtieHitFactory(it, 
-													  rt, 
-													  anchor_length);
+							      rt, 
+							      anchor_length);
 		factories.push_back(fac);
 		
 		HitStream hs(spliced_seg_files[i], fac, true, false, false, need_seq, need_qual);
@@ -1542,7 +1635,6 @@ void driver(istream& ref_stream,
 			char* scan_left_coord = strsep((char**)&buf, "\t");
 			char* scan_right_coord = strsep((char**)&buf, "\t");
 			char* scan_sequence = strsep((char**)&buf, "\t");
-
 
 			if (!scan_left_coord || !scan_sequence || !scan_right_coord)
 			{
