@@ -2341,7 +2341,7 @@ void detect_small_insertion(RefSequenceTable& rt,
 		 * Otherwise, it is OK as long as the number of errors doesn't increase.
 		 */
 		int adjustment = 0;
-		if(leftHit.read_len() + rightHit.read_len() >= (int)seqan::length(read_sequence)){
+		if(leftHit.read_len() + rightHit.read_len() >= (int)read_length){
 			adjustment = -1;
 		}
 		if(minErrors <= (leftHit.edit_dist()+rightHit.edit_dist()+adjustment)){
@@ -2426,7 +2426,7 @@ void detect_small_deletion(RefSequenceTable& rt,
 		 * that this alignment actually improve the number of errors observed in the alignment
 		 * Otherwise, it is OK as long as the number of errors doesn't increase.
 		 */
-		if(leftHit.read_len() + rightHit.read_len() >= (int)seqan::length(read_sequence)){
+		if(leftHit.read_len() + rightHit.read_len() >= (int)read_length){
 			adjustment = -1;
 		}
 		if(minErrors <= (leftHit.edit_dist()+rightHit.edit_dist()+adjustment)){
@@ -2508,6 +2508,7 @@ void find_insertions_and_deletions(RefSequenceTable& rt,
 	  rcRead = fullRead;
 	  seqan::reverseInPlace(rcRead);
 	}else{
+	  fullRead = read_seq;
 	  rcRead = read_seq;
 	  seqan::convertInPlace(rcRead, seqan::FunctorComplement<Dna>());
 	  seqan::reverseInPlace(rcRead);
