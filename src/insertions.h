@@ -37,7 +37,7 @@ using namespace std;
 struct Insertion 
 {
 	
-	Insertion (uint32_t ref, uint32_t l, std::string seq)
+	Insertion (uint32_t ref, uint32_t l, const std::string& seq)
 	: refid(ref), left(l), sequence(seq){}
 	Insertion() : refid(0), left(0), sequence("") {}
 	/**

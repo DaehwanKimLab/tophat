@@ -11,6 +11,7 @@
 
 #include <string>
 #include <sstream>
+#include <seqan/sequence.h>
 #include "common.h"
 
 using std::string;
@@ -43,7 +44,10 @@ struct Read
 
 void reverse_complement(string& seq);
 string convert_color_to_bp(const string& color);
+seqan::String<char> convert_color_to_bp(char base, const seqan::String<char>& color);
+
 string convert_bp_to_color(const string& bp, bool remove_primer = false);
+seqan::String<char> convert_bp_to_color(const seqan::String<char>& bp, bool remove_primer = false);
 
 /*
   This is a dynamic programming to decode a colorspace read, which is from BWA paper.

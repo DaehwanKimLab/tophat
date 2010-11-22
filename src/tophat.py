@@ -429,11 +429,6 @@ class TopHatParams:
 
         self.search_params.max_coverage_intron_length = min(self.splice_constraints.max_intron_length,
                                                             self.search_params.max_coverage_intron_length)
-
-        if self.read_params.color:
-            print >> sys.stderr, "TopHat currently doesn't support indel finding for colorspace reads"
-            max_insertion_length = 0
-            max_deletion_length = 0
         
         if self.max_insertion_length >= self.segment_length:
             print >> sys.stderr, "Error: the max insertion length ("+self.max_insertion_length+") can not be equal to or greater than the segment length ("+self.segment_length+")"
@@ -626,7 +621,7 @@ class TopHatParams:
                 custom_tmp_dir = value + "/"
                 
         if custom_out_dir != None:
-            output_dir = custom_out_dir + "/"
+            output_dir = custom_out_dir
             logging_dir = output_dir + "logs/"
             tmp_dir = output_dir + "tmp/"
             sam_header = tmp_dir + "stub_header.sam" 
@@ -2032,12 +2027,10 @@ def spliced_alignment(params,
                                         unmapped_reads,
                                         "fastq", 
                                         ref_fasta)
-        if os.path.getsize(juncs[0]) != 0:
-            possible_juncs.append(juncs[0])
-        if os.path.getsize(juncs[1]) != 0:
-            possible_insertions.append(juncs[1])
-        if os.path.getsize(juncs[2]) != 0:
-            possible_deletions.append(juncs[2])
+        
+        possible_juncs.append(juncs[0])
+        possible_insertions.append(juncs[1])
+        possible_deletions.append(juncs[2])
     
         # Optionally, and for paired reads only, use a closure search to 
         # discover addtional junctions
@@ -2094,7 +2087,7 @@ def spliced_alignment(params,
         
         # Join the contigous and spliced segment hits into full length read 
         # alignments
-        mapped_reads = reads +".candidate_hits.sam"
+        mapped_reads = reads + ".candidate_hits.sam"
         join_mapped_segments(params,
                              sam_header_filename,
                              reads,
