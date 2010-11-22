@@ -2212,7 +2212,12 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
  * @param insertPosition This will contain the 0-based index of the first position in the shorter sequence after the insertion/deletion. A value of -1 indicates that the alignment could not be performed.
  * @param mismatchCount This will contain the number of mismatches in the optimal restricted global alignment. The number and length of insertions/deletions is fixed. A value of -1 indicates that the alignment could not be performed.
  */
-void simpleSplitAlignment(Dna5String& shorterSequence, Dna5String& leftReference, Dna5String& rightReference, int& insertPosition, int& mismatchCount){
+void simpleSplitAlignment(seqan::String<char>& shorterSequence,
+			  seqan::String<char>& leftReference,
+			  seqan::String<char>& rightReference,
+			  int& insertPosition,
+			  int& mismatchCount)
+{
 			/*
 			 * In this restricted alignment, we already know the length and number (1) of insertions/deletions.
 			 * We simply need to know where to put it. Do a linear scan through sequence counting the number of induced
@@ -2285,7 +2290,7 @@ void simpleSplitAlignment(Dna5String& shorterSequence, Dna5String& leftReference
  * @param insertions If an insertion is sucessfully detected, it will be added to this set
  */
 void detect_small_insertion(RefSequenceTable& rt,
-		Dna5String& read_sequence,
+		seqan::String<char>& read_sequence,
 		BowtieHit& leftHit,
 		BowtieHit& rightHit,
 		std::set<Insertion>& insertions)
@@ -2294,20 +2299,37 @@ void detect_small_insertion(RefSequenceTable& rt,
 	if(!ref_str){
 		fprintf(stderr, "Error in accessing sequence record\n");
 	}else{
-		int discrepancy = seqan::length(read_sequence) - (rightHit.right() - leftHit.left());
+		size_t read_length = seqan::length(read_sequence);
+		int begin_offset = 0;
+		int end_offset = 0;
+
+		if(color){
+		  if(leftHit.antisense_align())
+		    end_offset = 1;
+		  else
+		    begin_offset = -1;
+		}
+		
+		if(leftHit.left() + begin_offset < 0)
+		  return;
 
 		/*
 		 * If there is in fact a deletion, we are expecting the genomic sequence to be shorter than
 		 * the actual read sequence
 		 */
-		Dna5String genomic_sequence = seqan::infix(*ref_str, leftHit.left(), rightHit.right());
+		int discrepancy = read_length - (rightHit.right() - leftHit.left());
+		DnaString genomic_sequence_temp = seqan::infix(*ref_str, leftHit.left() + begin_offset, rightHit.right() + end_offset);
+		String<char> genomic_sequence;
+		assign(genomic_sequence, genomic_sequence_temp);
 
-		Dna5String left_read_sequence = seqan::infix(read_sequence, 0, 0 + seqan::length(genomic_sequence));
-		Dna5String right_read_sequence = seqan::infix(read_sequence, seqan::length(read_sequence) - seqan::length(genomic_sequence), seqan::length(read_sequence));
+		if(color)
+		  genomic_sequence = convert_bp_to_color(genomic_sequence, true);
+
+		String<char> left_read_sequence = seqan::infix(read_sequence, 0, 0 + seqan::length(genomic_sequence));
+		String<char> right_read_sequence = seqan::infix(read_sequence, read_length - seqan::length(genomic_sequence), read_length);
 
 		int bestInsertPosition = -1;
 		int minErrors = -1;
-
 		simpleSplitAlignment(genomic_sequence, left_read_sequence, right_read_sequence, bestInsertPosition, minErrors);
 
 		/*
@@ -2323,9 +2345,12 @@ void detect_small_insertion(RefSequenceTable& rt,
 			adjustment = -1;
 		}
 		if(minErrors <= (leftHit.edit_dist()+rightHit.edit_dist()+adjustment)){
-			seqan::String<char> insertedSequence = seqan::infix(left_read_sequence, bestInsertPosition, bestInsertPosition + discrepancy);
+			String<char> insertedSequence = seqan::infix(left_read_sequence, bestInsertPosition, bestInsertPosition + discrepancy);
+			if(color)
+			  insertedSequence = convert_color_to_bp(genomic_sequence_temp[bestInsertPosition - begin_offset + end_offset - 1], insertedSequence);
+			
 			insertions.insert(Insertion(leftHit.ref_id(),
-					leftHit.left() + bestInsertPosition - 1,
+					leftHit.left() + bestInsertPosition - 1 + end_offset,
 					seqan::toCString(insertedSequence)));
 		}
 	}
@@ -2344,7 +2369,7 @@ void detect_small_insertion(RefSequenceTable& rt,
  * @param deletion_juncs If a deletion is sucessfully detected, it will be added to this set
  */
 void detect_small_deletion(RefSequenceTable& rt,
-		Dna5String& read_sequence,
+		seqan::String<char>& read_sequence,
 		BowtieHit& leftHit,
 		BowtieHit& rightHit,
 		std::set<Deletion>& deletions)
@@ -2354,10 +2379,37 @@ void detect_small_deletion(RefSequenceTable& rt,
 	if(!ref_str){
 		fprintf(stderr, "Error in accessing sequence record\n");
 	}else{
-		int discrepancy = (rightHit.right() - leftHit.left()) - seqan::length(read_sequence);
+		int begin_offset = 0;
+		int end_offset = 0;
 
-		Dna5String leftGenomicSequence = seqan::infix(*ref_str, leftHit.left(), leftHit.left() + seqan::length(read_sequence));
-		Dna5String rightGenomicSequence = seqan::infix(*ref_str, rightHit.right() - seqan::length(read_sequence), rightHit.right());
+		if(color){
+		  if(leftHit.antisense_align())
+		    end_offset = 1;
+		  else
+		    begin_offset = -1;
+		}
+
+		if(leftHit.left() + begin_offset < 0)
+		  return;
+
+		size_t read_length = seqan::length(read_sequence);
+		if(rightHit.right() + read_length + begin_offset < 0 )
+		  return;
+
+		int discrepancy = (rightHit.right() - leftHit.left()) - read_length;
+		Dna5String leftGenomicSequence_temp = seqan::infix(*ref_str, leftHit.left() + begin_offset, leftHit.left() + read_length + end_offset);
+		Dna5String rightGenomicSequence_temp = seqan::infix(*ref_str, rightHit.right() - read_length + begin_offset, rightHit.right() + end_offset);
+
+		String<char> leftGenomicSequence;
+		assign(leftGenomicSequence, leftGenomicSequence_temp);
+
+		String<char> rightGenomicSequence;
+		assign(rightGenomicSequence, rightGenomicSequence_temp);
+
+		if(color){
+		  leftGenomicSequence = convert_bp_to_color(leftGenomicSequence, true);
+		  rightGenomicSequence = convert_bp_to_color(rightGenomicSequence, true);
+		}
 
 		int bestInsertPosition = -1;
 		int minErrors = -1;
@@ -2379,8 +2431,8 @@ void detect_small_deletion(RefSequenceTable& rt,
 		}
 		if(minErrors <= (leftHit.edit_dist()+rightHit.edit_dist()+adjustment)){
 			deletions.insert(Deletion(leftHit.ref_id(),
-					leftHit.left() + bestInsertPosition - 1,
-					leftHit.left() + bestInsertPosition + discrepancy,
+					leftHit.left() + bestInsertPosition - 1 + end_offset,
+					leftHit.left() + bestInsertPosition + discrepancy + end_offset,
 					false));
 		}
 	}
@@ -2450,10 +2502,16 @@ void find_insertions_and_deletions(RefSequenceTable& rt,
 		return;
 	}
 
-	Dna5String fullRead = read_seq;
-	Dna5String rcRead = read_seq;
-	seqan::convertInPlace(rcRead, seqan::FunctorComplement<Dna>());
-	seqan::reverseInPlace(rcRead);
+	seqan::String<char> fullRead, rcRead;
+	if(color){
+	  fullRead = read_seq + 1;
+	  rcRead = fullRead;
+	  seqan::reverseInPlace(rcRead);
+	}else{
+	  rcRead = read_seq;
+	  seqan::convertInPlace(rcRead, seqan::FunctorComplement<Dna>());
+	  seqan::reverseInPlace(rcRead);
+	}
 
 	size_t read_length = seqan::length(fullRead);
 	for(size_t left_segment_index = 0; left_segment_index < left_segment_hits.hits.size(); left_segment_index++){
@@ -2475,7 +2533,7 @@ void find_insertions_and_deletions(RefSequenceTable& rt,
 				continue;
 			}
 
-			Dna5String* modifiedRead = &fullRead;
+			seqan::String<char>* modifiedRead = &fullRead;
 			/*
 			 * If we are dealing with an antisense alignment, then the left
 			 * read will actually be on the right, fix this now, to simplify

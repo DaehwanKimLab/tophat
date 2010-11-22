@@ -11,11 +11,17 @@
 #include <config.h>
 #endif
 
+#include <iostream>
 #include <cassert>
 #include <string>
 #include <algorithm>
 #include <cstring>
 #include <cstdlib>
+
+#include <seqan/find.h>
+#include <seqan/file.h>
+#include <seqan/modifier.h>
+
 #include "reads.h"
 #include "bwt_map.h"
 #include "tokenize.h"
@@ -247,6 +253,81 @@ string convert_color_to_bp(const string& color)
   return bp;
 }
 
+// daehwan - reduce code redundancy!
+seqan::String<char> convert_color_to_bp(char base, const seqan::String<char>& color)
+{
+  if (seqan::length(color) <= 0)
+    return "";
+
+  string bp;
+  for (string::size_type i = 0; i < seqan::length(color); ++i)
+    {
+      char next = color[i];
+      switch(base)
+	{
+	  // 'A0':'A', 'A1':'C', 'A2':'G', 'A3':'T', 'A4':'N', 'A.':'N',
+	case 'A':
+	  {
+	    switch(next)
+	      {
+	      case '0': next = 'A'; break;
+	      case '1': next = 'C'; break;
+	      case '2': next = 'G'; break;
+	      case '3': next = 'T'; break;
+	      default: next = 'N'; break;
+	      }
+	  }
+	  break;
+	case 'C':
+	  {
+	    // 'C0':'C', 'C1':'A', 'C2':'T', 'C3':'G', 'C4':'N', 'C.':'N',
+	     switch(next)
+	      {
+	      case '0': next = 'C'; break;
+	      case '1': next = 'A'; break;
+	      case '2': next = 'T'; break;
+	      case '3': next = 'G'; break;
+	      default: next = 'N'; break;
+	      }
+	  }
+	  break;
+	case 'G':
+	  {
+	    // 'G0':'G', 'G1':'T', 'G2':'A', 'G3':'C', 'G4':'N', 'G.':'N',
+	     switch(next)
+	      {
+	      case '0': next = 'G'; break;
+	      case '1': next = 'T'; break;
+	      case '2': next = 'A'; break;
+	      case '3': next = 'C'; break;
+	      default: next = 'N'; break;
+	      }
+	  }
+	  break;
+	case 'T':
+	  {
+	    // 'T0':'T', 'T1':'G', 'T2':'C', 'T3':'A', 'T4':'N', 'T.':'N',
+	     switch(next)
+	      {
+	      case '0': next = 'T'; break;
+	      case '1': next = 'G'; break;
+	      case '2': next = 'C'; break;
+	      case '3': next = 'A'; break;
+	      default: next = 'N'; break;
+	      }
+	  }
+	  break;
+	default: next = 'N'; break;
+	}
+
+      bp.push_back(next);
+      base = next;
+    }
+
+  return bp;
+}
+
+
 #define check_color(b1, b2, c1, c2) ((b1 == c1 && b2 == c2) || (b1 == c2 && b2 == c1))
 
 #define two_bps_to_color(b1, b2, c)				      \
@@ -262,7 +343,6 @@ string convert_color_to_bp(const string& color)
   c = '4';
  
 
-// daehwan - this this out
 string convert_bp_to_color(const string& bp, bool remove_primer)
 {
   if (bp.length() <= 1)
@@ -274,6 +354,31 @@ string convert_bp_to_color(const string& bp, bool remove_primer)
     color.push_back(base);
   
   for (string::size_type i = 1; i < bp.length(); ++i)
+    {
+      char next = toupper(bp[i]);
+
+      char c = '0';
+      two_bps_to_color(base, next, c);
+      color.push_back(c);
+
+      base = next;
+    }
+
+  return color;
+}
+
+// daehwan - check this - 
+seqan::String<char> convert_bp_to_color(const seqan::String<char>& bp, bool remove_primer)
+{
+  if (seqan::length(bp) <= 1)
+    return "";
+
+  char base = toupper(bp[0]);
+  string color;
+  if (!remove_primer)
+    color.push_back(base);
+  
+  for (string::size_type i = 1; i < seqan::length(bp); ++i)
     {
       char next = toupper(bp[i]);
 
