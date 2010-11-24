@@ -208,7 +208,7 @@ BowtieHit merge_sense_chain(RefSequenceTable& rt,
   while(curr_hit != hit_chain.end() && prev_hit != hit_chain.end())
     {
       if (prev_hit->right() > curr_hit->left()){
-	if( prev_hit->right() - curr_hit->left() >= (int)max_insertion_length){
+	if( prev_hit->right() - curr_hit->left() > (int)max_insertion_length){
 	  return BowtieHit();
 	}
 	
@@ -229,7 +229,8 @@ BowtieHit merge_sense_chain(RefSequenceTable& rt,
 	   */
 	  return BowtieHit();
 	}
-	
+
+	RefSequenceTable::Sequence* ref_str = rt.get_seq(curr_hit->ref_id());
 	
 	std::set<Insertion>::iterator lb,ub;
 	/*
@@ -257,50 +258,110 @@ BowtieHit merge_sense_chain(RefSequenceTable& rt,
 	bool antisense_closure = prev_hit->antisense_splice();
 	vector<CigarOp> new_cigar;
 	int new_left = -1;
+    int reference_mismatch = 0;
 	
 	while(lb != ub && lb != possible_insertions.end()){
-	  /*
-	   * Only check to see if the length of the insertion
-	   * makes sense with respect to the distance between the 
-	   * segments. There is no check fo the actual seequence relative
-	   * to the putative insertion. This will work for low coverage regions
-	   * but in high coverage, there will eventually be the same insertion with
-	   * a different inserted sequence (due to sequencign errors), 
-	   * leading to multiple closures. On the bright side,
-	   * should enforce that all sequences have the same inserted sequence for the same
-	   * insertion. The best way to fix this would probably be to run some sort 
-	   * of consensus procedure on the insertions produced from segment_juncs.cpp before
-	   * they are used to create splice junctions.
-	   */
+          /*
+           * In the following code, we will check to make sure that the segments have the proper
+          * separation and sequence for the insertions, and generate the appropriate merged bowtie hit
+          * In general, reads with insertions must match the inserted sequence exactly.
+          */
 	  if(((int)lb->sequence.size()) == (prev_hit->right() - curr_hit->left())){
+            /*
+             * Keep track of how many mismatches were made to the genome in the region
+             * where we should actually be matching against the insertion
+             */
+            int this_reference_mismatch = 0;
+            int insertion_mismatch = 0;
+            const seqan::Dna5String referenceSequence = seqan::infix(*ref_str, lb->left + 1, lb->left + lb->sequence.size() + 1);
+            const seqan::Dna5String insertionSequence = seqan::Dna5String(lb->sequence);
+
+
+            /*
+             * First check to see if we need to adjust number of observed errors for the left (prev)
+             * hit. This is only the case if this segment runs into the insertion. To be consistent
+             * with bwt_map.cpp, we will not allow a segment to have errors in the insertion region
+             */
+            if(prev_hit->right() - 1 > lb->left){
+            	const seqan::Dna5String segmentSequence = seqan::Dna5String(prev_hit->seq());
+                /*
+                 * The first position (relative to the start of the read) that contains the insertion
+                 */
+                int starting_read_position = seqan::length(segmentSequence) - ( prev_hit->right() - lb->left ) + 1;
+                /*
+                 * Scan right in the read until we run out of read or insertion
+                 */
+                for(int read_index = 0; read_index < seqan::length(insertionSequence) && (starting_read_position + read_index < seqan::length(segmentSequence)); read_index += 1){
+                        int segmentPosition = read_index + starting_read_position;
+                        /*
+                         * Any mismatch to the insertion is a failure
+                         */
+                        if(insertionSequence[read_index] == 'N' || segmentSequence[segmentPosition] == 'N' || (insertionSequence[read_index] != segmentSequence[segmentPosition])){
+                                insertion_mismatch += 1;
+                                break;
+                        }
+                        if(referenceSequence[read_index] == 'N' || segmentSequence[segmentPosition] == 'N' || (referenceSequence[read_index] != segmentSequence[segmentPosition])){
+                                this_reference_mismatch += 1;
+                        }
+                }
+            }
+            if(curr_hit->left() <= lb->left){
+            	const seqan::Dna5String segmentSequence = seqan::Dna5String(curr_hit->seq());
+                /*
+                 * Find the last position in the read corresponding to the insertion
+                 */
+                int starting_read_position = lb->left - curr_hit->left();
+                /*
+                 * Scan left in the read until
+                 * a) there is no more insertion to examine
+                 * b) We ran out of read sequence (insertion extends past segment)
+                 */
+                for(int read_index = 0; read_index < lb->sequence.size() && (starting_read_position - read_index >= 0); read_index += 1){
+                		int segmentPosition = starting_read_position - read_index;
+                		int insertionPosition = seqan::length(insertionSequence) - read_index - 1;
+                        if(insertionSequence[insertionPosition] == 'N' || segmentSequence[segmentPosition] == 'N' || (insertionSequence[insertionPosition] != segmentSequence[segmentPosition])){
+                                   insertion_mismatch += 1;
+                                   break;
+                        }
+                        if(referenceSequence[insertionPosition] == 'N' || segmentSequence[segmentPosition] == 'N' || (referenceSequence[insertionPosition] != segmentSequence[segmentPosition])){
+                                   this_reference_mismatch += 1;
+                        }
+                }
+            }
+
 	    if (found_closure)
 	      {
 		fprintf(stderr, "Warning: multiple closures found for insertion read # %d\n", (int)insert_id);
 		return BowtieHit();
 	      }
-	    found_closure = true;
-	    new_left = prev_hit->left();
-	    new_cigar = prev_hit->cigar();
+
+	    if(insertion_mismatch == 0){
+            reference_mismatch = this_reference_mismatch;
 	    
-	    /*
-	     * Need to make a new insert operation betwee the two match character that begin
-	     * and end the intersection of these two junction. Note that we necessarily assume
-	     * that this insertion can't span beyond the boundaries of these reads. That should
-	     * probably be better enforced somewhere 
-	     */
-	    
-	    new_cigar.back().length -= (prev_hit->right() - 1 - lb->left);
-	    new_cigar.push_back(CigarOp(INS, lb->sequence.size()));
-	    vector<CigarOp> new_right_cigar = curr_hit->cigar();
-	    new_right_cigar.front().length += (prev_hit->right() - 1 - lb->left - lb->sequence.size());				
-	    
-	    /*
-	     * Finish stitching together the new cigar string
-	     */	
-	    for (size_t c = 0; c < new_right_cigar.size(); ++c){
-	      new_cigar.push_back(new_right_cigar[c]);
-	    }
-	    
+			found_closure = true;
+			new_left = prev_hit->left();
+			new_cigar = prev_hit->cigar();
+
+			/*
+			 * Need to make a new insert operation betwee the two match character that begin
+			 * and end the intersection of these two junction. Note that we necessarily assume
+			 * that this insertion can't span beyond the boundaries of these reads. That should
+			 * probably be better enforced somewhere
+			 */
+
+			new_cigar.back().length -= (prev_hit->right() - 1 - lb->left);
+			new_cigar.push_back(CigarOp(INS, lb->sequence.size()));
+			vector<CigarOp> new_right_cigar = curr_hit->cigar();
+			new_right_cigar.front().length += (prev_hit->right() - 1 - lb->left - lb->sequence.size());
+
+			/*
+			 * Finish stitching together the new cigar string
+			 */
+			for (size_t c = 0; c < new_right_cigar.size(); ++c){
+			  new_cigar.push_back(new_right_cigar[c]);
+			}
+
+		  }
 	  }
 	  ++lb;
 	}
@@ -315,9 +376,10 @@ BowtieHit merge_sense_chain(RefSequenceTable& rt,
 				 new_cigar,
 				 false,
 				 antisense_closure,
-				 prev_hit->edit_dist() + curr_hit->edit_dist(),
+				 prev_hit->edit_dist() + curr_hit->edit_dist() - reference_mismatch,
 				 prev_hit->splice_mms() + curr_hit->splice_mms(),
 				 end);
+	    merged_hit.seq(prev_hit->seq() + curr_hit->seq());	
 	    
 	    prev_hit = hit_chain.erase(prev_hit,++curr_hit);
 	    /*
@@ -519,7 +581,7 @@ BowtieHit merge_sense_chain(RefSequenceTable& rt,
 				   prev_hit->edit_dist() + curr_hit->edit_dist() + new_diff_mismatches,
 				   prev_hit->splice_mms() + curr_hit->splice_mms(),
 				   end);
-	      
+	      merged_hit.seq(prev_hit->seq() + curr_hit->seq()); 
 	      prev_hit = hit_chain.erase(prev_hit,++curr_hit);
 	      hit_chain.insert(prev_hit, merged_hit);
 	      curr_hit = prev_hit;
@@ -691,9 +753,9 @@ BowtieHit merge_antisense_chain(RefSequenceTable& rt,
        * <left------curr_hit---right><left----prev_hit-----right>
        */
       if (curr_hit->right() > prev_hit->left()){
-	if( curr_hit->right() - prev_hit->left() >= (int)max_insertion_length){
-	  return BowtieHit();
-	}
+	    if( curr_hit->right() - prev_hit->left() > (int)max_insertion_length){
+	      return BowtieHit();
+	    }
 	
 	/*
 	 * This code is assuming that the cigar strings end and start with a match
@@ -710,6 +772,8 @@ BowtieHit merge_antisense_chain(RefSequenceTable& rt,
 	  return BowtieHit();
 	}
 	
+	RefSequenceTable::Sequence* ref_str = rt.get_seq(curr_hit->ref_id());
+
 	
 	std::set<Insertion>::iterator lb,ub;
 	/*
@@ -737,47 +801,102 @@ BowtieHit merge_antisense_chain(RefSequenceTable& rt,
 	bool antisense_closure = curr_hit->antisense_splice();
 	vector<CigarOp> new_cigar;
 	int new_left = -1;
+	int reference_mismatch = 0;
 	
 	while(lb != ub && lb != possible_insertions.end()){
-	  /*
-	   * Only check to see if the length of the insertion
-	   * makes sense with respect to the distance between the 
-	   * segments. There is no check fo the actual seequence relative
-	   * to the putative insertion. This will work for low coverage regions
-	   * but in high coverage, there will eventually be the same insertion with
-	   * a different inserted sequence, leading to multiple closures. On the bright side,
-	   * should enforce that all sequences have the same inserted sequence for the same
-	   * insertion.
-	   */
 	  if(((int)lb->sequence.size()) == (curr_hit->right() - prev_hit->left())){
-	    if (found_closure)
-	      {
-		fprintf(stderr, "Warning: multiple closures found for insertion read # %d\n", (int)insert_id);
-		return BowtieHit();
-	      }
-	    found_closure = true;
-	    new_left = curr_hit->left();
-	    new_cigar = curr_hit->cigar();
-	    
-	    /*
-	     * Need to make a new insert operation betwee the two match character that begin
-	     * and end the intersection of these two junction. Note that we necessarily assume
-	     * that this insertion can't span beyond the boundaries of these reads. That should
-	     * probably be better enforced somewhere 
-	     */
-	    
-	    new_cigar.back().length -= (curr_hit->right() - 1 - lb->left);
-	    new_cigar.push_back(CigarOp(INS, lb->sequence.size()));
-	    vector<CigarOp> new_right_cigar = prev_hit->cigar();
-	    new_right_cigar.front().length += (curr_hit->right() - 1 - lb->left - lb->sequence.size());				
-	    
-	    /*
-	     * Finish stitching together the new cigar string
-	     */	
-	    for (size_t c = 0; c < new_right_cigar.size(); ++c){
-	      new_cigar.push_back(new_right_cigar[c]);
-	    }
-	    
+          /*
+           * Keep track of how many mismatches were made to the genome in the region
+           * where we should actually be matching against the insertion
+           */
+          int this_reference_mismatch = 0;
+          int insertion_mismatch = 0;
+          const seqan::Dna5String referenceSequence = seqan::infix(*ref_str, lb->left + 1, lb->left + lb->sequence.size() + 1);
+          const seqan::Dna5String insertionSequence = seqan::Dna5String(lb->sequence);
+
+          /*
+           * First check to see if we need to adjust number of observed errors for the left (prev)
+           * hit. This is only the case if this segment runs into the insertion. To be consistent
+           * with bwt_map.cpp, we will not allow a segment to have errors in the insertion region
+           */
+          if(curr_hit->right() - 1 > lb->left){
+          	  const seqan::Dna5String segmentSequence = seqan::Dna5String(curr_hit->seq());
+              /*
+               * The first position (relative to the start of the read) that contains the insertion
+               */
+              int starting_read_position = seqan::length(segmentSequence) - ( curr_hit->right() - lb->left ) + 1;
+              /*
+               * Scan right in the read until we run out of read or insertion
+               */
+              for(int read_index = 0; read_index < seqan::length(insertionSequence) && (starting_read_position + read_index < seqan::length(segmentSequence) ); read_index += 1){
+              		int segmentPosition = read_index + starting_read_position;
+              		/*
+                     * Any mismatch to the insertion is a failure
+                     */
+                    if(insertionSequence[read_index] == 'N' || segmentSequence[segmentPosition] == 'N' || (insertionSequence[read_index] != segmentSequence[segmentPosition])){
+                      insertion_mismatch += 1;
+                      break;
+                    }
+                    if(referenceSequence[read_index] == 'N' || segmentSequence[segmentPosition] == 'N' || (referenceSequence[read_index] != segmentSequence[segmentPosition])){
+                      this_reference_mismatch += 1;
+                    }
+              }
+          }
+          if(prev_hit->left() <= lb->left){
+          	  const seqan::Dna5String segmentSequence = seqan::Dna5String(prev_hit->seq());
+              /*
+               * Find the last position in the read corresponding to the insertion
+               */
+              int starting_read_position = lb->left - prev_hit->left();
+              /*
+               * Scan left in the read until
+               * a) there is no more insertion to examine
+               * b) We ran out of read sequence (insertion extends past segment)
+               */
+              for(int read_index = 0; read_index < seqan::length(insertionSequence) && (starting_read_position - read_index >= 0); read_index += 1){
+              		int segmentPosition = starting_read_position - read_index;
+              		int insertionPosition = seqan::length(insertionSequence) - read_index - 1;
+                    if(insertionSequence[insertionPosition] == 'N' || segmentSequence[segmentPosition] == 'N' || (insertionSequence[insertionPosition] != segmentSequence[segmentPosition])){
+                      insertion_mismatch += 1;
+                      break;
+                    }
+                    if(referenceSequence[insertionPosition] == 'N' || segmentSequence[segmentPosition] == 'N' || (referenceSequence[insertionPosition] != segmentSequence[segmentPosition])){
+                      this_reference_mismatch += 1;
+                    }
+              }
+          }
+
+	      if (found_closure)
+	        {
+		       fprintf(stderr, "Warning: multiple closures found for insertion read # %d\n", (int)insert_id);
+		       return BowtieHit();
+	        }
+
+	      if(insertion_mismatch == 0){
+            reference_mismatch = this_reference_mismatch;
+			found_closure = true;
+			new_left = curr_hit->left();
+			new_cigar = curr_hit->cigar();
+
+			/*
+			 * Need to make a new insert operation betwee the two match character that begin
+			 * and end the intersection of these two junction. Note that we necessarily assume
+			 * that this insertion can't span beyond the boundaries of these reads. That should
+			 * probably be better enforced somewhere
+			 */
+
+			new_cigar.back().length -= (curr_hit->right() - 1 - lb->left);
+			new_cigar.push_back(CigarOp(INS, lb->sequence.size()));
+			vector<CigarOp> new_right_cigar = prev_hit->cigar();
+			new_right_cigar.front().length += (curr_hit->right() - 1 - lb->left - lb->sequence.size());
+
+			/*
+			 * Finish stitching together the new cigar string
+			 */
+			for (size_t c = 0; c < new_right_cigar.size(); ++c){
+			  new_cigar.push_back(new_right_cigar[c]);
+			}
+		  }
 	  }
 	  ++lb;
 	}
@@ -792,10 +911,16 @@ BowtieHit merge_antisense_chain(RefSequenceTable& rt,
 				 new_cigar,
 				 true,
 				 antisense_closure,
-				 prev_hit->edit_dist() + curr_hit->edit_dist(),
+				 prev_hit->edit_dist() + curr_hit->edit_dist() - reference_mismatch,
 				 prev_hit->splice_mms() + curr_hit->splice_mms(),
 				 end);
-				
+	    /*
+	     * Note the sequence returned by seq() is already
+	     * the reverse complement of the actual 
+	     * read sequence, so no further modifications are
+	     * necessary.
+	     */
+	    merged_hit.seq(curr_hit->seq() + prev_hit->seq());		
 	    prev_hit = hit_chain.erase(prev_hit,++curr_hit);
 	    hit_chain.insert(prev_hit, merged_hit);
 	    curr_hit = prev_hit;
@@ -1002,6 +1127,7 @@ BowtieHit merge_antisense_chain(RefSequenceTable& rt,
 				   prev_hit->edit_dist() + curr_hit->edit_dist() + new_diff_mismatches,
 				   prev_hit->splice_mms() + curr_hit->splice_mms(),
 				   end);
+	      merged_hit.seq(curr_hit->seq() + prev_hit->seq());
 	      prev_hit = hit_chain.erase(prev_hit,++curr_hit);
 	      /*
 	       * Prev hit now points PAST the last element deleted

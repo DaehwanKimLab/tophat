@@ -765,7 +765,22 @@ bool SAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 		}
 	}
 	
-	
+
+	/*
+	 * By convention,the NM field of the SAM record
+	 * counts an insertion or deletion. I dont' think
+	 * we want the mismatch count in the BowtieHit
+	 * record to reflect this. Therefore, subtract out
+	 * the mismatches due to in/dels
+	 */
+	for(vector<CigarOp>::const_iterator itr = cigar.begin(); itr != cigar.end(); ++itr){
+		if(itr->opcode == INS){
+			num_mismatches -= itr->length;
+		}
+		if(itr->opcode == DEL){
+			num_mismatches -= itr->length;
+		}
+	}		
 //	vector<string> toks;
 //	tokenize(tag_buf, ":", toks);
 	if (spliced_alignment)
@@ -970,6 +985,14 @@ void print_hit(FILE* fout,
 	//string qualities = "*";
 	
 	const vector<CigarOp>& bh_cigar = bh.cigar();
+
+	/*
+	 * In addition to calculating the cigar string,
+	 * we need to figure out how many in/dels are in the 
+	 * sequence, so that we can give the correct
+	 * value for the NM tag
+	 */
+	int indel_distance = 0;
 	for (size_t c = 0; c < bh_cigar.size(); ++c)
 	{
 		char ibuf[64];
@@ -983,10 +1006,12 @@ void print_hit(FILE* fout,
 			case INS:
 				strcat(cigar, ibuf);
 				strcat(cigar, "I");
+				indel_distance += bh_cigar[c].length;
 				break;
 			case DEL:
 				strcat(cigar, ibuf);
 				strcat(cigar, "D");
+				indel_distance += bh_cigar[c].length;
 				break;
 			case REF_SKIP:
 				strcat(cigar, ibuf);
@@ -1014,7 +1039,7 @@ void print_hit(FILE* fout,
 			seq.c_str(),
 			quals.c_str());
 	
-	fprintf(fout, "\tNM:i:%d", bh.edit_dist());
+	fprintf(fout, "\tNM:i:%d", bh.edit_dist() + indel_distance);
 
 	bool containsSplice = false;
 	for(vector<CigarOp>::const_iterator itr = bh.cigar().begin(); itr != bh.cigar().end(); ++itr){
