@@ -58,7 +58,8 @@ Options:
     --deletions			   <filename>
     -r/--mate-inner-dist           <int>       
     --mate-std-dev                 <int>       [ default: 20           ]
-    --no-novel-juncs                           
+    --no-novel-juncs
+    --no-novel-indels                           
     --no-gtf-juncs                             
     --no-coverage-search
     --coverage-search                                              
@@ -385,6 +386,7 @@ class TopHatParams:
         self.gff_annotation = None
         self.raw_junctions = None
         self.find_novel_juncs = True
+        self.find_novel_indels = True
         self.find_GFF_juncs = True
         self.skip_check_reads = False
         self.max_hits = 40
@@ -521,6 +523,7 @@ class TopHatParams:
                                          "GTF=",
                                          "raw-juncs=",
                                          "no-novel-juncs",
+                                         "no-novel-indels",
                                          "no-gtf-juncs",
                                          "skip-check-reads",
                                          "mate-inner-dist=",
@@ -585,6 +588,8 @@ class TopHatParams:
                 self.raw_junctions = value
             if option == "--no-novel-juncs":
                 self.find_novel_juncs = False
+            if option == "--no-novel-indels":
+                self.find_novel_indels = False
             if option == "--no-gtf-juncs":
                 self.find_GFF_juncs = False
             if option == "--skip-check-reads":
@@ -1029,7 +1034,7 @@ def fa_next(f, fname):
    return (seqid, seqstr, seq_len)
 
 # check_reads() has several jobs.  It examines the user's reads, one file at a 
-# time, and determines the file format, read length, and other properties that 
+# time, and determnes the file format, read length, and other properties that 
 # are used to set the junction search strategy later on.  
 # TODO: When we add support for mixed read lengths, this routine 
 # will need to set the seed length differently. 
@@ -2003,7 +2008,7 @@ def spliced_alignment(params,
     
     # Unless the user asked not to discover new junctions, start that process
     # here
-    if params.find_novel_juncs:
+    if params.find_novel_juncs or params.find_novel_indels:
         left_reads_map = maps[left_reads].unspliced_bwt
         left_seg_maps = maps[left_reads].seg_maps
         unmapped_reads = maps[left_reads].unmapped_segs
@@ -2027,14 +2032,17 @@ def spliced_alignment(params,
                                         unmapped_reads,
                                         "fastq", 
                                         ref_fasta)
-        
-        possible_juncs.append(juncs[0])
-        possible_insertions.append(juncs[1])
-        possible_deletions.append(juncs[2])
-    
+        if params.find_novel_juncs:
+                if os.path.getsize(juncs[0]) != 0:
+                    possible_juncs.append(juncs[0])
+        if params.find_novel_indels:
+                if os.path.getsize(juncs[1]) != 0:
+                    possible_insertions.append(juncs[1])
+                if os.path.getsize(juncs[2]) != 0:
+                    possible_deletions.append(juncs[2])
         # Optionally, and for paired reads only, use a closure search to 
         # discover addtional junctions
-        if params.closure_search and left_reads != None and right_reads != None:
+        if params.find_novel_juncs and params.closure_search and left_reads != None and right_reads != None:
             juncs = junctions_from_closures(params,
                                             [maps[left_reads].unspliced_bwt, maps[left_reads].seg_maps[-1]],
                                             [maps[right_reads].unspliced_bwt, maps[right_reads].seg_maps[-1]],
@@ -2042,13 +2050,21 @@ def spliced_alignment(params,
             if os.path.getsize(juncs[0]) != 0:
                 possible_juncs.extend(juncs)
 
-    if len(possible_juncs) == 0:
+    if len(possible_insertions) == 0 and len(possible_deletions) == 0 and len(possible_juncs) == 0:
         spliced_seg_maps = None
         junc_idx_prefix = None
-        print >> sys.stderr, "Warning: junction database is empty!"
-    else:  
-        # index the junction sequences with bowtie-build
+    else:
         junc_idx_prefix = "segment_juncs"
+    if len(possible_insertions) == 0:
+        possible_insertions.append(os.devnull)
+        print >> sys.stderr, "Warning: insertions database is empty!"
+    if len(possible_deletions) == 0:
+        possible_deletions.append(os.devnull)
+        print >> sys.stderr, "Warning: deletions database is empty!"
+    if len(possible_juncs) == 0:
+        possible_juncs.append(os.devnull)
+        print >> sys.stderr, "Warning: junction database is empty!"
+    if junc_idx_prefix != None:  
         build_juncs_index(3,
                           segment_len,
                           junc_idx_prefix, 
