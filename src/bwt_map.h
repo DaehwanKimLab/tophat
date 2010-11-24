@@ -247,7 +247,7 @@ private:
   bool _antisense_splice;    // Whether the junction spanned is on the reverse strand
   bool _antisense_aln;       // Whether the alignment is to the reverse strand
   
-  unsigned char _edit_dist;  // Total mismatches
+  unsigned char _edit_dist;  // Total mismatches (note this is not including insertions or deletions as mismatches, ie, not equivalent to NM field of a SAM record)
   unsigned char _splice_mms; // Mismatches within min_anchor_len of a splice junction
   string _hitfile_rec; // Points to the buffer for the record from which this hit came
   string _seq;

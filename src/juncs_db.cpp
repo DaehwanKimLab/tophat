@@ -306,11 +306,25 @@ void driver(const vector<FILE*>& splice_coords_files,
 				fprintf(stderr,"Error: malformed insertion coordinate record\n");
 				exit(1);
 			}
-
+			
+			seqan::Dna5String sequence = seqan::Dna5String(scan_sequence);
+			bool containsN = false;
+			for(size_t index = 0; index < seqan::length(sequence); index += 1){
+				/*
+				 * Don't allow any ambiguities in the insertion
+				 */
+				if(sequence[index] == 'N'){
+					containsN = true;
+					break;	
+				}
+			}
+			if(containsN){
+				continue;
+			}
+			seqan::CharString charSequence = sequence;
 			uint32_t ref_id = rt.get_id(ref_name,NULL,0);
 			uint32_t left_coord = atoi(scan_left_coord);
-			std::string sequence(scan_sequence);
-			insertions.insert(Insertion(ref_id, left_coord, sequence));
+			insertions.insert(Insertion(ref_id, left_coord, seqan::toCString(charSequence)));
 		}
 	}
 
