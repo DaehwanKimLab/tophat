@@ -410,7 +410,9 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 				right_match_length = right - right_splice_pos + 1;
 			}
 			int insertion_match_length = spliced_read_len - left_match_length - right_match_length;
-			
+
+			if(left_match_length <= 0 || right_match_length <= 0)
+			  return false;
 
 			string junction_strand = toks[num_extra_toks + strand_field];
 			if(junction_strand != "rev" && junction_strand != "fwd"){
@@ -489,80 +491,82 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 			return true;
 		}	
 
-	
-		uint32_t left = atoi(toks[num_extra_toks + left_window_edge_field].c_str()) + text_offset;
-		int spliced_read_len = strlen(seq_str);
-		int8_t left_splice_pos = atoi(splice_toks[0].c_str()) - left + 1;
-		if(left_splice_pos > spliced_read_len) left_splice_pos = spliced_read_len;		  
-		int8_t right_splice_pos = spliced_read_len - left_splice_pos;
-
-		if (right_splice_pos <= 0 && end)
-		 return false;
-		
-		if (orientation == '+')
-		{
-			if (left_splice_pos + seg_offset < _anchor_length){
-				return false;
-			}
-		}
 		else
-		{
+		  {
+		    uint32_t left = atoi(toks[num_extra_toks + left_window_edge_field].c_str()) + text_offset;
+		    int spliced_read_len = strlen(seq_str);
+		    int8_t left_splice_pos = atoi(splice_toks[0].c_str()) - left + 1;
+		    if(left_splice_pos > spliced_read_len) left_splice_pos = spliced_read_len;		  
+		    int8_t right_splice_pos = spliced_read_len - left_splice_pos;
+		    
+		    if (right_splice_pos <= 0 || left_splice_pos <= 0)
+		      return false;
+		    
+		    if (orientation == '+')
+		      {
+			if (left_splice_pos + seg_offset < _anchor_length){
+			  return false;
+			}
+		      }
+		    else
+		      {
 			if (right_splice_pos + seg_offset < _anchor_length)
-				return false;
-		}
-		//uint32_t right = atoi(splice_toks[1].c_str()) + right_splice_pos;
-		//atoi(toks[right_window_edge_field].c_str());
-		int gap_len = atoi(splice_toks[1].c_str()) - atoi(splice_toks[0].c_str()) - 1;
-		
-		string junction_strand = toks[num_extra_toks + strand_field];
-		if (!(junction_strand == "rev" || junction_strand == "fwd")||
+			  return false;
+		      }
+		    //uint32_t right = atoi(splice_toks[1].c_str()) + right_splice_pos;
+		    //atoi(toks[right_window_edge_field].c_str());
+		    int gap_len = atoi(splice_toks[1].c_str()) - atoi(splice_toks[0].c_str()) - 1;
+		    
+		    string junction_strand = toks[num_extra_toks + strand_field];
+		    if (!(junction_strand == "rev" || junction_strand == "fwd")||
 			!(orientation == '-' || orientation == '+'))
-		{
+		      {
 			fprintf(stderr, "Warning: found malformed splice record, skipping\n");
 			return false;
-		}
-		
-		//vector<string> mismatch_toks;
-		char* pch = strtok (mismatches,",");
-		int mismatches_in_anchor = 0;
-		unsigned char num_mismatches = 0;
-		while (pch != NULL)
-		{
+		      }
+		    
+		    //vector<string> mismatch_toks;
+		    char* pch = strtok (mismatches,",");
+		    int mismatches_in_anchor = 0;
+		    unsigned char num_mismatches = 0;
+		    while (pch != NULL)
+		      {
 			char* colon = strchr(pch, ':');
 			if (colon) 
-			{
-				*colon = 0;
-				num_mismatches++;
-				int mismatch_pos = atoi(pch);
-				if ((orientation == '+' && abs(mismatch_pos - left_splice_pos) < (int)min_anchor_len) ||
-					(orientation == '-' && abs(((int)spliced_read_len - left_splice_pos + 1) - mismatch_pos)) < (int)min_anchor_len)
-					mismatches_in_anchor++;
-			}
+			  {
+			    *colon = 0;
+			    num_mismatches++;
+			    int mismatch_pos = atoi(pch);
+			    if ((orientation == '+' && abs(mismatch_pos - left_splice_pos) < (int)min_anchor_len) ||
+				(orientation == '-' && abs(((int)spliced_read_len - left_splice_pos + 1) - mismatch_pos)) < (int)min_anchor_len)
+			      mismatches_in_anchor++;
+			  }
 			//mismatch_toks.push_back(pch);
 			pch = strtok (NULL, ",");
-		}
-		
-		// FIXME: we probably should exclude these hits somewhere, but this
-		// isn't the right place
-		vector<CigarOp> cigar;
-		cigar.push_back(CigarOp(MATCH, left_splice_pos));
-		if(toks[num_extra_toks + junction_type_field] == "del"){
-			cigar.push_back(CigarOp(DEL, gap_len));
-		}else{
-			cigar.push_back(CigarOp(REF_SKIP, gap_len));
-		}
-		cigar.push_back(CigarOp(MATCH, right_splice_pos));
-
-		bh = create_hit(name,
-				contig,
-				left, 
-				cigar,
-				orientation == '-', 
-				junction_strand == "rev",
-				num_mismatches,
-				mismatches_in_anchor,
-				end);
-		return true;
+		      }
+		    
+		    // FIXME: we probably should exclude these hits somewhere, but this
+		    // isn't the right place
+		    vector<CigarOp> cigar;
+		    cigar.push_back(CigarOp(MATCH, left_splice_pos));
+		    if(toks[num_extra_toks + junction_type_field] == "del"){
+		      cigar.push_back(CigarOp(DEL, gap_len));
+		    }else{
+		      cigar.push_back(CigarOp(REF_SKIP, gap_len));
+		    }
+		    cigar.push_back(CigarOp(MATCH, right_splice_pos));
+		    
+		    bh = create_hit(name,
+				    contig,
+				    left, 
+				    cigar,
+				    orientation == '-', 
+				    junction_strand == "rev",
+				    num_mismatches,
+				    mismatches_in_anchor,
+				    end);
+		    return true;
+		  }
 	}
 	else
 	{
