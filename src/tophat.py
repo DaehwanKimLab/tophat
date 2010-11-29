@@ -37,8 +37,8 @@ Options:
     -o/--output-dir                <string>    [ default: ./tophat_out ]
     -a/--min-anchor                <int>       [ default: 8            ]
     -m/--splice-mismatches         <0-2>       [ default: 0            ]
-    -i/--min-intron                <int>       [ default: 50           ]
-    -I/--max-intron                <int>       [ default: 500000       ]
+    -i/--min-intron-length         <int>       [ default: 50           ]
+    -I/--max-intron-length         <int>       [ default: 500000       ]
     -g/--max-multihits             <int>       [ default: 40           ]
     -F/--min-isoform-fraction      <float>     [ default: 0.15         ]
     --max-insertion-length         <int>       [ default: 3            ]
@@ -59,6 +59,7 @@ Options:
     -r/--mate-inner-dist           <int>       
     --mate-std-dev                 <int>       [ default: 20           ]
     --no-novel-juncs
+    --allow-indels
     --no-novel-indels                           
     --no-gtf-juncs                             
     --no-coverage-search
@@ -386,7 +387,7 @@ class TopHatParams:
         self.gff_annotation = None
         self.raw_junctions = None
         self.find_novel_juncs = True
-        self.find_novel_indels = True
+        self.find_novel_indels = False
         self.find_GFF_juncs = True
         self.skip_check_reads = False
         self.max_hits = 40
@@ -523,6 +524,7 @@ class TopHatParams:
                                          "GTF=",
                                          "raw-juncs=",
                                          "no-novel-juncs",
+                                         "allow-indels",
                                          "no-novel-indels",
                                          "no-gtf-juncs",
                                          "skip-check-reads",
@@ -588,6 +590,8 @@ class TopHatParams:
                 self.raw_junctions = value
             if option == "--no-novel-juncs":
                 self.find_novel_juncs = False
+            if option == "--allow-indels":
+                self.find_novel_indels = True
             if option == "--no-novel-indels":
                 self.find_novel_indels = False
             if option == "--no-gtf-juncs":
@@ -2058,10 +2062,10 @@ def spliced_alignment(params,
         junc_idx_prefix = "segment_juncs"
     if len(possible_insertions) == 0:
         possible_insertions.append(os.devnull)
-        print >> sys.stderr, "Warning: insertions database is empty!"
+        # print >> sys.stderr, "Warning: insertions database is empty!"
     if len(possible_deletions) == 0:
         possible_deletions.append(os.devnull)
-        print >> sys.stderr, "Warning: deletions database is empty!"
+        # print >> sys.stderr, "Warning: deletions database is empty!"
     if len(possible_juncs) == 0:
         possible_juncs.append(os.devnull)
         print >> sys.stderr, "Warning: junction database is empty!"

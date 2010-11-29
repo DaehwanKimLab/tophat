@@ -410,6 +410,21 @@
 	  of a long read.  The default is 500000.
 	  </td></tr>
 	  <tr><td VALIGN=top nowrap>
+	  <tt>--allow-indels</tt>
+	  </td><td VALIGN=top>
+	  Allow indel search. Indel search is disabled by default.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--max-insertion-length &lt;int&gt;</tt>
+	  </td><td VALIGN=top>
+	  The maximum insertion length.  The default is 3.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--max-deletion-length &lt;int&gt;</tt>
+	  </td><td VALIGN=top>
+	  The maximum deletion length.  The default is 3.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
 	  <tt>--solexa-quals</tt>
 	  </td><td VALIGN=top>
 	  Use the Solexa scale for quality values in FASTQ files.
@@ -637,7 +652,7 @@
 	  files you will likely want to look at are:
       </p> <br/>
       <ol>
-		<li><tt>accepted_hits.sam</tt>. A list of read alignments in <a 
+	<li><tt>accepted_hits.sam</tt>. A list of read alignments in <a 
 			href="http://samtools.sourceforge.net">SAM</a> format.  SAM is a 
 			compact short read alignment format that is increasingly being 
 			adopted.  The formal specification is <a href="http://samtools.sourceforge.net/SAM1.pdf">here</a>.</li>
@@ -646,6 +661,11 @@
 		of two connected BED blocks, where each block is as long as the 
 		maximal overhang of any read spanning the junction.  The score is the 
 		number of alignments spanning the junction.</li>
+	<li><tt>insertions.bed and deletions.bed</tt>.  <a href="http://genome.ucsc.edu/FAQ/FAQformat.html#format1">UCSC 
+		BED</a> tracks of insertions and deletions reported by TopHat.
+	  <br>Insertions.bed - chromLeft refers to the last genomic base before the insertion.
+	  <br>Deletions.bed - chromLeft refers to the first genomic base of the deletion.
+	  </li>
       </ol>
       </td></tr></table><br/>
     </div>
