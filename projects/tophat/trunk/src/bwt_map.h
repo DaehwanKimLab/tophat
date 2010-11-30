@@ -184,6 +184,18 @@ struct BowtieHit
 		}
 		return r;			
 	}
+
+  bool is_spliced()
+  {
+    for (size_t i = 0; i < _cigar.size(); ++i)
+      {
+	const CigarOp& op = _cigar[i];
+	
+	if (op.opcode == REF_SKIP)
+	  return true;
+      }
+    return false;
+  }
 	
 	bool antisense_splice()	const		{ return _antisense_splice; }
 	bool antisense_align() const		{ return _antisense_aln;	}
