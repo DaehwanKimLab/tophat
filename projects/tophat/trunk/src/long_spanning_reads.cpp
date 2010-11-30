@@ -273,7 +273,6 @@ BowtieHit merge_sense_chain(RefSequenceTable& rt,
              */
             int this_reference_mismatch = 0;
             int insertion_mismatch = 0;
-            const seqan::Dna5String referenceSequence = seqan::infix(*ref_str, lb->left + 1, lb->left + lb->sequence.size() + 1);
             const seqan::Dna5String insertionSequence = seqan::Dna5String(lb->sequence);
 
 
@@ -283,6 +282,7 @@ BowtieHit merge_sense_chain(RefSequenceTable& rt,
              * with bwt_map.cpp, we will not allow a segment to have errors in the insertion region
              */
             if(prev_hit->right() - 1 > lb->left){
+                const seqan::Dna5String referenceSequence = seqan::infix(*ref_str, lb->left + 1, lb->left + lb->sequence.size() + 1);
             	const seqan::Dna5String segmentSequence = seqan::Dna5String(prev_hit->seq());
                 /*
                  * The first position (relative to the start of the read) that contains the insertion
@@ -306,6 +306,7 @@ BowtieHit merge_sense_chain(RefSequenceTable& rt,
                 }
             }
             if(curr_hit->left() <= lb->left){
+		const seqan::Dna5String referenceSequence = seqan::infix(*ref_str, lb->left - lb->sequence.size() + 1, lb->left + 1);
             	const seqan::Dna5String segmentSequence = seqan::Dna5String(curr_hit->seq());
                 /*
                  * Find the last position in the read corresponding to the insertion
@@ -811,7 +812,6 @@ BowtieHit merge_antisense_chain(RefSequenceTable& rt,
            */
           int this_reference_mismatch = 0;
           int insertion_mismatch = 0;
-          const seqan::Dna5String referenceSequence = seqan::infix(*ref_str, lb->left + 1, lb->left + lb->sequence.size() + 1);
           const seqan::Dna5String insertionSequence = seqan::Dna5String(lb->sequence);
 
           /*
@@ -820,7 +820,8 @@ BowtieHit merge_antisense_chain(RefSequenceTable& rt,
            * with bwt_map.cpp, we will not allow a segment to have errors in the insertion region
            */
           if(curr_hit->right() - 1 > lb->left){
-          	  const seqan::Dna5String segmentSequence = seqan::Dna5String(curr_hit->seq());
+              const seqan::Dna5String referenceSequence = seqan::infix(*ref_str, lb->left + 1, lb->left + lb->sequence.size() + 1);
+              const seqan::Dna5String segmentSequence = seqan::Dna5String(curr_hit->seq());
               /*
                * The first position (relative to the start of the read) that contains the insertion
                */
@@ -843,7 +844,8 @@ BowtieHit merge_antisense_chain(RefSequenceTable& rt,
               }
           }
           if(prev_hit->left() <= lb->left){
-          	  const seqan::Dna5String segmentSequence = seqan::Dna5String(prev_hit->seq());
+              const seqan::Dna5String referenceSequence = seqan::infix(*ref_str, lb->left - lb->sequence.size() + 1, lb->left + 1);
+              const seqan::Dna5String segmentSequence = seqan::Dna5String(prev_hit->seq());
               /*
                * Find the last position in the read corresponding to the insertion
                */
