@@ -227,7 +227,7 @@ BowtieHit merge_chain(RefSequenceTable& rt,
 	return BowtieHit();
       }
       
-      if (prev_hit->is_spliced() == curr_hit->is_spliced() && prev_hit->antisense_splice() != curr_hit->antisense_splice()){
+      if (prev_hit->is_spliced() && curr_hit->is_spliced() && prev_hit->antisense_splice() != curr_hit->antisense_splice()){
 	/*
 	 * There is no way that we can splice these together into a valid
 	 * alignment
