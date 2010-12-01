@@ -1,0 +1,13 @@
+long_spanning_reads v1.1.4 (1716)
+--------------------------------------------
+Opening ./tophat_out/tmp/segment.juncs for reading
+Opening /dev/null for reading
+Opening /dev/null for reading
+Opening ./tophat_out/tmp/left_kept_reads_seg1.bwtout for reading
+Opening ./tophat_out/tmp/left_kept_reads_seg2.bwtout for reading
+Opening ./tophat_out/tmp/left_kept_reads_seg1_to_spliced.bwtout for reading
+Opening ./tophat_out/tmp/left_kept_reads_seg2_to_spliced.bwtout for reading
+Loading reference sequences...
+Loading spliced hits...done
+Loading junctions...done
+Loading deletions...done

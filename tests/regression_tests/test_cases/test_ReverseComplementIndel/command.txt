@@ -1,0 +1,1 @@
+tophat --allow-indels --segment-length 12 --solexa1.3-quals  ../common_genomes/fake input/fakeReads_rc.fq 

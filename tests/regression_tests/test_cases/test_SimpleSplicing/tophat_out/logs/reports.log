@@ -1,0 +1,10 @@
+tophat_reports v1.1.4 (1716)
+---------------------------------------
+[samopen] SAM header is present: 1 sequences.
+SQ: fake - 500
+Loaded 1 junctions
+Reporting final accepted alignments...done
+Printing junction BED track...done
+Printing insertions...done
+Printing deletions...done
+Found 1 junctions from happy spliced reads
