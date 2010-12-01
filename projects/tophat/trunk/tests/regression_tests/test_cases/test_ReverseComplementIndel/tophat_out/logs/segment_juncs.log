@@ -1,0 +1,37 @@
+segment_juncs v1.1.4 (1716)
+---------------------------
+Loading reference sequences...
+	Loading fake...done
+Loading left segment hits...
+Microaligned 0 segments
+done.
+Found 0 potential split-segment junctions
+Found 1 potential small deletions
+Found 1 potential small insertions
+Indexing extensions in ./tophat_out/tmp/left_kept_reads_seg1_missing.fq
+Indexing extensions in ./tophat_out/tmp/left_kept_reads_seg2_missing.fq
+Total extensions: 183
+Total extensions: 183
+Looking for junctions by island end pairings
+Adding hits from segment file 0 to coverage map
+Adding hits from segment file 1 to coverage map
+Map covers 98 bases
+Map covers 95 bases in sufficiently long segments
+Map contains 4 good islands
+100 are left looking bases
+100 are right looking bases
+Collecting potential splice sites in islands
+reporting synthetic splice junctions...
+Examining donor-acceptor pairings in fake
+Found 0 potential island-end pairing junctions
+done
+-- seg --
+-- done --
+-- cov --
+-- done --
+-- buf --
+-- done --
+Reporting potential splice junctions...done
+Reported 0 total possible splices
+Reporting potential deletions...
+Reporting potential insertions...

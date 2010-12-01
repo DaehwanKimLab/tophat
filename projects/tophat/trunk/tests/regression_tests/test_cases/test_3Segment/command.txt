@@ -1,0 +1,1 @@
+tophat -r 50 --segment-length 8 --solexa1.3-quals -o tophat_out ../common_genomes/fake input/readOne.fq input/readTwo.fq
