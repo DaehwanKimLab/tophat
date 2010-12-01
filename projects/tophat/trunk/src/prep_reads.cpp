@@ -78,7 +78,7 @@ void filter_garbage_reads(vector<FILE*> reads_files, vector<FILE*> quals_files)
 	      
 	      format_qual_string(orig_qual, read.qual);
 	    }
-
+	  std::transform(read.seq.begin(), read.seq.end(), read.seq.begin(), ::toupper);
 	  // daehwan - check this.
 	  // if(read.seq.length() < 20)
 	  //  continue;
