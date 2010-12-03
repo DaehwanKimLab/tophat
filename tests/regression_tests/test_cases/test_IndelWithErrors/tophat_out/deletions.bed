@@ -1,0 +1,4 @@
+track name=deletions description="TopHat deletions"
+fake	50	52	-	10
+fake	51	53	-	100
+fake	53	55	-	11
