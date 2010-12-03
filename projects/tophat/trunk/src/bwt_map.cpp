@@ -411,7 +411,7 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 			}
 			int insertion_match_length = spliced_read_len - left_match_length - right_match_length;
 
-			if(left_match_length <= 0 || right_match_length <= 0)
+			if(left_match_length <= 0 || right_match_length <= 0 || insertion_match_length <= 0)
 			  return false;
 
 			string junction_strand = toks[num_extra_toks + strand_field];
@@ -440,15 +440,24 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 				{
 					*colon = 0;
 					int mismatch_pos = atoi(pch);
+
+					/*
+					 * for reversely mapped reads,
+					 * find the correct mismatched position.
+					 */
+					if(orientation == '-'){
+					  mismatch_pos = spliced_read_len - mismatch_pos - 1;
+					}
+
 					/*
 					 * Only count mismatches outside of the insertion region
 					 * If there is a mismatch within the insertion,
 					 * disallow this hit 
 					 */
-					if(mismatch_pos + text_offset <= relative_splice_pos || mismatch_pos + text_offset > relative_splice_pos + insertedSequence.length()){		
-						num_mismatches++;
+					if(mismatch_pos + text_offset <= relative_splice_pos || mismatch_pos + text_offset > relative_splice_pos + insertedSequence.length()){
+					  num_mismatches++;
 					}else{
-						return false; 
+					  return false; 
 					}
 				}
 				pch = strtok (NULL, ",");
@@ -456,15 +465,9 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 			
 			
 			vector<CigarOp> cigar;
-			if(left_match_length > 0){
-				cigar.push_back(CigarOp(MATCH, left_match_length));
-			}
-			if(insertion_match_length > 0){
-				cigar.push_back(CigarOp(INS, insertion_match_length)); 
-			}
-			if(right_match_length > 0){
-				cigar.push_back(CigarOp(MATCH, right_match_length)); 
-			}
+			cigar.push_back(CigarOp(MATCH, left_match_length));
+			cigar.push_back(CigarOp(INS, insertion_match_length)); 
+			cigar.push_back(CigarOp(MATCH, right_match_length)); 
 
 			/*
 			 * For now, disallow hits that don't span
@@ -476,9 +479,6 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 			 * Following code has been changed to allow segment that end
 			 * in an insertion
 			 */
-			//if(left_match_length == 0 || right_match_length == 0){
-			//	return false;		
-			//}
 			bh = create_hit(name,
 					contig,
 					left, 
@@ -1098,3 +1098,48 @@ std::string print_cigar(vector<CigarOp>& bh_cigar){
 	return result;
 }
 
+bool BowtieHit::check_editdist_consistency(const RefSequenceTable& rt)
+{
+  RefSequenceTable::Sequence* ref_str = rt.get_seq(_ref_id);
+  if (!ref_str)
+    return false;
+  
+  const seqan::Dna5String ref_seq = seqan::infix(*ref_str, _left, right());
+
+  size_t pos_seq = 0;
+  size_t pos_ref = 0;
+  size_t mismatch = 0;
+  for (size_t i = 0; i < _cigar.size(); ++i)
+    {
+      CigarOp cigar = _cigar[i];
+      switch(cigar.opcode)
+	{
+	case MATCH:
+	  {
+	    for (size_t j = 0; j < cigar.length; ++j)
+	      {
+		if (_seq[pos_seq++] != ref_seq[pos_ref++])
+		  ++mismatch;
+	      }
+	  }
+	  break;
+	case INS:
+	  {
+	    pos_seq += cigar.length;
+	  }
+	  break;
+	  
+	case DEL:
+	case REF_SKIP:
+	  {
+	    pos_ref += cigar.length;
+	  }
+	  break;
+
+	default:
+	  break;
+	}
+    }
+  
+  return mismatch == _edit_dist;
+}

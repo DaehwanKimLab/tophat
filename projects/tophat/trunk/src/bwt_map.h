@@ -46,6 +46,8 @@ struct CigarOp
 
 typedef uint32_t ReadID;
 
+class RefSequenceTable;
+
 /*  Stores the information from a single record of the bowtie map. A given read
     may have many of these.  Reads up to 255bp are supported. 
 */
@@ -247,6 +249,9 @@ struct BowtieHit
   
         bool end() const { return _end; }
   void end(bool end) { _end = end; }
+
+  // this is for debugging purpose
+  bool check_editdist_consistency(const RefSequenceTable& rt);
 
 private:
 	
