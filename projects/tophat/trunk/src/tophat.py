@@ -24,6 +24,7 @@ import tempfile
 import warnings
 import shutil
 import copy
+import re
 from datetime import datetime, date, time
 
 use_message = '''
@@ -890,26 +891,20 @@ def check_bowtie():
 def get_samtools_version():
     try:
         # Launch Bowtie to capture its version info
+        # daehwan
+        # proc = subprocess.Popen(['samtools'],stderr=subprocess.PIPE)
         proc = subprocess.Popen(['samtools'],stderr=subprocess.PIPE)
-        stderr_value = proc.communicate()[1]
-        samtools_version = None
-        samtools_out = repr(stderr_value)
-        #print >> sys.stderr, samtools_out
+        samtools_out = proc.communicate()[1]
+
         # Find the version identifier
-        version_str = "Version: "
-        ver_str_idx = samtools_out.find(version_str)
-        if ver_str_idx != -1:
-            nl = samtools_out.find("\\n", ver_str_idx)
-            ws = samtools_out.find(" ", ver_str_idx + len("Version: "))
-            end = min(nl, ws)
-            version_val = samtools_out[ver_str_idx + len(version_str):end]
-            #print >> sys.stderr, ws, nl, end, samtools_out[ver_str_idx + len(version_str):ws]
-            #samtools_version = [int(x) for x in version_val.split('.')]
-            samtools_version = [int(x.split('-')[0]) for x in version_val.split('.')]
-        if len(samtools_version) == 3:
-            samtools_version.append(0)
-        
-        return samtools_version
+        version_match = re.search(r'Version:\s+(\d+)\.(\d+).(\d+)([a-zA-Z]?)', samtools_out)
+        samtools_version_arr = [int(version_match.group(x)) for x in [1,2,3]]
+        if version_match.group(4):
+            samtools_version_arr.append(version_match.group(4))
+        else:
+            samtools_version_arr.append(0)
+            
+        return version_match.group(), samtools_version_arr
     except OSError, o:
        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
            print >> sys.stderr, fail_str, "Error: samtools not found on this system"
@@ -918,14 +913,14 @@ def get_samtools_version():
 # Make sure the SAM tools are installed and are recent enough to be useful
 def check_samtools():
     print >> sys.stderr, "[%s] Checking for Samtools" % right_now()
-    samtools_version = get_samtools_version()
-    if samtools_version == None:
+    samtools_version_str, samtools_version_arr = get_samtools_version()
+    if samtools_version_str == None:
         print >> sys.stderr, "Error: Samtools not found on this system"
         sys.exit(1)
-    elif  samtools_version[1] < 1 or samtools_version[2] < 7:
+    elif  samtools_version_arr[1] < 1 or samtools_version_arr[2] < 7:
         print >> sys.stderr, "Error: TopHat requires Samtools 0.1.7 or later"
         sys.exit(1)
-    print >> sys.stderr, "\tSamtools version:\t\t %s" % ".".join([str(x) for x in samtools_version])
+    print >> sys.stderr, "\tSamtools %s" % samtools_version_str
       
 
 
