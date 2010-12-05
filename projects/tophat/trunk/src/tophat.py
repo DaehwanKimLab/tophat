@@ -891,8 +891,6 @@ def check_bowtie():
 def get_samtools_version():
     try:
         # Launch Bowtie to capture its version info
-        # daehwan
-        # proc = subprocess.Popen(['samtools'],stderr=subprocess.PIPE)
         proc = subprocess.Popen(['samtools'],stderr=subprocess.PIPE)
         samtools_out = proc.communicate()[1]
 
