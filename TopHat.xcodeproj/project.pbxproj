@@ -350,7 +350,14 @@
 			isa = PBXProject;
 			buildConfigurationList = ED5C74DE118B5B0700397B5E /* Build configuration list for PBXProject "TopHat" */;
 			compatibilityVersion = "Xcode 2.4";
+			developmentRegion = English;
 			hasScannedForEncodings = 0;
+			knownRegions = (
+				English,
+				Japanese,
+				French,
+				German,
+			);
 			mainGroup = ED5C74D9118B5B0700397B5E;
 			productRefGroup = ED74232611AC65E1007FBF56 /* Products */;
 			projectDirPath = "";
