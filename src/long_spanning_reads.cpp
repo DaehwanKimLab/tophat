@@ -699,7 +699,8 @@ BowtieHit merge_chain(RefSequenceTable& rt,
 	   * prev_hit. New location of prev_hit is merged_hit
 	   */
 	  curr_hit = prev_hit;
-	  curr_hit++;
+	  ++curr_hit;
+	  ++curr_seg_index;
 	  continue;
 	}
       
