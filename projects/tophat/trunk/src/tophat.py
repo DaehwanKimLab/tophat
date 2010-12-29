@@ -1239,8 +1239,7 @@ def bowtie(params,
         else:
             unmapped_reads_fasta_name = None
 
-        # daehwan - check "-v" vs. "-n"
-        bowtie_cmd += ["-n", str(params.segment_mismatches),
+        bowtie_cmd += ["-v", str(params.segment_mismatches),
                          "-p", str(params.system_params.bowtie_threads),
                          "-k", str(params.max_hits),
                          "-m", str(params.max_hits),
@@ -1559,12 +1558,12 @@ def split_reads(reads_filename,
             i += 1
 
     def convert_color_to_bp(color_seq):
-        decode_dic = { 'A0':'A', 'A1':'C', 'A2':'G', 'A3':'T', 'A4':'N', 'A.':'N',
-                       'C0':'C', 'C1':'A', 'C2':'T', 'C3':'G', 'C4':'N', 'C.':'N',
-                       'G0':'G', 'G1':'T', 'G2':'A', 'G3':'C', 'G4':'N', 'G.':'N',
-                       'T0':'T', 'T1':'G', 'T2':'C', 'T3':'A', 'T4':'N', 'T.':'N',
-                       'N0':'N', 'N1':'N', 'N2':'N', 'N3':'N', 'N4':'N', 'N.':'N',
-                       '.0':'N', '.1':'N', '.2':'N', '.3':'N', '.4':'N', '..':'N' }
+        decode_dic = { 'A0':'A', 'A1':'C', 'A2':'G', 'A3':'T', 'A4':'N', 'A.':'N', 'AN':'N',
+                       'C0':'C', 'C1':'A', 'C2':'T', 'C3':'G', 'C4':'N', 'C.':'N', 'CN':'N',
+                       'G0':'G', 'G1':'T', 'G2':'A', 'G3':'C', 'G4':'N', 'G.':'N', 'GN':'N',
+                       'T0':'T', 'T1':'G', 'T2':'C', 'T3':'A', 'T4':'N', 'T.':'N', 'TN':'N',
+                       'N0':'N', 'N1':'N', 'N2':'N', 'N3':'N', 'N4':'N', 'N.':'N', 'NN':'N',
+                       '.0':'N', '.1':'N', '.2':'N', '.3':'N', '.4':'N', '..':'N', '.N':'N' }
 
         base = color_seq[0]
         bp_seq = base
