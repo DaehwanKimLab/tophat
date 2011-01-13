@@ -583,7 +583,7 @@ class TopHatParams:
                 sys.exit(0)
             if option in ("-h", "--help"):
                 raise Usage(use_message)
-            if option in ("-g", "--max-gene-family"):
+            if option in ("-g", "--max-multihits"):
                 self.max_hits = int(value)
             if option in ("-G", "--GTF"):
                 self.gff_annotation = value
