@@ -946,16 +946,19 @@ void driver(FILE* left_map,
 	    
 	    // Process hits for left singleton, select best alignments
 	    fragment_best_alignments(curr_left_hit_group, grade, best_hits);
+
+	    if (best_hits.hits.size() <= max_multihits)
+	      {
+		update_junctions(best_hits, final_junctions);
+		update_insertions_and_deletions(best_hits, final_insertions, final_deletions);
 	    
-	    update_junctions(best_hits, final_junctions);
-	    update_insertions_and_deletions(best_hits, final_insertions, final_deletions);
-	    
-	    print_sam_for_hits(rt,
-			       best_hits, 
-			       grade,
-			       right_map ? FRAG_LEFT : FRAG_UNPAIRED,
-			       left_reads, 
-			       accepted_hits_out);
+		print_sam_for_hits(rt,
+				   best_hits, 
+				   grade,
+				   right_map ? FRAG_LEFT : FRAG_UNPAIRED,
+				   left_reads, 
+				   accepted_hits_out);
+	      }
 	    
 	    // Get next hit group
 	    left_hs.next_read_hits(curr_left_hit_group);
@@ -974,16 +977,19 @@ void driver(FILE* left_map,
 
 	    // Process hit for right singleton, select best alignments
 	    fragment_best_alignments(curr_right_hit_group,grade, best_hits);
+
+	    if (best_hits.hits.size() <= max_multihits)
+	      {
+		update_junctions(best_hits, final_junctions);
+		update_insertions_and_deletions(best_hits, final_insertions, final_deletions);
 	    
-	    update_junctions(best_hits, final_junctions);
-	    update_insertions_and_deletions(best_hits, final_insertions, final_deletions);
-	    
-	    print_sam_for_hits(rt,
-                               best_hits, 
-			       grade, 
-			       FRAG_RIGHT,
-			       right_reads, 
-			       accepted_hits_out);
+		print_sam_for_hits(rt,
+				   best_hits, 
+				   grade, 
+				   FRAG_RIGHT,
+				   right_reads, 
+				   accepted_hits_out);
+	      }
 	    
 	    // Get next hit group
 	    right_hs.next_read_hits(curr_right_hit_group);
@@ -1005,16 +1011,19 @@ void driver(FILE* left_map,
 		
 		FragmentAlignmentGrade grade;
 		fragment_best_alignments(curr_right_hit_group, grade, right_best_hits);
+
+		if (right_best_hits.hits.size() <= max_multihits)
+		  {
+		    update_junctions(right_best_hits, final_junctions);
+		    update_insertions_and_deletions(right_best_hits, final_insertions, final_deletions);
 				
-		update_junctions(right_best_hits, final_junctions);
-		update_insertions_and_deletions(right_best_hits, final_insertions, final_deletions);
-				
-		print_sam_for_hits(rt,
-                                   right_best_hits, 
-				   grade, 
-				   FRAG_RIGHT,
-				   right_reads, 
-				   accepted_hits_out);	
+		    print_sam_for_hits(rt,
+				       right_best_hits, 
+				       grade, 
+				       FRAG_RIGHT,
+				       right_reads, 
+				       accepted_hits_out);
+		  }
 	      }
 	    else if (curr_right_hit_group.hits.empty())
 	      {
@@ -1024,16 +1033,19 @@ void driver(FILE* left_map,
 		FragmentAlignmentGrade grade;
 		// Process hits for left singleton, select best alignments
 		fragment_best_alignments(curr_left_hit_group, grade, left_best_hits);
-		
-		update_junctions(left_best_hits, final_junctions);
-		update_insertions_and_deletions(left_best_hits, final_insertions, final_deletions);			
-		
-		print_sam_for_hits(rt,
-                                   left_best_hits, 
-				   grade,
-				   FRAG_LEFT,
-				   left_reads, 
-				   accepted_hits_out);
+
+		if (left_best_hits.hits.size() <= max_multihits)
+		  {
+		    update_junctions(left_best_hits, final_junctions);
+		    update_insertions_and_deletions(left_best_hits, final_insertions, final_deletions);			
+		    
+		    print_sam_for_hits(rt,
+				       left_best_hits, 
+				       grade,
+				       FRAG_LEFT,
+				       left_reads, 
+				       accepted_hits_out);
+		  }
 	      }
 	    else
 	      {		
@@ -1049,18 +1061,21 @@ void driver(FILE* left_map,
 				       left_best_hits,
 				       right_best_hits);
 
-		update_junctions(left_best_hits, final_junctions);
-		update_junctions(right_best_hits, final_junctions);
-		update_insertions_and_deletions(left_best_hits, final_insertions, final_deletions);
-		update_insertions_and_deletions(right_best_hits, final_insertions, final_deletions);
-
-		print_sam_for_hits(rt,
-                                   left_best_hits,
-				   right_best_hits,
-				   grade,
-				   left_reads, 
-				   right_reads, 
-				   accepted_hits_out);
+		if (left_best_hits.hits.size() <= max_multihits && right_best_hits.hits.size() <= max_multihits)
+		  {
+		    update_junctions(left_best_hits, final_junctions);
+		    update_junctions(right_best_hits, final_junctions);
+		    update_insertions_and_deletions(left_best_hits, final_insertions, final_deletions);
+		    update_insertions_and_deletions(right_best_hits, final_insertions, final_deletions);
+		
+		    print_sam_for_hits(rt,
+				       left_best_hits,
+				       right_best_hits,
+				       grade,
+				       left_reads, 
+				       right_reads, 
+				       accepted_hits_out);
+		  }
 	      }
 	    
 	    left_hs.next_read_hits(curr_left_hit_group);
