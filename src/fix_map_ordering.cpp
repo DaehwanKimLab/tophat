@@ -40,7 +40,7 @@ void driver(FILE* reads_file, FILE* map_file)
 {
 	ReadTable it;
 	
-	char bwt_buf[2048];
+	char bwt_buf[4096];
 	
 	MapOrdering order(it);
 	
@@ -48,7 +48,7 @@ void driver(FILE* reads_file, FILE* map_file)
 					vector<pair<uint64_t, char*> >, 
 					MapOrdering >  map_pq(it);
 	
-	while (fgets(bwt_buf, 2048, map_file))
+	while (fgets(bwt_buf, sizeof(bwt_buf), map_file))
 	{
 		// Chomp the newline
 		char* nl = strrchr(bwt_buf, '\n');
@@ -57,7 +57,7 @@ void driver(FILE* reads_file, FILE* map_file)
 			continue;
 		
 		const char* bwt_fmt_str = "%s %c %s %d %s %s %d %s";
-		static const int buf_size = 256;
+		static const int buf_size = 2048;
 		char orientation;
 		char name[buf_size];
 		int bwtf_ret = 0;

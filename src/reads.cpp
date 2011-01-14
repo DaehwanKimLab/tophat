@@ -505,14 +505,13 @@ bool get_read_from_stream(uint64_t insert_id,
       // Get the next read from the file
       if (!next_fasta_record(fr, read.name, read.seq, reads_format))
 	break;
-      
+
       if (reads_format == FASTQ)
 	{
 	  if (!next_fastq_record(fr, read.seq, read.alt_name, read.qual, reads_format))
 	    break;
 	}
-      
-      
+
       if (strip_slash)
 	{
 	  string::size_type slash = read.name.rfind("/");
