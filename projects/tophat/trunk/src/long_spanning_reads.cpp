@@ -1127,7 +1127,7 @@ void join_segment_hits(std::set<Junction>& possible_juncs, std::set<Insertion>& 
 	  char read_seq[256];
 	  char read_alt_name[256];
 	  char read_quals[256];
-	  
+
 	  if (get_read_from_stream(insert_id,  
 				   reads_file,
 				   reads_format,

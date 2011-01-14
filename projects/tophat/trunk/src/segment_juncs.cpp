@@ -2897,18 +2897,18 @@ void look_for_hit_group(RefSequenceTable& rt,
 {
   HitStream& curr = seg_files[curr_file];
   HitsForRead hit_group;
-  int order = unmapped_reads.observation_order(insert_id);
+  uint32_t order = unmapped_reads.observation_order(insert_id);
   int seq_key_len = min((int)min_anchor_len, 6);
   
   while(true)
     {
       uint64_t next_group_id = curr.next_group_id();
-      int next_order = unmapped_reads.observation_order(next_group_id);
-      
+      uint32_t next_order = unmapped_reads.observation_order(next_group_id);
+
       // If we would have seen the hits by now, stop looking in this stream,
       // but forward the search if possible.
       if (order < next_order || next_group_id == 0)
-	{		
+	{
 	  if (curr_file > 0)
 	    {
 	      look_for_hit_group(rt,
@@ -3048,7 +3048,6 @@ void look_for_hit_group(RefSequenceTable& rt,
 				// search for it, with a whole new vector of hits.
 				vector<HitsForRead> hits_for_new_read(seg_files.size());
 				hits_for_new_read[curr_file] = hit_group;
-
 				
 				look_for_hit_group(rt,
 						   reads_file,	
@@ -3065,8 +3064,8 @@ void look_for_hit_group(RefSequenceTable& rt,
 				find_insertions_and_deletions(rt, reads_file_for_indel_discovery, hits_for_new_read, deletions, insertions);
 				find_gaps(rt, hits_for_new_read, juncs, read);
 			}
+		}
     }
-}
 }
 
 
@@ -3083,31 +3082,30 @@ bool process_next_hit_group(RefSequenceTable& rt,
 {
 	HitStream& curr = seg_files[curr_file];
 	HitsForRead hit_group;
-	if (curr.next_read_hits(hit_group))
-	{
-		vector<HitsForRead> hits_for_read(seg_files.size());
-		hits_for_read.back() = hit_group;
+	bool result = curr.next_read_hits(hit_group);
+	vector<HitsForRead> hits_for_read(seg_files.size());
+	hits_for_read.back() = hit_group;
 
-		//int ord = unmapped_reads.observation_order(hit_group.insert_id);
-		look_for_hit_group(rt,
-						   reads_file,
-						   reads_file_for_indel_discovery,
-						   unmapped_reads, 
-						   seg_files, 
-						   (int)curr_file - 1,
-						   hit_group.insert_id,
-						   hits_for_read,
-						   juncs,
-						   deletions,
-				   insertions,
-				   read);
+	look_for_hit_group(rt,
+			   reads_file,
+			   reads_file_for_indel_discovery,
+			   unmapped_reads, 
+			   seg_files, 
+			   (int)curr_file - 1,
+			   hit_group.insert_id,
+			   hits_for_read,
+			   juncs,
+			   deletions,
+			   insertions,
+			   read);
+	
+	if (result)
+	  {
+	    find_insertions_and_deletions(rt, reads_file_for_indel_discovery, hits_for_read, deletions, insertions);
+	    find_gaps(rt, hits_for_read, juncs, read);
+	  }
 
-
-		find_insertions_and_deletions(rt, reads_file_for_indel_discovery, hits_for_read, deletions, insertions);
-		find_gaps(rt, hits_for_read, juncs, read);
-		return true;
-	}
-	return false;
+	return result;
 }
 
 static const int UNCOVERED = 0;
