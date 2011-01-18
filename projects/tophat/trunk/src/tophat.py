@@ -2184,6 +2184,15 @@ def prog_path(program):
 def get_version():
    return "1.2.0"
 
+def test_input_file(filename):
+    try:
+        test_file = open(filename, "r")
+    # Bowtie not found
+    except IOError, o:
+        print >> sys.stderr, "Error: Opening file %s" % filename
+        sys.exit(1)
+    return
+    
 def main(argv=None):
     warnings.filterwarnings("ignore", "tmpnam is a potential security risk")
     
@@ -2247,16 +2256,20 @@ def main(argv=None):
         user_supplied_deletions = []
 
         if params.gff_annotation != None and params.find_GFF_juncs == True:
+            test_input_file(params.gff_annotation)
             (found_juncs, gtf_juncs) = get_gtf_juncs(params.gff_annotation)
             if found_juncs == True:
                 user_supplied_juncs.append(gtf_juncs)
         if params.raw_junctions != None:
+            test_input_file(params.raw_junctions)
             user_supplied_juncs.append(params.raw_junctions)
 
         if params.raw_insertions != None:
+            test_input_file(params.raw_insertions)
             user_supplied_insertions.append(params.raw_insertions)
 
         if params.raw_deletions != None:
+            test_input_file(params.raw_deletions)
             user_supplied_deletions.append(params.raw_deletions)
 
                 
