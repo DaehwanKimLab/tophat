@@ -159,6 +159,9 @@ noinst_HEADERS = \
 	wiggles.h \
 	junctions.h \
 	assert_helpers.h \
+    insertions.h \
+    deletions.h \
+    align_status.h \
 	alphabet.h \
 	timer.h \
 	closures.h \
