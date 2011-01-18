@@ -46,15 +46,15 @@
 		    <ul>
 		      <table width="100%"><tr>
 		      <td>
-				<tr><td>version 1.1.4 (BETA)</td> <td align="right">11/16/2010</td></tr>
+				<tr><td>version 1.2.0 (BETA)</td> <td align="right">1/18/2011</td></tr>
 				<tr>
-		      		<td><a href="./downloads/tophat-1.1.4.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
+		      		<td><a href="./downloads/tophat-1.2.0.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
 		      	</tr>
 				<tr>
-					<td><a href="./downloads/tophat-1.1.4.Linux_x86_64.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
+					<td><a href="./downloads/tophat-1.2.0.Linux_x86_64.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
 				</tr>
 				<tr>
-					<td><a href="./downloads/tophat-1.1.4.OSX_x86_64.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
+					<td><a href="./downloads/tophat-1.2.0.OSX_x86_64.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
 				</tr>
 		      </td>
 		      </tr>
@@ -154,6 +154,7 @@
 		      <li><a href="http://www.cs.umd.edu/~cole/">Cole Trapnell</a></li>
 			  <li><a href="http://www.cs.umd.edu/~infphilo/">Daehwan Kim</a></li>
 			  <li>Geo Pertea</li>
+			  <li>Ryan Kelley</li>
 		      <li><a href="http://www.math.berkeley.edu/~lpachter/">Lior Pachter</a></li>
 		      <li><a href="http://www.cbcb.umd.edu/~salzberg/">Steven Salzberg</a></li>
 		    </ul>
@@ -625,10 +626,41 @@
 	  <tr><td VALIGN=top nowrap>
 	  <tt>--no-novel-juncs</tt>
 	  </td><td VALIGN=top>
-	  Only look for junctions indicated in the supplied GFF file.  (ignored without -G)
+	  Only look for reads across junctions indicated in the supplied GFF or junctions file.  (ignored without -G/-j)
 	  </td></tr>
 	
 	  </table>
+	
+	<b>Supplying your own insertions/deletions:</b>
+	  <p>The options below allow you validate your own indels with your 
+		RNA-Seq data.  Note that the chromosome names in the files provided
+		with the options below <strong>must match</strong> the names in the 
+		Bowtie index.  These names are <strong>case-senstitive</strong>.</p>
+	  <table CELLSPACING=15>
+	  <tr><td VALIGN=top>
+
+	  </td><td VALIGN=top>
+	  </td></tr>
+	 <tr><td VALIGN=top nowrap>
+	  <tt>--insertions/--deletions &lt;.juncs file&gt;</tt>
+	  </td><td VALIGN=top>
+	  <p> Supply TopHat with a list of insertions or deletions with respect to the reference.  Indels are specified 
+		one per line, in a tab-delimited format, identical to that of junctions.  Records look like:
+	  </p> </br>
+		<tt>&lt;chrom&gt;   &lt;left&gt;   &lt;right&gt;   &lt;+/-&gt;</tt>
+		<p><tt>left</tt> and <tt>right</tt> are zero-based coordinates, and 
+			specify the last character of the left sequenced to be spliced to 
+			the first character of the right sequence, inclusive. </p>
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--no-novel-indels</tt>
+	  </td><td VALIGN=top>
+	  Only look for reads across indels in the supplied indel file, or disable indel detection when no file has been provided.
+	  </td></tr>
+
+	  </table>
+	
+	
 	 <b>Providing TopHat with an annotation file</b>
 	 <p>If you choose to supply TopHat with a GTF file of gene annotation, the 
 		program will look for the junctions between exons in the annotated transcripts.  
