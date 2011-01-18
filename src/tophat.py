@@ -66,8 +66,7 @@ Options:
     --no-coverage-search
     --coverage-search                                              
     --no-closure-search
-    --closure-search
-    --fill-gaps        
+    --closure-search      
     --microexon-search
     --butterfly-search
     --no-butterfly-search

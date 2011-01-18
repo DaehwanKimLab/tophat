@@ -57,15 +57,15 @@
 		    <ul>
 		      <table width="100%"><tr>
 		      <td>
-				<tr><td>version 1.1.4 (BETA)</td> <td align="right">11/16/2010</td></tr>
+				<tr><td>version 1.2.0 (BETA)</td> <td align="right">1/18/2011</td></tr>
 				<tr>
-		      		<td><a href="./downloads/tophat-1.1.4.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
+		      		<td><a href="./downloads/tophat-1.2.0.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
 		      	</tr>
 				<tr>
-					<td><a href="./downloads/tophat-1.1.4.Linux_x86_64.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
+					<td><a href="./downloads/tophat-1.2.0.Linux_x86_64.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
 				</tr>
 				<tr>
-					<td><a href="./downloads/tophat-1.1.4.OSX_x86_64.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
+					<td><a href="./downloads/tophat-1.2.0.OSX_x86_64.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
 				</tr>
 		      </td>
 		      </tr>
@@ -165,6 +165,7 @@
 		      <li><a href="http://www.cs.umd.edu/~cole/">Cole Trapnell</a></li>
 			  <li><a href="http://www.cs.umd.edu/~infphilo/">Daehwan Kim</a></li>
 			  <li>Geo Pertea</li>
+			  <li>Ryan Kelley</li>
 		      <li><a href="http://www.math.berkeley.edu/~lpachter/">Lior Pachter</a></li>
 		      <li><a href="http://www.cbcb.umd.edu/~salzberg/">Steven Salzberg</a></li>
 		    </ul>
@@ -184,6 +185,14 @@
 		
     </div> <!-- End of "rightside" -->
     <div id="leftside">
+		<h2>TopHat 1.2.0  release 1/18/2011</h2>
+	    <p>Version 1.2.0 includes some important bug fixes as well as a major new feature.  Thanks to the efforts of Ryan Kelley from Illumina, TopHat now supports detection of insertions and deletions using RNA-Seq data.  TopHat will report reads aligned across discovered indels by taking advantage of <tt>I</tt> and <tt>D</tt> CIGAR operators as specified by the SAM format.  For convenience, the indels discovered during each run are also reported in BED files, similar to the junctions.bed file that TopHat reports for splice junctions.
+		<p>Version 1.2.0 also addresses the following issues:
+			<ul>
+				<li>A problem with alignment of reads of mixed length has been fixed.  Users with a wide range of read lengths, such as trimmed 454 data sets, are strongly encouraged to upgrade.</li>
+				<li>A compatibility issue with samtools version 0.1.12a has been fixed.</li>
+				<li>Runtime validation of input files (e.g. raw junctions files) has been improved.</li>
+			</ul>
 		</p><br/>
 		<h2>TopHat and Cufflinks now supported through Galaxy</h2>
 	    <p>We are very pleased to announce that you can now run TopHat and Cufflinks through <a href="http://usegalaxy.org">Galaxy</a>.  The Galaxy project aims to make informatics tools accessible through the web, and allows you to experiment with parameter settings and create sophisticated analysis workflows easily. Galaxy is developed by researchers at Emory University and Penn State in the <a href="http://bx.mathcs.emory.edu/">Taylor</a> and <a href="http://www.bx.psu.edu/~anton/">Nekrutenko</a> labs, respectively.  We are extremely grateful for the Galaxy team's work, and proud to have TopHat and Cufflinks offered through their platform.
