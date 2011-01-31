@@ -29,6 +29,7 @@ install-bin-scripts-hook: $(dist_bin_SCRIPTS) $(bin_SCRIPTS)
             case "$$p" in \
               *.py) \
                 echo " configuring python '$$b'"; \
+                echo '#!$(PYTHON)' > "$(DESTDIR)$(bindir)/$$b"; \
                 sed -e '1 {s|^#!.*$$||;}' \
                     "$(DESTDIR)$(bindir)/$$f" >> "$(DESTDIR)$(bindir)/$$b" \
                 || exit 1; \
