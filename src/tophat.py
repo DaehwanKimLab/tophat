@@ -31,19 +31,20 @@ use_message = '''
 TopHat maps short sequences from spliced transcripts to whole genomes.
 
 Usage:
-    tophat [options] <bowtie_index> <reads1[,reads2,...,readsN]> [reads1[,reads2,...,readsN]] [quals1,[quals2,...,qualsN]] [quals1[,quals2,...,qualsN]]
+    tophat [options] <bowtie_index> <reads1[,reads2,...]> [reads1[,reads2,...]] \\
+                                    [quals1,[quals2,...]] [quals1[,quals2,...]]
     
 Options:
     -v/--version
-    -o/--output-dir                <string>    [ default: ./tophat_out ]
-    -a/--min-anchor                <int>       [ default: 8            ]
-    -m/--splice-mismatches         <0-2>       [ default: 0            ]
-    -i/--min-intron-length         <int>       [ default: 50           ]
-    -I/--max-intron-length         <int>       [ default: 500000       ]
-    -g/--max-multihits             <int>       [ default: 40           ]
-    -F/--min-isoform-fraction      <float>     [ default: 0.15         ]
-    --max-insertion-length         <int>       [ default: 3            ]
-    --max-deletion-length          <int>       [ default: 3            ]
+    -o/--output-dir                <string>    [ default: ./tophat_out     ]
+    -a/--min-anchor                <int>       [ default: 8                ]
+    -m/--splice-mismatches         <0-2>       [ default: 0                ]
+    -i/--min-intron-length         <int>       [ default: 50               ]
+    -I/--max-intron-length         <int>       [ default: 500000           ]
+    -g/--max-multihits             <int>       [ default: 40               ]
+    -F/--min-isoform-fraction      <float>     [ default: 0.15             ]
+    --max-insertion-length         <int>       [ default: 3                ]
+    --max-deletion-length          <int>       [ default: 3                ]
     --solexa-quals                          
     --solexa1.3-quals                          (same as phred64-quals)
     --phred64-quals                            (same as solexa1.3-quals)
@@ -51,39 +52,40 @@ Options:
     --integer-quals
     -C/--color                                 (Solid - color space)
     --color-out
-    --library-type                             (--fr-unstranded, --fr-firststrand, --fr-secondstrand, --ff-unstranded, --ff-firststrand, --ff-secondstrand)
-    -p/--num-threads               <int>       [ default: 1            ]
+    --library-type                 <string>    (fr-unstranded, fr-firststrand, 
+                                                fr-secondstrand)
+    -p/--num-threads               <int>       [ default: 1                ]
     -G/--GTF                       <filename>
     -j/--raw-juncs                 <filename>
-    --insertions		   <filename>
-    --deletions			   <filename>
+    --insertions                   <filename>
+    --deletions                    <filename>
     -r/--mate-inner-dist           <int>       
-    --mate-std-dev                 <int>       [ default: 20           ]
+    --mate-std-dev                 <int>       [ default: 20               ]
     --no-novel-juncs
     --allow-indels
-    --no-novel-indels                           
-    --no-gtf-juncs                             
+    --no-novel-indels              
+    --no-gtf-juncs                 
     --no-coverage-search
-    --coverage-search                                              
+    --coverage-search              
     --no-closure-search
     --closure-search      
     --microexon-search
     --butterfly-search
     --no-butterfly-search
     --keep-tmp
-    --tmp-dir                      <dirname>
+    --tmp-dir                      <dirname>   [ default: <output_dir>/tmp ]
     
 Advanced Options:
 
-    --segment-mismatches           <int>       [ default: 2            ]
-    --segment-length               <int>       [ default: 25           ]
-    --min-closure-exon             <int>       [ default: 100          ]
-    --min-closure-intron           <int>       [ default: 50           ]
-    --max-closure-intron           <int>       [ default: 5000         ]
-    --min-coverage-intron          <int>       [ default: 50           ]
-    --max-coverage-intron          <int>       [ default: 20000        ]
-    --min-segment-intron           <int>       [ default: 50           ]
-    --max-segment-intron           <int>       [ default: 500000       ] 
+    --segment-mismatches           <int>       [ default: 2                ]
+    --segment-length               <int>       [ default: 25               ]
+    --min-closure-exon             <int>       [ default: 100              ]
+    --min-closure-intron           <int>       [ default: 50               ]
+    --max-closure-intron           <int>       [ default: 5000             ]
+    --min-coverage-intron          <int>       [ default: 50               ]
+    --max-coverage-intron          <int>       [ default: 20000            ]
+    --min-segment-intron           <int>       [ default: 50               ]
+    --max-segment-intron           <int>       [ default: 500000           ]
 
 SAM Header Options (for embedding sequencing run metadata in output):
     --rg-id                        <string>    (read group ID)
@@ -153,20 +155,15 @@ class TopHatParams:
         
         def check(self):
             if self.splice_mismatches not in [0,1,2]:
-                print >> sys.stderr, "Error: arg to --splice-mismatches must be 0, 1, or 2"
-                sys.exit(1)
+                die("Error: arg to --splice-mismatches must be 0, 1, or 2")
             if self.min_anchor_length < 4:
-                print >> sys.stderr, "Error: arg to --min-anchor-len must be greater than 4"
-                sys.exit(1)
+                die("Error: arg to --min-anchor-len must be greater than 4")
             if self.min_isoform_fraction < 0.0 or self.min_isoform_fraction > 1.0:
-                print >> sys.stderr, "Error: arg to --min-isoform-fraction must be between 0.0 and 1.0"
-                sys.exit(1)
+                die("Error: arg to --min-isoform-fraction must be between 0.0 and 1.0")
             if self.min_intron_length <= 0:
-                print >> sys.stderr, "Error: arg to --min-intron-length must be greater than 0"
-                sys.exit(1)                    
+                die("Error: arg to --min-intron-length must be greater than 0")
             if self.max_intron_length <= 0:
-                print >> sys.stderr, "Error: arg to --max-intron-length must be greater than 0"
-                sys.exit(1)
+                die("Error: arg to --max-intron-length must be greater than 0")
     
     # SystemParams is a group of runtime parameters that determine how to handle
     # temporary files produced during a run and how many threads to use for threaded
@@ -276,14 +273,11 @@ class TopHatParams:
 
         def check(self):
             if self.seed_length != None and self.seed_length < 20:
-                print >> sys.stderr, "Error: arg to --seed-length must be at least 20"
-                sys.exit(1)
+                die("Error: arg to --seed-length must be at least 20")
             if self.mate_inner_dist_std_dev != None and self.mate_inner_dist_std_dev < 0:
-                print >> sys.stderr, "Error: arg to --mate-std-dev must at least 0"
-                sys.exit(1)
+                die("Error: arg to --mate-std-dev must at least 0")
             if (not self.read_group_id and self.sample_id) or (self.read_group_id and not self.sample_id):
-                print >> sys.stderr, "Error: --rg-id and --rg-sample must be specified or omitted together"
-                sys.exit(1)
+                die("Error: --rg-id and --rg-sample must be specified or omitted together")
     
     # SearchParams is a group of runtime parameters that specify how TopHat will
     # search for splice junctions
@@ -325,26 +319,19 @@ class TopHatParams:
 
         def check(self):
             if self.min_closure_exon_length < 0:
-                print >> sys.stderr, "Error: arg to --min-closure-exon must be at least 20"
-                sys.exit(1)
+                die("Error: arg to --min-closure-exon must be at least 20")
             if self.min_closure_intron_length < 0:
-                print >> sys.stderr, "Error: arg to --min-closure-intron must be at least 20"
-                sys.exit(1)
+                die("Error: arg to --min-closure-intron must be at least 20")
             if self.max_closure_intron_length < 0:
-                print >> sys.stderr, "Error: arg to --max-closure-intron must be at least 20"
-                sys.exit(1)
+                die("Error: arg to --max-closure-intron must be at least 20")
             if self.min_coverage_intron_length < 0:
-                print >> sys.stderr, "Error: arg to --min-coverage-intron must be at least 20"
-                sys.exit(1)
+                die("Error: arg to --min-coverage-intron must be at least 20")
             if self.max_coverage_intron_length < 0:
-                print >> sys.stderr, "Error: arg to --max-coverage-intron must be at least 20"
-                sys.exit(1)
+                die("Error: arg to --max-coverage-intron must be at least 20")
             if self.min_segment_intron_length < 0:
-                print >> sys.stderr, "Error: arg to --min-segment-intron must be at least 20"
-                sys.exit(1)
+                die("Error: arg to --min-segment-intron must be at least 20")
             if self.max_segment_intron_length < 0:
-                print >> sys.stderr, "Error: arg to --max-segment-intron must be at least 20"
-                sys.exit(1)
+                die("Error: arg to --max-segment-intron must be at least 20")
                     
     def __init__(self):        
         self.splice_constraints = self.SpliceConstraints(8,     # min_anchor 
@@ -408,21 +395,17 @@ class TopHatParams:
         self.system_params.check()
        
         if self.segment_length <= 4:
-            print >> sys.stderr, "Error: arg to --segment-length must at least 4"
-            sys.exit(1)
+            die("Error: arg to --segment-length must at least 4")
         if self.segment_mismatches < 0 or self.segment_mismatches > 3:
-            print >> sys.stderr, "Error: arg to --segment-mismatches must in [0, 3]"
-            sys.exit(1)
+            die("Error: arg to --segment-mismatches must in [0, 3]")
 
         if self.read_params.color == True and self.butterfly_search == True:
-            print >> sys.stderr, "Error: butterfly-search in colorspace is not yet supported"
-            sys.exit(1)
+            die("Error: butterfly-search in colorspace is not yet supported")
 
         library_types = ["fr-unstranded", "fr-firststrand", "fr-secondstrand"]
 
         if self.read_params.library_type != "" and self.read_params.library_type not in library_types:
-            print >> sys.stderr, "Error: libary-type should be one of", library_types
-            sys.exit(1)
+            die("Error: library-type should be one of: "+', '.join(library_types))
         
         self.search_params.max_closure_intron_length = min(self.splice_constraints.max_intron_length,
                                                            self.search_params.max_closure_intron_length)
@@ -434,17 +417,16 @@ class TopHatParams:
                                                             self.search_params.max_coverage_intron_length)
         
         if self.max_insertion_length >= self.segment_length:
-            print >> sys.stderr, "Error: the max insertion length ("+self.max_insertion_length+") can not be equal to or greater than the segment length ("+self.segment_length+")"
-            sys.exit(-1)
+            die("Error: the max insertion length ("+self.max_insertion_length+") can not be equal to or greater than the segment length ("+self.segment_length+")")
 
         if self.max_insertion_length < 0:
-            print >> sys.stderr, "Error: the max insertion length ("+self.max_insertion_length+") can not be less than 0"
+            die("Error: the max insertion length ("+self.max_insertion_length+") can not be less than 0")
 
         if self.max_deletion_length >= self.splice_constraints.min_intron_length:
-            print >> sys.stderr, "Error: the max deletion length ("+self.max_deletion_length+") can not be equal to or greater than the min intron length ("+self.splice_constraints.min_intron_length+")"
+            die("Error: the max deletion length ("+self.max_deletion_length+") can not be equal to or greater than the min intron length ("+self.splice_constraints.min_intron_length+")")
 
         if self.max_deletion_length < 0:
-            print >> sys.stderr, "Error: the max deletion length ("+self.max_deletion_length+") can not be less than 0"
+           die("Error: the max deletion length ("+self.max_deletion_length+") can not be less than 0")
 
     def cmd(self):
         cmd = ["--min-anchor", str(self.splice_constraints.min_anchor_length),
@@ -555,7 +537,7 @@ class TopHatParams:
                                          "rg-center=",
                                          "rg-date=",
                                          "rg-platform=",
-                                         "tmp-dir="
+                                         "tmp-dir=",
                                          "max-insertion-length=",
                                          "min-insertion-length=",
                                          "insertions=",
@@ -637,7 +619,6 @@ class TopHatParams:
         if custom_tmp_dir != None:
             tmp_dir = custom_tmp_dir
             sam_header = tmp_dir + "stub_header.sam" 
-    
         if len(args) < 2:
             raise Usage(use_message)
         return args
@@ -664,8 +645,11 @@ def prepare_output_dir():
         
     if os.path.exists(tmp_dir):
         pass
-    else:        
-        os.mkdir(tmp_dir)
+    else:
+        try:
+          os.makedirs(tmp_dir)
+        except OSError, o:
+          die("\nError creating directory %s (%s)" % (tmp_dir, o))
 
 # Check that the Bowtie index specified by the user is present and all files
 # are there.
@@ -685,8 +669,7 @@ def check_bowtie_index(idx_prefix):
     else:
         bowtie_idx_env_var = os.environ.get("BOWTIE_INDEXES")
         if bowtie_idx_env_var == None:
-            print >> sys.stderr, "Error: Could not find Bowtie index files " + idx_prefix + ".*"
-            sys.exit(1)
+            die("Error: Could not find Bowtie index files " + idx_prefix + ".*")
         idx_prefix = bowtie_idx_env_var + idx_prefix 
         idx_fwd_1 = idx_prefix + ".1.ebwt"
         idx_fwd_2 = idx_prefix + ".2.ebwt"
@@ -699,8 +682,7 @@ def check_bowtie_index(idx_prefix):
            os.path.exists(idx_rev_2):
             return 
         else:
-            print >> sys.stderr, "Error: Could not find Bowtie index files " + idx_prefix + ".*"
-            sys.exit(1)
+            die("Error: Could not find Bowtie index files " + idx_prefix + ".*")
 
 # Reconstructs the multifasta file from which the Bowtie index was created, if 
 # it's not already there.
@@ -724,13 +706,12 @@ def bowtie_idx_to_fa(idx_prefix):
 
         # Bowtie reported an error
         if ret != 0:
-           print >> sys.stderr, fail_str, "Error: bowtie-inspect returned an error"
-           sys.exit(1)
+           die(fail_str+"Error: bowtie-inspect returned an error")
            
     # Bowtie not found
     except OSError, o:
         if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
-            print >> sys.stderr, fail_str, "Error: bowtie-inspect not found on this system.  Did you forget to include it in your PATH?"
+            die(fail_str+"Error: bowtie-inspect not found on this system.  Did you forget to include it in your PATH?")
   
     return tmp_fasta_file_name
 
@@ -752,8 +733,6 @@ def check_fasta(idx_prefix):
         print >> sys.stderr, "\tWarning: Could not find FASTA file " + idx_fasta
         idx_fa = bowtie_idx_to_fa(idx_prefix)
         return idx_fa
-        #print >> sys.stderr, "Error: Could not find Maq binary fasta file " + idx_bfa
-        #sys.exit(1)
     
 # Check that both the Bowtie index and the genome's fasta file are present
 def check_index(idx_prefix):
@@ -784,9 +763,10 @@ def get_bowtie_version():
         
         return bowtie_version
     except OSError, o:
+       errmsg=fail_str+str(o)+"\n"
        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
-           print >> sys.stderr, fail_str, "Error: bowtie not found on this system"
-       sys.exit(1)
+           errmsg+="Error: bowtie not found on this system"
+       die(errmsg)
        
 # Retrive a tuple containing the system's version of Bowtie.  Parsed from 
 # `bowtie --version`
@@ -824,8 +804,7 @@ def get_index_sam_header(read_params, idx_prefix):
                     if len(fields) > 0 and fields[0] == "SN":
                         seq_name = fields[1]
                 if seq_name == None:
-                    print >> sys.stderr, "Error: malformed sequence dictionary in sam header"
-                    sys.exit(1)
+                    die("Error: malformed sequence dictionary in sam header")
                 sq_dict_lines.append([seq_name,line])
             elif line.find("CL"):
                 continue
@@ -867,21 +846,20 @@ def get_index_sam_header(read_params, idx_prefix):
         return sam_header
         
     except OSError, o:
+       errmsg=fail_str+str(o)+"\n"
        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
-           print >> sys.stderr, fail_str, "Error: bowtie not found on this system"
-       sys.exit(1)
+           errmsg+="Error: bowtie not found on this system"
+       die(errmsg)
 
 # Make sure Bowtie is installed and is recent enough to be useful
 def check_bowtie():
     print >> sys.stderr, "[%s] Checking for Bowtie" % right_now()
     bowtie_version = get_bowtie_version()
     if bowtie_version == None:
-        print >> sys.stderr, "Error: Bowtie not found on this system"
-        sys.exit(1)
+        die("Error: Bowtie not found on this system")
     # daehwan - check
     elif bowtie_version[1] < 12 or bowtie_version[2] < 3:
-        print >> sys.stderr, "Error: TopHat requires Bowtie 0.12.3 or later"
-        sys.exit(1)
+        die("Error: TopHat requires Bowtie 0.12.3 or later")
     print >> sys.stderr, "\tBowtie version:\t\t\t %s" % ".".join([str(x) for x in bowtie_version])
     
 
@@ -903,20 +881,19 @@ def get_samtools_version():
             
         return version_match.group(), samtools_version_arr
     except OSError, o:
+       errmsg=fail_str+str(o)+"\n"
        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
-           print >> sys.stderr, fail_str, "Error: samtools not found on this system"
-       sys.exit(1)
+           errmsg+="Error: samtools not found on this system"
+       die(errmsg)
 
 # Make sure the SAM tools are installed and are recent enough to be useful
 def check_samtools():
     print >> sys.stderr, "[%s] Checking for Samtools" % right_now()
     samtools_version_str, samtools_version_arr = get_samtools_version()
     if samtools_version_str == None:
-        print >> sys.stderr, "Error: Samtools not found on this system"
-        sys.exit(1)
+        die("Error: Samtools not found on this system")
     elif  samtools_version_arr[1] < 1 or samtools_version_arr[2] < 7:
-        print >> sys.stderr, "Error: TopHat requires Samtools 0.1.7 or later"
-        sys.exit(1)
+        die("Error: TopHat requires Samtools 0.1.7 or later")
     print >> sys.stderr, "\tSamtools %s" % samtools_version_str
       
 
@@ -969,8 +946,7 @@ def fq_next(f, fname, color):
                                 "for %s (%i vs %i)." \
                                 % (seqid, seq_len, qstrlen))
    except ValueError, err:
-        print >> sys.stderr, "\nError encountered parsing file "+fname+":\n "+str(err)
-        sys.exit(1)
+        die("\nError encountered parsing file "+fname+":\n "+str(err))
    #return the record  
    return (seqid, seqstr, qstr, seq_len)
 
@@ -985,7 +961,7 @@ def fa_getline(fline):
 
 def fa_ungetline():
     global fasta_linebuf, fasta_lastline
-    fasta_linebuf=fasta_lastline;
+    fasta_linebuf=fasta_lastline
     return fasta_lastline
 
 def fa_init(f):
@@ -1024,8 +1000,7 @@ def fa_next(f, fname):
           raise ValueError("Read %s too short (%i)." \
                            % (seqid, seq_len))
    except ValueError, err:
-        print >> sys.stderr, "\nError encountered parsing fasta file "+fname+":\n "+str(err)
-        sys.exit(1)
+        die("\nError encountered parsing fasta file "+fname+":\n "+str(err))
    #Return the record and then continue...  
    return (seqid, seqstr, seq_len)
 
@@ -1053,8 +1028,7 @@ def check_reads(params, reads_files):
         try:
             f = open(f_name)
         except IOError:
-            print >> sys.stderr, "Error: could not open file", f_name
-            sys.exit(1)
+            die("Error: could not open file "+f_name)
 
         # skip lines
         while True:
@@ -1103,8 +1077,7 @@ def check_reads(params, reads_files):
                      max_seed_len = max(seq_len, max_seed_len)
             
     if len(observed_formats) > 1:
-        print >> sys.stderr, "Error: TopHat requires all reads be either FASTQ or FASTA.  Mixing formats is not supported."
-        sys.exit(1)
+        die("Error: TopHat requires all reads be either FASTQ or FASTA.  Mixing formats is not supported.")
 
     if seed_len != None:
         seed_len = max(seed_len, min_seed_len)
@@ -1189,13 +1162,12 @@ def prep_reads(params, reads_list, quals_list, output_name):
                               stderr=filter_log)
                               # Bowtie reported an error
         if ret != 0:
-            print >> sys.stderr, fail_str, "Error: could not execute prep_reads"
-            sys.exit(1)
+            die(fail_str+" Error: could not execute prep_reads")
     # prep_reads not found
     except OSError, o:
         if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
             print >> sys.stderr, fail_str, "Error: prep_reads not found on this system.  Did you forget to include it in your PATH?"
-        sys.exit(1)
+        die()
 
     return kept_reads_filename
 
@@ -1271,9 +1243,10 @@ def bowtie(params,
             
     # Bowtie not found
     except OSError, o:
+        errmsg=fail_str+str(o)+"\n"
         if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
-            print >> sys.stderr, fail_str, "Error: Bowtie not found on this system.  Did you forget to include it in your PATH?"
-        sys.exit(1)
+            errmsg+="Error: Bowtie not found on this system.  Did you forget to include it in your PATH?"
+        die(errmsg)
             
     # Success    
     finish_time = datetime.now()
@@ -1312,13 +1285,13 @@ def get_gtf_juncs(gff_annotation):
             print >> sys.stderr, "\tWarning: TopHat did not find any junctions in GTF file"
             return (False, gtf_juncs_out_name) 
         elif retcode < 0:
-            print >> sys.stderr, fail_str, "Error: GTF junction extraction failed with err =", retcode
-            sys.exit(1)
+            die(fail_str+"Error: GTF junction extraction failed with err ="+str(retcode))
     # cvg_islands not found
     except OSError, o:
+       errmsg=fail_str+str(o)+"\n"
        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
-           print >> sys.stderr, fail_str, "Error: gtf_juncs not found on this system"
-       sys.exit(1)
+           errmsg+="Error: gtf_juncs not found on this system"
+       die(errmsg)
     return (True, gtf_juncs_out_name)
 
 # Call bowtie-build on the FASTA file of sythetic splice junction sequences
@@ -1340,12 +1313,12 @@ def build_juncs_bwt_index(external_splice_prefix, color):
                                  stdout=bowtie_build_log)
        
         if retcode != 0:
-            print >> sys.stderr, fail_str, "Error: Splice sequence indexing failed with err =", retcode
-            sys.exit(1)
+            die(fail_str+"Error: Splice sequence indexing failed with err ="+ str(retcode))
     except OSError, o:
+        errmsg=fail_str+str(o)+"\n"
         if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
-            print >> sys.stderr, fail_str, "Error: bowtie-build not found on this system"
-        sys.exit(1)
+            errmsg+="Error: bowtie-build not found on this system"
+        die(errmsg)
     return external_splice_prefix
 
 # Build a splice index from a .juncs file, suitable for use with specified read
@@ -1386,13 +1359,13 @@ def build_juncs_index(min_anchor_length,
                                  stdout=external_splices_out)
        
         if retcode != 0:
-            print >> sys.stderr, fail_str, "Error: Splice sequence retrieval failed with err =", retcode
-            sys.exit(1)
+            die(fail_str+"Error: Splice sequence retrieval failed with err ="+str(retcode))
     # juncs_db not found
     except OSError, o:
+       errmsg=fail_str+str(o)+"\n"
        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
-           print >> sys.stderr, fail_str, "Error: juncs_db not found on this system"
-       sys.exit(1)
+           errmsg+="Error: juncs_db not found on this system"
+       die(errmsg)
        
     external_splices_out_prefix = build_juncs_bwt_index(external_splices_out_prefix, color)
     return external_splices_out_prefix
@@ -1441,10 +1414,7 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
     coverage =  "coverage.wig"
     accepted_hits_sam = tmp_dir + "accepted_hits.sam"
     accepted_hits_bam = output_dir + "accepted_hits.bam"
-    report_cmdpath = which("tophat_reports")
-    if report_cmdpath == None:
-        print >> sys.stderr, err_find_prog+"tophat_reports"
-        sys.exit(1)
+    report_cmdpath = prog_path("tophat_reports")
     report_cmd = [report_cmdpath]
     report_cmd.extend(params.cmd())
         
@@ -1476,8 +1446,7 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
        
         # spanning_reads returned an error 
         if retcode != 0:
-            print >> sys.stderr, fail_str, "Error: Report generation failed with err =", retcode
-            sys.exit(1)
+            die(fail_str+"Error: Report generation failed with err ="+str(retcode))
         
         tmp_bam = tmp_name() 
         sam_to_bam_cmd = ["samtools", "view", "-S", "-b", accepted_hits_sam]
@@ -1488,8 +1457,7 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
                               stdout=tmp_bam_file,
                               stderr=sam_to_bam_log)
         if ret != 0:
-            print >> sys.stderr, "Error: could not convert to BAM with samtools"
-            sys.exit(1)
+            die("Error: could not convert to BAM with samtools")
         sort_cmd = ["samtools", "sort", tmp_bam, output_dir + "accepted_hits"]
         print >> run_log, " ".join(sort_cmd)
 #        sorted_map_name = tmp_name()
@@ -1512,8 +1480,7 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
                         stdout=open('/dev/null'),
                         stderr=sort_bam_log)
         if ret != 0:
-            print >> sys.stderr, "Error: could not sort BAM file with samtools"
-            sys.exit(1)        
+            die("Error: could not sort BAM file with samtools")
             
         os.remove(accepted_hits_sam)
 #        print >> run_log, "mv %s %s" % (sorted_map, output_dir + accepted_hits)
@@ -1527,10 +1494,9 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
                         
     # cvg_islands not found
     except OSError, o:
-        print >>sys.stderr, o
         if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
             print >> sys.stderr, fail_str, "Error: tophat_reports not found on this system"
-        sys.exit(1)
+        die(str(o))
     return (coverage, junctions)
 
 
@@ -1694,8 +1660,8 @@ def junctions_from_closures(params,
     juncs_cmdpath=prog_path("closure_juncs")
     juncs_cmd = [juncs_cmdpath]
 
-    left_maps = ','.join(left_maps);
-    right_maps = ','.join(right_maps);
+    left_maps = ','.join(left_maps)
+    right_maps = ','.join(right_maps)
 
     juncs_cmd.extend(params.cmd())
     juncs_cmd.extend([juncs_out,
@@ -1709,13 +1675,12 @@ def junctions_from_closures(params,
 
         # spanning_reads returned an error 
         if retcode != 0:
-           print >> sys.stderr, fail_str, "Error: closure-based junction search failed with err =", retcode
-           sys.exit(1)
+           die(fail_str+"Error: closure-based junction search failed with err ="+str(retcode))
     # cvg_islands not found
     except OSError, o:
         if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
            print >> sys.stderr, fail_str, "Error: closure_juncs not found on this system"
-        sys.exit(1)
+        die(str(o))
     return [juncs_out]
 
 # Find possible junctions by examining coverage and split segments in the initial
@@ -1773,13 +1738,12 @@ def junctions_from_segments(params,
 
         # spanning_reads returned an error 
         if retcode != 0:
-           print >> sys.stderr, fail_str, "Error: segment-based junction search failed with err =",retcode
-           sys.exit(1)
+           die(fail_str+"Error: segment-based junction search failed with err ="+str(retcode))
     # cvg_islands not found
     except OSError, o:
         if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
            print >> sys.stderr, fail_str, "Error: segment_juncs not found on this system"
-        sys.exit(1)
+        die(str(o))
 
     return [juncs_out, insertions_out, deletions_out]
 
@@ -1843,13 +1807,12 @@ def join_mapped_segments(params,
 
         # spanning_reads returned an error 
         if retcode != 0:
-            print >> sys.stderr, fail_str, "Error: Segment join failed with err =", retcode
-            sys.exit(1)
+            die(fail_str+"Error: Segment join failed with err ="+str(retcode))
      # cvg_islands not found
     except OSError, o:
         if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
             print >> sys.stderr, fail_str, "Error: long_spanning_reads not found on this system"
-        sys.exit(1)
+        die(str(o))
       
 
 # The main aligment routine of TopHat.  This function executes most of the 
@@ -2163,7 +2126,7 @@ def which(program):
         if is_executable(program):
             return program
     else:
-        progpath = os.path.join(bin_dir, program); 
+        progpath = os.path.join(bin_dir, program)
         if is_executable(progpath):
            return progpath
         for path in os.environ["PATH"].split(os.pathsep):
@@ -2172,24 +2135,30 @@ def which(program):
               return progpath
     return None
 
+def die(msg=None):
+ if msg is not None: 
+    print >> sys.stderr, msg
+    sys.exit(1)
+
 def prog_path(program):
     progpath=which(program)
     if progpath == None:
-        print >> sys.stderr, "Error locating program: ", program
-        sys.exit(1)
+        die("Error locating program: "+program)
     return progpath
 
 # FIXME: this should get set during the make dist autotools phase of the build
 def get_version():
    return "1.2.0"
 
+def mlog(msg):
+  print >> sys.stderr, msg
+
 def test_input_file(filename):
     try:
         test_file = open(filename, "r")
     # Bowtie not found
-    except IOError, o:
-        print >> sys.stderr, "Error: Opening file %s" % filename
-        sys.exit(1)
+    except IOError, o: 
+        die("Error: Opening file %s" % filename)
     return
     
 def main(argv=None):
@@ -2209,8 +2178,7 @@ def main(argv=None):
         left_quals_list, right_quals_list = [], []
         if (params.read_params.quals != True and len(args) > 2) or (params.read_params.quals == True and len(args) > 3):
             if params.read_params.mate_inner_dist == None:
-                print >> sys.stderr, "Error: you must set the mean inner distance between mates with -r"
-                sys.exit(1)
+                die("Error: you must set the mean inner distance between mates with -r")
 
             right_reads_list = args[2]
             if params.read_params.quals == True:
