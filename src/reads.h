@@ -53,7 +53,7 @@ seqan::String<char> convert_bp_to_color(const seqan::String<char>& bp, bool remo
   This is a dynamic programming to decode a colorspace read, which is from BWA paper.
 
   Heng Li and Richard Durbin
-  Fast and accurate short read alignment with Burrows–Wheeler transform
+  Fast and accurate short read alignment with Burrows-Wheeler transform
  */
 void BWA_decode(const string& color, const string& qual, const string& ref, string& decode);
 
@@ -78,12 +78,22 @@ bool get_read_from_stream(uint64_t insert_id,
 			  char read_alt_name [],
 			  char read_qual []);
 
+struct FaStream {
+ FILE* file;
+ bool  is_pipe;
+ FaStream(FILE* fs=NULL, bool is_p=false) {
+   file=fs;
+   is_pipe=is_p;
+   }
+};
+
 class FLineReader { //simple text line reader class, buffering last line read
   int len;
   int allocated;
   char* buf;
   bool isEOF;
   FILE* file;
+  bool is_pipe;
   bool pushed; //pushed back
   int lcount; //counting all lines read by the object
 public:
@@ -93,11 +103,13 @@ public:
   int length() { return len; } //length of the last line read
   bool isEof() {return isEOF; }
   char* nextLine();
+  FILE* fhandle() { return file; }
   void pushBack() { if (lcount>0) pushed=true; } // "undo" the last getLine request
            // so the next call will in fact return the same line
   FLineReader(FILE* stream=NULL) {
     len=0;
     isEOF=false;
+    is_pipe=false;
     allocated=512;
     buf=(char*)malloc(allocated);
     lcount=0;
@@ -105,8 +117,25 @@ public:
     file=stream;
     pushed=false;
     }
+
+  FLineReader(FaStream& fastream) {
+    len=0;
+    isEOF=false;
+    allocated=512;
+    buf=(char*)malloc(allocated);
+    lcount=0;
+    buf[0]=0;
+    file=fastream.file;
+    is_pipe=fastream.is_pipe;
+    pushed=false;
+    }
+  void close() {
+    if (file==NULL) return;
+    if (is_pipe) pclose(file);
+            else fclose(file);
+    }
   ~FLineReader() {
-    free(buf);
+    free(buf); //does not call close() -- we might reuse the file handle
     }
 };
 

@@ -199,7 +199,7 @@ libgc_a_SOURCES = \
 #-- program sources
 
 prep_reads_SOURCES = prep_reads.cpp
-prep_reads_LDADD = $(top_builddir)/src/libtophat.a  $(BAM_LIB)
+prep_reads_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
 prep_reads_LDFLAGS = $(BAM_LDFLAGS)
 
 segment_juncs_SOURCES = segment_juncs.cpp
