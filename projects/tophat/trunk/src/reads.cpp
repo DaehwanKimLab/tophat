@@ -43,7 +43,7 @@ char* FLineReader::nextLine() {
        buf[len]='\0';
        if (c=='\r') { //DOS file: double-char line terminator, skip the second one
           if ((c=getc(file))!='\n')
-              ungetc(c,file); //this will always happen on Mac
+              ungetc(c,file);
           }
        lcount++;
        return buf;
@@ -62,6 +62,7 @@ char* FLineReader::nextLine() {
 
 void skip_lines(FLineReader& fr)
 {
+  if (fr.fhandle() == NULL) return;
   char* buf = NULL;
   while ((buf = fr.nextLine()) != NULL) {
     if (buf[0] == '\0') continue;
@@ -158,7 +159,6 @@ bool next_fastq_record(FLineReader& fr,
 
   return !(qual.empty());
 }
-
 
 // This could be faster.
 void reverse_complement(string& seq)

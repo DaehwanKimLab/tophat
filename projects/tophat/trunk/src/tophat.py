@@ -106,8 +106,6 @@ output_dir = "./tophat_out/"
 logging_dir = output_dir + "logs/"
 run_log = None
 run_cmd = None
-fasta_linebuf  = "" # buffer for fa_ungetline(), checked by fa_getline() before reading from file
-fasta_lastline = "" # last line read by fa_getline()
 tmp_dir = output_dir + "tmp/"
 bin_dir = sys.path[0] + "/"
 #ok_str = "\t\t\t\t[OK]\n"
@@ -898,25 +896,53 @@ def check_samtools():
       
 
 
-def fq_next(f, fname, color):
-   '''
-   basic fastq record iterator  
-   as a function returning a tuple: (seqID, sequence_string, qv_string, seq_len)
-   '''
-   seqid,seqstr,qstr,seq_len='','','',0
-   fline=f.readline #shortcut to save a bit of time
-   line=fline()
-   if not line : return (seqid, seqstr,qstr,seq_len)
-   while len(line.rstrip())==0: # skip empty lines
+class FastxReader:
+  def __init__(self, i_file, is_color=0, fname=''):
+    self.bufline=None
+    self.format=None
+    self.ifile=i_file
+    self.nextRecord=None
+    self.eof=None
+    self.fname=fname
+    self.lastline=None
+    self.numrecords=0
+    self.isColor=0
+    if is_color : self.isColor=1
+    # determine file type
+    #no records processed yet, skip custom header lines if any
+    hlines=10 # allow maximum 10 header lines
+    self.lastline=" "
+    while hlines>0 and self.lastline[0] not in "@>" :
+       self.lastline=self.ifile.readline()
+       hlines-=1
+    if self.lastline[0] == '@':
+      self.format='fastq'
+      self.nextRecord=self.nextFastq
+    elif self.lastline[0] == '>':
+      self.format='fasta'
+      self.nextRecord=self.nextFasta
+    else: 
+      die("Error: cannot determine record type in input file %s" % fname)
+    self.bufline=self.lastline
+    self.lastline=None
+    
+  def nextFastq(self):
+    # returning tuple: (seqID, sequence_string, seq_len, qv_string)
+    seqid,seqstr,qstr,seq_len='','','',0
+    if self.eof: return (seqid, seqstr, seq_len, qstr)
+    fline=self.getLine #shortcut to save a bit of time
+    line=fline()
+    if not line : return (seqid, seqstr, seq_len, qstr)
+    while len(line.rstrip())==0: # skip empty lines
       line=fline()
-      if not line : return (seqid, seqstr,qstr,seq_len)
-   try:
-       if line[0] != "@":
+      if not line : return (seqid, seqstr,seq_len, qstr)
+    try:
+      if line[0] != "@":
           raise ValueError("Records in Fastq files should start with '@' character")
-       seqid = line[1:].rstrip()
-       seqstr = fline().rstrip()
-       #There may now be more sequence lines, or the "+" quality marker line:
-       while True:
+      seqid = line[1:].rstrip()
+      seqstr = fline().rstrip()
+      #There may now be more sequence lines, or the "+" quality marker line:
+      while True:
           line = fline()
           if not line:
              raise ValueError("Premature end of file (missing quality values for "+seqid+")")
@@ -929,69 +955,51 @@ def fq_next(f, fname, color):
              break
           seqstr += line.rstrip() #removes trailing newlines
           #loop until + found
-       seq_len = len(seqstr)
-       #at least one line of quality data should follow  
-       qstrlen=0  
-       #now read next lines as quality values until seq_len is reached
-       while True:
+      seq_len = len(seqstr)
+      #at least one line of quality data should follow  
+      qstrlen=0  
+      #now read next lines as quality values until seq_len is reached
+      while True:
           line=fline()
           if not line : break #end of file  
           qstr += line.rstrip()
           qstrlen=len(qstr)  
-          if (not color and qstrlen >= seq_len) or (color and qstrlen + 1 >= seq_len):  
+          if qstrlen + self.isColor >= seq_len :
                break # qv string has reached the length of seq string
           #loop until qv has the same length as seq
-       if (not color and seq_len != qstrlen) or (color and seq_len != qstrlen + 1):
+      if seq_len != qstrlen+self.isColor :
            raise ValueError("Length mismatch between sequence and quality strings "+ \
                                 "for %s (%i vs %i)." \
                                 % (seqid, seq_len, qstrlen))
-   except ValueError, err:
+    except ValueError, err:
         die("\nError encountered parsing file "+fname+":\n "+str(err))
-   #return the record  
-   return (seqid, seqstr, qstr, seq_len)
+    #return the record 
+    self.numrecords+=1
+    if self.isColor :
+        seq_len-=1
+        seqstr = seqstr[1:]
+    return (seqid, seqstr, seq_len, qstr)
 
-def fa_getline(fline):
-    global fasta_linebuf, fasta_lastline
-    if fasta_linebuf:
-        fasta_lastline=fasta_linebuf
-        fasta_linebuf=''
-        return fasta_lastline
-    fasta_lastline=fline()
-    return fasta_lastline
-
-def fa_ungetline():
-    global fasta_linebuf, fasta_lastline
-    fasta_linebuf=fasta_lastline
-    return fasta_lastline
-
-def fa_init(f):
-    global fasta_linebuf, fasta_lastline
-    fasta_linebuf=''
-    fasta_lastline=''
-    
-def fa_next(f, fname):
-   '''
-   basic fasta record iterator  
-   implemented as a function returning a tuple: (seqID, sequence_string, seq_len)
-   '''
-   seqid,seqstr,seq_len='','',0
-   fline=f.readline # shortcut to readline function of f
-   line=fa_getline(fline) # this will use the buffer line if it's there
-   if not line : return (seqid, seqstr, seq_len)
-   while len(line.rstrip())==0: # skip empty lines
+  def nextFasta(self):
+    # returning tuple: (seqID, sequence_string, seq_len)
+    seqid,seqstr,seq_len='','',0
+    fline=self.getLine # shortcut to readline function of f
+    line=fline() # this will use the buffer line if it's there
+    if not line : return (seqid, seqstr, seq_len)
+    while len(line.rstrip())==0: # skip empty lines
       line=fline()
       if not line : return (seqid, seqstr,qstr,seq_len)
-   try:
+    try:
        if line[0] != ">":
-          raise ValueError("Records in Fasta files should start with '>' character")
+          raise ValueError("Records in Fasta files must start with '>' character")
        seqid = line[1:].split()[0]
        #more sequence lines, or the ">" quality marker line:
        while True:
-          line = fa_getline(fline)
+          line = fline()
           if not line: break
           if line[0] == '>':
              #next sequence starts here  
-             fa_ungetline()
+             self.ungetLine()
              break
           seqstr += line.rstrip()
           #loop until '>' found
@@ -999,10 +1007,52 @@ def fa_next(f, fname):
        if seq_len < 3:
           raise ValueError("Read %s too short (%i)." \
                            % (seqid, seq_len))
-   except ValueError, err:
+    except ValueError, err:
         die("\nError encountered parsing fasta file "+fname+":\n "+str(err))
-   #Return the record and then continue...  
-   return (seqid, seqstr, seq_len)
+    #return the record and continue
+    self.numrecords+=1
+    return (seqid, seqstr, seq_len)
+
+  def getLine(self):
+      if self.bufline: #return previously buffered line
+         r=self.bufline
+         self.bufline=None
+         return r
+      else: #read a new line from stream and return it
+         if self.eof: return None
+         self.lastline=self.ifile.readline()
+         if not self.lastline:
+            self.eof=1
+            return None
+         return self.lastline
+  def ungetLine(self):
+      if self.lastline is None:
+         print >>os.stderr, "Warning: FastxReader called ungetLine() with no prior line!"
+      self.bufline=self.lastline
+      self.lastline=None
+#<class FastxReader
+  
+def fz_open(fname):
+    pipecmd=''
+    s=fname.lower()
+    rgz=s.rfind(".gz")
+    if rgz>0 and rgz>len(s)-6:
+        pipecmd='gzip'
+    else:
+        rgz=s.rfind(".z")
+        if rgz>0 and rgz==len(s)-3:
+           pipecmd='gzip'
+        else:
+           rgz=s.rfind(".bz")
+           if rgz>0 and rgz>len(s)-7:
+               pipecmd='bzip2'
+    if len(pipecmd)>0 and which(pipecmd) is None:
+       die("Error: cannot find %s to uncompress input file %s " % (pipecmd, fname))
+    if pipecmd:
+       popen=subprocess.Popen([pipecmd, '-cd', fname], shell=False, stdout=subprocess.PIPE)
+       return popen.stdout
+    else:
+       return open(fname)
 
 # check_reads() has several jobs.  It examines the user's reads, one file at a 
 # time, and determnes the file format, read length, and other properties that 
@@ -1023,62 +1073,28 @@ def check_reads(params, reads_files):
     max_qual = -1
     files = reads_files.split(',')
 
-    file_pos = 0
     for f_name in files:
         try:
-            f = open(f_name)
+            f = fz_open(f_name)
         except IOError:
             die("Error: could not open file "+f_name)
-
-        # skip lines
+        freader=FastxReader(f, params.color, f_name)
         while True:
-            file_pos = f.tell()
-            first_line = f.readline()
-            if first_line[0] in "@>":
-                break
-            
-        if first_line[0] == "@":
-            format = "fastq"
-        elif first_line[0] == ">":
-            format = "fasta"
-        else:
-            print >> sys.stderr, "Error: file %s does not appear to be a valid FASTA or FASTQ file" % f_name
-
-        observed_formats.add(format)
-        f.seek(file_pos)
-
-        line_num = 0
-        if format == "fastq":
-            while True:
-              seqid, seqstr, qstr, seq_len = fq_next(f, f_name, params.color)
-              if not seqid: break
-              if params.color:
-                  seq_len -= 1
-                  seqstr = seqstr[1:]
-              if seq_len < 20:
+            seqid, seqstr, seq_len, qstr = freader.nextRecord()
+            if not seqid: break
+            if seq_len < 20:
                   print >> sys.stderr, "Warning: found a read < 20bp in", f_name
-              else:
-                  min_seed_len = min(seq_len, min_seed_len)
-                  max_seed_len = max(seq_len, max_seed_len)
-              max_line_qual = max([ord(x) for x in list(qstr)])
-              max_qual = max(max_line_qual, max_qual)   
-        elif format == "fasta":
-            fa_init(f)
-            while True:
-                seqid, seqstr, seq_len = fa_next(f, f_name)
-                if not seqid: break
-                if params.color:
-                  seq_len -= 1
-                  seqstr = seqstr[1:]
-                if seq_len < 20:
-                     print >> sys.stderr, "Warning: found a read < 20bp in", f_name
-                else:
-                     min_seed_len = min(seq_len, min_seed_len)
-                     max_seed_len = max(seq_len, max_seed_len)
-            
+            else:
+                min_seed_len = min(seq_len, min_seed_len)
+                max_seed_len = max(seq_len, max_seed_len)
+            if freader.format == "fastq":
+                max_line_qual = max([ord(x) for x in list(qstr)])
+                max_qual = max(max_line_qual, max_qual)
+
+        observed_formats.add(freader.format)
     if len(observed_formats) > 1:
         die("Error: TopHat requires all reads be either FASTQ or FASTA.  Mixing formats is not supported.")
-
+    format=list(observed_formats)[0]
     if seed_len != None:
         seed_len = max(seed_len, min_seed_len)
     else:
@@ -2148,7 +2164,7 @@ def prog_path(program):
 
 # FIXME: this should get set during the make dist autotools phase of the build
 def get_version():
-   return "1.2.0"
+   return "1.2.0-g"
 
 def mlog(msg):
   print >> sys.stderr, msg

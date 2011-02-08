@@ -38,25 +38,23 @@ void format_qual_string(const string& orig_qual_str,
 }
 
 
-void filter_garbage_reads(vector<FILE*> reads_files, vector<FILE*> quals_files)
+void filter_garbage_reads(vector<FaStream> reads_files, vector<FaStream> quals_files)
 {	
   int num_reads_chucked = 0, num_reads = 0;
   int next_id = 0;
   for (size_t fi = 0; fi < reads_files.size(); ++fi)
     {
       Read read;
-      FILE* fa = reads_files[fi];
-      FLineReader fr(fa);
+      FLineReader fr(reads_files[fi]);
       skip_lines(fr);
       
-      FILE* fq = NULL;
+      FaStream fq;
       if (quals)
-	fq = quals_files[fi];
+	    fq = quals_files[fi];
       FLineReader frq(fq);
       skip_lines(frq);
       
-      while (!fr.isEof())
-	{
+      while (!fr.isEof()) {
 	  read.clear();
 	  
 	  // Get the next read from the file
@@ -162,8 +160,10 @@ void filter_garbage_reads(vector<FILE*> reads_files, vector<FILE*> quals_files)
 		    }
 		}
 	    }
-	}
-    }
+	} //while !fr.isEof()
+    fr.close();
+    frq.close();
+    } //for each input file
   
   fprintf(stderr, "%d out of %d reads have been filtered out\n", 
 	  num_reads_chucked, num_reads);
@@ -172,6 +172,33 @@ void filter_garbage_reads(vector<FILE*> reads_files, vector<FILE*> quals_files)
 void print_usage()
 {
   fprintf(stderr, "Usage:   prep_reads <reads1.fa/fq,...,readsN.fa/fq>\n");
+}
+
+string getFext(string& s) {
+ string r("");
+ //if (xpos!=NULL) *xpos=0;
+ if (s.empty() || s=="-") return r;
+ int slen=(int)s.length();
+ int p=s.rfind('.');
+ int d=s.rfind('/');
+ if (p<=0 || p>slen-2 || p<slen-7 || p<d) return r;
+ r=s.substr(p+1);
+ //if (xpos!=NULL) *xpos=p+1;
+ for(int i=0; i!=r.length(); i++)
+      r[i] = std::tolower(r[i]);
+ return r;
+ }
+
+
+void guess_unzip(string& fname, string& picmd) {
+ picmd="";
+ string fext=getFext(fname);
+ if (fext=="gz" || fext=="gzip" || fext=="z") {
+    picmd="gzip -cd ";
+    }
+   else if (fext=="bz2" || fext=="bzip2" || fext=="bz" || fext=="bzip") {
+    picmd="bzip2 -cd ";
+    }
 }
 
 int main(int argc, char *argv[])
@@ -192,12 +219,22 @@ int main(int argc, char *argv[])
   string reads_file_list = argv[optind++];
   
   vector<string> reads_file_names;
-  vector<FILE*> reads_files;
+  vector<FaStream> reads_files;
   tokenize(reads_file_list, ",",reads_file_names);
   for (size_t i = 0; i < reads_file_names.size(); ++i)
     {
-      FILE* seg_file = fopen(reads_file_names[i].c_str(), "r");
-      if (seg_file == NULL)
+      FaStream seg_file;
+      string fname=reads_file_names[i];
+      string pipecmd;
+      guess_unzip(fname, pipecmd);
+      if (pipecmd.empty()) 
+           seg_file.file=fopen(fname.c_str(), "r");
+         else {
+           pipecmd.append(fname);
+           seg_file.file=popen(pipecmd.c_str(), "r");
+           seg_file.is_pipe=true;
+           }
+      if (seg_file.file == NULL)
         {
 	  fprintf(stderr, "Error: cannot open reads file %s for reading\n",
 		  reads_file_names[i].c_str());
@@ -207,15 +244,26 @@ int main(int argc, char *argv[])
     }
   
   vector<string> quals_file_names;
-  vector<FILE*> quals_files;
+  vector<FaStream> quals_files;
   if (quals)
     {
       string quals_file_list = argv[optind++];
       tokenize(quals_file_list, ",",quals_file_names);
       for (size_t i = 0; i < quals_file_names.size(); ++i)
 	{
-	  FILE* seg_file = fopen(quals_file_names[i].c_str(), "r");
-	  if (seg_file == NULL)
+	  //FILE* seg_file = fopen(quals_file_names[i].c_str(), "r");
+      FaStream seg_file;
+      string fname(reads_file_names[i]);
+      string pipecmd;
+      guess_unzip(fname, pipecmd);
+      if (pipecmd.empty()) 
+           seg_file.file=fopen(fname.c_str(), "r");
+         else {
+           pipecmd.append(fname);
+           seg_file.file=popen(pipecmd.c_str(), "r");
+           seg_file.is_pipe=true;
+           }
+	  if (seg_file.file == NULL)
 	    {
 	      fprintf(stderr, "Error: cannot open reads file %s for reading\n",
 		      quals_file_names[i].c_str());
