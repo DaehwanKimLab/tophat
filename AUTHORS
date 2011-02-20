@@ -3,7 +3,7 @@ Primary contact <cole@cs.umd.edu>
 
 Cole Trapnell wrote TopHat. TopHat is built on Bowtie, which was written by
 Ben Langmead and Cole Trapnell.  Daehwan Kim and Geo Pertea added support 
-for SOLiD reads. The SeqAn-1.1 library is used in TopHat and
+for SOLiD reads. The SeqAn-1.2 library is used in TopHat and
 Bowtie and some of its sources are included in TopHat source releases; its
 authors are Andreas Doring, David Weese, Tobias Rausch, and Knut Reinert. 
 

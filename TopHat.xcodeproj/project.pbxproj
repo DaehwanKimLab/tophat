@@ -503,7 +503,7 @@
 				HEADER_SEARCH_PATHS = (
 					./src/FSA,
 					./src/,
-					"./src/Seqan-1.1",
+					"./src/Seqan-1.2",
 				);
 				INSTALL_PATH = /usr/local/bin;
 				LIBRARY_SEARCH_PATHS = (

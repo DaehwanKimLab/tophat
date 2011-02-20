@@ -199,13 +199,14 @@
 		</p><br/>
 		
 		<h2>TopHat 1.1.4  release 11/16/2010</h2>
-	    <p>Version 1.1.4 includes two important bug fixes:
+	    <p>Version 1.1.4 includes three important bug fixes:
 			<ul>
 				<li>Another issue related to strand assignment in strand specific libraries has been fixed</li>
 				<li>A limitation in aligning long reads has been overcome, substantially improving overall alignment sensitivity</li>
+				<li>The <tt>--gtf-annotations</tt> was throwing an error during <tt>prep_reads</tt> due to a bug in internal command line parsing.</li>
 			</ul>
 		</p>
-		<p>Several users pointed out that the recently released version 1.1.3 had "1.1.0 had" the listed version number on running TopHat.  This has been corrected in the 1.1.4 build. 
+		<p>Several users pointed out that the recently released version 1.1.3 had "1.1.0" listed in the version number on running TopHat.  This has been corrected in the 1.1.4 build. 
 		</p><br/>
 		<h2>TopHat 1.1.3  release 11/13/2010</h2>
 	    <p>This is a strongly recommend fix release of TopHat.  Version 1.1.2 suffered from a bug related to the addition of strand specific read processing that could result in some reads being incorrectly assigned to the wrong strand.  This bug affected users of unstranded RNA-Seq data as well as users of stranded reads, so 1.1.3 is a recommended update for all users.

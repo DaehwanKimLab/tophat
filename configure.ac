@@ -117,7 +117,7 @@ AS_IF([test "x$enable_debug" = xyes],
 CFLAGS="${generic_CFLAGS} ${ext_CFLAGS} ${user_CFLAGS} ${debug_CFLAGS}"
 CXXFLAGS="$CFLAGS $BAM_CPPFLAGS"
 
-AM_CXXFLAGS="$CXXFLAGS -I./SeqAn-1.1"
+AM_CXXFLAGS="$CXXFLAGS -I./SeqAn-1.2"
 
 AC_SUBST(CC)
 AC_SUBST(AM_CXXFLAGS)
