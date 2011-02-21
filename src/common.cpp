@@ -301,7 +301,7 @@ int parse_options(int argc, char** argv, void (*print_usage)())
       min_report_intron_length = parseInt(1, "--min-report-intron arg must be at least 1", print_usage);
       break;
     case OPT_MAX_REPORT_INTRON:
-      max_segment_intron_length = parseInt(1, "--max-segment-intron arg must be at least 1", print_usage);
+      max_report_intron_length = parseInt(1, "--max-report-intron arg must be at least 1", print_usage);
       break;
     case OPT_MIN_ISOFORM_FRACTION:
       min_isoform_fraction = parseFloat(0.0f, 1.0f, "--min-isoform-fraction arg must be [0.0,1.0]", print_usage);

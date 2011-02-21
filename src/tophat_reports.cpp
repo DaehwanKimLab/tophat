@@ -234,7 +234,7 @@ bool rewrite_sam_hit(const RefSequenceTable& rt,
     {
         if (library_type == FR_FIRSTSTRAND)
         {
-            if (insert_side == FRAG_LEFT )
+            if (insert_side == FRAG_LEFT || insert_side == FRAG_UNPAIRED)
             {
                 if (bh.antisense_align())
                     strcat(rebuf, "\tXS:A:+");
@@ -252,7 +252,7 @@ bool rewrite_sam_hit(const RefSequenceTable& rt,
         
         else if (library_type == FR_SECONDSTRAND)
         {
-            if (insert_side == FRAG_LEFT )
+            if (insert_side == FRAG_LEFT || insert_side == FRAG_UNPAIRED)
             {
                 if (bh.antisense_align())
                     strcat(rebuf, "\tXS:A:-");
@@ -424,7 +424,7 @@ bool rewrite_sam_hit(const RefSequenceTable& rt,
     {
         if (library_type == FR_FIRSTSTRAND)
         {
-            if (insert_side == FRAG_LEFT )
+            if (insert_side == FRAG_LEFT)
             {
                 if (bh.antisense_align())
                     strcat(rebuf, "\tXS:A:+");
@@ -442,7 +442,7 @@ bool rewrite_sam_hit(const RefSequenceTable& rt,
         
         else if (library_type == FR_SECONDSTRAND)
         {
-            if (insert_side == FRAG_LEFT )
+            if (insert_side == FRAG_LEFT)
             {
                 if (bh.antisense_align())
                     strcat(rebuf, "\tXS:A:-");
