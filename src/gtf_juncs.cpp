@@ -18,8 +18,7 @@
 #include <string>
 #include <cstdio>
 #include <set>
-#include "GList.hh"
-#include "gtf_tracking.h"
+#include "gff.h"
 
 #include "common.h"
 #include "bwt_map.h"
@@ -32,80 +31,48 @@ void print_usage()
     fprintf(stderr, "Usage:   gtf_juncs <transcripts.gtf>\n");
 }
 
+void read_transcripts(FILE* f, GffReader& gffr) { 
+  //assume gffr was just created but not initialized
+  gffr.init(f, false, true); //(gffile, mRNA-only, sortByLoc)
+  gffr.showWarnings(verbose);
+  gffr.readAll(true, true, true); //(keepAttr, mergeCloseExons, noExonAttr)
+  //now all parsed GffObjs are in gffr.gflst, grouped by genomic sequence
+  }
+
 uint32_t get_junctions_from_gff(FILE* ref_mRNA_file,
                                 RefSequenceTable& rt)
 {
-    
-	uint32_t num_juncs_reported = 0;
-    
-	GList<GSeqData> ref_rnas;
-	
+	//GList<GSeqData> ref_rnas;
+	GffReader gff_reader;
 	if (ref_mRNA_file)
 	{
-		//read_mRNAs(ref_mRNA_file, ref_rnas);
-		read_transcripts(ref_mRNA_file, ref_rnas);
+		read_transcripts(ref_mRNA_file, gff_reader);
 	}
-    
-	set<pair<string, pair<int, int> > > uniq_juncs;
-    
-	// Geo groups them by chr.
-	if (ref_rnas.Count()>0) //if any ref data was loaded
-	{
-		for (int j = 0; j < ref_rnas.Count(); ++j) 
-		{    //ref data is grouped by genomic sequence
-			char* name = GffObj::names->gseqs.getName(ref_rnas[j]->gseq_id);
-			uint32_t ref_id = rt.get_id(name, NULL, 0);
-			for (int i = 0; i < ref_rnas[j]->mrnas_f.Count(); ++i)
-			{	
-				GffObj& rna = *(ref_rnas[j]->mrnas_f[i]);
-				
-				
-				for (int e = 0; e < rna.exons.Count(); ++e)
-				{
-					GffExon& ex = *(rna.exons[e]);
-				
-					if (e + 1 < rna.exons.Count())
-					{
-						GffExon& next_ex = *(rna.exons[e+1]);
-                        
-                        fprintf(stdout, "%s\t%d\t%d\t%c\n",
-                                name,
-                                ex.end - 1,
-                                next_ex.start - 1,
-                                '+');
-                        uniq_juncs.insert(make_pair(name, make_pair(ex.end - 1, next_ex.start - 1))); 
-					}
-				}
-				
-			}
-			
-			for (int i = 0; i < ref_rnas[j]->mrnas_r.Count(); ++i)
-			{	
-				GffObj& rna = *(ref_rnas[j]->mrnas_r[i]);
-				
-				
-				for (int e = 0; e < rna.exons.Count(); ++e)
-				{
-					GffExon& ex = *(rna.exons[e]);
-					
-					if (e + 1 < rna.exons.Count())
-					{
-						GffExon& next_ex = *(rna.exons[e+1]);
-						//ops.push_back(AugmentedCuffOp(CUFF_INTRON, ex.end, next_ex.start - ex.end - 1));
-                        fprintf(stdout, "%s\t%d\t%d\t%c\n",
-                                name,
-                                ex.end - 1,
-                                next_ex.start - 1,
-                                '-');
-                        uniq_juncs.insert(make_pair(name, make_pair(ex.end - 1, next_ex.start - 1)));
-					}
-				}
-			}
-		}
-    }
-    
-    return uniq_juncs.size();
 	
+	set<pair<string, pair<int, int> > > uniq_juncs;
+	
+	//if any ref data was loaded
+	int last_gseqid=-1;
+	const char* gseqname=NULL;
+	for (int i=0;i<gff_reader.gflst.Count();i++) {
+		//ref data is grouped by genomic sequence
+		GffObj& rna = *(gff_reader.gflst[i]);
+		if (rna.gseq_id!=last_gseqid) {
+		    gseqname=rna.getGSeqName();
+		    rt.get_id(gseqname, NULL, 0);
+		    last_gseqid=rna.gseq_id;
+		    }
+		for (int e = 1; e < rna.exons.Count(); ++e) {
+		    GffExon& ex = *(rna.exons[e]);
+		    GffExon& prex = *(rna.exons[e-1]);
+		    fprintf(stdout, "%s\t%d\t%d\t%c\n",
+		                 gseqname,
+		                 prex.end-1, ex.start-1, rna.strand);
+		    uniq_juncs.insert(make_pair(gseqname, make_pair(prex.end - 1, ex.start - 1)));
+		    }
+		} //for each loaded GFF record
+
+	return uniq_juncs.size();
 }
 
 int main(int argc, char** argv)

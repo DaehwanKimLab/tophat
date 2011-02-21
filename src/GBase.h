@@ -223,13 +223,13 @@ bool GCalloc(pointer* ptr, unsigned long size); // Allocate and initialize memor
 bool GRealloc(pointer* ptr,unsigned long size); // Resize memory
 void GFree(pointer* ptr); // Free memory, resets ptr to NULL
 
-/********************* debug functions *********************/
+
+int saprintf(char **retp, const char *fmt, ...);
 
 void GError(const char* format,...); // Error routine (aborts program)
 void GMessage(const char* format,...);// Log message to stderr
 // Assert failed routine:- usually not called directly but through GASSERT
 void GAssert(const char* expression, const char* filename, unsigned int lineno);
-
 
 // ****************** string manipulation *************************
 char *Gstrdup(const char* str);
@@ -440,14 +440,21 @@ class GLineReader {
   */
 char* fgetline(char* & buf, int& buflen, FILE* stream, off_t* f_pos=NULL, int* linelen=NULL);
 
+
+//print int/values nicely formatted in 3-digit groups
+char* commaprint(uint64 n);
+
 /*********************** File management functions *********************/
 
-// removes the directory part from a full-path file name
-// this is a destructive operation for the given string!
+// removes the last part (file or directory name) of a full path
+// WARNING: this is a destructive operation for the given string!
 void delFileName(char* filepath);
 
-// returns a pointer to the file name part in a full-path filename
-char* getFileName(char* filepath);
+// returns a pointer to the last file or directory name in a full path
+const char* getFileName(const char* filepath);
+// returns a pointer to the file "extension" part in a filename
+const char* getFileExt(const char* filepath);
+
 
 int fileExists(const char* fname);
 //returns 0 if file entry doesn't exist
