@@ -57,8 +57,10 @@ void print_usage()
 static const int num_bowtie_mismatches = 2;
 //uint32_t max_cov_intron_length = 3000;
 //uint32_t max_seg_intron_length = 300000;
-static const int max_cov_juncs = 5000000;
-static const int max_seg_juncs = 10000000;
+
+// daehwan
+static const int max_cov_juncs = 50000000;
+static const int max_seg_juncs = 100000000;
 int max_microexon_stretch = 2000;
 int butterfly_overhang = 6;
 
@@ -239,13 +241,16 @@ uint64_t colorstr_to_idx(const string& str)
 }
 
 void store_read_extensions(MerExtensionTable& ext_table,
-						   int seq_key_len,
-						   int min_ext_len,
-						   const string& seq,
-						   bool use_precount_table)
+			   int seq_key_len,
+			   int min_ext_len,
+			   const string& seq,
+			   bool use_precount_table)
 {
 	// h is will hold the 2-bit-per-base representation of the k-mer seeds for
 	// this read.
+
+  // dahewan - this is for a debug purpose
+  return;
 	
 	uint64_t seed = 0;
 	bitset<256> left = 0;
@@ -545,10 +550,10 @@ void store_read_mers(FILE* reads_file, size_t half_splice_mer_len)
 			read.seq.resize(32);
 		
 		store_read_extensions(extensions,
-							  half_splice_mer_len,
-							  half_splice_mer_len,
-							  read.seq, 
-							  true);
+				      half_splice_mer_len,
+				      half_splice_mer_len,
+				      read.seq, 
+				      true);
 		
 		// Do NOT index the reverse of the reads
 		
@@ -562,12 +567,12 @@ void store_read_mers(FILE* reads_file, size_t half_splice_mer_len)
 	
 	//fprintf(stderr, "Indexed %lu reads, compacting extension table\n", num_indexed_reads)
 	
-	int num_extensions = 0;
+	uint64_t num_extensions = 0;
 	for (size_t i = 0; i < extensions.size(); ++i)
 	{
 		num_extensions += extensions[i].size();
 	}
-	fprintf (stderr, "Total extensions: %d\n", num_extensions);
+	fprintf (stderr, "Total extensions: %llu\n", num_extensions);
 	rewind(reads_file);
 }
 
@@ -2191,7 +2196,7 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
         recorder.record(ref_id, 
                         rev_acceptors, 
                         rev_donors, 
-                        true, 
+                        true,
                         juncs,
                         min_intron,
                         max_intron, 
@@ -3595,7 +3600,7 @@ void driver(istream& ref_stream,
 			vector<FILE*> iums;
 			for (size_t ium = 0; ium < ium_read_files.size(); ++ium)
 			{
-				fprintf (stderr, "Indexing extensions in %s\n",ium_read_files[ium].c_str());
+				fprintf (stderr, "Indexing extensions in %s\n", ium_read_files[ium].c_str());
 				FILE* ium_file = fopen(ium_read_files[ium].c_str(), "r");
 				if (!ium_file)
 				{
