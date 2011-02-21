@@ -121,15 +121,15 @@ bin_PROGRAMS = \
 	juncs_db \
 	gtf_juncs \
 	extract_reads \
-    segment_juncs \
+	segment_juncs \
 	closure_juncs \
 	long_spanning_reads \
 	fix_map_ordering \
 	library_stats \
 	mask_sam \
 	wiggles \
-    sam_juncs
- 
+	sam_juncs
+
 
 #-- scripts to be installed in $prefix/bin
 dist_bin_SCRIPTS = \
@@ -149,19 +149,17 @@ noinst_HEADERS = \
 	GBase.h \
 	gdna.h \
 	GFaSeqGet.h \
-	GFastaIndex.h \
 	gff.h \
 	GHash.hh \
 	GList.hh \
 	GStr.h \
-	gtf_tracking.h \
 	bwt_map.h \
 	wiggles.h \
 	junctions.h \
 	assert_helpers.h \
-    insertions.h \
-    deletions.h \
-    align_status.h \
+	insertions.h \
+	deletions.h \
+	align_status.h \
 	alphabet.h \
 	timer.h \
 	closures.h \
@@ -171,7 +169,7 @@ noinst_HEADERS = \
 	segments.h \
 	qual.h
 
-	
+
 libtophat_a_SOURCES = \
 	reads.cpp \
 	alphabet.c \
@@ -192,9 +190,7 @@ libgc_a_SOURCES = \
 	gdna.cpp \
 	GStr.cpp \
 	GFaSeqGet.cpp \
-	GFastaIndex.cpp \
-	gff.cpp \
-	gtf_tracking.cpp
+	gff.cpp
 
 #-- program sources
 

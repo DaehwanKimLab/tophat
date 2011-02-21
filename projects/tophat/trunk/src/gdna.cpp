@@ -4,7 +4,7 @@
 #define IUPAC_DEFS "AaCcTtGgUuMmRrWwSsYyKkVvHhDdBbNnXx-*"
 #define IUPAC_COMP "TtGgAaCcAaKkYyWwSsRrMmBbDdHhVvNnXx-*"
 
-unsigned char ntCompTable[128];
+unsigned char ntCompTable[256];
 
 static bool gdna_ntCompTableReady=ntCompTableInit();
 
@@ -34,7 +34,7 @@ bool ntCompTableInit() {
        char c[]=IUPAC_COMP;
        int l=strlen(IUPAC_DEFS);
        ntCompTable[0]=0;
-       for (int ch=1;ch<128;ch++) {
+       for (int ch=1;ch<256;ch++) {
           ntCompTable[ch]=0;
           for (int i=0;i<l;i++)
                 if (ch==n[i]) {
@@ -44,6 +44,7 @@ bool ntCompTableInit() {
           if (ntCompTable[ch]==0)
               ntCompTable[ch]='N';
           }
+      //gdna_ntCompTableReady=true;
       return true;
      }
 
