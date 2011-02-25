@@ -52,6 +52,15 @@
 		    </ul>
 		  </div>
 		
+		  <h2><u>Getting Help</u></h2>
+		  <div class="box">
+		    <ul>
+		      <table width="100%">
+				<tr><td>Questions about TopHat should be sent to <a href="mailto:tophat.cufflinks@gmail.com"><b>tophat.cufflinks@gmail.com</b></a>.  Please do not email technical questions to TopHat contributors directly.</td></tr>
+			  </table>
+		    </ul>
+		  </div>
+		
 		  <a href="./downloads"><h2><u>Releases</u></h2></a>
 		  <div class="box">
 		    <ul>
@@ -185,6 +194,11 @@
 		
     </div> <!-- End of "rightside" -->
     <div id="leftside">
+		<h2>New "Getting Help" email address for TopHat and Cufflinks</h2>
+	    <p>In order to more effectively answer user help requests and improve usability and documentation, we have created an email address to which users can send messages for technical support.  If you have questions about Cufflinks or TopHat, please send them to <a href="mailto:tophat.cufflinks@gmail.com">tophat.cufflinks@gmail.com</a>.  We will do our best to answer your question in a timely fashion, although <b>please read the manual carefully</b> before sending your email.  We have very limited time to answer questions, and most questions require careful, technical answers.  
+		
+		<p>If you believe you have found a bug in the software, please <b>include a small package of test data</b> with your email so that we can reproduce your problem locally.  A test example makes it much easier to correct the issue.
+		</p><br/>
 		<h2>TopHat 1.2.0  release 1/18/2011</h2>
 	    <p>Version 1.2.0 includes some important bug fixes as well as a major new feature.  Thanks to the efforts of Ryan Kelley from Illumina, TopHat now supports detection of insertions and deletions using RNA-Seq data.  TopHat will report reads aligned across discovered indels by taking advantage of <tt>I</tt> and <tt>D</tt> CIGAR operators as specified by the SAM format.  For convenience, the indels discovered during each run are also reported in BED files, similar to the junctions.bed file that TopHat reports for splice junctions.
 		<p>Version 1.2.0 also addresses the following issues:
