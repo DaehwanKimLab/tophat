@@ -248,12 +248,12 @@ int main(int argc, char *argv[])
   if (quals)
     {
       string quals_file_list = argv[optind++];
-      tokenize(quals_file_list, ",",quals_file_names);
+      tokenize(quals_file_list, ",", quals_file_names);
       for (size_t i = 0; i < quals_file_names.size(); ++i)
 	{
 	  //FILE* seg_file = fopen(quals_file_names[i].c_str(), "r");
       FaStream seg_file;
-      string fname(reads_file_names[i]);
+      string fname(quals_file_names[i]);
       string pipecmd;
       guess_unzip(fname, pipecmd);
       if (pipecmd.empty()) 

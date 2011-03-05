@@ -134,7 +134,7 @@ bool next_fastq_record(FLineReader& fr,
 	vector<string> integer_qual_values;
 	tokenize(string(fline), " ", integer_qual_values);
 
-	string temp_qual;
+	string temp_qual; 
 	for (size_t i = 0; i < integer_qual_values.size(); ++i)
 	  {
 	    int qual_value = atoi(integer_qual_values[i].c_str());
