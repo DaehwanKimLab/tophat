@@ -17,11 +17,35 @@ enum eREAD
     READ_RIGHT
   };
 
+enum ePOINT_DIR
+  {
+    POINT_DIR_DONTCARE = 0,
+    POINT_DIR_LEFT,
+    POINT_DIR_RIGHT,
+    POINT_DIR_BOTH
+  };
+
 struct RefSeg
 {
-RefSeg() : ref_id(0), points_left(false), antisense(false), read(READ_DONTCARE), left(0), right(0) {}
-RefSeg(uint32_t i, bool p, bool antisense, eREAD read, int l, int r) :
-  ref_id(i), points_left(p), antisense(antisense), read(read), left(l), right(r) {}
+RefSeg() :
+  ref_id(0),
+    points_where(POINT_DIR_LEFT),
+    antisense(false),
+    read(READ_DONTCARE),
+    left(0),
+    right(0),
+    support_read("")
+  {}
+  
+RefSeg(uint32_t i, ePOINT_DIR p, bool antisense, eREAD read, int l, int r, const string& support_read = "") :
+  ref_id(i),
+    points_where(p),
+    antisense(antisense),
+    read(read),
+    left(l),
+    right(r),
+    support_read(support_read)
+  {}
   
   bool operator<(const RefSeg& rhs) const
   {
@@ -39,15 +63,18 @@ RefSeg(uint32_t i, bool p, bool antisense, eREAD read, int l, int r) :
     return (ref_id == rhs.ref_id &&
 	    left == rhs.left &&
 	    right == rhs.right && 
-	    points_left == rhs.points_left &&
+	    points_where == rhs.points_where &&
 	    antisense == rhs.antisense &&
-	    read == rhs.read);
+	    read == rhs.read &&
+	    support_read == rhs.support_read);
   }
   
   uint32_t ref_id;
-  bool points_left;
+  ePOINT_DIR points_where;
   bool antisense;
   eREAD read;
   int left;
   int right;
+  
+  string support_read;
 };	

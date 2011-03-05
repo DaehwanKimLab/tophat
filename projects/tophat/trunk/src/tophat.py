@@ -988,7 +988,7 @@ class FastxReader:
     if not line : return (seqid, seqstr, seq_len)
     while len(line.rstrip())==0: # skip empty lines
       line=fline()
-      if not line : return (seqid, seqstr,qstr,seq_len)
+      if not line : return (seqid, seqstr,seq_len)
     try:
        if line[0] != ">":
           raise ValueError("Records in Fasta files must start with '>' character")
@@ -1080,8 +1080,15 @@ def check_reads(params, reads_files):
             die("Error: could not open file "+f_name)
         freader=FastxReader(f, params.color, f_name)
         while True:
-            seqid, seqstr, seq_len, qstr = freader.nextRecord()
+            if freader.format == "fastq":
+                seqid, seqstr, seq_len, qstr = freader.nextRecord()
+            else:
+                seqid, seqstr, seq_len = freader.nextRecord()
             if not seqid: break
+            if params.color:
+                seq_len -= 1
+                seqstr = seqstr[1:]
+                  
             if seq_len < 20:
                   print >> sys.stderr, "Warning: found a read < 20bp in", f_name
             else:
@@ -1255,7 +1262,7 @@ def bowtie(params,
                                           stdout=open(mapped_reads, "w"))    
         
         # wait for the whole pipe to finish
-        fix_order_proc.communicate()   
+        fix_order_proc.communicate()
             
     # Bowtie not found
     except OSError, o:
