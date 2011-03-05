@@ -1682,11 +1682,39 @@ struct RecordAllJuncs
 	    juncs.insert(j);
 	    
 	    if (juncs.size() > max_juncs)
-	      {
-		juncs.erase(*(juncs.rbegin()));
-	      }
+	      juncs.erase(*(juncs.rbegin()));
 	  }
-      }	
+      }
+  }
+};
+
+struct RecordSegmentJuncs
+{
+  void record(uint32_t ref_id,
+	      const vector<pair<size_t, DnaSpliceStrings> >& left_sites,
+	      const vector<pair<size_t, DnaSpliceStrings> >& right_sites,
+	      bool antisense,
+	      PotentialJuncs& juncs,
+	      int min_intron,
+	      int max_intron,
+	      size_t max_juncs,
+	      size_t half_splice_mer_len)
+  {
+    if (left_sites.size() != right_sites.size())
+	return;
+
+    for (size_t i = 0; i < left_sites.size(); ++i)
+      {
+	Junction j(ref_id,
+		   left_sites[i].first - 1,
+		   right_sites[i].first + 2,
+		   antisense);
+	
+	juncs.insert(j);
+	
+	if (juncs.size() > max_juncs)
+	  juncs.erase(*(juncs.rbegin()));
+      }
   }
 };
 
@@ -2065,10 +2093,15 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
     
     if (talkative)
         fprintf(stderr, "Collecting potential splice sites in islands\n");
-    
+
+    // 
+    bool all_both = true;
     for (size_t r = 0; r < expected_don_acc_windows.size(); ++r)
     {
         const RefSeg& seg = expected_don_acc_windows[r];
+
+	if (seg.points_where != POINT_DIR_BOTH)
+	  all_both = false;
         
         RefSequenceTable::Sequence* ref_str = rt.get_seq(seg.ref_id);
         
@@ -2288,7 +2321,10 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
         if (talkative)
             fprintf(stderr, "Examining donor-acceptor pairings in %s\n", rt.get_name(ref_id));
         IntronMotifs& motifs = motif_itr->second;
-        motifs.unique();
+
+	if (!all_both)
+	  motifs.unique();
+	
         //motifs.attach_mer_counts(*ref_str);
         motifs.attach_mers(*ref_str);
         
@@ -2830,7 +2866,7 @@ void find_gaps(RefSequenceTable& rt,
 	}      
     }
   
-  juncs_from_ref_segs<RecordAllJuncs>(rt, 
+  juncs_from_ref_segs<RecordSegmentJuncs>(rt, 
 				      expected_don_acc_windows, 
 				      seg_juncs, 
 				      "GT", 
@@ -2841,7 +2877,7 @@ void find_gaps(RefSequenceTable& rt,
 				      false,
 				      0);
   
-  juncs_from_ref_segs<RecordAllJuncs>(rt, 
+  juncs_from_ref_segs<RecordSegmentJuncs>(rt, 
 				      expected_don_acc_windows, 
 				      seg_juncs, 
 				      "GC", 
@@ -2852,7 +2888,7 @@ void find_gaps(RefSequenceTable& rt,
 				      false,
 				      0);
   
-  juncs_from_ref_segs<RecordAllJuncs>(rt, 
+  juncs_from_ref_segs<RecordSegmentJuncs>(rt, 
 				      expected_don_acc_windows, 
 				      seg_juncs, 
 				      "AT", 
