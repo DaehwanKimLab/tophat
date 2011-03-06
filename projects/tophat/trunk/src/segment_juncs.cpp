@@ -251,9 +251,6 @@ void store_read_extensions(MerExtensionTable& ext_table,
 {
 	// h is will hold the 2-bit-per-base representation of the k-mer seeds for
 	// this read.
-
-  // dahewan - this is for a debug purpose
-  return;
 	
 	uint64_t seed = 0;
 	bitset<256> left = 0;
@@ -2107,7 +2104,7 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
         
         if (!ref_str)
             continue;
-        
+
         bool skip_fwd = false;
         bool skip_rev = false;
         
@@ -2269,7 +2266,8 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
 		  }
 	      }
 	  }
-	else if (seg.points_where == POINT_DIR_LEFT)
+
+	if (seg.points_where == POINT_DIR_LEFT)
 	  {
             // A ref segment that "points left" is one that was flanked 
             // on the right by a partial bowtie hit, indicating that we
@@ -2865,7 +2863,7 @@ void find_gaps(RefSequenceTable& rt,
 	    }	  
 	}      
     }
-  
+
   juncs_from_ref_segs<RecordSegmentJuncs>(rt, 
 				      expected_don_acc_windows, 
 				      seg_juncs, 
@@ -3846,9 +3844,10 @@ void driver(istream& ref_stream,
 			   microexon_juncs,
 			   max_cov_juncs,
 			   5);
+
       juncs.insert(microexon_juncs.begin(), microexon_juncs.end());
     }
-  
+
   juncs.insert(cov_juncs.begin(), cov_juncs.end());
   juncs.insert(seg_juncs.begin(), seg_juncs.end());
   juncs.insert(butterfly_juncs.begin(), butterfly_juncs.end());
