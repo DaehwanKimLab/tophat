@@ -29,7 +29,7 @@ struct RefSeg
 {
 RefSeg() :
   ref_id(0),
-    points_where(POINT_DIR_LEFT),
+    points_where(POINT_DIR_DONTCARE),
     antisense(false),
     read(READ_DONTCARE),
     left(0),
