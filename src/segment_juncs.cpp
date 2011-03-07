@@ -2089,7 +2089,6 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
     for (size_t r = 0; r < expected_don_acc_windows.size(); ++r)
     {
         const RefSeg& seg = expected_don_acc_windows[r];
-
 	if (seg.points_where != POINT_DIR_BOTH)
 	  all_both = false;
         
@@ -2231,11 +2230,8 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
 	  {
 	    for (size_t i = 0; i <= to; ++i)
 	      {
-		// daehwan
-		// - left_color_offset
-		
                 // Look at a slice of the reference without creating a copy.
-                DnaString curr = seqan::infix(org_seg_str, i, i + 2);
+                DnaString curr = seqan::infix(org_seg_str, i - left_color_offset, i + 2 - left_color_offset);
 
 		if ((!skip_fwd && curr == donor_dinuc) || (!skip_rev && curr == rev_acceptor_dinuc))
 		  {
@@ -2260,7 +2256,7 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
 		    if (left_mismatch + right_mismatches[i] <= 2)
 		      {
 			size_t pos = length(seg_str) - (read_len - i) - 2;
-			if (partner == seqan::infix(org_seg_str, pos, pos + 2))
+			if (partner == seqan::infix(org_seg_str, pos - left_color_offset, pos + 2 - left_color_offset))
 			  {
 			    if (curr == donor_dinuc)
 			      {
@@ -2293,7 +2289,7 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
             for (size_t i = 0; i <= to; ++i)
 	      {
                 // Look at a slice of the reference without creating a copy.
-                DnaString curr = seqan::infix(seg_str, i, i + 2);
+                DnaString curr = seqan::infix(seg_str, i - left_color_offset, i + 2 - left_color_offset);
                 
                 if (curr == acceptor_dinuc && !skip_fwd)
 		  motifs.fwd_acceptors.push_back(make_pair(seg.left + i, DnaSpliceStrings(0,0)));
@@ -2307,7 +2303,7 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
             for (size_t i = 0; i <= to; ++i)
 	      {
                 // Look at a slice of the reference without creating a copy.
-                DnaString curr = seqan::infix(seg_str, i, i + 2);
+                DnaString curr = seqan::infix(seg_str, i - left_color_offset, i + 2 - left_color_offset);
                 
                 if (curr == donor_dinuc && !skip_fwd)
 		  motifs.fwd_donors.push_back(make_pair(seg.left + i, DnaSpliceStrings(0,0)));
