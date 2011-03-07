@@ -2261,13 +2261,19 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
 				motifs.rev_acceptors.push_back(make_pair(seg.left + i, DnaSpliceStrings(0,0)));
 				motifs.rev_donors.push_back(make_pair(seg.left + pos, DnaSpliceStrings(0,0)));
 			      }
+
+			    // daehwan
+			    if (bDebug)
+			      {
+				cout << curr << " added" << endl;
+			      }
 			  }
 		      }
 		  }
 	      }
 	  }
 
-	if (seg.points_where == POINT_DIR_LEFT)
+	else if (seg.points_where == POINT_DIR_LEFT)
 	  {
             // A ref segment that "points left" is one that was flanked 
             // on the right by a partial bowtie hit, indicating that we
