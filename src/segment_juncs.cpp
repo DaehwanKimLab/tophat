@@ -30,8 +30,6 @@
 #include <seqan/modifier.h>
 #include <getopt.h>
 
-//#include <ext/hash_map>
-
 #include "common.h"
 #include "bwt_map.h"
 #include "tokenize.h"
@@ -54,16 +52,11 @@ void print_usage()
     fprintf(stderr, "Usage:   segment_juncs <ref.fa> <segment.juncs> <segment.insertions> <segment.deletions> <left_reads.fq> <left_seg1.bwtout,...,segN.bwtout> [right_reads.fq right_seg1.bwtout,...,right_segN.bwtout]\n");
 }
 
-//const char *short_options = "i:I:fq";
-
 // This is the maximum number of bowtie mismatches allower per segment hit
 static const int num_bowtie_mismatches = 2;
-//uint32_t max_cov_intron_length = 3000;
-//uint32_t max_seg_intron_length = 300000;
 
-// daehwan
-static const int max_cov_juncs = 50000000;
-static const int max_seg_juncs = 100000000;
+static const int max_cov_juncs = 5000000;
+static const int max_seg_juncs = 10000000;
 int max_microexon_stretch = 2000;
 int butterfly_overhang = 6;
 
@@ -2140,11 +2133,29 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
         ims.insert(make_pair(seg.ref_id, IntronMotifs(seg.ref_id)));
 		
         IntronMotifs& motifs = ret.first->second;
-        
-        if (seg.left < 0 || seg.right >= (int)length(*ref_str) - 1)
+
+	int left_color_offset = 0, right_color_offset = 0;
+	if (color)
+	  {
+	    if (seg.antisense)
+	      right_color_offset = 1;
+	    else
+	      left_color_offset = -1;
+	  }
+	
+        if (seg.left + left_color_offset < 0 || seg.right + right_color_offset >= (int)length(*ref_str) - 1)
             continue;
         
-        DnaString seg_str = seqan::infix(*ref_str, seg.left, seg.right);
+        DnaString org_seg_str = seqan::infix(*ref_str, seg.left + left_color_offset, seg.right + right_color_offset);
+
+	String<char> seg_str;
+	assign(seg_str, org_seg_str);
+
+	if (color)
+	  {
+	    bool remove_primer = true;
+	    seg_str = convert_bp_to_color(org_seg_str, remove_primer);
+	  }
 
 	size_t to = 0;
 	size_t seg_len = length(seg_str);
@@ -2200,13 +2211,10 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
 	    // daehwan
 	    if (bDebug)
 	      {
-		cout << "point dir: " << (int)seg.points_where << endl;
-		if (seg.points_where == POINT_DIR_BOTH)
-		  cout << seqan::infix(seg_str, 0, segment_length) << " " << seqan::infix(seg_str, length(seg_str) - segment_length, length(seg_str)) << endl;
-		else
-		  cout << seg_str << endl;
-		
-		cout << seg.support_read << endl
+		cout << "antisense: " << (seg.antisense ? "-" : "+") << endl
+		     << seqan::infix(seg_str, 0, segment_length) << " "
+		     << seqan::infix(seg_str, length(seg_str) - segment_length, length(seg_str)) << endl
+		     << seg.support_read << endl
 		     << 0 << " - " << to << endl;
 
 		for (int i = 0; i < read_len; ++i)
@@ -2223,8 +2231,11 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
 	  {
 	    for (size_t i = 0; i <= to; ++i)
 	      {
+		// daehwan
+		// - left_color_offset
+		
                 // Look at a slice of the reference without creating a copy.
-                DnaString curr = seqan::infix(seg_str, i, i + 2);
+                DnaString curr = seqan::infix(org_seg_str, i, i + 2);
 
 		if ((!skip_fwd && curr == donor_dinuc) || (!skip_rev && curr == rev_acceptor_dinuc))
 		  {
@@ -2249,7 +2260,7 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
 		    if (left_mismatch + right_mismatches[i] <= 2)
 		      {
 			size_t pos = length(seg_str) - (read_len - i) - 2;
-			if (partner == seqan::infix(seg_str, pos, pos + 2))
+			if (partner == seqan::infix(org_seg_str, pos, pos + 2))
 			  {
 			    if (curr == donor_dinuc)
 			      {
@@ -2836,11 +2847,13 @@ void find_gaps(RefSequenceTable& rt,
 	  
 	  if (!found_right_partner && (found_distant_right_partner || found_right_right_partner))
 	    {
+	      size_t color_offset = color ? 1 : 0;
+	      
 	      string support_read;
 	      if (found_distant_right_partner)
-		support_read = seq.substr((s+1) * segment_length - 5, 10);
+		support_read = seq.substr(color_offset + (s+1) * segment_length - 5, 10);
 	      else
-		support_read = seq.substr((s+1) * segment_length - 5, segment_length + 10);
+		support_read = seq.substr(color_offset + (s+1) * segment_length - 5, segment_length + 10);
 
 	      BowtieHit& d_bh = found_distant_right_partner ? dr_bh : rr_bh;
 	      if (!bh.antisense_align())
@@ -2852,7 +2865,11 @@ void find_gaps(RefSequenceTable& rt,
 		}
 	      else
 		{
-		  reverse_complement(support_read);
+		  if (color)
+		    reverse(support_read.begin(), support_read.end());
+		  else
+		    reverse_complement(support_read);
+		  
 		  RefSeg left_seg(bh.ref_id(), POINT_DIR_BOTH, bh.antisense_align(), read, 0, 0, support_read);
 		  left_seg.left = d_bh.right() - 5;
 		  left_seg.right = bh.left() + 5; // num allowed bowtie mismatches
@@ -2880,7 +2897,7 @@ void find_gaps(RefSequenceTable& rt,
 				      max_seg_juncs,
 				      false,
 				      0);
-  
+
   juncs_from_ref_segs<RecordSegmentJuncs>(rt, 
 				      expected_don_acc_windows, 
 				      seg_juncs, 
