@@ -141,7 +141,7 @@ int main(int argc, char *argv[])
 			}
 			case 'r':
 			{
-				chunk_size = parseInt(1,"-r arg must be at least 1", print_usage);
+				chunk_size = parseIntOpt(1,"-r arg must be at least 1", print_usage);
 				break;
 			}
 			case 'v':

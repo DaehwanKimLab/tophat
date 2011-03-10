@@ -567,7 +567,7 @@ void store_read_mers(FZPipe& reads_file, size_t half_splice_mer_len)
 	{
 		num_extensions += extensions[i].size();
 	}
-	fprintf (stderr, "Total extensions: %llu\n", num_extensions);
+	fprintf (stderr, "Total extensions: %lu\n", (long unsigned int)num_extensions);
 	//rewind(reads_file);
     reads_file.rewind();
 }
@@ -2173,7 +2173,7 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
 
 	if (max_segment_len < read_len)
 	  {
-	    fprintf(stderr, "Error: read len(%d) is greater than %d\n", read_len, max_segment_len);
+	    fprintf(stderr, "Error: read len(%d) is greater than %d\n", (int)read_len, (int)max_segment_len);
 	    exit(-1);
 	  }
 	
