@@ -152,7 +152,7 @@ void print_splice(const Junction& junction,
  * if it is less than 'lower', than output the given error message and
  * exit with an error and a usage message.
  */
-static int parseInt(int lower, char* arg, const char *errmsg) {
+static int parse_oInt(int lower, char* arg, const char *errmsg) {
 	long l;
 	char *endPtr= NULL;
 	l = strtol(arg, &endPtr, 10);
@@ -450,7 +450,7 @@ int main(int argc, char** argv)
 		return 1;
 	}
 	
-	min_anchor_len = parseInt(3, argv[optind++], "anchor length must be at least 3");
+	min_anchor_len = parse_oInt(3, argv[optind++], "anchor length must be at least 3");
 	
 	if(optind >= argc) 
 	{
@@ -458,7 +458,7 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	read_length = parseInt(4, argv[optind++], "read length must be at least 4");
+	read_length = parse_oInt(4, argv[optind++], "read length must be at least 4");
 	
 	if(optind >= argc) 
 	{
