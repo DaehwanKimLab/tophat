@@ -481,7 +481,7 @@
 	  </td><td VALIGN=top>
 	  Instructs TopHat to allow up to this many alignments to the reference
 	  for a given read, and suppresses all alignments for reads with more than
-	  this many alignments. The default is 40.
+	  this many alignments. The default is 20 for read mapping (and it uses two time larger number (40) for segment mapping).
 	  </td></tr>
 	  <tr><td VALIGN=top nowrap>
 	  <tt>--no-closure-search</tt>
@@ -545,6 +545,11 @@
 	  </td><td VALIGN=top>
 	  Read segments are mapped independently, allowing up to this many mismatches
 	  in each segment alignment.  The default is 2.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--bowtie-n</tt>
+	  </td><td VALIGN=top>
+	  TopHat uses "-v" in Bowtie for mapping (the default), but with this option, "-n" is used instead.
 	  </td></tr>
 	  <tr><td VALIGN=top nowrap>
 	  <tt>--segment-length</tt>

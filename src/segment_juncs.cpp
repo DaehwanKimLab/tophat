@@ -2272,7 +2272,7 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
 			    // daehwan
 			    if (bDebug)
 			      {
-				cout << curr << " added" << endl;
+				cout << curr << ":" << partner << " added" << endl;
 			      }
 			  }
 		      }
@@ -2464,6 +2464,7 @@ void detect_small_insertion(RefSequenceTable& rt,
 		BowtieHit& rightHit,
 		std::set<Insertion>& insertions)
 {
+  
 	RefSequenceTable::Sequence* ref_str = rt.get_seq(leftHit.ref_id());
 	if(!ref_str){
 		fprintf(stderr, "Error in accessing sequence record\n");
@@ -2568,6 +2569,9 @@ void detect_small_deletion(RefSequenceTable& rt,
 		int discrepancy = (rightHit.right() - leftHit.left()) - read_length;
 		Dna5String leftGenomicSequence_temp = seqan::infix(*ref_str, leftHit.left() + begin_offset, leftHit.left() + read_length + end_offset);
 		Dna5String rightGenomicSequence_temp = seqan::infix(*ref_str, rightHit.right() - read_length + begin_offset, rightHit.right() + end_offset);
+
+		if (length(leftGenomicSequence_temp) < read_length || length(rightGenomicSequence_temp) < read_length)
+		  return;
 
 		String<char> leftGenomicSequence;
 		assign(leftGenomicSequence, leftGenomicSequence_temp);
@@ -2879,7 +2883,7 @@ void find_gaps(RefSequenceTable& rt,
 		       << seq << endl
 		       << "(" << s << ") - " << support_read << endl;
 		}
-	    }	  
+	    }
 	}      
     }
 
