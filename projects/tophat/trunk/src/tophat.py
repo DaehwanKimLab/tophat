@@ -41,7 +41,7 @@ Options:
     -m/--splice-mismatches         <0-2>       [ default: 0                ]
     -i/--min-intron-length         <int>       [ default: 50               ]
     -I/--max-intron-length         <int>       [ default: 500000           ]
-    -g/--max-multihits             <int>       [ default: 40               ]
+    -g/--max-multihits             <int>       [ default: 20               ]
     -F/--min-isoform-fraction      <float>     [ default: 0.15             ]
     --max-insertion-length         <int>       [ default: 3                ]
     --max-deletion-length          <int>       [ default: 3                ]
@@ -76,9 +76,9 @@ Options:
     --tmp-dir                      <dirname>   [ default: <output_dir>/tmp ]
     
 Advanced Options:
-
     --segment-mismatches           <int>       [ default: 2                ]
     --segment-length               <int>       [ default: 25               ]
+    --bowtie-n                                 [ default: bowtime -v       ]
     --min-closure-exon             <int>       [ default: 100              ]
     --min-closure-intron           <int>       [ default: 50               ]
     --max-closure-intron           <int>       [ default: 5000             ]
@@ -375,9 +375,10 @@ class TopHatParams:
         self.find_novel_indels = False
         self.find_GFF_juncs = True
         self.skip_check_reads = False
-        self.max_hits = 40
+        self.max_hits = 20
         self.segment_length = 25
         self.segment_mismatches = 2
+        self.bowtie_alignment_option = "-v"
         self.max_insertion_length = 3
         self.max_deletion_length = 3
         self.raw_insertions = None
@@ -524,6 +525,7 @@ class TopHatParams:
                                          "max-segment-intron=",
                                          "segment-length=",
                                          "segment-mismatches=",
+                                         "bowtie-n",
                                          "butterfly-search",
                                          "no-butterfly-search",
                                          "keep-tmp",
@@ -596,6 +598,8 @@ class TopHatParams:
                 self.segment_length = int(value)
             if option == "--segment-mismatches":
                 self.segment_mismatches = int(value)
+            if option == "--bowtie-n":
+                self.bowtie_alignment_option = "-n"
             if option == "--max-insertion-length":
                 self.max_insertion_length = int(value)
             if option == "--max-deletion-length": 
@@ -1233,7 +1237,7 @@ def bowtie(params,
         else:
             unmapped_reads_fasta_name = None
 
-        bowtie_cmd += ["-v", str(params.segment_mismatches),
+        bowtie_cmd += [params.bowtie_alignment_option, str(params.segment_mismatches),
                          "-p", str(params.system_params.bowtie_threads),
                          "-k", str(params.max_hits),
                          "-m", str(params.max_hits),
@@ -1277,6 +1281,28 @@ def bowtie(params,
     #print >> sys.stderr, "\t\t\t[%s elapsed]" %  formatTD(duration)
     return (bwt_map, unmapped_reads_fasta_name)
 
+def bowtie_segment(params,
+           bwt_idx_prefix,
+           reads_list,
+           reads_format,
+           mapped_reads,
+           unmapped_reads,
+           reads_for_ordering = None,
+           phred_thresh = 70,
+           extra_output = ""):
+
+    backup_bowtie_alignment_option = params.bowtie_alignment_option
+    params.bowtie_alignment_option = "-v"
+    params.max_hits *= 2
+    
+    result = bowtie(params, bwt_idx_prefix, reads_list, reads_format,
+                    mapped_reads, unmapped_reads, reads_for_ordering,
+                    phred_thresh, extra_output)
+
+    params.bowtie_alignment_option = backup_bowtie_alignment_option
+    params.max_hits /= 2
+    return result
+    
 # Generate a new temporary filename in the user's tmp directory
 def tmp_name():
     tmp_root = tmp_dir
@@ -1967,15 +1993,15 @@ def spliced_alignment(params,
                 seg_out =  tmp_dir + seg[tmp+1:extension] + ".bwtout"
                 unmapped_seg = tmp_dir + seg[tmp+1:extension] + "_missing.fq"
                 extra_output = "(%d/%d)" % (i+1, len(read_segments))
-                (seg_map, unmapped) = bowtie(params,
-                                             bwt_idx_prefix, 
-                                             seg,
-                                             "fastq",
-                                             seg_out,
-                                             unmapped_seg,
-                                             seg,
-                                             70,
-                                             extra_output)
+                (seg_map, unmapped) = bowtie_segment(params,
+                                                     bwt_idx_prefix, 
+                                                     seg,
+                                                     "fastq",
+                                                     seg_out,
+                                                     unmapped_seg,
+                                                     seg,
+                                                     70,
+                                                     extra_output)
                 seg_maps.append(seg_map)
                 unmapped_segs.append(unmapped)
                 segs.append(seg)
@@ -2073,13 +2099,13 @@ def spliced_alignment(params,
             
                 ordering = maps[reads].segs[i]
                 seg_out = tmp_dir + seg[tmp+1:extension] + "_to_spliced.bwtout"
-                (seg_map, unmapped) = bowtie(params,
-                                             tmp_dir + junc_idx_prefix, 
-                                             seg,
-                                             "fastq",
-                                             seg_out,
-                                             None,
-                                             ordering)
+                (seg_map, unmapped) = bowtie_segment(params,
+                                                     tmp_dir + junc_idx_prefix, 
+                                                     seg,
+                                                     "fastq",
+                                                     seg_out,
+                                                     None,
+                                                     ordering)
                 spliced_seg_maps.append(seg_map)
                 i += 1
         

@@ -505,9 +505,7 @@ void print_sam_for_hits(const RefSequenceTable& rt,
   lex_hit_sort s(rt, hits);
   vector<uint32_t> index_vector;
   for (size_t i = 0; i < hits.hits.size(); ++i)
-    {
       index_vector.push_back(i);
-    }
   
   sort(index_vector.begin(), index_vector.end(), s);
   
@@ -572,9 +570,7 @@ void print_sam_for_hits(const RefSequenceTable& rt,
     {
         lex_hit_sort s(rt, right_hits);
 	for (size_t i = 0; i < right_hits.hits.size(); ++i)
-	{
 	  index_vector.push_back(i);
-	}
 
 	sort(index_vector.begin(), index_vector.end(), s);
     }
@@ -582,9 +578,7 @@ void print_sam_for_hits(const RefSequenceTable& rt,
     {
       lex_hit_sort s(rt, left_hits);
       for (size_t i = 0; i < left_hits.hits.size(); ++i)
-	{
 	  index_vector.push_back(i);
-	}
   
       sort(index_vector.begin(), index_vector.end(), s);
     }
@@ -606,15 +600,16 @@ void print_sam_for_hits(const RefSequenceTable& rt,
 					     right_read_seq,
 					     right_read_alt_name,
 					     right_read_quals);
- 
-  
+
+  assert (got_left_read && got_right_read);
+   
   if (left_hits.hits.size() == right_hits.hits.size())
     {
-      assert (got_left_read && got_right_read);
       for (size_t i = 0; i < right_hits.hits.size(); ++i)
 	{
 	  size_t index = index_vector[i];
 	  const BowtieHit& right_bh = right_hits.hits[index];
+	  const BowtieHit& left_bh = left_hits.hits[index];
 	  if (rewrite_sam_hit(rt,
 			      right_bh, 
 			      right_bh.hitfile_rec().c_str(), 
@@ -622,14 +617,13 @@ void print_sam_for_hits(const RefSequenceTable& rt,
 			      right_read_alt_name, 
 			      grade, 
 			      FRAG_RIGHT, 
-			      &left_hits.hits[index],
+			      &left_bh,
 			      right_hits.hits.size(),
 			      (i < right_hits.hits.size() - 1) ? &(right_hits.hits[index_vector[i+1]]) : NULL))
             {
 	      fprintf(fout, "%s", right_rebuf);
 	    }
 	  
-	  const BowtieHit& left_bh = left_hits.hits[index];
 	  if (rewrite_sam_hit(rt,
 			      left_bh, 
 			      left_bh.hitfile_rec().c_str(), 
@@ -637,7 +631,7 @@ void print_sam_for_hits(const RefSequenceTable& rt,
 			      left_read_alt_name, 
 			      grade, 
 			      FRAG_LEFT, 
-			      &right_hits.hits[index],
+			      &right_bh,
 			      left_hits.hits.size(),
 			      (i < left_hits.hits.size() - 1) ? &(left_hits.hits[index_vector[i+1]]) : NULL))
 	    {
@@ -680,6 +674,7 @@ void print_sam_for_hits(const RefSequenceTable& rt,
 			      NULL,
 			      left_hits.hits.size(),
 			      (i < left_hits.hits.size() - 1) ? &(left_hits.hits[index_vector[i+1]]) : NULL))
+	    
 	    fprintf(fout, "%s", left_rebuf);
 	}
     }
@@ -972,11 +967,11 @@ void driver(FILE* left_map,
 	    HitsForRead best_hits;
 	    best_hits.insert_id = curr_right_obs_order;
 	    FragmentAlignmentGrade grade;
-	    
+
 	    exclude_hits_on_filtered_junctions(junctions, curr_right_hit_group);
 
 	    // Process hit for right singleton, select best alignments
-	    fragment_best_alignments(curr_right_hit_group,grade, best_hits);
+	    fragment_best_alignments(curr_right_hit_group, grade, best_hits);
 
 	    if (best_hits.hits.size() <= max_multihits)
 	      {
