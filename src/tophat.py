@@ -1120,12 +1120,13 @@ class ZReader:
            if len(pipecmd)>0 and which(pipecmd[0]) is None:
                die("Error: cannot find %s to decompress input file %s " % (pipecmd, filename))
 
-           if pipecmd[0]=='gzip' and sysparams.zipper.endswith('pigz'):
-               pipecmd[0]=sysparams.zipper
-               pipecmd.extend(sysparams.zipper_opts)
-           elif pipecmd[0]=='bzip2' and sysparams.zipper.endswith('pbzip2'):
-               pipecmd[0]=sysparams.zipper
-               pipecmd.extend(sysparams.zipper_opts)
+           if len(pipecmd)>0:
+              if pipecmd[0]=='gzip' and sysparams.zipper.endswith('pigz'):
+                 pipecmd[0]=sysparams.zipper
+                 pipecmd.extend(sysparams.zipper_opts)
+              elif pipecmd[0]=='bzip2' and sysparams.zipper.endswith('pbzip2'):
+                 pipecmd[0]=sysparams.zipper
+                 pipecmd.extend(sysparams.zipper_opts)
         else:
            pipecmd=[sysparams.zipper]
            pipecmd.extend(sysparams.zipper_opts)
@@ -1143,9 +1144,9 @@ class ZReader:
         else: 
            self.file=open(filename)
     def close(self):
-       self.fsrc.close()
+       if self.fsrc: self.fsrc.close()
        self.file.close()
-       self.popen.wait()
+       if self.popen: self.popen.wait()
        self.popen=None
 
 class ZWriter:
