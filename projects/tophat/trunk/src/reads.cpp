@@ -134,7 +134,7 @@ bool next_fastq_record(FLineReader& fr,
 	vector<string> integer_qual_values;
 	tokenize(string(fline), " ", integer_qual_values);
 
-	string temp_qual; 
+	string temp_qual;
 	for (size_t i = 0; i < integer_qual_values.size(); ++i)
 	  {
 	    int qual_value = atoi(integer_qual_values[i].c_str());
@@ -158,6 +158,78 @@ bool next_fastq_record(FLineReader& fr,
   //
 
   return !(qual.empty());
+}
+
+bool next_fastx_read(FLineReader& fr, Read& read, ReadFormat reads_format, 
+                        FLineReader* frq) {
+  read.clear();
+  char* buf=NULL;
+  while ((buf=fr.nextLine())!=NULL) {
+    if (buf[0]==0) continue; //skip empty lines
+    if ((reads_format == FASTA && buf[0] == '>') ||
+          (reads_format == FASTQ && (buf[0] == '+' || buf[0] == '@'))) { //next record
+        if (read.seq.length()>0) { //current record ending
+           fr.pushBack();
+           break;
+           }
+        read.name=buf+1;
+        string::size_type space_pos = read.name.find_first_of(" \t");
+        if (space_pos != string::npos) {
+            read.name.resize(space_pos);
+            }
+        continue;
+        } //defline
+    // sequence line
+    read.seq.append(buf);
+    } //line reading loop
+  replace(read.seq.begin(),read.seq.end(),'.','N'); //shouldn't really be needed for FASTA files
+  if (reads_format != FASTQ && frq==NULL)
+      return (!read.seq.empty());
+  if (frq==NULL) frq=&fr; //FASTQ
+  //FASTQ or quals in a separate file -- now read quality values
+  buf=frq->nextLine();
+  if (buf==NULL) return false;
+  while (buf[0]==0) { //skip empty lines
+    buf=frq->nextLine();
+    if (buf==NULL) return false;
+    }
+  //must be on '+' line here
+  if (buf==NULL || (reads_format == FASTQ && buf[0] != '+') ||
+           (reads_format == FASTA && buf[0] != '>')) {
+     err_exit("Error: beginning of quality values record not found! (%s)\n",buf);
+     return false;
+     }
+  read.alt_name=buf+1;
+  string::size_type space_pos = read.alt_name.find_first_of(" \t");
+  if (space_pos != string::npos) read.alt_name.resize(space_pos);
+   //read qv line(s) now:
+  while ((buf=frq->nextLine())!=NULL) {
+    if (integer_quals)
+      {
+        vector<string> integer_qual_values;
+        tokenize(string(buf), " ", integer_qual_values);
+        string temp_qual;
+        for (size_t i = 0; i < integer_qual_values.size(); ++i)
+          {
+            int qual_value = atoi(integer_qual_values[i].c_str());
+            if (qual_value < 0) qual_value = 0;
+            temp_qual.push_back((char)(qual_value + 33));
+          }
+        read.qual.append(temp_qual);
+      }
+    else
+      read.qual.append(buf);
+    if ((!color && read.qual.length()>=read.seq.length())
+          || (color && read.qual.length()+1>=read.seq.length())) break;
+    } //while qv lines
+  // final check
+  if ((!color && read.seq.length()!=read.qual.length()) || (color && read.seq.length()!=read.qual.length()+1)) {
+           err_exit("Error: qual length (%d) differs from seq length (%d) for fastq record %s!\n",
+               read.qual.length(), read.seq.length(), read.alt_name.c_str());
+           return false;
+           }
+  //
+  return !(read.qual.empty());
 }
 
 // This could be faster.
@@ -499,27 +571,21 @@ bool get_read_from_stream(uint64_t insert_id,
   Read read;
   FLineReader fr(reads_file);
   while(!fr.isEof())
-    {
-      read.clear();
-      
-      // Get the next read from the file
-      if (!next_fasta_record(fr, read.name, read.seq, reads_format))
-	break;
-
-      if (reads_format == FASTQ)
 	{
-	  if (!next_fastq_record(fr, read.seq, read.alt_name, read.qual, reads_format))
+	read.clear();
+	  
+	  // Get the next read from the file
+	if (!next_fastx_read(fr, read, reads_format))
 	    break;
-	}
 
-      if (strip_slash)
+	if (strip_slash)
 	{
 	  string::size_type slash = read.name.rfind("/");
 	  if (slash != string::npos)
 	    read.name.resize(slash);
 	}
       
-      if ((uint64_t)atoi(read.name.c_str()) == insert_id)
+	if ((uint64_t)atoi(read.name.c_str()) == insert_id)
 	{
 	  if (read_name) strcpy(read_name, read.name.c_str());
 	  if (read_seq) strcpy(read_seq, read.seq.c_str());

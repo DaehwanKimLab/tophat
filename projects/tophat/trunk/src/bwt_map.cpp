@@ -351,8 +351,10 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 		tokenize(toks[num_extra_toks + splice_field], "-", splice_toks);
 		if (splice_toks.size() != 2)
 		{			
-			fprintf(stderr, "Warning: found malformed splice record, skipping\n");
-			return false;			       
+			fprintf(stderr, "Warning: found malformed splice record, skipping:\n");
+			//fprintf(stderr, "%s (token: %s)\n", text_name, 
+			//        toks[num_extra_toks + splice_field].c_str());
+			return false;			
 		}
 
 		//
@@ -522,6 +524,8 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 			!(orientation == '-' || orientation == '+'))
 		      {
 			fprintf(stderr, "Warning: found malformed splice record, skipping\n");
+			//fprintf(stderr, "junction_strand=%s, orientation='%c'\n",
+			//           junction_strand.c_str(), orientation);
 			return false;
 		      }
 		    
@@ -571,6 +575,7 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 	else
 	{
 	  fprintf(stderr, "Warning: found malformed splice record, skipping\n");
+	  //fprintf(stderr, "%s\n", orig_bwt_buf);
 	  //			continue;
 		return false;
 	}

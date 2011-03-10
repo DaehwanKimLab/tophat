@@ -1192,31 +1192,35 @@ int main(int argc, char** argv)
     }
   
   string left_reads_filename = argv[optind++];
+  string unzcmd=getUnpackCmd(left_reads_filename, false);
   
-  string* right_map_filename = NULL;
+  string right_map_filename;
+  string right_reads_filename;
+  FZPipe right_reads_file;
   FILE* right_map = NULL;
-  string* right_reads_filename = NULL;
-  FILE* right_reads_file = NULL;
+  //string* right_reads_filename = NULL;
+  //FILE* right_reads_file = NULL;
 	
   if (optind < argc)
     {
-      right_map_filename = new string(argv[optind++]);
-      
-      if(optind >= argc)
-	{
+      right_map_filename = argv[optind++];      
+      if(optind >= argc) {
 	  print_usage();
 	  return 1;
 	}
-      
-      right_map = fopen(right_map_filename->c_str(), "r");
-      if (!right_map)
+      right_map = fopen(right_map_filename.c_str(), "r");
+      if (right_map==NULL)
 	{
 	  fprintf(stderr, "Error: cannot open map file %s for reading\n",
-		  right_map_filename->c_str());
+              right_map_filename.c_str());
 	  exit(1);
 	}
-      
-      right_reads_filename = new string(argv[optind++]);
+  //if (optind<argc) {
+     right_reads_filename=argv[optind++];
+     right_reads_file.openRead(right_reads_filename,unzcmd);
+   //  }
+    }
+  /*
       right_reads_file = fopen(right_reads_filename->c_str(), "r");
       if (!right_reads_file)
 	{
@@ -1225,7 +1229,7 @@ int main(int argc, char** argv)
 	  exit(1);
 	}
     }
-  
+  */
   FILE* junctions_file = fopen(junctions_file_name.c_str(), "w");
   if (junctions_file == NULL)
     {
@@ -1264,8 +1268,9 @@ int main(int argc, char** argv)
       exit(1);
     }
   
-  FILE* left_reads_file = fopen(left_reads_filename.c_str(), "r");
-  if (!left_reads_file)
+  //FILE* left_reads_file = fopen(left_reads_filename.c_str(), "r");
+  FZPipe left_reads_file(left_reads_filename, unzcmd);
+  if (left_reads_file.file==NULL)
     {
       fprintf(stderr, "Error: cannot open reads file %s for reading\n",
 	      left_reads_filename.c_str());
@@ -1273,9 +1278,9 @@ int main(int argc, char** argv)
     }
 
   driver(left_map,
-	 left_reads_file,
+	 left_reads_file.file,
 	 right_map,
-	 right_reads_file,
+	 right_reads_file.file,
 	 junctions_file,
 	 insertions_file,
 	 deletions_file,

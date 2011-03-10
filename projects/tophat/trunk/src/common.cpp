@@ -12,11 +12,11 @@
 #endif
 
 #include <iostream>
+#include <sstream>
 #include <stdarg.h>
 #include <getopt.h>
 
 #include "common.h"
-
 
 using namespace std;
 
@@ -58,7 +58,7 @@ bool no_closure_search = false;
 bool no_coverage_search = false;
 bool no_microexon_search = false;
 bool butterfly_search = false;
-
+int num_cpus = 1;
 float min_isoform_fraction = 0.15f;
 
 string output_dir = "tophat_out";
@@ -66,6 +66,7 @@ string gene_filter = "";
 string gff_file = "";
 string ium_reads = "";
 string sam_header = "";
+string zpacker = "";
 
 bool solexa_quals = false;
 bool phred64_quals = false;
@@ -84,7 +85,7 @@ extern void print_usage();
  * exit with an error and a usage message.
  */
 
-int parseInt(int lower, const char *errmsg, void (*print_usage)()) {
+int parseIntOpt(int lower, const char *errmsg, void (*print_usage)()) {
     long l;
     char *endPtr= NULL;
     l = strtol(optarg, &endPtr, 10);
@@ -107,7 +108,7 @@ int parseInt(int lower, const char *errmsg, void (*print_usage)()) {
  * if it is less than 'lower', than output the given error message and
  * exit with an error and a usage message.
  */
-static float parseFloat(float lower, float upper, const char *errmsg, void (*print_usage)()) {
+static float parseFloatOpt(float lower, float upper, const char *errmsg, void (*print_usage)()) {
     float l;
     l = (float)atof(optarg);
 	
@@ -132,11 +133,11 @@ static float parseFloat(float lower, float upper, const char *errmsg, void (*pri
     return -1;
 }
 
-const char *short_options = "";
+const char *short_options = "QCp:z:";
 
 enum
   {
-    OPT_FASTA = 33,
+    OPT_FASTA = 127,
     OPT_FASTQ,
     OPT_MIN_ANCHOR,
     OPT_SPLICE_MISMATCHES,
@@ -173,7 +174,9 @@ enum
     OPT_COLOR_OUT,
     OPT_LIBRARY_TYPE,
     OPT_MAX_DELETION_LENGTH,
-    OPT_MAX_INSERTION_LENGTH    
+    OPT_MAX_INSERTION_LENGTH,
+    OPT_NUM_CPUS,
+    OPT_ZPACKER
   };
 
 static struct option long_options[] = {
@@ -215,9 +218,25 @@ static struct option long_options[] = {
 {"library-type",	required_argument,	0,	OPT_LIBRARY_TYPE},
 {"max-deletion-length", required_argument, 0, OPT_MAX_DELETION_LENGTH},
 {"max-insertion-length", required_argument, 0, OPT_MAX_INSERTION_LENGTH},
-  
+{"num-threads", required_argument, 0, OPT_NUM_CPUS},
+{"zpacker", required_argument, 0, OPT_ZPACKER},
 {0, 0, 0, 0} // terminator
 };
+
+
+void str_appendInt(string& str, int v) {
+ stringstream ss;
+ ss << v;
+ str.append(ss.str());
+}
+
+bool str_endsWith(string& str, const char* suffix) {
+ if (str.empty() || str.length()<3) return false;
+ size_t l=strlen(suffix);
+ if (str.length()<=l) return false;
+ if (str.rfind(suffix, str.length()-l-1)!=string::npos) return true;
+ return false;
+}
 
 int parse_options(int argc, char** argv, void (*print_usage)())
 {
@@ -235,19 +254,19 @@ int parse_options(int argc, char** argv, void (*print_usage)())
       reads_format = FASTQ;
       break;
     case OPT_MIN_ANCHOR:
-      min_anchor_len = (uint32_t)parseInt(3, "--min-anchor arg must be at least 3", print_usage);
+      min_anchor_len = (uint32_t)parseIntOpt(3, "--min-anchor arg must be at least 3", print_usage);
       break;
     case OPT_SPLICE_MISMATCHES:
-      max_splice_mismatches = parseInt(0, "--splice-mismatches arg must be at least 0", print_usage);
+      max_splice_mismatches = parseIntOpt(0, "--splice-mismatches arg must be at least 0", print_usage);
       break; 
     case OPT_VERBOSE:
       verbose = true;
       break;
     case OPT_INSERT_LENGTH_MEAN:
-      inner_dist_mean = parseInt(-1024, "--inner-dist-mean arg must be at least -1024", print_usage);
+      inner_dist_mean = parseIntOpt(-1024, "--inner-dist-mean arg must be at least -1024", print_usage);
       break;
     case OPT_INSERT_LENGTH_STD_DEV:
-      inner_dist_std_dev = parseInt(0, "--inner-dist-std-dev arg must be at least 0", print_usage);
+      inner_dist_std_dev = parseIntOpt(0, "--inner-dist-std-dev arg must be at least 0", print_usage);
       break;
     case OPT_OUTPUT_DIR:
       output_dir = optarg;
@@ -259,7 +278,7 @@ int parse_options(int argc, char** argv, void (*print_usage)())
       gff_file = optarg;
       break;
     case OPT_MAX_MULTIHITS:
-      max_multihits = parseInt(1, "--max-multihits arg must be at least 1", print_usage);
+      max_multihits = parseIntOpt(1, "--max-multihits arg must be at least 1", print_usage);
       break;
     case OPT_NO_CLOSURE_SEARCH:
       no_closure_search = true;
@@ -271,40 +290,40 @@ int parse_options(int argc, char** argv, void (*print_usage)())
       no_microexon_search = true;
       break;
     case OPT_SEGMENT_LENGTH:
-      segment_length = parseInt(4, "--segment-length arg must be at least 4", print_usage);
+      segment_length = parseIntOpt(4, "--segment-length arg must be at least 4", print_usage);
       break;
     case OPT_SEGMENT_MISMATCHES:
-      segment_mismatches = parseInt(0, "--segment-mismatches arg must be at least 0", print_usage);
+      segment_mismatches = parseIntOpt(0, "--segment-mismatches arg must be at least 0", print_usage);
       break;
     case OPT_MIN_CLOSURE_EXON:
-      min_closure_exon_length = parseInt(1, "--min-closure-exon arg must be at least 1", print_usage);
+      min_closure_exon_length = parseIntOpt(1, "--min-closure-exon arg must be at least 1", print_usage);
       break;
     case OPT_MIN_CLOSURE_INTRON:
-      min_closure_intron_length = parseInt(1, "--min-closure-intron arg must be at least 1", print_usage);
+      min_closure_intron_length = parseIntOpt(1, "--min-closure-intron arg must be at least 1", print_usage);
       break;
     case OPT_MAX_CLOSURE_INTRON:
-      max_closure_intron_length = parseInt(1, "--max-closure-intron arg must be at least 1", print_usage);
+      max_closure_intron_length = parseIntOpt(1, "--max-closure-intron arg must be at least 1", print_usage);
       break;
     case OPT_MIN_COVERAGE_INTRON:
-      min_coverage_intron_length = parseInt(1, "--min-coverage-intron arg must be at least 1", print_usage);
+      min_coverage_intron_length = parseIntOpt(1, "--min-coverage-intron arg must be at least 1", print_usage);
       break;
     case OPT_MAX_COVERAGE_INTRON:
-      max_coverage_intron_length = parseInt(1, "--max-coverage-intron arg must be at least 1", print_usage);
+      max_coverage_intron_length = parseIntOpt(1, "--max-coverage-intron arg must be at least 1", print_usage);
       break;
     case OPT_MIN_SEGMENT_INTRON:
-      min_segment_intron_length = parseInt(1, "--min-segment-intron arg must be at least 1", print_usage);
+      min_segment_intron_length = parseIntOpt(1, "--min-segment-intron arg must be at least 1", print_usage);
       break;
     case OPT_MAX_SEGMENT_INTRON:
-      max_segment_intron_length = parseInt(1, "--max-segment-intron arg must be at least 1", print_usage);
+      max_segment_intron_length = parseIntOpt(1, "--max-segment-intron arg must be at least 1", print_usage);
       break;
     case OPT_MIN_REPORT_INTRON:
-      min_report_intron_length = parseInt(1, "--min-report-intron arg must be at least 1", print_usage);
+      min_report_intron_length = parseIntOpt(1, "--min-report-intron arg must be at least 1", print_usage);
       break;
     case OPT_MAX_REPORT_INTRON:
-      max_report_intron_length = parseInt(1, "--max-report-intron arg must be at least 1", print_usage);
+      max_report_intron_length = parseIntOpt(1, "--max-report-intron arg must be at least 1", print_usage);
       break;
     case OPT_MIN_ISOFORM_FRACTION:
-      min_isoform_fraction = parseFloat(0.0f, 1.0f, "--min-isoform-fraction arg must be [0.0,1.0]", print_usage);
+      min_isoform_fraction = parseFloatOpt(0.0f, 1.0f, "--min-isoform-fraction arg must be [0.0,1.0]", print_usage);
       break;
     case OPT_IUM_READS:
       ium_reads = optarg;
@@ -321,12 +340,14 @@ int parse_options(int argc, char** argv, void (*print_usage)())
     case OPT_PHRED64_QUALS:
       phred64_quals = true;
       break;
+    case 'Q':
     case OPT_QUALS:
       quals = true;
       break;
     case OPT_INTEGER_QUALS:
       integer_quals = true;
       break;
+    case 'C':
     case OPT_COLOR:
       color = true;
       break;
@@ -348,10 +369,18 @@ int parse_options(int argc, char** argv, void (*print_usage)())
 	library_type = FF_SECONDSTRAND;
       break;
     case OPT_MAX_DELETION_LENGTH:
-      max_deletion_length = parseInt(0, "--max-deletion-length must be at least 0", print_usage);
+      max_deletion_length = parseIntOpt(0, "--max-deletion-length must be at least 0", print_usage);
       break;
     case OPT_MAX_INSERTION_LENGTH:
-      max_insertion_length = parseInt(0, "--max-insertion-length must be at least 0", print_usage);
+      max_insertion_length = parseIntOpt(0, "--max-insertion-length must be at least 0", print_usage);
+      break;
+    case 'z':
+    case OPT_ZPACKER:
+      zpacker =  optarg;
+      break;
+    case 'p':
+    case OPT_NUM_CPUS:
+      num_cpus=parseIntOpt(1,"-p/--num-threads must be at least 1",print_usage);
       break;
     default:
       print_usage();
@@ -374,4 +403,161 @@ void err_exit(const char* format,...){
   abort();
 #endif
   exit(1);
+}
+
+FILE* FZPipe::openRead(const char* fname, string& popencmd) {
+  pipecmd=popencmd;
+  filename=fname;
+  if (pipecmd.empty()) {
+       file=fopen(filename.c_str(), "r");
+       }
+     else {
+       string pcmd(pipecmd);
+       pcmd.append(" '");
+       pcmd.append(filename);
+       pcmd.append("'");
+       file=popen(pcmd.c_str(), "r");
+       }
+  return file;
+}
+
+FILE* FZPipe::openRead(const char* fname) {
+  string pcmd;
+  return this->openRead(fname,pcmd);
+}
+
+FILE* FZPipe::openWrite(const char* fname, string& popencmd) {
+  pipecmd=popencmd;
+  filename=fname;
+  if (pipecmd.empty()) {
+       file=fopen(filename.c_str(), "w");
+       }
+     else {
+       string pcmd(pipecmd);
+       pcmd.append(" - > '");
+       pcmd.append(filename.c_str());
+       pcmd.append("'");
+       file=popen(pcmd.c_str(), "w");
+       }
+  return file;
+}
+
+
+FILE* FZPipe::openWrite(const char* fname) {
+  string pcmd;
+  return this->openWrite(fname,pcmd);
+  }
+
+void FZPipe::rewind() {
+  if (pipecmd.empty()) {
+      if (file!=NULL) {
+           ::rewind(file);
+           return;
+           }
+      if (!filename.empty()) {
+          file=fopen(filename.c_str(),"r");
+          return;
+          }
+      }
+  if (filename.empty()) {
+        fprintf(stderr, "Error: FZStream::rewind() failed (missing filename)!\n");
+        exit(1);
+        }
+  this->close();
+  string pcmd(pipecmd);
+  pcmd.append(" '");
+  pcmd.append(filename);
+  pcmd.append("'");
+  file=popen(pcmd.c_str(), "r");
+  if (file==NULL) {
+    fprintf(stderr, "Error: FZStream::rewind() popen(%s) failed!\n",pcmd.c_str());
+    exit(1);
+    }
+ }
+
+
+string getFext(const string& s) {
+   string r("");
+   //if (xpos!=NULL) *xpos=0;
+   if (s.empty() || s=="-") return r;
+   int slen=(int)s.length();
+   int p=s.rfind('.');
+   int d=s.rfind('/');
+   if (p<=0 || p>slen-2 || p<slen-7 || p<d) return r;
+   r=s.substr(p+1);
+   //if (xpos!=NULL) *xpos=p+1;
+   for(size_t i=0; i!=r.length(); i++)
+        r[i] = std::tolower(r[i]);
+   return r;
+   }
+
+
+string guess_packer(const string& fname, bool use_all_cpus) {
+   //only needed for the primary input files (given by user)
+   string picmd;
+   string fext=getFext(fname);
+   if (fext=="gz" || fext=="gzip" || fext=="z") {
+      if (use_all_cpus && str_endsWith(zpacker,"pigz")) {
+           picmd=zpacker;
+           if (num_cpus<2) picmd.append(" -p1");
+                else {
+                  picmd.append(" -p");
+                  str_appendInt(picmd, num_cpus);
+                  //picmd.append(" -cd");
+                  }
+           }
+        else picmd="gzip";
+      }
+     else if (fext=="bz2" || fext=="bzip2" || fext=="bz" || fext=="bzip") {
+      if (use_all_cpus && str_endsWith(zpacker,"pbzip2")) {
+            picmd=zpacker;
+            if (num_cpus<2) picmd.append(" -p1");
+                 else {
+                   picmd.append(" -p");
+                   str_appendInt(picmd, num_cpus);
+                   //picmd.append(" -cd");
+                   }
+            }
+         else picmd="bzip2";
+      }
+  return picmd;
+}
+
+
+string getUnpackCmd(const string& fname, bool use_all_cpus) {
+ string pipecmd;
+ if (zpacker.empty()) {
+      pipecmd=guess_packer(fname,use_all_cpus);
+      }
+    else {
+      pipecmd=zpacker;
+      if (str_endsWith(pipecmd, "pigz") ||str_endsWith(pipecmd, "pbzip2")) {
+          if (use_all_cpus==false) pipecmd.append(" -p1");
+              else if (num_cpus>1) {
+                    pipecmd.append(" -p");
+                    str_appendInt(pipecmd,num_cpus);
+                    }
+          }
+      }
+ if (!pipecmd.empty()) pipecmd.append(" -cd");
+ return pipecmd;
+}
+
+string getPackCmd(const string& fname, bool use_all_cpus) {
+ string pipecmd;
+ if (zpacker.empty()) {
+      pipecmd=guess_packer(fname, use_all_cpus);
+      }
+    else {
+      pipecmd=zpacker;
+      if (str_endsWith(pipecmd, "pigz") ||str_endsWith(pipecmd, "pbzip2")) {
+          if (use_all_cpus==false) pipecmd.append(" -p1");
+              else if (num_cpus>1) {
+                    pipecmd.append(" -p");
+                    str_appendInt(pipecmd,num_cpus);
+                    }
+          }
+      }
+ if (!pipecmd.empty()) pipecmd.append(" -c");
+ return pipecmd;
 }

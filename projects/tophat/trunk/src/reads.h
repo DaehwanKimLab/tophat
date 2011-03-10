@@ -78,15 +78,6 @@ bool get_read_from_stream(uint64_t insert_id,
 			  char read_alt_name [],
 			  char read_qual []);
 
-struct FaStream {
- FILE* file;
- bool  is_pipe;
- FaStream(FILE* fs=NULL, bool is_p=false) {
-   file=fs;
-   is_pipe=is_p;
-   }
-};
-
 class FLineReader { //simple text line reader class, buffering last line read
   int len;
   int allocated;
@@ -118,15 +109,15 @@ public:
     pushed=false;
     }
 
-  FLineReader(FaStream& fastream) {
+  FLineReader(FZPipe& fzpipe) {
     len=0;
     isEOF=false;
     allocated=512;
     buf=(char*)malloc(allocated);
     lcount=0;
     buf[0]=0;
-    file=fastream.file;
-    is_pipe=fastream.is_pipe;
+    file=fzpipe.file;
+    is_pipe=!fzpipe.pipecmd.empty();
     pushed=false;
     }
   void close() {
@@ -142,5 +133,7 @@ public:
 void skip_lines(FLineReader& fr);
 bool next_fasta_record(FLineReader& fr, string& defline, string& seq, ReadFormat reads_format);
 bool next_fastq_record(FLineReader& fr, const string& seq, string& alt_name, string& qual, ReadFormat reads_format);
+bool next_fastx_read(FLineReader& fr, Read& read, ReadFormat reads_format,
+                        FLineReader* frq=NULL);
 
 #endif

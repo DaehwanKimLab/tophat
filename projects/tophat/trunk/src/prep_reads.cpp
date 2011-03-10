@@ -22,23 +22,22 @@
 #include "tokenize.h"
 #include "qual.h"
 
-bool fastq_db = true;
+//bool fastq_db = true;
+
 using namespace std;
 
-void format_qual_string(const string& orig_qual_str,
-			string& out_qual_str)
+void format_qual_string(string& qual_str)
 {
-  out_qual_str = orig_qual_str;
-  for (size_t i = 0; i < orig_qual_str.size(); ++i)
+  for (size_t i = 0; i < qual_str.size(); ++i)
     {
-      out_qual_str[i] = charToPhred33(orig_qual_str[i], 
+      qual_str[i] = charToPhred33(qual_str[i], 
 				      solexa_quals, 
 				      phred64_quals);
     }
 }
 
 
-void filter_garbage_reads(vector<FaStream> reads_files, vector<FaStream> quals_files)
+void filter_garbage_reads(vector<FZPipe>& reads_files, vector<FZPipe>& quals_files)
 {	
   int num_reads_chucked = 0, num_reads = 0;
   int next_id = 0;
@@ -48,119 +47,102 @@ void filter_garbage_reads(vector<FaStream> reads_files, vector<FaStream> quals_f
       FLineReader fr(reads_files[fi]);
       skip_lines(fr);
       
-      FaStream fq;
+      FZPipe fq;
       if (quals)
 	    fq = quals_files[fi];
       FLineReader frq(fq);
       skip_lines(frq);
       
       while (!fr.isEof()) {
-	  read.clear();
-	  
+	  //read.clear();
 	  // Get the next read from the file
-	  if (!next_fasta_record(fr, read.name, read.seq, reads_format))
-	    break;
-	  if (reads_format == FASTQ || quals)
-	    {
-	      string orig_qual;
-	      if (reads_format == FASTQ)
-		{
-		  if (!next_fastq_record(fr, read.seq, read.alt_name, orig_qual, reads_format))
-		    break;
-		}
-	      else
-		{
-		  if (!next_fastq_record(frq, read.seq, read.alt_name, orig_qual, reads_format))
-		    break;
-		}
-	      
-	      format_qual_string(orig_qual, read.qual);
-	    }
-	  std::transform(read.seq.begin(), read.seq.end(), read.seq.begin(), ::toupper);
-	  // daehwan - check this.
-	  // if(read.seq.length() < 20)
-	  //  continue;
-			
-	  ++num_reads;
-	  ++next_id;
-	  char counts[256];
-	  memset(counts, 0, sizeof(counts));
-	  
-	  // Count up the bad characters
-	  for (unsigned int i = 0; i != read.seq.length(); ++i) 
-	    {
-	      char c = (char)toupper(read.seq[i]);
-	      counts[(size_t)c]++;
-	    }
-	  
-	  double percent_A = (double)(counts[(size_t)'A']) / read.seq.length();
-	  double percent_C = (double)(counts[(size_t)'C']) / read.seq.length();
-	  double percent_G = (double)(counts[(size_t)'G']) / read.seq.length();
-	  double percent_T = (double)(counts[(size_t)'T']) / read.seq.length();
-	  double percent_N = (double)(counts[(size_t)'N']) / read.seq.length();
-	  double percent_4 = (double)(counts[(size_t)'4']) / read.seq.length();
-	  
-	  if (reads_format == FASTQ &&
-	      ((!color && read.seq.length() != read.qual.length()) ||
-	       (color && read.seq.length() != read.qual.length()+1)) )
-	    {
-	      ++num_reads_chucked;
-	      continue;
-	    }
-	  
-	  // daehwan - check this later, it's due to bowtie
-	  if (color && read.seq[1] == '4')
-	    continue;
-	  
-	  // Chuck the read if there are at least 5 'N's or if it's mostly
-	  // (>90%) 'N's and 'A's
-	  
-	  if (percent_A > 0.9 ||
-	      percent_C > 0.9 ||
-	      percent_G > 0.9 ||
-	      percent_T > 0.9 ||
-	      percent_N >= 0.1 ||
-	      percent_4 >= 0.1)
-	    {
-	      ++num_reads_chucked;
-	    } 
-	  else
-	    {
-	      if (!fastq_db)
-		{					
-		  if (reads_format == FASTQ  or (reads_format == FASTA && quals))
-		    printf("@%s\n%s\n+\n%s\n", 
-			   read.name.c_str(), read.seq.c_str(),read.qual.c_str());
-		  else if (reads_format == FASTA)
-		    printf(">%s\n%s\n", read.name.c_str(), read.seq.c_str());
-		}
-	      else
-		{
-		  if (reads_format == FASTQ or (reads_format == FASTA && quals))
-		    {
-		      printf("@%d\n%s\n+%s\n%s\n",
-			     next_id,
-			     read.seq.c_str(),
-			     read.name.c_str(),
-			     read.qual.c_str());
-		    }
-		  else if (reads_format == FASTA)
-		    {
-		      string qual;
-		      if (color)
-			qual = string(read.seq.length()-1, 'I').c_str();
-		      else
-			qual = string(read.seq.length(), 'I').c_str();
-		      
-		      printf("@%d\n%s\n+%s\n%s\n",
-			     next_id,
-			     read.seq.c_str(),
-			     read.name.c_str(),
-			     qual.c_str());
-		    }
-		}
-	    }
-	} //while !fr.isEof()
+        if (!next_fastx_read(fr, read, reads_format, ((quals) ? &frq : NULL)))
+            break;
+	    format_qual_string(read.qual);
+        std::transform(read.seq.begin(), read.seq.end(), read.seq.begin(), ::toupper);
+        // daehwan - check this.
+        // if(read.seq.length() < 20)
+        //  continue;
+
+        ++num_reads;
+        ++next_id;
+        char counts[256];
+        memset(counts, 0, sizeof(counts));
+        // Count up the bad characters
+        for (unsigned int i = 0; i != read.seq.length(); ++i)
+          {
+            char c = (char)toupper(read.seq[i]);
+            counts[(size_t)c]++;
+          }
+
+        double percent_A = (double)(counts[(size_t)'A']) / read.seq.length();
+        double percent_C = (double)(counts[(size_t)'C']) / read.seq.length();
+        double percent_G = (double)(counts[(size_t)'G']) / read.seq.length();
+        double percent_T = (double)(counts[(size_t)'T']) / read.seq.length();
+        double percent_N = (double)(counts[(size_t)'N']) / read.seq.length();
+        double percent_4 = (double)(counts[(size_t)'4']) / read.seq.length();
+
+        if (reads_format == FASTQ &&
+            ((!color && read.seq.length() != read.qual.length()) ||
+             (color && read.seq.length() != read.qual.length()+1)) )
+          {
+            ++num_reads_chucked;
+            continue;
+          }
+
+        // daehwan - check this later, it's due to bowtie
+        if (color && read.seq[1] == '4') {
+          continue;
+          }
+        // Chuck the read if there are at least 5 'N's or if it's mostly
+        // (>90%) 'N's and 'A's
+
+        if (percent_A > 0.9 ||
+            percent_C > 0.9 ||
+            percent_G > 0.9 ||
+            percent_T > 0.9 ||
+            percent_N >= 0.1 ||
+            percent_4 >= 0.1)
+          {
+            ++num_reads_chucked;
+          }
+        else
+          {
+         /*   if (!fastq_db)
+          {
+            if (reads_format == FASTQ  or (reads_format == FASTA && quals))
+              printf("@%s\n%s\n+\n%s\n",
+                 read.name.c_str(), read.seq.c_str(),read.qual.c_str());
+            else if (reads_format == FASTA)
+              printf(">%s\n%s\n", read.name.c_str(), read.seq.c_str());
+          }
+            else
+          { */
+            if (reads_format == FASTQ or (reads_format == FASTA && quals))
+              {
+                printf("@%d\n%s\n+%s\n%s\n",
+                   next_id,
+                   read.seq.c_str(),
+                   read.name.c_str(),
+                   read.qual.c_str());
+              }
+            else if (reads_format == FASTA)
+              {
+                string qual;
+                if (color)
+              qual = string(read.seq.length()-1, 'I').c_str();
+                else
+              qual = string(read.seq.length(), 'I').c_str();
+
+                printf("@%d\n%s\n+%s\n%s\n",
+                   next_id,
+                   read.seq.c_str(),
+                   read.name.c_str(),
+                   qual.c_str());
+              }
+          //} only used if fastq_db is false (?)
+          }
+      } //while !fr.isEof()
     fr.close();
     frq.close();
     } //for each input file
@@ -174,32 +156,6 @@ void print_usage()
   fprintf(stderr, "Usage:   prep_reads <reads1.fa/fq,...,readsN.fa/fq>\n");
 }
 
-string getFext(string& s) {
- string r("");
- //if (xpos!=NULL) *xpos=0;
- if (s.empty() || s=="-") return r;
- int slen=(int)s.length();
- int p=s.rfind('.');
- int d=s.rfind('/');
- if (p<=0 || p>slen-2 || p<slen-7 || p<d) return r;
- r=s.substr(p+1);
- //if (xpos!=NULL) *xpos=p+1;
- for(int i=0; i!=r.length(); i++)
-      r[i] = std::tolower(r[i]);
- return r;
- }
-
-
-void guess_unzip(string& fname, string& picmd) {
- picmd="";
- string fext=getFext(fname);
- if (fext=="gz" || fext=="gzip" || fext=="z") {
-    picmd="gzip -cd ";
-    }
-   else if (fext=="bz2" || fext=="bzip2" || fext=="bz" || fext=="bzip") {
-    picmd="bzip2 -cd ";
-    }
-}
 
 int main(int argc, char *argv[])
 {
@@ -219,50 +175,33 @@ int main(int argc, char *argv[])
   string reads_file_list = argv[optind++];
   
   vector<string> reads_file_names;
-  vector<FaStream> reads_files;
+  vector<FZPipe> reads_files;
   tokenize(reads_file_list, ",",reads_file_names);
   for (size_t i = 0; i < reads_file_names.size(); ++i)
     {
-      FaStream seg_file;
       string fname=reads_file_names[i];
-      string pipecmd;
-      guess_unzip(fname, pipecmd);
-      if (pipecmd.empty()) 
-           seg_file.file=fopen(fname.c_str(), "r");
-         else {
-           pipecmd.append(fname);
-           seg_file.file=popen(pipecmd.c_str(), "r");
-           seg_file.is_pipe=true;
-           }
-      if (seg_file.file == NULL)
-        {
+      string pipecmd=guess_packer(fname, true);
+      pipecmd.append(" -cd");
+      FZPipe seg_file(fname,pipecmd);
+      if (seg_file.file == NULL) {
 	  fprintf(stderr, "Error: cannot open reads file %s for reading\n",
-		  reads_file_names[i].c_str());
-	  exit(1);
-        }
+	      reads_file_names[i].c_str());
+	      exit(1);
+          }
       reads_files.push_back(seg_file);
     }
   
   vector<string> quals_file_names;
-  vector<FaStream> quals_files;
+  vector<FZPipe> quals_files;
   if (quals)
     {
       string quals_file_list = argv[optind++];
       tokenize(quals_file_list, ",", quals_file_names);
       for (size_t i = 0; i < quals_file_names.size(); ++i)
 	{
-	  //FILE* seg_file = fopen(quals_file_names[i].c_str(), "r");
-      FaStream seg_file;
       string fname(quals_file_names[i]);
-      string pipecmd;
-      guess_unzip(fname, pipecmd);
-      if (pipecmd.empty()) 
-           seg_file.file=fopen(fname.c_str(), "r");
-         else {
-           pipecmd.append(fname);
-           seg_file.file=popen(pipecmd.c_str(), "r");
-           seg_file.is_pipe=true;
-           }
+      string pipecmd=guess_packer(fname, true);
+      FZPipe seg_file(fname, pipecmd);
 	  if (seg_file.file == NULL)
 	    {
 	      fprintf(stderr, "Error: cannot open reads file %s for reading\n",

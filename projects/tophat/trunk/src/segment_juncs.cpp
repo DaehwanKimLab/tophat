@@ -39,7 +39,6 @@
 #include "insertions.h"
 #include "deletions.h"
 
-
 using namespace seqan;
 using namespace std;
 using namespace __gnu_cxx;
@@ -437,7 +436,8 @@ void count_read_extensions(MerExtensionCounts& ext_counts,
 	return;
 }
 
-void count_read_mers(FILE* reads_file, size_t half_splice_mer_len)
+//void count_read_mers(FILE* reads_file, size_t half_splice_mer_len)
+void count_read_mers(FZPipe& reads_file, size_t half_splice_mer_len)
 {
 	Read read;
 	size_t splice_mer_len = 2 * half_splice_mer_len;
@@ -471,7 +471,8 @@ void count_read_mers(FILE* reads_file, size_t half_splice_mer_len)
 							  read.seq);
 	}	
 	
-	rewind(reads_file);
+	//rewind(reads_file);
+    reads_file.rewind();
 }
 
 void compact_extension_table()
@@ -511,7 +512,8 @@ void prune_extension_table(uint8_t max_extension_bp)
 	}
 }
 
-void store_read_mers(FILE* reads_file, size_t half_splice_mer_len)
+//void store_read_mers(FILE* reads_file, size_t half_splice_mer_len)
+void store_read_mers(FZPipe& reads_file, size_t half_splice_mer_len)
 {
 	Read read;
 	size_t splice_mer_len = 2 * half_splice_mer_len;
@@ -566,10 +568,12 @@ void store_read_mers(FILE* reads_file, size_t half_splice_mer_len)
 		num_extensions += extensions[i].size();
 	}
 	fprintf (stderr, "Total extensions: %llu\n", num_extensions);
-	rewind(reads_file);
+	//rewind(reads_file);
+    reads_file.rewind();
 }
 
-void index_read_mers(vector<FILE*> reads_files, 
+//void index_read_mers(vector<FILE*> reads_files,
+void index_read_mers(vector<FZPipe>& reads_files,
 					 size_t half_splice_mer_len)
 {
 	extensions.clear();
@@ -1629,12 +1633,10 @@ struct RecordExtendableJuncs
 				      R - curr_R));
 	      }
 	    if (juncs.size() > max_juncs)
-	      {
 		juncs.erase(*(juncs.rbegin()));
 	      }			
 	  }
       }	
-  }
 };
 
 struct RecordAllJuncs
@@ -2089,6 +2091,7 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
     for (size_t r = 0; r < expected_don_acc_windows.size(); ++r)
     {
         const RefSeg& seg = expected_don_acc_windows[r];
+
 	if (seg.points_where != POINT_DIR_BOTH)
 	  all_both = false;
         
@@ -2464,7 +2467,7 @@ void detect_small_insertion(RefSequenceTable& rt,
 		BowtieHit& rightHit,
 		std::set<Insertion>& insertions)
 {
-  
+
 	RefSequenceTable::Sequence* ref_str = rt.get_seq(leftHit.ref_id());
 	if(!ref_str){
 		fprintf(stderr, "Error in accessing sequence record\n");
@@ -3091,9 +3094,10 @@ void align_microexon_segs(RefSequenceTable& rt,
  * go.
  */
 void look_for_hit_group(RefSequenceTable& rt,
-			FILE* reads_file,
-			FILE* reads_file_for_segment_search,
-			FILE* reads_file_for_indel_discovery,
+			//FILE* reads_file,
+            FZPipe& reads_file,
+			FZPipe& reads_file_for_segment_search,
+            FZPipe& reads_file_for_indel_discovery,
 			ReadTable& unmapped_reads,
 			vector<HitStream>& seg_files,
 			int curr_file,
@@ -3146,7 +3150,7 @@ void look_for_hit_group(RefSequenceTable& rt,
 	      // we should try looking for junctions via seed and extend
 	      // using it (helps find junctions to microexons).
 	      bool got_read = get_read_from_stream(insert_id, 
-						   reads_file,
+						   reads_file.file,
 						   FASTQ,
 						   false,
 						   read_name, 
@@ -3274,18 +3278,21 @@ void look_for_hit_group(RefSequenceTable& rt,
 				 deletions,
 				 insertions,
 				 read);
-	      find_insertions_and_deletions(rt, reads_file_for_indel_discovery, hits_for_new_read, deletions, insertions);
-	      find_gaps(rt, reads_file_for_segment_search, hits_for_new_read, juncs, read);
+	      find_insertions_and_deletions(rt, reads_file_for_indel_discovery.file,
+                                                hits_for_new_read, deletions, insertions);
+	      find_gaps(rt, reads_file_for_segment_search.file, hits_for_new_read, juncs, read);
 	    }
 	}
     }
 }
 
 
+
 bool process_next_hit_group(RefSequenceTable& rt,
-			    FILE* reads_file,
-			    FILE* reads_file_for_segment_search,
-			    FILE* reads_file_for_indel_discovery,
+			    //FILE* reads_file,
+                FZPipe&  reads_file,
+			    FZPipe&  reads_file_for_segment_search,
+                FZPipe&  reads_file_for_indel_discovery,
 			    ReadTable& unmapped_reads,
 			    vector<HitStream>& seg_files, 
 			    size_t curr_file,
@@ -3316,8 +3323,8 @@ bool process_next_hit_group(RefSequenceTable& rt,
   
   if (result)
     {
-      find_insertions_and_deletions(rt, reads_file_for_indel_discovery, hits_for_read, deletions, insertions);
-      find_gaps(rt, reads_file_for_segment_search, hits_for_read, juncs, read);
+	    find_insertions_and_deletions(rt, reads_file_for_indel_discovery.file, hits_for_read, deletions, insertions);
+        find_gaps(rt, reads_file_for_segment_search.file, hits_for_read, juncs, read);
     }
   
   return result;
@@ -3340,7 +3347,8 @@ uint8_t get_cov(const vector<uint8_t>& cov, uint32_t c)
 
 void pair_covered_sites(ReadTable& it,
 			RefSequenceTable& rt,
-			vector<FILE*>& seg_files,
+			//vector<FILE*>& seg_files,
+			vector<FZPipe*>& seg_files,
 			std::set<Junction, skip_count_lt>& cov_juncs,
 			size_t half_splice_mer_len)
 {
@@ -3352,8 +3360,9 @@ void pair_covered_sites(ReadTable& it,
   for (size_t f = 0; f < seg_files.size(); ++f)
     {
       fprintf(stderr, "Adding hits from segment file %d to coverage map\n", (int)f);
-      FILE* fp = seg_files[f];
-      rewind(fp);
+      seg_files[f]->rewind();
+      FILE* fp = seg_files[f]->file;
+      //rewind(fp);
       HitStream hs(fp, &hit_factory, false, false, false);
       
       HitsForRead hit_group;
@@ -3447,7 +3456,8 @@ void pair_covered_sites(ReadTable& it,
 
 void capture_island_ends(ReadTable& it,
 			 RefSequenceTable& rt,
-			 vector<FILE*>& seg_files,
+			 //vector<FILE*>& seg_files,
+			 vector<FZPipe*>& seg_files,
 			 std::set<Junction, skip_count_lt>& cov_juncs,
 			 size_t half_splice_mer_len)
 {
@@ -3460,8 +3470,9 @@ void capture_island_ends(ReadTable& it,
   for (size_t f = 0; f < seg_files.size(); ++f)
     {
       fprintf(stderr, "Adding hits from segment file %d to coverage map\n", (int)f);
-      FILE* fp = seg_files[f];
-      rewind(fp);
+      seg_files[f]->rewind();
+      FILE* fp = seg_files[f]->file;
+      //rewind(fp);
       HitStream hs(fp, &hit_factory, false, false, false);
       
       HitsForRead hit_group;
@@ -3659,10 +3670,12 @@ void capture_island_ends(ReadTable& it,
 
 
 void process_segment_hits(RefSequenceTable& rt,
-			  FILE* reads_file,
-			  FILE* reads_file_for_segment_search,
-			  FILE* reads_file_for_indel_discovery,
-			  vector<FILE*>& seg_files,
+			  //FILE* reads_file,
+              FZPipe& reads_file,
+			  FZPipe& reads_file_for_segment_search,
+              FZPipe& reads_file_for_indel_discovery,
+			  //vector<FILE*>& seg_files,
+			  vector<FZPipe>& seg_files,
 			  BowtieHitFactory& hit_factory,
 			  ReadTable& it,
 			  std::set<Junction, skip_count_lt>& juncs,
@@ -3676,7 +3689,7 @@ void process_segment_hits(RefSequenceTable& rt,
   vector<HitStream> hit_streams;
   for (size_t i = 0; i < seg_files.size(); ++i)
     {
-      HitStream hs(seg_files[i], &hit_factory, false, false, false);
+      HitStream hs(seg_files[i].file, &hit_factory, false, false, false);
       
       // if the next group id in this stream is zero, it's an empty stream,
       // and we can simply skip it.
@@ -3724,14 +3737,16 @@ void driver(istream& ref_stream,
 	    FILE* juncs_out,
 	    FILE* insertions_out,
 	    FILE* deletions_out,
-	    FILE* left_reads_file,
-	    FILE* left_reads_file_for_segment_search,
-	    FILE* left_reads_file_for_indel_discovery,
-            vector<FILE*>& left_seg_files,
-	    FILE* right_reads_file,
-	    FILE* right_reads_file_for_segment_search,
-	    FILE* right_reads_file_for_indel_discovery,
-            vector<FILE*>& right_seg_files)
+	    //FILE* left_reads_file,
+	    FZPipe& left_reads_file,
+	    FZPipe& left_reads_file_for_segment_search,
+	    FZPipe& left_reads_file_for_indel_discovery,
+	    vector<FZPipe>& left_seg_files,
+	    FZPipe& right_reads_file,
+	    FZPipe& right_reads_file_for_segment_search,
+	    FZPipe& right_reads_file_for_indel_discovery,
+        //    vector<FILE*>& right_seg_files)
+	        vector<FZPipe>& right_seg_files, string& unzcmd)
 {	
   if (left_seg_files.size() == 0)
     {
@@ -3794,9 +3809,16 @@ void driver(istream& ref_stream,
   fprintf(stderr, "Found %ld potential small deletions\n", deletions.size());
   fprintf(stderr, "Found %ld potential small insertions\n", insertions.size());
   
-  vector<FILE*> all_seg_files;
-  copy(left_seg_files.begin(), left_seg_files.end(), back_inserter(all_seg_files));
-  copy(right_seg_files.begin(), right_seg_files.end(), back_inserter(all_seg_files));
+	//vector<FILE*> all_seg_files;
+	vector<FZPipe*> all_seg_files;
+	for (vector<FZPipe>::size_type i = 0; i != left_seg_files.size();i++) {
+       all_seg_files.push_back( &(left_seg_files[i]) );
+	   }
+    for (vector<FZPipe>::size_type i = 0; i != right_seg_files.size();i++) {
+       all_seg_files.push_back( &(right_seg_files[i]) );
+       }
+	//copy(left_seg_files.begin(), left_seg_files.end(), back_inserter(all_seg_files));
+	//copy(right_seg_files.begin(), right_seg_files.end(), back_inserter(all_seg_files));
 
 #if 0
   // daehwan - check this out as Cole insists on using segments gives better results.
@@ -3812,12 +3834,14 @@ void driver(istream& ref_stream,
 	{
 	  vector<string> ium_read_files;
 	  tokenize(ium_reads,",", ium_read_files);
-	  vector<FILE*> iums;
+			//vector<FILE*> iums;
+			vector<FZPipe> iums;
 	  for (size_t ium = 0; ium < ium_read_files.size(); ++ium)
 	    {
 	      fprintf (stderr, "Indexing extensions in %s\n", ium_read_files[ium].c_str());
-	      FILE* ium_file = fopen(ium_read_files[ium].c_str(), "r");
-	      if (!ium_file)
+				//FILE* ium_file = fopen(ium_read_files[ium].c_str(), "r");
+				FZPipe ium_file(ium_read_files[ium],unzcmd);
+				if (ium_file.file==NULL)
 		{
 		  fprintf (stderr, "Can't open file %s for reading, skipping...\n",ium_read_files[ium].c_str());
 		  continue;
@@ -3867,7 +3891,6 @@ void driver(istream& ref_stream,
 			   microexon_juncs,
 			   max_cov_juncs,
 			   5);
-
       juncs.insert(microexon_juncs.begin(), microexon_juncs.end());
     }
 
@@ -3889,13 +3912,21 @@ void driver(istream& ref_stream,
 	      itr->right,
 	      itr->antisense ? '-' : '+');
     }
+	//close all reading pipes, just to exit cleanly
+
+    for (vector<FZPipe*>::size_type i = 0; i != all_seg_files.size();i++) {
+       all_seg_files[i]->close();
+       }
+    left_reads_file.close();
+    left_reads_file_for_indel_discovery.close();
+    right_reads_file.close();
+    right_reads_file_for_indel_discovery.close();
   fprintf (stderr, "done\n");
   fprintf (stderr, "Reported %d total possible splices\n", (int)juncs.size());
   
   
   fprintf (stderr, "Reporting potential deletions...\n");
-  if (deletions_out)
-    {
+	if(deletions_out){
       for(std::set<Deletion>::iterator itr = deletions.begin(); itr != deletions.end(); ++itr){
 	const char* ref_name = rt.get_name(itr->refid);
 	/*
@@ -3908,15 +3939,12 @@ void driver(istream& ref_stream,
 		itr->right);
       }
       fclose(deletions_out);
-    }
-  else
-    {
+	}else{
       fprintf(stderr, "Failed to open deletions file for writing, no deletions reported\n");
     }
   
   fprintf (stderr, "Reporting potential insertions...\n");
-  if (insertions_out)
-    {
+	if(insertions_out){
       for(std::set<Insertion>::iterator itr = insertions.begin(); itr != insertions.end(); ++itr){
 	const char* ref_name = rt.get_name(itr->refid);
 	fprintf(insertions_out,
@@ -3927,9 +3955,7 @@ void driver(istream& ref_stream,
 		itr->sequence.c_str());
       }
       fclose(insertions_out);
-    }
-  else
-    {
+	}else{
       fprintf(stderr, "Failed to open insertions file for writing, no insertions reported\n");
     }
 }
@@ -4056,18 +4082,23 @@ int main(int argc, char** argv)
       exit(1);
     }
 	
-  FILE* left_reads_file = fopen(left_reads_file_name.c_str(), "r");
-  FILE* left_reads_file_for_segment_search = fopen(left_reads_file_name.c_str(), "r");
-  FILE* left_reads_file_for_indel_discovery = fopen(left_reads_file_name.c_str(), "r");
-  if (!left_reads_file  || !left_reads_file_for_segment_search || !left_reads_file_for_indel_discovery)
+  //FILE* left_reads_file = fopen(left_reads_file_name.c_str(), "r");
+  //FILE* left_reads_file_for_indel_discovery = fopen(left_reads_file_name.c_str(),"r");
+  string unzcmd=getUnpackCmd(left_reads_file_name, false);
+  FZPipe left_reads_file(left_reads_file_name, unzcmd);
+  FZPipe left_reads_file_for_segment_search(left_reads_file_name, unzcmd);
+  FZPipe left_reads_file_for_indel_discovery(left_reads_file_name, unzcmd);
+  if (left_reads_file.file==NULL || left_reads_file_for_segment_search.file==NULL ||
+        left_reads_file_for_indel_discovery.file==NULL)
     {
       fprintf(stderr, "Error: cannot open %s for reading\n",
 	      left_reads_file_name.c_str());
       exit(1);
     }
 
-  FILE* left_reads_map_file = fopen(left_reads_map_file_name.c_str(), "r");
-  if (!left_reads_map_file)
+  //FILE* left_reads_map_file = fopen(left_reads_map_file_name.c_str(), "r");
+  FZPipe left_reads_map_file(left_reads_map_file_name, unzcmd);
+  if (left_reads_map_file.file==NULL)
     {
       fprintf(stderr, "Error: cannot open %s for reading\n",
 	      left_reads_map_file_name.c_str());
@@ -4075,12 +4106,14 @@ int main(int argc, char** argv)
     }
 
   vector<string> left_segment_file_names;
-  vector<FILE*> left_segment_files;
+  //vector<FILE*> left_segment_files;
+  vector<FZPipe> left_segment_files;
   tokenize(left_segment_file_list, ",",left_segment_file_names);
   for (size_t i = 0; i < left_segment_file_names.size(); ++i)
     {
-      FILE* seg_file = fopen(left_segment_file_names[i].c_str(), "r");
-      if (seg_file == NULL)
+      //FILE* seg_file = fopen(left_segment_file_names[i].c_str(), "r");
+      FZPipe seg_file(left_segment_file_names[i], unzcmd);
+      if (seg_file.file == NULL)
         {
 	  fprintf(stderr, "Error: cannot open segment map file %s for reading\n",
 		  left_segment_file_names[i].c_str());
@@ -4089,16 +4122,22 @@ int main(int argc, char** argv)
       left_segment_files.push_back(seg_file);
     }
   
-  vector<FILE*> right_segment_files;
-  FILE* right_reads_file = NULL;
-  FILE* right_reads_file_for_segment_search = NULL;
-  FILE* right_reads_file_for_indel_discovery = NULL;
+  //vector<FILE*> right_segment_files;
+  vector<FZPipe> right_segment_files;
+  //FILE* right_reads_file = NULL;
+  FZPipe right_reads_file;
+  //FILE* right_reads_file_for_indel_discovery = NULL;
+  FZPipe right_reads_file_for_segment_search;
+  FZPipe right_reads_file_for_indel_discovery;
+
   if (right_segment_file_list != "")
     {
-      right_reads_file = fopen(right_reads_file_name.c_str(), "r");
-      right_reads_file_for_segment_search = fopen(right_reads_file_name.c_str(), "r"); 
-      right_reads_file_for_indel_discovery = fopen(right_reads_file_name.c_str(), "r");
-      if (!right_reads_file || !right_reads_file_for_segment_search || !right_reads_file_for_indel_discovery)
+      //right_reads_file = fopen(right_reads_file_name.c_str(), "r");
+      right_reads_file.openRead(right_reads_file_name, unzcmd);
+      //right_reads_file_for_indel_discovery = fopen(right_reads_file_name.c_str(), "r");
+      right_reads_file_for_segment_search.openRead(right_reads_file_name, unzcmd);
+      right_reads_file_for_indel_discovery.openRead(right_reads_file_name, unzcmd);
+      if (right_reads_file.file==NULL || right_reads_file_for_indel_discovery.file==NULL)
 	{
 	  fprintf(stderr, "Error: cannot open %s for reading\n",
 		  right_reads_file_name.c_str());
@@ -4110,8 +4149,9 @@ int main(int argc, char** argv)
       tokenize(right_segment_file_list, ",",right_segment_file_names);
       for (size_t i = 0; i < right_segment_file_names.size(); ++i)
 	{
-	  FILE* seg_file = fopen(right_segment_file_names[i].c_str(), "r");
-	  if (seg_file == NULL)
+	  //FILE* seg_file = fopen(right_segment_file_names[i].c_str(), "r");
+      FZPipe seg_file(right_segment_file_names[i],unzcmd);
+	  if (seg_file.file == NULL)
 	    {
 	      fprintf(stderr, "Error: cannot open segment map %s for reading\n",
 		      right_segment_file_names[i].c_str());
@@ -4132,7 +4172,7 @@ int main(int argc, char** argv)
 	 right_reads_file,
 	 right_reads_file_for_segment_search,
 	 right_reads_file_for_indel_discovery,
-	 right_segment_files);
+	 right_segment_files, unzcmd);
   
   return 0;
 }
