@@ -1173,12 +1173,12 @@ void join_segment_hits(std::set<Junction>& possible_juncs, std::set<Insertion>& 
 }					   
 
 void driver(istream& ref_stream,
-	    vector<FILE*> possible_juncs_files,
+	    vector<FILE*>& possible_juncs_files,
 	    vector<FILE*>& possible_insertions_files,
 	    vector<FILE*>& possible_deletions_files,
-	    vector<FILE*>& spliced_seg_files,
-	    vector<FILE*>& seg_files,
-	    FILE* reads_file)
+	    vector<FZPipe>& spliced_seg_files,
+	    vector<FZPipe>& seg_files,
+	    FZPipe& reads_file)
 {	
 	if (seg_files.size() == 0)
 	{
@@ -1189,12 +1189,13 @@ void driver(istream& ref_stream,
 	RefSequenceTable rt(true, true);
 	fprintf (stderr, "Loading reference sequences...\n");
 	get_seqs(ref_stream, rt, true, false);
-
+    fprintf (stderr, "        reference sequences loaded.\n");
 	ReadTable it;
 
 	bool need_seq = true;
 	bool need_qual = color;
-	rewind(reads_file);
+	//rewind(reads_file);
+	reads_file.rewind();
 	
 	//vector<HitTable> seg_hits;
 	vector<HitStream> contig_hits;
@@ -1205,7 +1206,7 @@ void driver(istream& ref_stream,
 	{
 		HitFactory* fac = new BowtieHitFactory(it, rt);
 		factories.push_back(fac);
-		HitStream hs(seg_files[i], fac, false, false, false, need_seq, need_qual);
+		HitStream hs(seg_files[i].file, fac, false, false, false, need_seq, need_qual);
 		contig_hits.push_back(hs);
 	}
 	
@@ -1223,7 +1224,7 @@ void driver(istream& ref_stream,
 							      anchor_length);
 		factories.push_back(fac);
 		
-		HitStream hs(spliced_seg_files[i], fac, true, false, false, need_seq, need_qual);
+		HitStream hs(spliced_seg_files[i].file, fac, true, false, false, need_seq, need_qual);
 		spliced_hits.push_back(hs);
 			
 	}
@@ -1320,7 +1321,13 @@ void driver(istream& ref_stream,
 		}
 	}
 	
-	join_segment_hits(possible_juncs, possible_insertions, it, rt, reads_file, contig_hits, spliced_hits);
+	join_segment_hits(possible_juncs, possible_insertions, it, rt, reads_file.file, contig_hits, spliced_hits);
+
+	for (size_t i = 0; i < seg_files.size(); ++i)
+	    seg_files[i].close();
+    for (size_t i = 0; i < spliced_seg_files.size(); ++i)
+        spliced_seg_files[i].close();
+    reads_file.close();
 
 	for (size_t fac = 0; fac < factories.size(); ++fac)
 	{
@@ -1399,8 +1406,14 @@ int main(int argc, char** argv)
       exit(1);
     }
 
-  FILE* reads_file = fopen(reads_file_name.c_str(), "r");
-  if (!reads_file)
+  //FILE* reads_file = fopen(reads_file_name.c_str(), "r");
+  vector<string> segment_file_names;
+  tokenize(segment_file_list, ",",segment_file_names);
+
+  string unzcmd=getUnpackCmd(reads_file_name, spliced_segment_file_list.empty() &&
+                 segment_file_names.size()<4);
+  FZPipe reads_file(reads_file_name, unzcmd);
+  if (reads_file.file==NULL)
     {
       fprintf(stderr, "Error: cannot open %s for reading\n",
 	      reads_file_name.c_str());
@@ -1466,16 +1479,15 @@ int main(int argc, char** argv)
         insertions_files.push_back(insertions_file);
     }
 
-
-    vector<string> segment_file_names;
-    vector<FILE*> segment_files;
-    tokenize(segment_file_list, ",",segment_file_names);
+    //vector<FILE*> segment_files;
+    vector<FZPipe> segment_files;
     for (size_t i = 0; i < segment_file_names.size(); ++i)
     {
       fprintf(stderr, "Opening %s for reading\n",
 	      segment_file_names[i].c_str());
-      FILE* seg_file = fopen(segment_file_names[i].c_str(), "r");
-      if (seg_file == NULL)
+      //FILE* seg_file = fopen(segment_file_names[i].c_str(), "r");
+      FZPipe seg_file(segment_file_names[i], unzcmd);
+      if (seg_file.file == NULL)
         {
 	  fprintf(stderr, "Error: cannot open %s for reading\n",
 		  segment_file_names[i].c_str());
@@ -1485,14 +1497,16 @@ int main(int argc, char** argv)
     }
 	
   vector<string> spliced_segment_file_names;
-  vector<FILE*> spliced_segment_files;
+  //vector<FILE*> spliced_segment_files;
+  vector<FZPipe> spliced_segment_files;
   tokenize(spliced_segment_file_list, ",",spliced_segment_file_names);
   for (size_t i = 0; i < spliced_segment_file_names.size(); ++i)
     {
       fprintf(stderr, "Opening %s for reading\n",
 	      spliced_segment_file_names[i].c_str());
-      FILE* spliced_seg_file = fopen(spliced_segment_file_names[i].c_str(), "r");
-      if (spliced_seg_file == NULL)
+      //FILE* spliced_seg_file = fopen(spliced_segment_file_names[i].c_str(), "r");
+      FZPipe spliced_seg_file(spliced_segment_file_names[i], unzcmd);
+      if (spliced_seg_file.file == NULL)
         {
 	  fprintf(stderr, "Error: cannot open %s for reading\n",
 		  spliced_segment_file_names[i].c_str());

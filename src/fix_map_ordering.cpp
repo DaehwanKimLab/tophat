@@ -27,16 +27,15 @@ struct MapOrdering
 	{
 		uint64_t lhs_id = lhs.first;
 		uint64_t rhs_id = rhs.first;
-		
 		return lhs_id > rhs_id;
-		
 		//return it.observation_order(lhs_id) > it.observation_order(rhs_id);
 	}
-	
 	ReadTable& it;
 };
 
-void driver(FILE* reads_file, FILE* map_file)
+//void driver(FILE* reads_file, FILE* map_file)
+//void driver(FZStream& reads_file, FILE* map_file)
+void driver(FILE* map_file)
 {
 	ReadTable it;
 	
@@ -117,41 +116,8 @@ void driver(FILE* reads_file, FILE* map_file)
 
 void print_usage()
 {
-    fprintf(stderr, "Usage:   fix_map_ordering <reads.fa/.fq> <map.bwtout>\n");
+    fprintf(stderr, "Usage:   fix_map_ordering <map.bwtout> [<reads.fa/.fq>]\n");
 }
-
-//const char *short_options = "fq";
-//
-//static struct option long_options[] = {
-//{"fasta",       required_argument,       0,            'f'},
-//{"fastq",       required_argument,       0,            'q'},
-//{0, 0, 0, 0} // terminator
-//};
-
-//int parse_options(int argc, char** argv)
-//{
-//    int option_index = 0;
-//    int next_option;
-//    do {
-//        next_option = getopt_long(argc, argv, short_options, long_options, &option_index);
-//        switch (next_option) { 
-//			case 'f':
-//				reads_format = FASTA;
-//				break;
-//			case 'q':
-//				reads_format = FASTQ;
-//				break;  
-//			case -1:     /* Done with options. */
-//                break;
-//            default:
-//                print_usage();
-//                return 1;
-//        }
-//    } while(next_option != -1);
-//    
-//    return 0;
-//}
-
 
 int main(int argc, char** argv)
 {
@@ -165,25 +131,28 @@ int main(int argc, char** argv)
         return 1;
     }
     
-    string reads_file_name = argv[optind++];
-    
-	if(optind >= argc)
-    {
-        print_usage();
-        return 1;
-    }
-    
     string map_file_name = argv[optind++];
-	
-	FILE* reads_file = fopen(reads_file_name.c_str(), "r");
-	if (reads_file == NULL)
-	{
-		fprintf(stderr, "Error: cannot open reads file %s for reading\n",
-				reads_file_name.c_str());
-		exit(1);
-	}
-    
+    string reads_file_name;
+    if (optind<argc) {
+       reads_file_name = argv[optind++];
+       if(optind > argc) {
+            print_usage();
+            return 1;
+            }
+       }
+
+    /* we actually don't need the reads file any more?
+    string pipecmd=getUnpackCmd(reads_file_name, false);
+    FZPipe reads_file(reads_file_name, pipecmd);
+    if (reads_file.file == NULL) {
+       fprintf(stderr, "Error: cannot open reads file %s for reading\n",
+               reads_file_name.c_str());
+       exit(1);
+       }
+    */
 	FILE* map_file = map_file_name == "-" ? stdin : fopen(map_file_name.c_str(), "r");
+	//current usage of fix_map_ordering in tophat is simply get bowtie's output
+	// at stdin, uncompressed, so we won't bother to check for compressed stream/file
 	if (map_file == NULL)
 	{
 		fprintf(stderr, "Error: cannot open Bowtie map file %s for reading\n",
@@ -191,7 +160,7 @@ int main(int argc, char** argv)
 		exit(1);
 	}
 	
-    driver(reads_file, map_file);
-    
+    //driver(reads_file, map_file);
+	driver(map_file);
     return 0;
 }

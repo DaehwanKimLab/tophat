@@ -48,7 +48,7 @@ extern int max_segment_intron_length;
 
 extern uint32_t min_closure_exon_length;
 extern int island_extension;
-
+extern int num_cpus;
 extern int segment_length; // the read segment length used by the pipeline
 extern int segment_mismatches;
 
@@ -72,7 +72,7 @@ extern std::string gene_filter;
 
 extern std::string ium_reads;
 extern std::string sam_header;
-
+extern std::string zpacker; //program to use to read/write compressed files (gzip, pigz, bzip2, pbzip2)
 extern bool solexa_quals;
 extern bool phred64_quals;
 extern bool quals;
@@ -97,10 +97,52 @@ enum eLIBRARY_TYPE
 
 extern eLIBRARY_TYPE library_type;
 
-int parseInt(int lower, const char *errmsg, void (*print_usage)());
+bool str_endsWith(std::string& str, const char* suffix);
+void str_appendInt(std::string& str, int v);
+FILE* fzOpen(std::string& fname, const char* mode);
+
+int parseIntOpt(int lower, const char *errmsg, void (*print_usage)());
 int parse_options(int argc, char** argv, void (*print_usage)());
 
 void err_exit(const char* format,...); // exit with an error
+
+std::string guess_packer(const std::string& fname, bool use_all_cpus);
+std::string getUnpackCmd(const std::string& fname, bool use_all_cpus=false);
+std::string getPackCmd(const std::string& fname, bool use_all_cpus=false);
+
+struct FZPipe {
+ FILE* file;
+ std::string filename;
+ std::string pipecmd;
+ FZPipe():filename(),pipecmd() {
+   file=NULL;
+   }
+ FZPipe(std::string& fname, std::string& pcmd):filename(fname),pipecmd(pcmd) {
+   //open as a compressed file reader
+   file=NULL;
+   this->openRead(fname.c_str(), pipecmd);
+   }
+ void close() {
+   if (file!=NULL) {
+     if (pipecmd.empty()) fclose(file);
+                     else pclose(file);
+     file=NULL;
+     }
+   }
+ FILE* openWrite(const char* fname, std::string& popencmd);
+ FILE* openWrite(const char* fname);
+ FILE* openRead(const char* fname, std::string& popencmd);
+
+ FILE* openRead(const char* fname);
+ FILE* openRead(const std::string fname, std::string& popencmd) {
+   return this->openRead(fname.c_str(),popencmd);
+   }
+ FILE* openRead(const std::string fname) {
+   return this->openRead(fname.c_str());
+   }
+ void rewind();
+};
+
 
 
 #endif
