@@ -181,7 +181,7 @@ int main(int argc, char *argv[])
     {
       string fname=reads_file_names[i];
       string pipecmd=guess_packer(fname, true);
-      pipecmd.append(" -cd");
+      if (!pipecmd.empty()) pipecmd.append(" -cd");
       FZPipe seg_file(fname,pipecmd);
       if (seg_file.file == NULL) {
 	  fprintf(stderr, "Error: cannot open reads file %s for reading\n",
