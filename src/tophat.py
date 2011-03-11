@@ -1349,9 +1349,6 @@ def bowtie(params,
         zip_cmd+=['-c']
 
         global unmapped_reads_fifo
-        #if os.path.getsize(reads_list)==0:
-        #   mlog(" EXITING ----- unexpected 0 size, check ls -l "+reads_list)
-        #   sys.exit(0)
            
         if unmapped_reads != None:
              bowtie_cmd += ["--un", unmapped_reads_fifo,
@@ -2329,7 +2326,7 @@ def prog_path(program):
 
 # FIXME: this should get set during the make dist autotools phase of the build
 def get_version():
-   return "1.2.0-g"
+   return "1.2.1"
 
 def mlog(msg):
   print >> sys.stderr, "[DBGLOG]:"+msg
