@@ -159,24 +159,24 @@ bool BowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 	//memset(mismatches, 0, sizeof(mismatches));
 	
 	const char* buf = bwt_buf;
-	char* name = strsep((char**)&buf,"\t");
-	char* orientation_str = strsep((char**)&buf,"\t");
-	char* text_name_str = strsep((char**)&buf,"\t");
+	char* name = get_token((char**)&buf,"\t");
+	char* orientation_str = get_token((char**)&buf,"\t");
+	char* text_name_str = get_token((char**)&buf,"\t");
 	
 	strcpy(text_name, text_name_str);
 	
-	char* text_offset_str = strsep((char**)&buf,"\t");
-	char* seq_str = strsep((char**)&buf,"\t");
+	char* text_offset_str = get_token((char**)&buf,"\t");
+	char* seq_str = get_token((char**)&buf,"\t");
 	if (seq)
 	  strcpy(seq, seq_str);
 	
-	const char* qual_str = strsep((char**)&buf,"\t");
+	const char* qual_str = get_token((char**)&buf,"\t");
 	if (qual)
 	  strcpy(qual, qual_str);
 	
-	/*const char* other_occs_str =*/ strsep((char**)&buf, "\t");
+	/*const char* other_occs_str =*/ get_token((char**)&buf, "\t");
 	mismatches[0] = 0;
-	char* mismatches_str = strsep((char**)&buf, "\t");
+	char* mismatches_str = get_token((char**)&buf, "\t");
 	if (mismatches_str)
 		strcpy(mismatches, mismatches_str);
 	
@@ -268,23 +268,23 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 	//memset(mismatches, 0, sizeof(mismatches));
 
 	char* buf = bwt_buf;
-	char* name = strsep((char**)&buf,"\t");
-	char* orientation_str = strsep((char**)&buf,"\t");
-	char* text_name_str = strsep((char**)&buf,"\t");
+	char* name = get_token((char**)&buf,"\t");
+	char* orientation_str = get_token((char**)&buf,"\t");
+	char* text_name_str = get_token((char**)&buf,"\t");
 	strcpy(text_name, text_name_str);
 	
-	char* text_offset_str = strsep((char**)&buf,"\t");
-	char* seq_str = strsep((char**)&buf,"\t");
+	char* text_offset_str = get_token((char**)&buf,"\t");
+	char* seq_str = get_token((char**)&buf,"\t");
 	if (seq)
 	  strcpy(seq, seq_str);
 	
-	const char* qual_str = strsep((char**)&buf,"\t");
+	const char* qual_str = get_token((char**)&buf,"\t");
 	if (qual)
 	  strcpy(qual, qual_str);
 	
-	/*const char* other_occs_str =*/ strsep((char**)&buf, "\t");
+	/*const char* other_occs_str =*/ get_token((char**)&buf, "\t");
 	mismatches[0] = 0;
-	char* mismatches_str = strsep((char**)&buf, "\t");
+	char* mismatches_str = get_token((char**)&buf, "\t");
 	if (mismatches_str)
 		strcpy(mismatches, mismatches_str);
 	
@@ -600,21 +600,21 @@ bool SAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 		return false;
 	
 	char* buf = bwt_buf;
-	char* name = strsep((char**)&buf,"\t");
-	char* sam_flag_str = strsep((char**)&buf,"\t");
-	char* text_name = strsep((char**)&buf,"\t");
-	char* text_offset_str = strsep((char**)&buf,"\t");
-	const char* map_qual_str = strsep((char**)&buf,"\t");
-	char* cigar_str = strsep((char**)&buf,"\t");
-	const char* mate_ref_str =  strsep((char**)&buf,"\t");
-	const char* mate_pos_str =  strsep((char**)&buf,"\t");
-	const char* inferred_insert_sz_str =  strsep((char**)&buf,"\t");
+	char* name = get_token((char**)&buf,"\t");
+	char* sam_flag_str = get_token((char**)&buf,"\t");
+	char* text_name = get_token((char**)&buf,"\t");
+	char* text_offset_str = get_token((char**)&buf,"\t");
+	const char* map_qual_str = get_token((char**)&buf,"\t");
+	char* cigar_str = get_token((char**)&buf,"\t");
+	const char* mate_ref_str =  get_token((char**)&buf,"\t");
+	const char* mate_pos_str =  get_token((char**)&buf,"\t");
+	const char* inferred_insert_sz_str =  get_token((char**)&buf,"\t");
 	
-	const char* seq_str =  strsep((char**)&buf,"\t");
+	const char* seq_str =  get_token((char**)&buf,"\t");
 	if (seq)
 	  strcpy(seq, seq_str);
 	
-	const char* qual_str =  strsep((char**)&buf,"\t");
+	const char* qual_str =  get_token((char**)&buf,"\t");
 	if (qual)
 	  strcpy(qual, qual_str);
 	
@@ -720,7 +720,7 @@ bool SAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 	unsigned char num_splice_anchor_mismatches = 0;
 	const char* tag_buf = buf;
 	
-//	while((tag_buf = strsep((char**)&buf,"\t")))
+//	while((tag_buf = get_token((char**)&buf,"\t")))
 //	{
 //		vector<string> tuple_fields;
 //		tokenize(tag_buf,":", tuple_fields);
@@ -747,7 +747,7 @@ bool SAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 //		}
 //	}
 	
-	while((tag_buf = strsep((char**)&buf,"\t")))
+	while((tag_buf = get_token((char**)&buf,"\t")))
 	{
 		vector<string> tuple_fields;
 		tokenize(tag_buf,":", tuple_fields);
@@ -1056,10 +1056,6 @@ void print_hit(FILE* fout,
 			containsSplice = true;
 			break;
 		}
-	} 
-	if (containsSplice){
-	  // daehwan - check this
-	    fprintf(fout, "\tXS:A:%c", bh.antisense_splice() ? '-' : '+');
 	}
 	
 	fprintf(fout, "\n");

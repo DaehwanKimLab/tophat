@@ -217,10 +217,10 @@ void driver(const vector<FILE*>& splice_coords_files,
 			 3) right coord of splice (first char of the right exon)
 			 */
 			
-			char* ref_name                   = strsep((char**)&buf, "\t");
-			char* scan_left_coord            = strsep((char**)&buf, "\t");
-			char* scan_right_coord           = strsep((char**)&buf, "\t");
-			char* orientation				 = strsep((char**)&buf, "\t");
+			char* ref_name                   = get_token((char**)&buf, "\t");
+			char* scan_left_coord            = get_token((char**)&buf, "\t");
+			char* scan_right_coord           = get_token((char**)&buf, "\t");
+			char* orientation				 = get_token((char**)&buf, "\t");
 			
 			if (!scan_left_coord || !scan_right_coord || !orientation)
 			{
@@ -259,9 +259,9 @@ void driver(const vector<FILE*>& splice_coords_files,
 			 3) right coord of splice (first char of the right exon)
 			 */
 			
-			char* ref_name                   = strsep((char**)&buf, "\t");
-			char* scan_left_coord            = strsep((char**)&buf, "\t");
-			char* scan_right_coord           = strsep((char**)&buf, "\t");
+			char* ref_name                   = get_token((char**)&buf, "\t");
+			char* scan_left_coord            = get_token((char**)&buf, "\t");
+			char* scan_right_coord           = get_token((char**)&buf, "\t");
 			
 			if (!scan_left_coord || !scan_right_coord)
 			{
@@ -296,10 +296,10 @@ void driver(const vector<FILE*>& splice_coords_files,
 			char* buf = splice_buf;
 			if (nl) *nl = 0;
 			
-			char* ref_name = strsep((char**)&buf, "\t");
-			char* scan_left_coord = strsep((char**)&buf, "\t");
-			char* scan_right_coord = strsep((char**)&buf, "\t");
-			char* scan_sequence = strsep((char**)&buf, "\t");
+			char* ref_name = get_token((char**)&buf, "\t");
+			char* scan_left_coord = get_token((char**)&buf, "\t");
+			char* scan_right_coord = get_token((char**)&buf, "\t");
+			char* scan_sequence = get_token((char**)&buf, "\t");
 
 			if (!scan_left_coord || !scan_sequence || !scan_right_coord)
 			{
