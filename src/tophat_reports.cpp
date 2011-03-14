@@ -90,9 +90,9 @@ void insert_best_alignments(const HitsForRead& left_hits,
   
   for (size_t i = 0; i < left.size(); ++i)
     {
+      const BowtieHit& lh = left[i];
       for (size_t j = 0; j < right.size(); ++j)
 	{
-	  const BowtieHit& lh = left[i];
 	  const BowtieHit& rh = right[j];
 
 	  if (lh.ref_id() != rh.ref_id())

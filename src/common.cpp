@@ -133,6 +133,34 @@ static float parseFloatOpt(float lower, float upper, const char *errmsg, void (*
     return -1;
 }
 
+/*
+  this is from
+  http://www.winehq.org/pipermail/wine-patches/2001-November/001322.html
+ */
+char* get_token(char** str, const char* delims)
+{
+  char* token;
+  if (*str == NULL)
+      return NULL;
+  
+  token = *str;
+  while (**str != '\0')
+    {
+      if (strchr(delims, **str) != NULL)
+	{
+	  **str = '\0';
+	  ++(*str);
+	  return token;
+	}
+    
+      ++(*str);
+    }
+  
+  *str = NULL;
+  return token;
+}
+
+
 const char *short_options = "QCp:z:";
 
 enum

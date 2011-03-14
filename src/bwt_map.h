@@ -656,83 +656,72 @@ public:
 	
 	bool next_read_hits(HitsForRead& hits_for_read)
 	{
-		hits_for_read.hits.clear();
-		hits_for_read.insert_id = 0; 
-		
-		if (!_hit_file || (feof(_hit_file) && buffered_hit.insert_id() == 0))
+	  hits_for_read.hits.clear();
+	  hits_for_read.insert_id = 0; 
+	  
+	  if (!_hit_file || (feof(_hit_file) && buffered_hit.insert_id() == 0))
+	    return false;
+	  
+	  char bwt_buf[2048]; bwt_buf[0] = 0;
+	  char bwt_seq[2048]; bwt_seq[0] = 0;
+	  char bwt_qual[2048]; bwt_qual[0] = 0;
+	  
+	  char* seq = _keep_seqs ? bwt_seq : NULL;
+	  char* qual = _keep_quals ? bwt_qual : NULL;
+	  
+	  hits_for_read.insert_id = buffered_hit.insert_id();
+	  if (hits_for_read.insert_id)
+	    hits_for_read.hits.push_back(buffered_hit);
+	  
+	  while (1)
+	    {
+	      if (fgets(bwt_buf, sizeof(bwt_buf), _hit_file) == NULL)
 		{
-			return false;
+		  buffered_hit = BowtieHit();
+		  break;
 		}
-		
-		char bwt_buf[2048]; bwt_buf[0] = 0;
-		char bwt_seq[2048]; bwt_seq[0] = 0;
-		char bwt_qual[2048]; bwt_qual[0] = 0;
 
-		char* seq = _keep_seqs ? bwt_seq : NULL;
-		char* qual = _keep_quals ? bwt_qual : NULL;
-		
-		hits_for_read.insert_id = buffered_hit.insert_id();
-		if (hits_for_read.insert_id)
-			hits_for_read.hits.push_back(buffered_hit);
-		
-		while (1)
+	      // Chomp the newline
+	      char* nl = strrchr(bwt_buf, '\n');
+	      if (nl) *nl = 0;
+	      //string clean_buf = bwt_buf;
+	      // Get a new record from the tab-delimited Bowtie map
+	      BowtieHit bh;
+	      if (_factory->get_hit_from_buf(bwt_buf, bh, _strip_slash, NULL, NULL, seq, qual))
 		{
-			fgets(bwt_buf, 2048, _hit_file);
-			// Chomp the newline
-			char* nl = strrchr(bwt_buf, '\n');
-			if (nl) *nl = 0;
-			//string clean_buf = bwt_buf;
-			// Get a new record from the tab-delimited Bowtie map
-			BowtieHit bh;
-			
-			if ( _factory->get_hit_from_buf(bwt_buf, bh, _strip_slash, NULL, NULL, seq, qual))
+		  if (_keep_bufs)
+		    bh.hitfile_rec(bwt_buf);
+		  
+		  if (_keep_seqs)
+		      bh.seq(seq);
+		  
+		  if (_keep_quals)
+		    {
+		      // when it comes to convert from qual in color to qual in bp,
+		      // we need to fill in the two extream qual values using the adjacent qual values.
+		      size_t qual_len = strlen(qual);
+		      if (color && !color_out && qual_len > 2)
 			{
-				if (_keep_bufs)
-					bh.hitfile_rec(bwt_buf);
-
-				if (_keep_seqs)
-				  {
-				    if (strlen(seq) == 0)
-				      {
-					int kk = 0;
-					++kk;
-				      }
-				    bh.seq(seq);
-				  }
-
-				if (_keep_quals)
-				  {
-				    // when it comes to convert from qual in color to qual in bp,
-				    // we need to fill in the two extream qual values using the adjacent qual values.
-				    size_t qual_len = strlen(qual);
-				    if (color && !color_out && qual_len > 2)
-				      {
-					qual[0] = qual[1];
-					qual[qual_len-1] = qual[qual_len-2];
-				      }
-				    
-				    bh.qual(qual);
-				  }
-				
-				if (bh.insert_id() == hits_for_read.insert_id)
-				{
-					hits_for_read.hits.push_back(bh);
-				}
-				else
-				{
-					buffered_hit = bh;
-					break;
-				}
+			  qual[0] = qual[1];
+			  qual[qual_len-1] = qual[qual_len-2];
 			}
-			if (feof(_hit_file))
-			{
-				if (buffered_hit.insert_id() == hits_for_read.insert_id)
-					buffered_hit = BowtieHit();
-				break;
-			}
+		      
+		      bh.qual(qual);
+		    }
+		  
+		  if (bh.insert_id() == hits_for_read.insert_id)
+		    {
+		      hits_for_read.hits.push_back(bh);
+		    }
+		  else
+		    {
+		      buffered_hit = bh;
+		      break;
+		    }
 		}
-		
-		return (!hits_for_read.hits.empty() && hits_for_read.insert_id != 0);
+	    }
+	  
+	  return (!hits_for_read.hits.empty() && hits_for_read.insert_id != 0);
 	}
 	
 	uint64_t next_group_id() const 

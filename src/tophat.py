@@ -994,6 +994,7 @@ class FastxReader:
     if self.eof: return (seqid, seqstr, seq_len, qstr)
     fline=self.getLine #shortcut to save a bit of time
     line=fline()
+
     if not line : return (seqid, seqstr, seq_len, qstr)
     while len(line.rstrip())==0: # skip empty lines
       line=fline()
@@ -1003,6 +1004,7 @@ class FastxReader:
           raise ValueError("Records in Fastq files should start with '@' character")
       seqid = line[1:].rstrip()
       seqstr = fline().rstrip()
+      
       #There may now be more sequence lines, or the "+" quality marker line:
       while True:
           line = fline()
@@ -1011,9 +1013,9 @@ class FastxReader:
           if line[0] == "+":
              #sequence string ended  
              qtitle = line[1:].rstrip()
-             if qtitle and qtitle != seqid:
-                raise ValueError("Different read ID for sequence and quality (%s vs %s)" \
-                                 % (seqid, qtitle))
+             # if qtitle and qtitle != seqid:
+             #   raise ValueError("Different read ID for sequence and quality (%s vs %s)" \
+             #                    % (seqid, qtitle))
              break
           seqstr += line.rstrip() #removes trailing newlines
           #loop until + found
