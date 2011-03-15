@@ -21,6 +21,7 @@ import errno
 import os
 import warnings
 import re
+import signal
 from datetime import datetime, date, time
 
 use_message = '''
@@ -302,7 +303,7 @@ class TopHatParams:
                 elif option == "--rg-date":
                     self.seq_run_date = value    
                 elif option == "--rg-platform":
-                    self.seq_platform = value            
+                    self.seq_platform = value
 
         def check(self):
             if self.seed_length != None and self.seed_length < 20:
@@ -402,7 +403,7 @@ class TopHatParams:
                                                50,              # min_coverage_intron_length
                                                20000,           # max_coverage_intron_length
                                                50,              # min_segment_intron_length
-                                               500000)          # max_segment_intron_length                          
+                                               500000)          # max_segment_intron_length
         
         self.gff_annotation = None
         self.raw_junctions = None
@@ -1323,14 +1324,17 @@ def bowtie(params,
     bwt_idx_name = bwt_idx_prefix.split('/')[-1]
     print >> sys.stderr, "[%s] Mapping reads against %s with Bowtie %s" % (start_time.strftime("%c"), bwt_idx_name, extra_output)
     
-    # Setup Bowtie output redirects
-    #bwt_map = output_dir + mapped_reads
-    #bwt_map = tmp_name()
-    #tmp_fname = bwt_map.split('/')[-1]
     readfile_basename=getFileBaseName(reads_list)
-    #tmp_fname = 'bowtie.'+reads_list+'.fixmap.log'
     bwt_log = open(logging_dir + 'bowtie.'+readfile_basename+'.fixmap.log', "w")
     bwt_mapped=mapped_reads
+    global unmapped_reads_fifo
+    if os.path.exists(unmapped_reads_fifo):
+        os.remove(unmapped_reads_fifo)
+    try:
+        os.mkfifo(unmapped_reads_fifo)
+    except OSError, o:
+        die(fail_str+"Error at mkfifo("+unmapped_reads_fifo+'). '+str(o))
+
     # Launch Bowtie
     try:    
         bowtie_cmd = ["bowtie"]
@@ -1350,27 +1354,31 @@ def bowtie(params,
         unzip_cmd+=['-cd']
         zip_cmd+=['-c']
 
-        global unmapped_reads_fifo
-           
-        if unmapped_reads != None:
+        fifo_pid=None
+        if unmapped_reads:
              bowtie_cmd += ["--un", unmapped_reads_fifo,
                            "--max", "/dev/null"]
-             if os.fork()==0:
-                subprocess.call(zip_cmd, 
+             print >> run_log, ' '.join(zip_cmd)+' < '+ unmapped_reads_fifo + ' > '+ unmapped_reads + ' & '
+             fifo_pid=os.fork()
+             if fifo_pid==0:
+                def on_sig_exit(sig, func=None):
+                   os._exit(os.EX_OK)
+                signal.signal(signal.SIGTERM, on_sig_exit)
+                subprocess.call(zip_cmd,
                                 stdin=open(unmapped_reads_fifo, "r"), 
-                                stdout=open(unmapped_reads, "w"))
+                                stdout=open(unmapped_reads, "wb"))
                 os._exit(os.EX_OK)
 
         fix_map_cmd = [prog_path('fix_map_ordering')]
 
-        unzip_proc = subprocess.Popen(unzip_cmd, 
+        unzip_proc = subprocess.Popen(unzip_cmd,
                                  stdin=open(reads_list, "rb"),
                                  stdout=subprocess.PIPE)
         bowtie_cmd += [params.bowtie_alignment_option, str(params.segment_mismatches),
                          "-p", str(params.system_params.num_cpus),
                          "-k", str(params.max_hits),
                          "-m", str(params.max_hits),
-                         bwt_idx_prefix, 
+                         bwt_idx_prefix,
                          '-']
         bowtie_proc = subprocess.Popen(bowtie_cmd, 
                                  stdin=unzip_proc.stdout, 
@@ -1398,10 +1406,12 @@ def bowtie(params,
                                  stdout=open(mapped_reads, "wb"))
         fix_order_proc.stdout.close()
         print >> run_log, shell_cmd
-        #subprocess.call(shell_cmd, shell=True)
-        #os.system(shell_cmd)
         zip_proc.communicate()
-        
+        if fifo_pid and not os.path.exists(unmapped_reads):
+          try:
+            os.kill(fifo_pid, signal.SIGTERM)
+          except:
+            pass
     except OSError, o:
         die(fail_str+"Error: "+str(o))
             
@@ -1409,6 +1419,10 @@ def bowtie(params,
     #finish_time = datetime.now()
     #duration = finish_time - start_time
     #print >> sys.stderr, "\t\t\t[%s elapsed]" %  formatTD(duration)
+    try:
+      os.remove(unmapped_reads_fifo)
+    except:
+      pass
     return (bwt_mapped, unmapped_reads)
 
 def bowtie_segment(params,
@@ -1624,18 +1638,29 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
         if retcode != 0:
             die(fail_str+"Error: Report generation failed with err ="+str(retcode))
         
-        tmp_bam = tmp_name()+".bam"
-        sam_to_bam_cmd = ["samtools", "view", "-S", "-b", accepted_hits_sam]
-        print >> run_log, " ".join(sam_to_bam_cmd) + " > " + tmp_bam
+        #tmp_bam = tmp_name()+".bam"
+        sam_to_bam_cmd = ["samtools", "view", "-S", "-u", accepted_hits_sam]
         sam_to_bam_log = open(logging_dir + "accepted_hits_sam_to_bam.log", "w")
-        tmp_bam_file = open(tmp_bam, "w")
-        ret = subprocess.call(sam_to_bam_cmd, 
-                              stdout=tmp_bam_file,
-                              stderr=sam_to_bam_log)
-        if ret != 0:
-            die("Error: could not convert to BAM with samtools")
-        sort_cmd = ["samtools", "sort", tmp_bam, output_dir + "accepted_hits"]
-        print >> run_log, " ".join(sort_cmd)
+        try:
+          sam2bam_proc=subprocess.Popen(sam_to_bam_cmd, 
+                                stdout=subprocess.PIPE,
+                                stderr=sam_to_bam_log)
+          #tmp_bam_file = open(tmp_bam, "w")
+          bamsort_cmd = ["samtools", "sort", "-", output_dir + "accepted_hits"]
+          sam_to_bam_log.close()
+          sam_to_bam_log = open(logging_dir + "accepted_hits_sam_to_bam.log", "a")
+
+          bamsort_proc = subprocess.Popen(bamsort_cmd,
+                                stdin=sam2bam_proc.stdout,
+                                stderr=sam_to_bam_log)
+          sam2bam_proc.stdout.close()
+          print >> run_log, " ".join(sam_to_bam_cmd) + " | " + ' '.join(bamsort_cmd)
+          bamsort_proc.communicate()
+        except Exception, o:
+          die("Error converting to BAM with samtools " + str(o))
+        #if ret != 0:
+        #    die("Error: could not convert to BAM with samtools")
+        #print >> run_log, " ".join(sort_cmd)
 #        sorted_map_name = tmp_name()
 #        sorted_map = open(sorted_map_name, "w")
 #        write_sam_header(params.read_params, sorted_map)
@@ -1651,12 +1676,12 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
 #                    output_dir + accepted_hits]
 #                    
                 
-        sort_bam_log = open(logging_dir + "accepted_hits_bam_sort.log", "w")
-        ret = subprocess.call(sort_cmd, 
-                        stdout=open('/dev/null'),
-                        stderr=sort_bam_log)
-        if ret != 0:
-            die("Error: could not sort BAM file with samtools")
+        #sort_bam_log = open(logging_dir + "accepted_hits_bam_sort.log", "w")
+        #ret = subprocess.call(sort_cmd, 
+        #                stdout=open('/dev/null'),
+        #                stderr=sort_bam_log)
+        #if ret != 0:
+        #    die("Error: could not sort BAM file with samtools")
             
         os.remove(accepted_hits_sam)
 #        print >> run_log, "mv %s %s" % (sorted_map, output_dir + accepted_hits)
@@ -1977,8 +2002,7 @@ def join_mapped_segments(params,
     if spliced_seg_maps != None:
         spliced_seg_maps = ','.join(spliced_seg_maps)
         align_cmd.append(spliced_seg_maps)
-    #skip_Join=True  # DEBUG
-    #if not skip_Join:
+
     try:    
         print >> run_log, " ".join(align_cmd),">", alignments_out_name
         retcode = subprocess.call(align_cmd, 
@@ -2043,19 +2067,6 @@ def spliced_alignment(params,
         if reads == None or os.path.getsize(reads)<25 :
             continue
         fbasename=getFileBaseName(reads)
-#        slash = reads.rfind("/")
-#        extension = reads.rfind(".")
-#        if extension != -1:
-#             prefix = reads[slash+1:extension]
-#        else:
-#             prefix = reads      
-#           
-#        extension = reads.rfind(".")
-#        assert extension != -1
-#        tmp = reads.rfind("/")
-          
-#        unspliced_out = tmp_dir + reads[tmp+1:extension] + ".bwtout.z"  
-#        unmapped_unspliced = tmp_dir + reads[tmp+1:extension] + "_missing.fq.z"
         unspliced_out = tmp_dir + fbasename + ".bwtout.z"
         unmapped_unspliced = tmp_dir + fbasename + "_missing.fq.z"
         num_segs = read_len / segment_len
@@ -2069,10 +2080,11 @@ def spliced_alignment(params,
                                            unspliced_out,
                                            unmapped_unspliced,
                                            reads)
-        #unspliced_sam = tmp_name()
-        unspliced_sam = tmp_name()+'.unspl.sam'
+        
         # TODO: should write BAM directly
-
+        #unspliced_sam = tmp_name()+'.unspl.sam'
+        unspliced_sam = tmp_dir+fbasename+'.unspl.sam'
+         
         # Convert the initial Bowtie maps into SAM format.  
         # TODO: this step should be removable now that Bowtie supports SAM 
         # format
@@ -2081,8 +2093,8 @@ def spliced_alignment(params,
                              reads,
                              ref_fasta,
                              ["/dev/null"],
-			     ["/dev/null"],
-			     ["/dev/null"],
+                             ["/dev/null"],
+                             ["/dev/null"],
                              [unspliced_map],
                              [],
                              unspliced_sam)
@@ -2275,8 +2287,8 @@ def spliced_alignment(params,
                               
             merged_map = tmp_name()
             merge_sort_cmd =["sort",
-                             "-k 1,1n",
-                              "--temporary-directory="+tmp_dir,
+                             "-k 1,1n", "-m",
+                              "-T"+tmp_dir,
                               maps[reads].unspliced_sam, 
                               mapped_reads]
             print >> run_log, " ".join(merge_sort_cmd), ">", merged_map
@@ -2419,15 +2431,8 @@ def main(argv=None):
             test_input_file(params.raw_deletions)
             user_supplied_deletions.append(params.raw_deletions)
 
-        # create a named pipe so we can have bowtie write unmapped reads into a compress pipe (when needed)
         global unmapped_reads_fifo
         unmapped_reads_fifo = tmp_dir + str(os.getpid())+".bwt_unmapped.z.fifo"
-        if os.path.exists(unmapped_reads_fifo):
-           os.unlink(unmapped_reads_fifo)
-        try:
-           os.mkfifo(unmapped_reads_fifo)
-        except OSError, o:
-           die(fail_str+"Error at mkfifo("+unmapped_reads_fifo+'). '+str(o))
                 
         # Now start the time consuming stuff
         left_kept_reads = prep_reads(params,
@@ -2459,7 +2464,6 @@ def main(argv=None):
                                     user_supplied_insertions,
                                     user_supplied_deletions)
                                     
-        os.unlink(unmapped_reads_fifo)
         
         left_maps = mapping[left_kept_reads]
         #left_unmapped_reads = mapping[1]
