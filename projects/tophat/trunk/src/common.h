@@ -109,7 +109,8 @@ void err_exit(const char* format,...); // exit with an error
 char* get_token(char** str, const char* delims);
 std::string guess_packer(const std::string& fname, bool use_all_cpus);
 std::string getUnpackCmd(const std::string& fname, bool use_all_cpus=false);
-std::string getPackCmd(const std::string& fname, bool use_all_cpus=false);
+
+void writeSamHeader(FILE* fout);
 
 struct FZPipe {
  FILE* file;
