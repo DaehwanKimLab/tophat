@@ -179,7 +179,7 @@ class TopHatParams:
                      keep_tmp):
             self.num_cpus = num_cpus
             self.keep_tmp = keep_tmp
-            self.zipper = None
+            self.zipper = ""
             self.zipper_opts= []
             
         def parse_options(self, opts):
@@ -196,6 +196,9 @@ class TopHatParams:
             global use_BWT_FIFO
             if self.zipper:
                 use_zpacker=True
+                if self.num_cpus>1 and not self.zipper_opts:
+                    if self.zipper.endswith('pbzip2') or self.zipper.endswith('pigz'):
+                         self.zipper_opts.append('-p'+str(self.num_cpus))
             else:
                 use_zpacker=False
                 if use_BWT_FIFO: use_BWT_FIFO=False
@@ -210,28 +213,25 @@ class TopHatParams:
         def check(self):
             if self.num_cpus<1 :
                  die("Error: arg to --num-threads must be greater than 0")
-            if self.num_cpus>1 and self.zipper:
-                if self.zipper.endswith("gzip"): # try pigz instead
-                    pigz=which("pigz")
-                    if (pigz is not None): 
-                        self.zipper=pigz
-                    #    self.zipper_opts.append('-p'+str(self.num_cpus))
-                    #else:
-                    #    print >> sys.stderr, "Consider installing 'pigz' for faster handling of compressed temporary files."
-                elif self.zipper.endswith("bzip2") and not self.zipper.endswith("pbzip2"): # try pbzip2 instead
-                    pbzip=which("pbzip2")
-                    if (pbzip is not None): 
-                        self.zipper=pbzip
-                    #    self.zipper_opts.append('-p'+str(self.num_cpus))
-                    #else:
-                    #    print >> sys.stderr, "Consider installing 'pigz' or 'pbzip2' for faster handling of temporary files."
+#            if self.num_cpus>1 and self.zipper:
+#                 if self.zipper.endswith("gzip"): # try pigz instead
+#                     pigz=which("pigz")
+#                     if (pigz is not None): 
+#                         self.zipper=pigz
+                    ##    self.zipper_opts.append('-p'+str(self.num_cpus))
+                    ##else:
+                    ##    print >> sys.stderr, "Consider installing 'pigz' for faster handling of compressed temporary files."
+#                 elif self.zipper.endswith("bzip2") and not self.zipper.endswith("pbzip2"): # try pbzip2 instead
+#                     pbzip=which("pbzip2")
+#                     if (pbzip is not None): 
+#                         self.zipper=pbzip
+                    ##    self.zipper_opts.append('-p'+str(self.num_cpus))
+                    ##else:
+                    ##    print >> sys.stderr, "Consider installing 'pigz' or 'pbzip2' for faster handling of temporary files."
             if self.zipper:
                 xzip=which(self.zipper)
                 if not xzip:
                     die("Error: cannot find compression program "+xzip)
-                if self.num_cpus>1 and not self.zipper_opts:
-                    if self.zipper.endswith('pbzip2') or self.zipper.endswith('pigz'):
-                         self.zipper_opts.append('-p'+str(self.num_cpus))
     # ReadParams is a group of runtime parameters that specify various properties
     # of the user's reads (e.g. which quality scale their are on, how long the 
     # fragments are, etc).
