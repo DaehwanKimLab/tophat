@@ -3745,8 +3745,7 @@ void driver(istream& ref_stream,
 	    FZPipe& right_reads_file,
 	    FZPipe& right_reads_file_for_segment_search,
 	    FZPipe& right_reads_file_for_indel_discovery,
-        //    vector<FILE*>& right_seg_files)
-	        vector<FZPipe>& right_seg_files, string& unzcmd)
+	    vector<FZPipe>& right_seg_files)
 {	
   if (left_seg_files.size() == 0)
     {
@@ -3834,8 +3833,9 @@ void driver(istream& ref_stream,
 	{
 	  vector<string> ium_read_files;
 	  tokenize(ium_reads,",", ium_read_files);
-			//vector<FILE*> iums;
-			vector<FZPipe> iums;
+	  //vector<FILE*> iums;
+	  vector<FZPipe> iums;
+	  string unzcmd=getUnpackCmd(ium_read_files[0],false);
 	  for (size_t ium = 0; ium < ium_read_files.size(); ++ium)
 	    {
 	      fprintf (stderr, "Indexing extensions in %s\n", ium_read_files[ium].c_str());
@@ -4172,7 +4172,7 @@ int main(int argc, char** argv)
 	 right_reads_file,
 	 right_reads_file_for_segment_search,
 	 right_reads_file_for_indel_discovery,
-	 right_segment_files, unzcmd);
+	 right_segment_files);
   
   return 0;
 }

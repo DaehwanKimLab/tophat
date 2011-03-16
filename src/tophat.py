@@ -106,9 +106,13 @@ run_log = None
 run_cmd = None
 tmp_dir = output_dir + "tmp/"
 bin_dir = sys.path[0] + "/"
-use_BWT_FIFO = False #change this to False to disable mkfifo compression of the unmapped reads file
-use_zpacker = False
-unmapped_reads_fifo = None # tricking bowtie into writing the unmapped reads into a compressed file
+use_zpacker = False # don't change it here, this is set by -z/--zpacker option 
+unmapped_reads_fifo = None # if use_BWT_FIFO, this is tricking bowtie into writing the 
+                           # unmapped reads into a compressed file
+
+use_BWT_FIFO = True # only works if use_zpacker == True
+#set this to True/False to enable/disable mkfifo compression of the unmapped reads file
+
 samtools_path = None
 bowtie_path = None
 fail_str = "\t[FAILED]\n"
@@ -1120,20 +1124,13 @@ class ZReader:
         pipecmd=[]
         if guess:
            s=filename.lower()
-           rgz=s.rfind(".gz")
-           if rgz>0 and rgz>len(s)-6:
-                  pipecmd=['gzip']
+           if s.endswith(".z") or s.endswith(".gz") or s.endswith(".gzip"):
+                pipecmd=['gzip']
            else:
-                rgz=s.rfind(".z")
-                if rgz>0 and rgz==len(s)-3:
-                   pipecmd=['gzip']
-                else:
-                   rgz=s.rfind(".bz")
-                   if rgz>0 and rgz>len(s)-7:
-                       pipecmd=['bzip2']
+                if s.endswith(".bz2") or s.endswith(".bzip2") or s.endswith(".bzip"):
+                     pipecmd=['bzip2']
            if len(pipecmd)>0 and which(pipecmd[0]) is None:
                die("Error: cannot find %s to decompress input file %s " % (pipecmd, filename))
-
            if len(pipecmd)>0:
               if pipecmd[0]=='gzip' and sysparams.zipper.endswith('pigz'):
                  pipecmd[0]=sysparams.zipper
@@ -1141,8 +1138,8 @@ class ZReader:
               elif pipecmd[0]=='bzip2' and sysparams.zipper.endswith('pbzip2'):
                  pipecmd[0]=sysparams.zipper
                  pipecmd.extend(sysparams.zipper_opts)
-        else:
-           if use_zpacker and filename.rfind(".z") == len(filename)-3 :
+        else: #not guessing, but we must still be sure it's a compressed file
+           if use_zpacker and filename.endswith(".z"):
               pipecmd=[sysparams.zipper]
               pipecmd.extend(sysparams.zipper_opts)
 
@@ -1387,7 +1384,7 @@ def bowtie(params,
         if unmapped_reads:
              bowtie_cmd += ["--un", unmapped_reads_out,
                            "--max", "/dev/null"]
-             if use_zpacker and use_BWT_FIFO:
+             if use_BWT_FIFO:
                 print >> run_log, ' '.join(zip_cmd)+' < '+ unmapped_reads_fifo + ' > '+ unmapped_reads + ' & '
                 fifo_pid=os.fork()
                 if fifo_pid==0:
@@ -2119,7 +2116,7 @@ def spliced_alignment(params,
         unspliced_out = tmp_dir + fbasename + ".bwtout"
         if use_zpacker: unspliced_out+=".z"
         unmapped_unspliced = tmp_dir + fbasename + "_missing.fq"
-        if use_zpacker and use_BWT_FIFO:
+        if use_BWT_FIFO:
             unmapped_unspliced += ".z"
         num_segs = read_len / segment_len
         if read_len % segment_len >= 20:
