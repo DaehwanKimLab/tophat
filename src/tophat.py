@@ -71,7 +71,7 @@ Options:
     --no-butterfly-search
     --keep-tmp
     --tmp-dir                      <dirname>   [ default: <output_dir>/tmp ]
-    -z/--zpacker                   <filepath>  [ default: gzip             ]
+    -z/--zpacker                   <program>   [ default: no compression   ]
     
 Advanced Options:
     --segment-mismatches           <int>       [ default: 2                ]
@@ -2341,7 +2341,7 @@ def spliced_alignment(params,
             merged_map = tmp_name()
             #TODO: make sure it is safe to use a simple merge here (sort -m)
             merge_sort_cmd =["sort",
-                             "-k1,1n", 
+                             "-k1,1n",
                              "-m",
                               "-T"+tmp_dir,
                               maps[reads].unspliced_sam, 
