@@ -106,8 +106,11 @@ run_log = None
 run_cmd = None
 tmp_dir = output_dir + "tmp/"
 bin_dir = sys.path[0] + "/"
+use_BWT_FIFO = False #change this to False to disable mkfifo compression of the unmapped reads file
+use_zpacker = False
 unmapped_reads_fifo = None # tricking bowtie into writing the unmapped reads into a compressed file
-#ok_str = "\t\t\t\t[OK]\n"
+samtools_path = None
+bowtie_path = None
 fail_str = "\t[FAILED]\n"
 
 sam_header = tmp_dir + "stub_header.sam"
@@ -172,7 +175,7 @@ class TopHatParams:
                      keep_tmp):
             self.num_cpus = num_cpus
             self.keep_tmp = keep_tmp
-            self.zipper = 'gzip'
+            self.zipper = None
             self.zipper_opts= []
             
         def parse_options(self, opts):
@@ -183,11 +186,18 @@ class TopHatParams:
                     self.keep_tmp = True
                 elif option in ("-z","--zpacker"):
                     self.zipper = value
-                    if not self.zipper:
-                       self.zipper='gzip'
+                    #if not self.zipper:
+                    #   self.zipper='gzip'
+            global use_zpacker
+            global use_BWT_FIFO
+            if self.zipper:
+                use_zpacker=True
+            else:
+                use_zpacker=False
+                if use_BWT_FIFO: use_BWT_FIFO=False
         def cmd(self):
             cmdline=[]
-            if self.zipper and self.zipper!='gzip':
+            if self.zipper:
                  cmdline.extend(['-z',self.zipper])
             if self.num_cpus>1:
                  cmdline.extend(['-p'+str(self.num_cpus)])
@@ -196,7 +206,7 @@ class TopHatParams:
         def check(self):
             if self.num_cpus<1 :
                  die("Error: arg to --num-threads must be greater than 0")
-            if self.num_cpus>1 :
+            if self.num_cpus>1 and self.zipper:
                 if self.zipper.endswith("gzip"): # try pigz instead
                     pigz=which("pigz")
                     if (pigz is not None): 
@@ -211,16 +221,13 @@ class TopHatParams:
                     #    self.zipper_opts.append('-p'+str(self.num_cpus))
                     #else:
                     #    print >> sys.stderr, "Consider installing 'pigz' or 'pbzip2' for faster handling of temporary files."
-        
-            if self.zipper:  #this should ALWAYS be the case
+            if self.zipper:
                 xzip=which(self.zipper)
                 if not xzip:
                     die("Error: cannot find compression program "+xzip)
                 if self.num_cpus>1 and not self.zipper_opts:
                     if self.zipper.endswith('pbzip2') or self.zipper.endswith('pigz'):
                          self.zipper_opts.append('-p'+str(self.num_cpus))
-            else: 
-                 die("Error: no compression program!") #this should NEVER be the case
     # ReadParams is a group of runtime parameters that specify various properties
     # of the user's reads (e.g. which quality scale their are on, how long the 
     # fragments are, etc).
@@ -762,7 +769,7 @@ def bowtie_idx_to_fa(idx_prefix):
 
         inspect_log = open(logging_dir + "bowtie_inspect_recons.log", "w")
 
-        inspect_cmd = ["bowtie-inspect",
+        inspect_cmd = [prog_path("bowtie-inspect"),
                        idx_prefix]
 
         print >> sys.stderr, "Executing: " + " ".join(inspect_cmd) + " > " + tmp_fasta_file_name
@@ -811,7 +818,7 @@ def check_index(idx_prefix):
 def get_bowtie_version():
     try:
         # Launch Bowtie to capture its version info
-        proc = subprocess.Popen(['bowtie', '--version'],stdout=subprocess.PIPE)
+        proc = subprocess.Popen([bowtie_path, "--version"], stdout=subprocess.PIPE)
         stdout_value = proc.communicate()[0]
         bowtie_version = None
         bowtie_out = repr(stdout_value)
@@ -839,7 +846,7 @@ def get_index_sam_header(read_params, idx_prefix):
         bowtie_sam_header_file = open(bowtie_sam_header_filename,"w")
 
         
-        bowtie_header_cmd = ['bowtie', '--sam']
+        bowtie_header_cmd = [bowtie_path, "--sam"]
         if read_params.color:
             bowtie_header_cmd.append('-C')
         bowtie_header_cmd.extend([idx_prefix, '/dev/null'])
@@ -915,6 +922,8 @@ def get_index_sam_header(read_params, idx_prefix):
 # Make sure Bowtie is installed and is recent enough to be useful
 def check_bowtie():
     print >> sys.stderr, "[%s] Checking for Bowtie" % right_now()
+    global bowtie_path
+    bowtie_path=prog_path("bowtie")
     bowtie_version = get_bowtie_version()
     if bowtie_version == None:
         die("Error: Bowtie not found on this system")
@@ -929,7 +938,7 @@ def check_bowtie():
 def get_samtools_version():
     try:
         # Launch Bowtie to capture its version info
-        proc = subprocess.Popen(['samtools'],stderr=subprocess.PIPE)
+        proc = subprocess.Popen(samtools_path,stderr=subprocess.PIPE)
         samtools_out = proc.communicate()[1]
 
         # Find the version identifier
@@ -950,6 +959,8 @@ def get_samtools_version():
 # Make sure the SAM tools are installed and are recent enough to be useful
 def check_samtools():
     print >> sys.stderr, "[%s] Checking for Samtools" % right_now()
+    global samtools_path
+    samtools_path=prog_path("samtools")
     samtools_version_str, samtools_version_arr = get_samtools_version()
     if samtools_version_str == None:
         die("Error: Samtools not found on this system")
@@ -1131,8 +1142,9 @@ class ZReader:
                  pipecmd[0]=sysparams.zipper
                  pipecmd.extend(sysparams.zipper_opts)
         else:
-           pipecmd=[sysparams.zipper]
-           pipecmd.extend(sysparams.zipper_opts)
+           if use_zpacker and filename.rfind(".z") == len(filename)-3 :
+              pipecmd=[sysparams.zipper]
+              pipecmd.extend(sysparams.zipper_opts)
 
         if pipecmd:
            pipecmd+=['-cd']
@@ -1149,27 +1161,33 @@ class ZReader:
     def close(self):
        if self.fsrc: self.fsrc.close()
        self.file.close()
-       if self.popen: self.popen.wait()
-       self.popen=None
+       if self.popen: 
+           self.popen.wait()
+           self.popen=None
 
 class ZWriter:
    def __init__(self, filename, sysparams):
-      pipecmd=[sysparams.zipper,'-cf', '-']
-      self.ftarget=open(filename, 'wb')
-      try:
-         self.popen=subprocess.Popen(pipecmd, 
-               stdin=subprocess.PIPE, 
-               stdout=self.ftarget, close_fds=True)
-      except Exception:
-          die("Error: could not open writer pipe "+' '.join(pipecmd)+' < '+ self.fname)
       self.fname=filename
-      self.file=self.popen.stdin # client writes to this end of the pipe
-      
+      if use_zpacker:
+          pipecmd=[sysparams.zipper,"-cf", "-"]
+          self.ftarget=open(filename, "wb")
+          try:
+             self.popen=subprocess.Popen(pipecmd, 
+                   stdin=subprocess.PIPE, 
+                   stdout=self.ftarget, close_fds=True)
+          except Exception:
+              die("Error: could not open writer pipe "+' '.join(pipecmd)+' < '+ self.fname)
+          self.file=self.popen.stdin # client writes to this end of the pipe
+      else: #no compression
+          self.file=open(filename, "w")
+          self.ftarget=None
+          self.popen=None
    def close(self):
       self.file.close()
-      self.ftarget.close()
-      self.popen.wait() #! required to actually flush the pipes (grumble)
-      self.popen=None
+      if self.ftarget: self.ftarget.close()
+      if self.popen:
+          self.popen.wait() #! required to actually flush the pipes (hmmm)
+          self.popen=None
 
 # check_reads() has several jobs.  It examines the user's reads, one file at a 
 # time, and determnes the file format, read length, and other properties that 
@@ -1264,8 +1282,8 @@ def formatTD(td):
 # prep_reads also filters out very low complexy or garbage reads as well as 
 # polyA reads.
 def prep_reads(params, reads_list, quals_list, output_name):    
-    #reads_suffix = ".fq"
-    reads_suffix = ".fq.z"
+    reads_suffix = ".fq"
+    if use_zpacker: reads_suffix += ".z"
     kept_reads_filename = tmp_dir + output_name + reads_suffix
     
     if os.path.exists(kept_reads_filename):
@@ -1285,23 +1303,31 @@ def prep_reads(params, reads_list, quals_list, output_name):
 
     if params.read_params.quals:
         filter_cmd.append(quals_list)
-       
+    shell_cmd = ' '.join(filter_cmd)
     #finally, add the compression pipe
-    zip_cmd=[ params.system_params.zipper ]
-    zip_cmd.extend(params.system_params.zipper_opts)
-    zip_cmd.extend(['-c','-'])
-    shell_cmd = ' '.join(filter_cmd)+' | '+' '.join(zip_cmd) +' >' +kept_reads_filename
+    zip_cmd=[]
+    if use_zpacker:
+       zip_cmd=[ params.system_params.zipper ]
+       zip_cmd.extend(params.system_params.zipper_opts)
+       zip_cmd.extend(['-c','-'])
+       shell_cmd +=' | '+' '.join(zip_cmd)
+    shell_cmd += ' >' +kept_reads_filename
     try:       
         print >> run_log, shell_cmd
-        
-        filter_proc = subprocess.Popen(filter_cmd, 
-                              stdout=subprocess.PIPE,
-                              stderr=filter_log)
-        zip_proc=subprocess.Popen(zip_cmd,
-                              stdin=filter_proc.stdout,
-                              stdout=kept_reads)
-        filter_proc.stdout.close() #as per http://bugs.python.org/issue7678
-        zip_proc.communicate()
+        if use_zpacker:
+            filter_proc = subprocess.Popen(filter_cmd, 
+                                  stdout=subprocess.PIPE,
+                                  stderr=filter_log)
+            zip_proc=subprocess.Popen(zip_cmd,
+                                  stdin=filter_proc.stdout,
+                                  stdout=kept_reads)
+            filter_proc.stdout.close() #as per http://bugs.python.org/issue7678
+            zip_proc.communicate()
+        else:
+           subprocess.call(filter_cmd,
+                                 stdout=kept_reads,
+                                 stderr=filter_log)
+
     # prep_reads not found
     except OSError, o:
         errmsg=fail_str+str(o)
@@ -1326,18 +1352,21 @@ def bowtie(params,
     
     readfile_basename=getFileBaseName(reads_list)
     bwt_log = open(logging_dir + 'bowtie.'+readfile_basename+'.fixmap.log', "w")
-    bwt_mapped=mapped_reads
-    global unmapped_reads_fifo
-    if os.path.exists(unmapped_reads_fifo):
-        os.remove(unmapped_reads_fifo)
-    try:
-        os.mkfifo(unmapped_reads_fifo)
-    except OSError, o:
-        die(fail_str+"Error at mkfifo("+unmapped_reads_fifo+'). '+str(o))
+    #bwt_mapped=mapped_reads
+    unmapped_reads_out=unmapped_reads
+    if use_BWT_FIFO:
+         global unmapped_reads_fifo
+         if os.path.exists(unmapped_reads_fifo):
+             os.remove(unmapped_reads_fifo)
+         try:
+             os.mkfifo(unmapped_reads_fifo)
+         except OSError, o:
+             die(fail_str+"Error at mkfifo("+unmapped_reads_fifo+'). '+str(o))
+         unmapped_reads_out=unmapped_reads_fifo
 
     # Launch Bowtie
     try:    
-        bowtie_cmd = ["bowtie"]
+        bowtie_cmd = [bowtie_path]
         
         if reads_format == "fastq":
             bowtie_cmd += ["-q"]
@@ -1346,46 +1375,56 @@ def bowtie(params,
 
         if params.read_params.color:
             bowtie_cmd += ["-C", "--col-keepends"]
-
-
-        unzip_cmd=[ params.system_params.zipper ]
-        unzip_cmd.extend(params.system_params.zipper_opts)
-        zip_cmd=unzip_cmd[:]
-        unzip_cmd+=['-cd']
-        zip_cmd+=['-c']
+        unzip_cmd=None
+        if use_zpacker:
+          unzip_cmd=[ params.system_params.zipper ]
+          unzip_cmd.extend(params.system_params.zipper_opts)
+          zip_cmd=unzip_cmd[:]
+          unzip_cmd+=['-cd']
+          zip_cmd+=['-c']
 
         fifo_pid=None
         if unmapped_reads:
-             bowtie_cmd += ["--un", unmapped_reads_fifo,
+             bowtie_cmd += ["--un", unmapped_reads_out,
                            "--max", "/dev/null"]
-             print >> run_log, ' '.join(zip_cmd)+' < '+ unmapped_reads_fifo + ' > '+ unmapped_reads + ' & '
-             fifo_pid=os.fork()
-             if fifo_pid==0:
-                def on_sig_exit(sig, func=None):
-                   os._exit(os.EX_OK)
-                signal.signal(signal.SIGTERM, on_sig_exit)
-                subprocess.call(zip_cmd,
-                                stdin=open(unmapped_reads_fifo, "r"), 
-                                stdout=open(unmapped_reads, "wb"))
-                os._exit(os.EX_OK)
+             if use_zpacker and use_BWT_FIFO:
+                print >> run_log, ' '.join(zip_cmd)+' < '+ unmapped_reads_fifo + ' > '+ unmapped_reads + ' & '
+                fifo_pid=os.fork()
+                if fifo_pid==0:
+                    def on_sig_exit(sig, func=None):
+                       os._exit(os.EX_OK)
+                    signal.signal(signal.SIGTERM, on_sig_exit)
+                    subprocess.call(zip_cmd,
+                                    stdin=open(unmapped_reads_fifo, "r"), 
+                                    stdout=open(unmapped_reads, "wb"))
+                    os._exit(os.EX_OK)
 
         fix_map_cmd = [prog_path('fix_map_ordering')]
-
-        unzip_proc = subprocess.Popen(unzip_cmd,
-                                 stdin=open(reads_list, "rb"),
-                                 stdout=subprocess.PIPE)
         bowtie_cmd += [params.bowtie_alignment_option, str(params.segment_mismatches),
                          "-p", str(params.system_params.num_cpus),
                          "-k", str(params.max_hits),
                          "-m", str(params.max_hits),
-                         bwt_idx_prefix,
-                         '-']
-        bowtie_proc = subprocess.Popen(bowtie_cmd, 
+                         bwt_idx_prefix]
+        bowtie_proc=None
+        shellcmd=""
+        unzip_proc=None
+        zip_proc=None
+        if use_zpacker:
+           unzip_proc = subprocess.Popen(unzip_cmd,
+                                 stdin=open(reads_list, "rb"),
+                                 stdout=subprocess.PIPE)
+           bowtie_cmd += ['-']
+           shellcmd=' '.join(unzip_cmd) + "< " +reads_list +"|"
+           bowtie_proc = subprocess.Popen(bowtie_cmd, 
                                  stdin=unzip_proc.stdout, 
                                  stdout=subprocess.PIPE, 
                                  stderr=bwt_log)
-        unzip_proc.stdout.close() # see http://bugs.python.org/issue7678
-        
+           unzip_proc.stdout.close() # see http://bugs.python.org/issue7678
+        else:
+           bowtie_cmd += [reads_list]
+           bowtie_proc = subprocess.Popen(bowtie_cmd, 
+                                 stdout=subprocess.PIPE,
+                                 stderr=bwt_log)
         if reads_format == "fastq":
             fix_map_cmd += ["--fastq"]
         elif reads_format == "fasta":
@@ -1395,23 +1434,34 @@ def bowtie(params,
             reads_for_ordering = reads_list
         
         fix_map_cmd.extend(['-',reads_for_ordering])
-        shell_cmd=' '.join(unzip_cmd) + "< '" +reads_list +"'|" + ' '.join(bowtie_cmd) + '|' + \
-            ' '.join(fix_map_cmd) + "|"+ ' '.join(zip_cmd)+" >'" + bwt_mapped+"'"
-        fix_order_proc = subprocess.Popen(fix_map_cmd, 
+        shellcmd += ' '.join(bowtie_cmd) + '|' + ' '.join(fix_map_cmd) 
+        if use_zpacker:
+           shellcmd += "|"+ ' '.join(zip_cmd)+" > " + mapped_reads
+           fix_order_proc = subprocess.Popen(fix_map_cmd, 
                                           stdin=bowtie_proc.stdout,
                                           stdout=subprocess.PIPE)
-        bowtie_proc.stdout.close()
-        zip_proc = subprocess.Popen(zip_cmd,
+           zip_proc = subprocess.Popen(zip_cmd,
                                  stdin=fix_order_proc.stdout,
                                  stdout=open(mapped_reads, "wb"))
-        fix_order_proc.stdout.close()
-        print >> run_log, shell_cmd
-        zip_proc.communicate()
-        if fifo_pid and not os.path.exists(unmapped_reads):
-          try:
-            os.kill(fifo_pid, signal.SIGTERM)
-          except:
-            pass
+           fix_order_proc.stdout.close()
+           shellcmd += "|"+ ' '.join(zip_cmd)
+        else:
+           fix_order_proc = subprocess.Popen(fix_map_cmd, 
+                                          stdin=bowtie_proc.stdout,
+                                          stdout=open(mapped_reads, "w"))
+        bowtie_proc.stdout.close()
+        shellcmd += " > " + mapped_reads
+        print >> run_log, shellcmd
+        if use_zpacker:
+            zip_proc.communicate()
+        else:
+            fix_order_proc.communicate()
+        if use_BWT_FIFO:
+            if fifo_pid and not os.path.exists(unmapped_reads):
+                try:
+                  os.kill(fifo_pid, signal.SIGTERM)
+                except:
+                  pass
     except OSError, o:
         die(fail_str+"Error: "+str(o))
             
@@ -1419,11 +1469,12 @@ def bowtie(params,
     #finish_time = datetime.now()
     #duration = finish_time - start_time
     #print >> sys.stderr, "\t\t\t[%s elapsed]" %  formatTD(duration)
-    try:
-      os.remove(unmapped_reads_fifo)
-    except:
-      pass
-    return (bwt_mapped, unmapped_reads)
+    if use_BWT_FIFO:
+        try:
+          os.remove(unmapped_reads_fifo)
+        except:
+          pass
+    return (mapped_reads, unmapped_reads)
 
 def bowtie_segment(params,
            bwt_idx_prefix,
@@ -1493,7 +1544,7 @@ def build_juncs_bwt_index(external_splice_prefix, color):
     
     #user_splices_out_prefix  = output_dir + "user_splices_idx"
     
-    bowtie_build_cmd = ["bowtie-build"]
+    bowtie_build_cmd = [prog_path("bowtie-build")]
     if color:
         bowtie_build_cmd += ["-C"]
         
@@ -1639,20 +1690,19 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
             die(fail_str+"Error: Report generation failed with err ="+str(retcode))
         
         #tmp_bam = tmp_name()+".bam"
-        sam_to_bam_cmd = ["samtools", "view", "-S", "-u", accepted_hits_sam]
+        sam_to_bam_cmd = [samtools_path, "view", "-S", "-u", accepted_hits_sam]
         sam_to_bam_log = open(logging_dir + "accepted_hits_sam_to_bam.log", "w")
         try:
           sam2bam_proc=subprocess.Popen(sam_to_bam_cmd, 
                                 stdout=subprocess.PIPE,
                                 stderr=sam_to_bam_log)
           #tmp_bam_file = open(tmp_bam, "w")
-          bamsort_cmd = ["samtools", "sort", "-", output_dir + "accepted_hits"]
-          sam_to_bam_log.close()
-          sam_to_bam_log = open(logging_dir + "accepted_hits_sam_to_bam.log", "a")
+          bamsort_cmd = [samtools_path, "sort", "-", output_dir + "accepted_hits"]
+          sort_bam_log = open(logging_dir + "accepted_hits_bam_sort.log", "w")
 
           bamsort_proc = subprocess.Popen(bamsort_cmd,
                                 stdin=sam2bam_proc.stdout,
-                                stderr=sam_to_bam_log)
+                                stderr=sort_bam_log)
           sam2bam_proc.stdout.close()
           print >> run_log, " ".join(sam_to_bam_cmd) + " | " + ' '.join(bamsort_cmd)
           bamsort_proc.communicate()
@@ -1723,10 +1773,10 @@ def split_reads(reads_filename,
     out_segfiles = []
     
     if fasta:
-        extension = ".fa.z"
+        extension = ".fa"
     else:
-        extension = ".fq.z"
-
+        extension = ".fq"
+    if use_zpacker: extension += ".z"
     def convert_color_to_bp(color_seq):
         decode_dic = { 'A0':'A', 'A1':'C', 'A2':'G', 'A3':'T', 'A4':'N', 'A.':'N', 'AN':'N',
                        'C0':'C', 'C1':'A', 'C2':'T', 'C3':'G', 'C4':'N', 'C.':'N', 'CN':'N',
@@ -1980,7 +2030,6 @@ def join_mapped_segments(params,
     
     alignments_out = open(alignments_out_name, "w")
     ##write_sam_header(params.read_params, sorted_map)
-    #zip_cmd=[ params.system_params.zipper, '-c', '-' ]
     
     header = open(sam_header_filename, "r")
     for line in header:
@@ -2067,8 +2116,11 @@ def spliced_alignment(params,
         if reads == None or os.path.getsize(reads)<25 :
             continue
         fbasename=getFileBaseName(reads)
-        unspliced_out = tmp_dir + fbasename + ".bwtout.z"
-        unmapped_unspliced = tmp_dir + fbasename + "_missing.fq.z"
+        unspliced_out = tmp_dir + fbasename + ".bwtout"
+        if use_zpacker: unspliced_out+=".z"
+        unmapped_unspliced = tmp_dir + fbasename + "_missing.fq"
+        if use_zpacker and use_BWT_FIFO:
+            unmapped_unspliced += ".z"
         num_segs = read_len / segment_len
         if read_len % segment_len >= 20:
             num_segs += 1
@@ -2134,8 +2186,11 @@ def spliced_alignment(params,
                 #seg_out =  tmp_dir + seg[tmp+1:extension] + ".bwtout"
                 #unmapped_seg = tmp_dir + seg[tmp+1:extension] + "_missing.fq"
                 fbasename=getFileBaseName(seg)
-                seg_out =  tmp_dir + fbasename + ".bwtout.z"
-                unmapped_seg = tmp_dir + fbasename + "_missing.fq.z"
+                seg_out =  tmp_dir + fbasename + ".bwtout"
+                if use_zpacker: seg_out += ".z"
+                unmapped_seg = tmp_dir + fbasename + "_missing.fq"
+                if use_BWT_FIFO:
+                    unmapped_seg += ".z"
                 extra_output = "(%d/%d)" % (i+1, len(read_segments))
                 (seg_map, unmapped) = bowtie_segment(params,
                                                      bwt_idx_prefix, 
@@ -2239,7 +2294,8 @@ def spliced_alignment(params,
                 #fsegdir=getFileDir(seg)
                 fsegname=getFileBaseName(seg)
                 ordering = maps[reads].segs[i]
-                seg_out = tmp_dir + fsegname + ".to_spliced.bwtout.z"
+                seg_out = tmp_dir + fsegname + ".to_spliced.bwtout"
+                if use_zpacker: seg_out+=".z"
                 (seg_map, unmapped) = bowtie_segment(params,
                                                      tmp_dir + junc_idx_prefix, 
                                                      seg,
@@ -2286,8 +2342,10 @@ def spliced_alignment(params,
 #                              merged_map]
                               
             merged_map = tmp_name()
+            #TODO: make sure it is safe to use a simple merge here (sort -m)
             merge_sort_cmd =["sort",
-                             "-k 1,1n", "-m",
+                             "-k1,1n", 
+                             "-m",
                               "-T"+tmp_dir,
                               maps[reads].unspliced_sam, 
                               mapped_reads]
@@ -2307,6 +2365,10 @@ def spliced_alignment(params,
         maps[reads] = [mapped_reads]
     return maps
 
+def die(msg=None):
+ if msg is not None: 
+    print >> sys.stderr, msg
+    sys.exit(1)
 
 # rough equivalent of the 'which' command to find external programs
 # (current script path is tested first, then PATH envvar)
@@ -2326,11 +2388,6 @@ def which(program):
            if is_executable(progpath):
               return progpath
     return None
-
-def die(msg=None):
- if msg is not None: 
-    print >> sys.stderr, msg
-    sys.exit(1)
 
 def prog_path(program):
     progpath=which(program)
@@ -2358,7 +2415,6 @@ def main(argv=None):
     
     # Initialize default parameter values
     params = TopHatParams()
-    
     try:
         if argv is None:
             argv = sys.argv

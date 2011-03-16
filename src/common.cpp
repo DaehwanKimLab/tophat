@@ -519,10 +519,9 @@ string getFext(const string& s) {
    return r;
    }
 
-
 string guess_packer(const string& fname, bool use_all_cpus) {
    //only needed for the primary input files (given by user)
-   string picmd;
+   string picmd("");
    string fext=getFext(fname);
    if (fext=="gz" || fext=="gzip" || fext=="z") {
       if (use_all_cpus && str_endsWith(zpacker,"pigz")) {
@@ -551,41 +550,47 @@ string guess_packer(const string& fname, bool use_all_cpus) {
   return picmd;
 }
 
-
 string getUnpackCmd(const string& fname, bool use_all_cpus) {
- string pipecmd;
- if (zpacker.empty()) {
-      pipecmd=guess_packer(fname,use_all_cpus);
+//prep_reads should use guess_packer() instead
+ string pipecmd("");
+ if (zpacker.empty() || getFext(fname)!="z") {
+      return pipecmd;
       }
-    else {
-      pipecmd=zpacker;
-      if (str_endsWith(pipecmd, "pigz") ||str_endsWith(pipecmd, "pbzip2")) {
+ pipecmd=zpacker;
+ if (str_endsWith(pipecmd, "pigz") ||str_endsWith(pipecmd, "pbzip2")) {
           if (use_all_cpus==false) pipecmd.append(" -p1");
               else if (num_cpus>1) {
                     pipecmd.append(" -p");
                     str_appendInt(pipecmd,num_cpus);
                     }
           }
-      }
  if (!pipecmd.empty()) pipecmd.append(" -cd");
  return pipecmd;
 }
 
-string getPackCmd(const string& fname, bool use_all_cpus) {
- string pipecmd;
- if (zpacker.empty()) {
-      pipecmd=guess_packer(fname, use_all_cpus);
-      }
-    else {
-      pipecmd=zpacker;
-      if (str_endsWith(pipecmd, "pigz") ||str_endsWith(pipecmd, "pbzip2")) {
-          if (use_all_cpus==false) pipecmd.append(" -p1");
-              else if (num_cpus>1) {
-                    pipecmd.append(" -p");
-                    str_appendInt(pipecmd,num_cpus);
-                    }
+void writeSamHeader(FILE* fout) {
+  if (fout==NULL) {
+    fprintf(stderr, "Error: writeSamHeader(NULL)\n");
+    exit(1);
+    }
+  if (sam_header.empty()) {
+    fprintf(stderr, 
+        "Error: writeSamHeader() with empty sam_header string\n");
+    exit(1);
+    }
+  //copy the SAM header
+  FILE* fh=fopen(sam_header.c_str(), "r");
+  if (fh==NULL) {
+       fprintf(stderr, "Error: cannot open SAM header file %s\n",
+       sam_header.c_str());
+       exit(1);
+       }
+  int ch=-1;
+  while ((ch=fgetc(fh))!=EOF) {
+    if (fputc(ch, fout)==EOF) {
+          fprintf(stderr, "Error copying SAM header\n");
+          exit(1);
           }
-      }
- if (!pipecmd.empty()) pipecmd.append(" -c");
- return pipecmd;
+    }
+  fclose(fh);
 }
