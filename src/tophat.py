@@ -231,7 +231,7 @@ class TopHatParams:
             if self.zipper:
                 xzip=which(self.zipper)
                 if not xzip:
-                    die("Error: cannot find compression program "+xzip)
+                    die("Error: cannot find compression program "+self.zipper)
     # ReadParams is a group of runtime parameters that specify various properties
     # of the user's reads (e.g. which quality scale their are on, how long the 
     # fragments are, etc).
