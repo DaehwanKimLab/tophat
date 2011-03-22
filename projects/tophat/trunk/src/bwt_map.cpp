@@ -1057,6 +1057,9 @@ void print_hit(FILE* fout,
 			break;
 		}
 	}
+
+	if (containsSplice)
+	  fprintf(fout, "\tXS:A:%c", bh.antisense_splice() ? '-' : '+');
 	
 	fprintf(fout, "\n");
 }

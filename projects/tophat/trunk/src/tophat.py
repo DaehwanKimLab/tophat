@@ -1394,6 +1394,7 @@ def bowtie(params,
                     subprocess.call(zip_cmd,
                                     stdin=open(unmapped_reads_fifo, "r"), 
                                     stdout=open(unmapped_reads, "wb"))
+
                     os._exit(os.EX_OK)
 
         fix_map_cmd = [prog_path('fix_map_ordering')]
