@@ -931,8 +931,7 @@ def check_bowtie():
     bowtie_version = get_bowtie_version()
     if bowtie_version == None:
         die("Error: Bowtie not found on this system")
-    # daehwan - check
-    elif bowtie_version[1] < 12 or bowtie_version[2] < 3:
+    elif bowtie_version[0] < 1 and bowtie_version[1] < 12 and bowtie_version[2] < 3:
         die("Error: TopHat requires Bowtie 0.12.3 or later")
     print >> sys.stderr, "\tBowtie version:\t\t\t %s" % ".".join([str(x) for x in bowtie_version])
     
@@ -1227,6 +1226,7 @@ def check_reads(params, reads_files):
     if len(observed_formats) > 1:
         die("Error: TopHat requires all reads be either FASTQ or FASTA.  Mixing formats is not supported.")
     fileformat=list(observed_formats)[0]
+
     if seed_len != None:
         seed_len = max(seed_len, min_seed_len)
     else:
@@ -1243,7 +1243,7 @@ def check_reads(params, reads_files):
         print >> sys.stderr, "\tquality scale:\t %s" % quality_scale
     elif fileformat == "fasta":
         if params.read_params.color:
-            params.integer_quals = True
+            params.read_params.integer_quals = True
     
     #print seed_len, format, solexa_scale
     return TopHatParams.ReadParams(params.read_params.solexa_quals,
@@ -2120,7 +2120,7 @@ def spliced_alignment(params,
         if use_BWT_FIFO:
             unmapped_unspliced += ".z"
         num_segs = read_len / segment_len
-        if read_len % segment_len >= 20:
+        if read_len % segment_len >= min(segment_len - 2, 20):
             num_segs += 1
         # Perform the initial Bowtie mapping of the full lenth reads
         (unspliced_map, unmapped) = bowtie(params,

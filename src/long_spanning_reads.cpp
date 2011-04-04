@@ -1216,9 +1216,11 @@ void driver(istream& ref_stream,
 	for (size_t i = 0; i < spliced_seg_files.size(); ++i)
 	{
 		int anchor_length = 0;
-		if (i == 0 || i == spliced_seg_files.size() - 1)
-			anchor_length = min_anchor_len;
-		//HitFactory* fac = new SplicedBowtieHitFactory(it, rt, i == 0 || i == spliced_seg_files.size() - 1);
+
+		// we allow read alignments even 1bp overlapping with juctions.
+		// if (i == 0 || i == spliced_seg_files.size() - 1)
+		// anchor_length = min_anchor_len;
+		
 		HitFactory* fac = new SplicedBowtieHitFactory(it, 
 							      rt, 
 							      anchor_length);

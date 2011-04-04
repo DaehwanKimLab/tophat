@@ -3323,7 +3323,7 @@ bool process_next_hit_group(RefSequenceTable& rt,
   
   if (result)
     {
-	    find_insertions_and_deletions(rt, reads_file_for_indel_discovery.file, hits_for_read, deletions, insertions);
+      find_insertions_and_deletions(rt, reads_file_for_indel_discovery.file, hits_for_read, deletions, insertions);
         find_gaps(rt, reads_file_for_segment_search.file, hits_for_read, juncs, read);
     }
   
