@@ -101,8 +101,8 @@ bool next_fasta_record(FLineReader& fr,
     seq.append(buf);
     } //line reading loop
 
-    replace(seq.begin(),seq.end(),'.','N'); //shouldn't really be needed for FASTA files
-	return !(seq.empty());
+  replace(seq.begin(), seq.end(), '.', color ? '4' : 'N'); //shouldn't really be needed for FASTA files
+  return !(seq.empty());
 }
 
 bool next_fastq_record(FLineReader& fr,
@@ -182,7 +182,8 @@ bool next_fastx_read(FLineReader& fr, Read& read, ReadFormat reads_format,
     // sequence line
     read.seq.append(buf);
     } //line reading loop
-  replace(read.seq.begin(),read.seq.end(),'.','N'); //shouldn't really be needed for FASTA files
+
+  replace(read.seq.begin(), read.seq.end(), '.', color ? '4' : 'N'); //shouldn't really be needed for FASTA files
   if (reads_format != FASTQ && frq==NULL)
       return (!read.seq.empty());
   if (frq==NULL) frq=&fr; //FASTQ
