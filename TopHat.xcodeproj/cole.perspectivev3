@@ -233,8 +233,6 @@
 			<key>Layout</key>
 			<array>
 				<dict>
-					<key>BecomeActive</key>
-					<true/>
 					<key>ContentConfiguration</key>
 					<dict>
 						<key>PBXBottomSmartGroupGIDs</key>
@@ -274,17 +272,21 @@
 								<string>ED6D622B118B5B3600A682F4</string>
 								<string>ED6D622C118B5B4000A682F4</string>
 								<string>1C37FBAC04509CD000000102</string>
+								<string>ED0EFA2C1314203A00971534</string>
+								<string>ED0EFA2D1314203A00971534</string>
 								<string>1C37FAAC04509CD000000102</string>
 							</array>
 							<key>PBXSmartGroupTreeModuleOutlineStateSelectionKey</key>
 							<array>
 								<array>
-									<integer>77</integer>
-									<integer>76</integer>
+									<integer>64</integer>
+									<integer>59</integer>
+									<integer>2</integer>
+									<integer>0</integer>
 								</array>
 							</array>
 							<key>PBXSmartGroupTreeModuleOutlineStateVisibleRectKey</key>
-							<string>{{0, 767}, {185, 733}}</string>
+							<string>{{0, 812}, {185, 733}}</string>
 						</dict>
 						<key>PBXTopSmartGroupGIDs</key>
 						<array/>
@@ -301,7 +303,7 @@
 							<real>185</real>
 						</array>
 						<key>RubberWindowFrame</key>
-						<string>501 236 1179 792 0 0 1680 1028 </string>
+						<string>741 386 1179 792 0 0 1920 1178 </string>
 					</dict>
 					<key>Module</key>
 					<string>PBXSmartGroupTreeModule</string>
@@ -312,12 +314,14 @@
 					<key>Dock</key>
 					<array>
 						<dict>
+							<key>BecomeActive</key>
+							<true/>
 							<key>ContentConfiguration</key>
 							<dict>
 								<key>PBXProjectModuleGUID</key>
 								<string>ED5C74E3118B5B0800397B5E</string>
 								<key>PBXProjectModuleLabel</key>
-								<string>juncs_db.cpp</string>
+								<string>AUTHORS</string>
 								<key>PBXSplitModuleInNavigatorKey</key>
 								<dict>
 									<key>Split0</key>
@@ -325,11 +329,11 @@
 										<key>PBXProjectModuleGUID</key>
 										<string>ED5C74E4118B5B0800397B5E</string>
 										<key>PBXProjectModuleLabel</key>
-										<string>juncs_db.cpp</string>
+										<string>AUTHORS</string>
 										<key>_historyCapacity</key>
 										<integer>0</integer>
 										<key>bookmark</key>
-										<string>ED0EFA291311855E00971534</string>
+										<string>ED0EFA321314203A00971534</string>
 										<key>history</key>
 										<array>
 											<string>EDBBA2B611DD3C040015175B</string>
@@ -360,7 +364,6 @@
 											<string>ED7CFACF1292D0F700DB052B</string>
 											<string>ED7CFAD01292D0F700DB052B</string>
 											<string>ED7CFAD11292D0F700DB052B</string>
-											<string>ED7CFAD71293654200DB052B</string>
 											<string>EDC57B3712FA2E5E00493081</string>
 											<string>EDC57B3812FA2E5E00493081</string>
 											<string>EDDC69791304DAB200637B75</string>
@@ -368,7 +371,10 @@
 											<string>ED0EFA241311855E00971534</string>
 											<string>ED0EFA251311855E00971534</string>
 											<string>ED0EFA261311855E00971534</string>
-											<string>ED0EFA281311855E00971534</string>
+											<string>ED0EFA2E1314203A00971534</string>
+											<string>ED0EFA2F1314203A00971534</string>
+											<string>ED0EFA301314203A00971534</string>
+											<string>ED0EFA311314203A00971534</string>
 										</array>
 									</dict>
 									<key>SplitCount</key>
@@ -384,7 +390,7 @@
 								<key>Frame</key>
 								<string>{{0, 0}, {972, 490}}</string>
 								<key>RubberWindowFrame</key>
-								<string>501 236 1179 792 0 0 1680 1028 </string>
+								<string>741 386 1179 792 0 0 1920 1178 </string>
 							</dict>
 							<key>Module</key>
 							<string>PBXNavigatorGroup</string>
@@ -408,8 +414,6 @@
 									<dict>
 										<key>Frame</key>
 										<string>{{10, 27}, {972, 229}}</string>
-										<key>RubberWindowFrame</key>
-										<string>501 236 1179 792 0 0 1680 1028 </string>
 									</dict>
 									<key>Module</key>
 									<string>XCDetailModule</string>
@@ -464,6 +468,8 @@
 									<dict>
 										<key>Frame</key>
 										<string>{{10, 27}, {972, 229}}</string>
+										<key>RubberWindowFrame</key>
+										<string>741 386 1179 792 0 0 1920 1178 </string>
 									</dict>
 									<key>Module</key>
 									<string>PBXBuildResultsModule</string>
@@ -688,7 +694,7 @@
 		<string>/Users/cole/develop/tophat/TopHat.xcodeproj</string>
 	</array>
 	<key>WindowString</key>
-	<string>501 236 1179 792 0 0 1680 1028 </string>
+	<string>741 386 1179 792 0 0 1920 1178 </string>
 	<key>WindowToolsV3</key>
 	<array>
 		<dict>
