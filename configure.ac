@@ -71,7 +71,7 @@ AC_CHECK_FUNCS([memset strdup strrchr strtol strsep])
 
 # set CFLAGS and CXXFLAGS
 user_CFLAGS="${CXXFLAGS}"
-generic_CFLAGS="-Wall"
+generic_CFLAGS="-Wall -Wno-strict-aliasing"
 ext_CFLAGS=""
 debug_CFLAGS="-g"
 #echo "${host_cpu}-${host_os}"

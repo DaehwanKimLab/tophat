@@ -19,7 +19,7 @@
 using namespace std;
 
 #include "common.h"
-
+#define _FBUF_SIZE 10*1024
 /*
  *  bwt_map.h
  *  TopHat
@@ -353,7 +353,7 @@ public:
                 const char* name = fh->header->target_name[i];
                 uint32_t len  = fh->header->target_len[i];
                 get_id(name, NULL, len);
-                fprintf(stderr, "SQ: %s - %d\n", name, len);
+                //fprintf(stderr, "SQ: %s - %d\n", name, len);
             }
         }
     }
@@ -471,9 +471,6 @@ typedef vector<BowtieHit> HitList;
 
 /* This class stores all the hits from a Bowtie map */
 
-// TODO: HitTable also acts like a factory for BowtieHits.  This is a poor
-// design, and should be refactored, decoupling its container and factory
-// roles.
 class HitTable
 {
 public:
@@ -518,53 +515,81 @@ private:
     uint32_t _total_hits;
 };
 
-class HitFactory
-{
-public:
-	HitFactory(ReadTable& insert_table, 
-			   RefSequenceTable& reference_table) : 
-	_insert_table(insert_table), _ref_table(reference_table) {}
-	
-	virtual ~HitFactory() {}
-	
-	BowtieHit create_hit(const string& insert_name, 
-			     const string& ref_name,
-			     int left,
-			     const vector<CigarOp>& cigar,
-			     bool antisense_aln,
-			     bool antisense_splice,
-			     unsigned char edit_dist,
-			     unsigned char splice_mms,
-			     bool end);
-	
-	BowtieHit create_hit(const string& insert_name, 
-			     const string& ref_name,
-			     uint32_t left,
-			     uint32_t read_len,
-			     bool antisense_aln,
-			     unsigned char edit_dist,
-			     bool end);
-	
-	virtual bool get_hit_from_buf(const char* bwt_buf, 
-				      BowtieHit& bh,
-				      bool strip_slash,
-				      char* name_out = NULL,
-				      char* name_tags = NULL,
-				      char* seq = NULL,
-				      char* qual = NULL) = 0;
-	
-private:
-	ReadTable& _insert_table;
-	RefSequenceTable& _ref_table;
-};
+class HitStream;
 
-class BowtieHitFactory : public HitFactory
-{
-public:
-	BowtieHitFactory(ReadTable& insert_table, 
-					 RefSequenceTable& reference_table) : 
+class HitFactory {
+   friend class HitStream;
+  public:
+    HitFactory(ReadTable& insert_table, 
+               RefSequenceTable& reference_table) : 
+    _insert_table(insert_table), _ref_table(reference_table)
+                 {}
+    virtual ~HitFactory() {}
+    virtual void openStream(HitStream& hs)=0;
+    virtual void rewind(HitStream& hs)=0;
+    virtual void closeStream(HitStream& hs)=0;
+    BowtieHit create_hit(const string& insert_name, 
+                 const string& ref_name,
+                 int left,
+                 const vector<CigarOp>& cigar,
+                 bool antisense_aln,
+                 bool antisense_splice,
+                 unsigned char edit_dist,
+                 unsigned char splice_mms,
+                 bool end);
+    
+    BowtieHit create_hit(const string& insert_name, 
+                 const string& ref_name,
+                 uint32_t left,
+                 uint32_t read_len,
+                 bool antisense_aln,
+                 unsigned char edit_dist,
+                 bool end);
+  
+   virtual string hitfile_rec(HitStream& hs, const char* hit_buf)=0;
+   virtual bool next_record(HitStream& hs, const char*& buf, size_t& buf_size) = 0;
+   virtual bool get_hit_from_buf(const char* bwt_buf, 
+                      BowtieHit& bh,
+                      bool strip_slash,
+                      char* name_out = NULL,
+                      char* name_tags = NULL,
+                      char* seq = NULL,
+                      char* qual = NULL) = 0;
+    
+  protected:
+    ReadTable& _insert_table;
+    RefSequenceTable& _ref_table;
+    HitStream* _hit_stream;
+};//class HitFactory
+
+
+class LineHitFactory  : public HitFactory {
+//for text line-based formats like Bowtie and SAM
+  public:
+	LineHitFactory(ReadTable& insert_table,
+			RefSequenceTable& reference_table) :
 		HitFactory(insert_table, reference_table) {}
-	
+
+    string hitfile_rec(HitStream& hs, const char* hit_buf) {
+      string r(hit_buf);
+      return r;
+      }
+    void openStream(HitStream& hs);
+    void rewind(HitStream& hs);
+    void closeStream(HitStream& hs);
+    bool next_record(HitStream& hs, const char*& buf, size_t& buf_size);
+   protected:
+	static const size_t _hit_buf_max_sz = 10 * 1024;
+	char _hit_buf[_hit_buf_max_sz];
+	int _line_num;
+  };
+
+class BowtieHitFactory : public LineHitFactory {
+  public:
+	BowtieHitFactory(ReadTable& insert_table, 
+			RefSequenceTable& reference_table) : 
+		LineHitFactory(insert_table, reference_table) {}
+
 	bool get_hit_from_buf(const char* bwt_buf, 
 			      BowtieHit& bh,
 			      bool strip_slash,
@@ -574,13 +599,12 @@ public:
 			      char* qual = NULL);
 };
 
-class SplicedBowtieHitFactory : public HitFactory
-{
-public:
+class SplicedBowtieHitFactory : public LineHitFactory {
+  public:
 	SplicedBowtieHitFactory(ReadTable& insert_table, 
 							RefSequenceTable& reference_table,
 							int anchor_length) : 
-	HitFactory(insert_table, reference_table),
+	LineHitFactory(insert_table, reference_table),
 	_anchor_length(anchor_length){}
 	
 	bool get_hit_from_buf(const char* bwt_buf, 
@@ -590,17 +614,17 @@ public:
 			      char* name_tags = NULL,
 			      char* seq = NULL,
 			      char* qual = NULL);
-private:
+  private:
 	int _anchor_length;
 	int _seg_offset;
+	int _size_buf;
 };
 
-class SAMHitFactory : public HitFactory
-{
-public:
+class SAMHitFactory : public LineHitFactory {
+  public:
 	SAMHitFactory(ReadTable& insert_table, 
 				  RefSequenceTable& reference_table) : 
-	HitFactory(insert_table, reference_table) {}
+	   LineHitFactory(insert_table, reference_table) {}
 	
 	bool get_hit_from_buf(const char* bwt_buf, 
 			      BowtieHit& bh,
@@ -610,6 +634,55 @@ public:
 			      char* seq = NULL,
 			      char* qual = NULL);
 };
+
+
+/******************************************************************************
+ BAMHitFactory turns SAM alignments into BowtieHits
+ *******************************************************************************/
+class BAMHitFactory : public HitFactory {
+  public:
+
+    BAMHitFactory(ReadTable& insert_table,
+                  RefSequenceTable& reference_table) :
+        HitFactory(insert_table, reference_table)
+        {
+         _sam_header=NULL;
+        }
+    void openStream(HitStream& hs);
+    void rewind(HitStream& hs);
+    void closeStream(HitStream& hs);
+
+    bool next_record(HitStream& hs, const char*& buf, size_t& buf_size);
+	
+	/*void mark_curr_pos()
+	{ 
+		_curr_pos = bgzf_tell(((samfile_t*)_hit_file)->x.bam);
+	}
+
+	
+	void undo_hit() 
+	{ 
+		bgzf_seek(((samfile_t*)_hit_file)->x.bam, _curr_pos, SEEK_SET);
+		_eof = false;
+	}
+    */
+	string hitfile_rec(HitStream& hs, const char* hit_buf);
+
+	bool get_hit_from_buf(const char* bwt_buf, 
+			      BowtieHit& bh,
+			      bool strip_slash,
+			      char* name_out = NULL,
+			      char* name_tags = NULL,
+			      char* seq = NULL,
+			      char* qual = NULL);
+private:
+	//int64_t _curr_pos;
+	//int64_t _beginning;
+	bam1_t _next_hit; 
+	bam_header_t* _sam_header;
+    bool inspect_header(HitStream& hs);
+};
+
 
 struct HitsForRead
 {
@@ -620,38 +693,111 @@ struct HitsForRead
 
 class HitStream
 {
-	
+  friend class HitFactory;
+  friend class LineHitFactory;
+  friend class BAMHitFactory;
+ //private:
+  HitFactory* _factory;
+  bool _spliced;
+  bool _strip_slash;
+  BowtieHit buffered_hit;
+  bool _keep_bufs;
+  bool _keep_seqs;
+  bool _keep_quals;
+  bool _from_bowtie;
+  void* _hit_file;
+  string _hit_file_name;
+  FZPipe* _fzpipe;
+  bool _eof;
+
 public:
-	HitStream(FILE* hit_file, 
+  HitStream(void* hit_file, //could be FILE* or samfile_t*
 		  HitFactory* hit_factory, 
 		  bool spliced, 
 		  bool strip_slash, 
 		  bool keep_bufs,
 		  bool keep_seqs = false,
-		  bool keep_quals = false) : 
-	_hit_file(hit_file),
+		  bool keep_quals = false,
+		  bool from_bowtie = false) :
 	_factory(hit_factory),
 	_spliced(spliced),
 	_strip_slash(strip_slash),
 	buffered_hit(BowtieHit()),
 	  _keep_bufs(keep_bufs),
 	  _keep_seqs(keep_seqs),
-	  _keep_quals(keep_quals)
+	  _keep_quals(keep_quals),
+	  _from_bowtie(from_bowtie),
+      _hit_file(hit_file),
+      _hit_file_name(),
+      _fzpipe(NULL),
+      _eof(false)
 	{
-		// Prime the stream by reading a single hit into the buffered_hit
-		HitsForRead dummy = HitsForRead();
-		next_read_hits(dummy);
+		primeStream();
 	}
-	
-	void reset()
+
+	HitStream(string& hit_filename,
+		  HitFactory* hit_factory,
+		  bool spliced,
+		  bool strip_slash,
+		  bool keep_bufs,
+		  bool keep_seqs = false,
+		  bool keep_quals = false,
+		  bool from_bowtie = false) :
+	_factory(hit_factory),
+	_spliced(spliced),
+	_strip_slash(strip_slash),
+	buffered_hit(BowtieHit()),
+	  _keep_bufs(keep_bufs),
+	  _keep_seqs(keep_seqs),
+	  _keep_quals(keep_quals),
+	  _from_bowtie(from_bowtie),
+      _hit_file(NULL),
+      _hit_file_name(hit_filename),
+      _fzpipe(NULL),
+      _eof(false)
 	{
-		if (_hit_file)
-			rewind(_hit_file);
-		
+	    _factory->openStream(*this);
+	    primeStream();
+	}
+
+    HitStream(FZPipe& hit_filepipe,
+          HitFactory* hit_factory,
+          bool spliced,
+          bool strip_slash,
+          bool keep_bufs,
+          bool keep_seqs = false,
+          bool keep_quals = false,
+          bool from_bowtie = false) :
+    _factory(hit_factory),
+    _spliced(spliced),
+    _strip_slash(strip_slash),
+    buffered_hit(BowtieHit()),
+      _keep_bufs(keep_bufs),
+      _keep_seqs(keep_seqs),
+      _keep_quals(keep_quals),
+      _from_bowtie(from_bowtie),
+      _hit_file(NULL),
+      _hit_file_name(),
+      _fzpipe(&hit_filepipe),
+      _eof(false)
+    {
+        _hit_file=_fzpipe->file;
+        primeStream();
+    }
+
+    void primeStream() { //why?
+      // Prime the stream by reading a single hit into the buffered_hit
+      HitsForRead dummy = HitsForRead();
+      next_read_hits(dummy);
+    }
+    bool eof() { return _eof; }
+    bool ready() { return (_hit_file!=NULL); }
+    void reset() {
+		_factory->rewind(*this);
+		_eof=false;
 		// re-prime the stream;
 		buffered_hit = BowtieHit();
-		HitsForRead dummy = HitsForRead();
-		next_read_hits(dummy);
+		primeStream();
 	}
 	
 	bool next_read_hits(HitsForRead& hits_for_read)
@@ -659,10 +805,15 @@ public:
 	  hits_for_read.hits.clear();
 	  hits_for_read.insert_id = 0; 
 	  
-	  if (!_hit_file || (feof(_hit_file) && buffered_hit.insert_id() == 0))
-	    return false;
+	  //if (!_hit_file || (feof(_hit_file) && buffered_hit.insert_id() == 0))
+	  //  return false;
+	  if (!this->ready())
+	      err_die("Error: next_read_hits() called on HitFactory with no file handle\n");
+      if (this->eof() && buffered_hit.insert_id() == 0) {
+              return false;
+              }
 	  
-	  char bwt_buf[2048]; bwt_buf[0] = 0;
+	  //char bwt_buf[2048]; bwt_buf[0] = 0;
 	  char bwt_seq[2048]; bwt_seq[0] = 0;
 	  char bwt_qual[2048]; bwt_qual[0] = 0;
 	  
@@ -672,54 +823,43 @@ public:
 	  hits_for_read.insert_id = buffered_hit.insert_id();
 	  if (hits_for_read.insert_id)
 	    hits_for_read.hits.push_back(buffered_hit);
-	  
-	  while (1)
-	    {
-	      if (fgets(bwt_buf, sizeof(bwt_buf), _hit_file) == NULL)
-		{
-		  buffered_hit = BowtieHit();
-		  break;
-		}
-
-	      // Chomp the newline
-	      char* nl = strrchr(bwt_buf, '\n');
-	      if (nl) *nl = 0;
-	      //string clean_buf = bwt_buf;
-	      // Get a new record from the tab-delimited Bowtie map
-	      BowtieHit bh;
-	      if (_factory->get_hit_from_buf(bwt_buf, bh, _strip_slash, NULL, NULL, seq, qual))
-		{
+	  const char* hit_buf;
+      size_t hit_buf_size = 0;
+	  while (true) {
+		if (!_factory->next_record(*this, hit_buf, hit_buf_size)) {
+		              buffered_hit = BowtieHit();
+		              break; }
+		  //string clean_buf = bwt_buf;
+		  // Get a new record from the tab-delimited Bowtie map
+		BowtieHit bh;
+		if (_factory->get_hit_from_buf(hit_buf, bh, _strip_slash, 
+		                         NULL, NULL, seq, qual)) {
 		  if (_keep_bufs)
-		    bh.hitfile_rec(bwt_buf);
+		    bh.hitfile_rec(_factory->hitfile_rec(*this, hit_buf));
 		  
 		  if (_keep_seqs)
 		      bh.seq(seq);
 		  
-		  if (_keep_quals)
-		    {
-		      // when it comes to convert from qual in color to qual in bp,
-		      // we need to fill in the two extream qual values using the adjacent qual values.
-		      size_t qual_len = strlen(qual);
-		      if (color && !color_out && qual_len > 2)
-			{
+		  if (_keep_quals) {
+		    // when it comes to convert from qual in color to qual in bp,
+		    // we need to fill in the two extream qual values using the adjacent qual values.
+		    size_t qual_len = strlen(qual);
+		    if (color && !color_out && qual_len > 2) {
 			  qual[0] = qual[1];
 			  qual[qual_len-1] = qual[qual_len-2];
-			}
-		      
-		      bh.qual(qual);
+			  }
+			bh.qual(qual);
 		    }
 		  
-		  if (bh.insert_id() == hits_for_read.insert_id)
-		    {
+		  if (bh.insert_id() == hits_for_read.insert_id) {
 		      hits_for_read.hits.push_back(bh);
-		    }
-		  else
-		    {
+		      }
+		  else {
 		      buffered_hit = bh;
 		      break;
-		    }
-		}
-	    }
+		      }
+		  } //hit parsed
+	    } //while reading hits
 	  
 	  return (!hits_for_read.hits.empty() && hits_for_read.insert_id != 0);
 	}
@@ -728,16 +868,7 @@ public:
 	{
 		return buffered_hit.insert_id();
 	}
-	
-private:
-	FILE* _hit_file;
-	HitFactory* _factory;
-	bool _spliced;
-	bool _strip_slash;
-	BowtieHit buffered_hit;
-	bool _keep_bufs;
-	bool _keep_seqs;
-	bool _keep_quals;
+	bool fromBowtie() { return _from_bowtie; }
 };
 
 typedef uint32_t MateStatusMask;
@@ -757,6 +888,7 @@ void add_hit_to_coverage(const BowtieHit& bh, vector<unsigned int>& DoC);
 
 void accept_all_hits(HitTable& hits);
 
+//print BowtieHit as SAM line
 void print_hit(FILE* fout, 
 	       const char* read_name,
 	       const BowtieHit& bh,
@@ -764,6 +896,15 @@ void print_hit(FILE* fout,
 	       const char* sequence,
 	       const char* qualities,
 	       bool from_bowtie = false);
+
+//print BowtieHit as BAM record
+void print_bamhit(GBamWriter& wbam,
+           const char* read_name,
+           const BowtieHit& bh,
+           const char* ref_name,
+           const char* sequence,
+           const char* qualities,
+           bool from_bowtie = false);
 
 /**
  * Convert a vector of CigarOps to a string representation 

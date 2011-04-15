@@ -16,11 +16,13 @@
 #include <iostream>
 #include <set>
 #include <vector>
+#include <cmath>
 
 #include "common.h"
 #include "bwt_map.h"
 #include "tokenize.h"
 #include "reads.h"
+
 using namespace std;
 
 void HitTable::add_hit(const BowtieHit& bh, bool check_uniqueness)
@@ -83,6 +85,134 @@ bool hit_insert_id_lt(const BowtieHit& h1, const BowtieHit& h2)
 {
 	return h1.insert_id() < h2.insert_id();
 }
+
+void LineHitFactory::openStream(HitStream& hs)
+{
+ if (hs._hit_file==NULL && !hs._hit_file_name.empty()) {
+    //open the file for HitStream here
+   hs._hit_file=fopen(hs._hit_file_name.c_str(),"r");
+    if (hs._hit_file==NULL)
+      err_die("Error opening HitStream file %s\n",hs._hit_file_name.c_str());
+    return;
+    }
+ if (hs._fzpipe!=NULL) {
+   hs._hit_file=hs._fzpipe->file;
+   }
+}
+
+void LineHitFactory::rewind(HitStream& hs)
+{
+  if (hs._fzpipe!=NULL) {
+        hs._fzpipe->rewind();
+        hs._hit_file=hs._fzpipe->file;
+        }
+        else ::rewind((FILE*)(hs._hit_file));
+}
+
+bool LineHitFactory::next_record(HitStream& hs, const char*& buf, size_t& buf_size) {
+     FILE* f=(FILE *)(hs._hit_file);
+     bool new_rec = (fgets(_hit_buf,  _hit_buf_max_sz - 1, f)!=NULL);
+     if (!new_rec || feof(f)) {
+             hs._eof=true;
+             return false;
+             }
+     ++_line_num;
+     char* nl = strrchr(_hit_buf, '\n');
+     if (nl) *nl = 0;
+     buf = _hit_buf;
+     buf_size = _hit_buf_max_sz - 1;
+     return true;
+     }
+
+void LineHitFactory::closeStream(HitStream& hs) {
+  if (hs._fzpipe!=NULL) {
+     hs._fzpipe->close();
+     return;
+     }
+  if (hs._hit_file!=NULL) {
+    //if (hs._hit_file_name.empty())
+    //    fprintf(stderr, "Warning: HitFactory closing HitStream with no file name!\n");
+    fclose((FILE*)(hs._hit_file));
+    hs._hit_file=NULL;
+    }
+}
+void BAMHitFactory::openStream(HitStream& hs) {
+  if (hs._hit_file==NULL) {
+     if (hs._hit_file_name.empty())
+         err_die("Error: invalid HitStream set for BAMHitFactory(file name missing)\n");
+     //open the file here if not already open
+     string fext=getFext(hs._hit_file_name);
+     if (fext=="sam")
+          hs._hit_file = samopen(hs._hit_file_name.c_str(), "r", 0);
+        else
+          hs._hit_file = samopen(hs._hit_file_name.c_str(), "rb", 0);
+
+     samfile_t* sam_file=(samfile_t*)(hs._hit_file);
+
+     if (sam_file == NULL)
+         err_die("Error opening SAM file %s\n", hs._hit_file_name.c_str());
+     if (sam_file->header == NULL)
+         err_die("Error: no SAM header found for file %s\n", hs._hit_file_name.c_str());
+     memset(&_next_hit, 0, sizeof(_next_hit));
+     //_beginning = bgzf_tell(sam_file->x.bam);
+     _sam_header=sam_file->header;
+     if (inspect_header(hs) == false)
+         err_die("Error: could not parse SAM header for file %s\n",
+                 hs._hit_file_name.c_str());
+
+     }
+}
+
+void BAMHitFactory::closeStream(HitStream& hs) {
+  if (hs._hit_file) {
+        samclose((samfile_t*)(hs._hit_file));
+        }
+  hs._hit_file=NULL;
+  _sam_header=NULL;
+}
+
+void BAMHitFactory::rewind(HitStream& hs)
+{
+  /*
+    if (_hit_file && ((samfile_t*)_hit_file)->x.bam)
+    {
+        bgzf_seek(((samfile_t*)_hit_file)->x.bam, _beginning, SEEK_SET);
+         _eof = false;
+    }
+    */
+  this->closeStream(hs);
+  this->openStream(hs);
+}
+
+string BAMHitFactory::hitfile_rec(HitStream& hs, const char* hit_buf) {
+  string sam_line;
+  const bam1_t* bamrec=(const bam1_t*)hit_buf;
+  sam_line=bam_format1(((samfile_t*)(hs._hit_file))->header, bamrec);
+  return sam_line;
+  }
+
+bool BAMHitFactory::next_record(HitStream& hs, const char*& buf, size_t& buf_size) {
+  if (_next_hit.data) {
+      free(_next_hit.data);
+      _next_hit.data = NULL;
+      }
+  _sam_header=((samfile_t*)(hs._hit_file))->header; //needed by get_hit_from_buf later on
+  if (hs.eof() || !hs.ready()) return false;
+
+  //mark_curr_pos();
+
+  memset(&_next_hit, 0, sizeof(_next_hit));
+
+  int bytes_read = samread((samfile_t*)(hs._hit_file), &_next_hit);
+  if (bytes_read <= 0) {
+      hs._eof = true;
+      return false;
+      }
+  buf = (const char*)&_next_hit;
+  buf_size = bytes_read;
+  return true;
+  }
+
 
 BowtieHit HitFactory::create_hit(const string& insert_name, 
 				 const string& ref_name,
@@ -825,6 +955,259 @@ bool SAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 	return false;
 }
 
+
+
+bool BAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf, 
+				 BowtieHit& bh, bool strip_slash,
+				char* name_out, char* name_tags,
+				char* seq, char* qual) {
+    if (_sam_header==NULL)
+      err_die("Error: no SAM header when BAMHitFactory::get_hit_from_buf()!");
+	const bam1_t* hit_buf = (const bam1_t*)orig_bwt_buf;
+
+
+	uint32_t sam_flag = hit_buf->core.flag;
+	
+	int text_offset = hit_buf->core.pos;
+	int text_mate_pos = hit_buf->core.mpos;
+	int target_id = hit_buf->core.tid;
+	int mate_target_id = hit_buf->core.mtid;
+	
+	vector<CigarOp> cigar;
+	bool spliced_alignment = false;
+	int num_hits = 1;
+	
+	double mapQ = hit_buf->core.qual;
+	long double error_prob;
+	if (mapQ > 0)
+	{
+		long double p = (-1.0 * mapQ) / 10.0;
+		error_prob = pow(10.0L, p);
+	}
+	else
+	{
+		error_prob = 1.0;
+	}
+
+	//header->target_name[c->tid]
+	
+    bool end = true;
+    unsigned int seg_offset = 0;
+    unsigned int seg_num = 0;
+    unsigned int num_segs = 0;
+    // Copy the tag out of the name field before we might wipe it out
+    char* qname = bam1_qname(hit_buf);
+    char* pipe = strrchr(qname, '|');
+    if (pipe)
+    {
+        if (name_tags)
+            strcpy(name_tags, pipe);
+
+        char* tag_buf = pipe + 1;
+        if (strchr(tag_buf, ':'))
+          {
+            sscanf(tag_buf, "%u:%u:%u", &seg_offset, &seg_num, &num_segs);
+            if (seg_num + 1 == num_segs)
+              end = true;
+            else
+              end = false;
+          }
+
+        *pipe = 0;
+    }
+
+
+	if (target_id < 0)	{
+		//assert(cigar.size() == 1 && cigar[0].opcode == MATCH);
+	    bh = create_hit(qname,
+	                "*", //ref_name
+	                0, //left coord
+	                0, //read_len
+	                false, //antisense_aln
+	                0, //edit_dist
+	                end);
+		return true;
+	}
+	
+	//string text_name = ((samfile_t*)(hs._hit_file))->header->target_name[target_id];
+	string text_name = _sam_header->target_name[target_id];
+	for (int i = 0; i < hit_buf->core.n_cigar; ++i) 
+	{
+		//char* t;
+
+		int length = bam1_cigar(hit_buf)[i] >> BAM_CIGAR_SHIFT;
+		if (length <= 0)
+		{
+			fprintf (stderr, "BAM error: CIGAR op has zero length\n");
+			return false;
+		}
+		
+		CigarOpCode opcode;
+		switch(bam1_cigar(hit_buf)[i] & BAM_CIGAR_MASK)
+		{
+			case BAM_CMATCH: opcode  = MATCH; break; 
+			case BAM_CINS: opcode  = INS; break;
+			case BAM_CDEL: opcode  = DEL; break; 
+			case BAM_CSOFT_CLIP: opcode  = SOFT_CLIP; break;
+			case BAM_CHARD_CLIP: opcode  = HARD_CLIP; break;
+			case BAM_CPAD: opcode  = PAD; break; 
+			case BAM_CREF_SKIP:
+				opcode = REF_SKIP;
+				spliced_alignment = true;
+				if (length > (int)max_report_intron_length)
+				{
+					//fprintf(stderr, "Encounter REF_SKIP > max_gene_length, skipping\n");
+					return false;
+				}
+				break;
+			default:
+				fprintf (stderr, "BAM read: invalid CIGAR operation\n");
+				return false;
+		}
+		if (opcode != HARD_CLIP)
+			cigar.push_back(CigarOp(opcode, length));
+	}
+	
+	string mrnm;
+	if (mate_target_id >= 0) {
+		if (mate_target_id == target_id) {
+			//mrnm = ((samfile_t*)(hs._hit_file))->header->target_name[mate_target_id];
+		    mrnm = _sam_header->target_name[mate_target_id];
+		    }
+		else {
+			//fprintf(stderr, "Trans-spliced mates are not currently supported, skipping\n");
+			return false;
+		    }
+	   }
+	else {
+	   text_mate_pos = 0;
+	   }
+	//CuffStrand source_strand = CUFF_STRAND_UNKNOWN;
+	bool antisense_splice=false;
+	unsigned char num_mismatches = 0;
+    unsigned char num_splice_anchor_mismatches = 0;
+
+	uint8_t* ptr = bam_aux_get(hit_buf, "XS");
+	if (ptr) {
+		char src_strand_char = bam_aux2A(ptr);
+		if (src_strand_char == '-')
+			antisense_splice = true;
+		// else if (src_strand_char == '+')
+		//	source_strand = CUFF_FWD;
+	    }
+
+	ptr = bam_aux_get(hit_buf, "NM");
+	if (ptr) {
+		num_mismatches = bam_aux2i(ptr);
+		}
+
+	ptr = bam_aux_get(hit_buf, "NH");
+	if (ptr) {
+		num_hits = bam_aux2i(ptr);
+		}
+	
+    //bool antisense_aln = bam1_strand(hit_buf);
+    
+    //if (_rg_props.strandedness() == STRANDED_PROTOCOL && source_strand == CUFF_STRAND_UNKNOWN)
+	//	source_strand = use_stranded_protocol(sam_flag, antisense_aln, _rg_props.mate_strand_mapping());
+	if (spliced_alignment)	{
+      //if (source_strand == CUFF_STRAND_UNKNOWN) {
+      //  fprintf(stderr, "BAM record error: found spliced alignment without XS attribute\n");
+      //  }
+      bh = create_hit(qname,
+                      text_name,
+                      text_offset,  // BAM files are 0-indexed
+                      cigar,
+                      sam_flag & 0x0010,
+                      antisense_splice,
+                      num_mismatches,
+                      num_splice_anchor_mismatches,
+                      end);
+
+		}
+	else {
+      //assert(_rg_props.strandedness() == STRANDED_PROTOCOL || source_strand == CUFF_STRAND_UNKNOWN);
+      //assert(cigar.size() == 1 && cigar[0].opcode == MATCH);
+      bh = create_hit(qname,
+                        text_name,
+                        text_offset,  // BAM files are 0-indexed
+                        cigar,
+                        sam_flag & 0x0010,
+                        false,
+                        num_mismatches,
+                        0,
+                        end);
+     }
+    if (seq!=NULL) {
+       char *bseq = (char*)bam1_seq(hit_buf);
+       for(int i=0;i<(hit_buf->core.l_qseq);i++) {
+         char v = bam1_seqi(bseq,i);
+         seq[i]=bam_nt16_rev_table[v];
+         }
+       seq[hit_buf->core.l_qseq]=0;
+       }
+    if (qual!=NULL) {
+       char *bq  = (char*)bam1_qual(hit_buf);
+       for(int i=0;i<(hit_buf->core.l_qseq);i++) {
+          qual[i]=bq[i]+33;
+          }
+       qual[hit_buf->core.l_qseq]=0;
+       }
+    return true;
+}
+
+static const unsigned MAX_HEADER_LEN = 4 * 1024 * 1024; // 4 MB
+
+bool BAMHitFactory::inspect_header(HitStream& hs)
+{
+    bam_header_t* header = ((samfile_t*)(hs._hit_file))->header;
+    
+    if (header == NULL)
+    {
+        fprintf(stderr, "Warning: No BAM header\n");
+        return false;
+    }
+    
+    if (header->l_text >= MAX_HEADER_LEN)
+    {
+        fprintf(stderr, "Warning: BAM header too large\n");
+        return false;
+    }
+
+	if (header->l_text == 0)
+	{
+		fprintf(stderr, "Warning: BAM header has 0 length or is corrupted.  Try using 'samtools reheader'.\n");
+        return false;
+	}
+	
+	
+    if (header->text != NULL)
+    {
+        char* h_text = strdup(header->text);
+        char* pBuf = h_text;
+        while(pBuf - h_text < header->l_text)
+        {
+            char* nl = strchr(pBuf, '\n');
+            if (nl) 
+            {
+                *nl = 0; 
+                //parse_header_string(pBuf, _rg_props);
+                pBuf = ++nl;
+            }
+            else 
+            {
+                pBuf = h_text + header->l_text;
+            }
+        }
+        
+        free(h_text);
+    }
+    
+    //finalize_rg_props();
+    return true;
+}
+
+
 void get_mapped_reads(FILE* bwtf, 
 					  HitTable& hits, 
 					  HitFactory& hit_factory,
@@ -1060,8 +1443,140 @@ void print_hit(FILE* fout,
 
 	if (containsSplice)
 	  fprintf(fout, "\tXS:A:%c", bh.antisense_splice() ? '-' : '+');
-	
+
 	fprintf(fout, "\n");
+}
+
+void print_bamhit(GBamWriter& wbam,
+           const char* read_name,
+           const BowtieHit& bh,
+           const char* ref_name,
+           const char* sequence,
+           const char* qualities,
+           bool from_bowtie)
+{
+    string seq;
+    string quals;
+    if (sequence) {
+        seq = sequence;
+        quals = qualities;
+        seq.resize(bh.read_len());
+        quals.resize(bh.read_len());
+        }
+      else {
+        seq = "*";
+        }
+    if (qualities) {
+        quals = qualities;
+        quals.resize(bh.read_len());
+    }
+    else
+    {
+        quals = "*";
+    }
+
+    uint32_t sam_flag = 0;
+    if (bh.antisense_align())
+    {
+        sam_flag |= 0x0010; // BAM_FREVERSE
+        if (sequence && !from_bowtie)  // if it is from bowtie hit, it's already reversed.
+          {
+            reverse_complement(seq);
+            reverse(quals.begin(), quals.end());
+          }
+    }
+
+    uint32_t sam_pos = bh.left() + 1;
+    uint32_t map_quality = 255;
+    char cigar[256];
+    cigar[0] = 0;
+    string mate_ref_name = "*";
+    uint32_t mate_pos = 0;
+    uint32_t insert_size = 0;
+    //string qualities = "*";
+
+    const vector<CigarOp>& bh_cigar = bh.cigar();
+    /*
+     * In addition to calculating the cigar string,
+     * we need to figure out how many in/dels are in the
+     * sequence, so that we can give the correct
+     * value for the NM tag
+     */
+    int indel_distance = 0;
+    for (size_t c = 0; c < bh_cigar.size(); ++c)
+    {
+        char ibuf[64];
+        sprintf(ibuf, "%d", bh_cigar[c].length);
+        switch(bh_cigar[c].opcode)
+        {
+            case MATCH:
+                strcat(cigar, ibuf);
+                strcat(cigar, "M");
+                break;
+            case INS:
+                strcat(cigar, ibuf);
+                strcat(cigar, "I");
+                indel_distance += bh_cigar[c].length;
+                break;
+            case DEL:
+                strcat(cigar, ibuf);
+                strcat(cigar, "D");
+                indel_distance += bh_cigar[c].length;
+                break;
+            case REF_SKIP:
+                strcat(cigar, ibuf);
+                strcat(cigar, "N");
+                break;
+            default:
+                break;
+        }
+    }
+
+    //string q = string(bh.read_len(), '!');
+    //string s = string(bh.read_len(), 'N');
+    /*
+    fprintf(fout,
+            "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s",
+            read_name,
+            sam_flag,
+            ref_name,
+            sam_pos,
+            map_quality,
+            cigar,
+            mate_ref_name.c_str(),
+            mate_pos,
+            insert_size,
+            seq.c_str(),
+            quals.c_str());
+
+    fprintf(fout, "\tNM:i:%d", bh.edit_dist() + indel_distance);
+    */
+    vector<string> auxdata;
+    string nm("NM:i:");
+    str_appendInt(nm, bh.edit_dist() + indel_distance);
+    auxdata.push_back(nm);
+    bool containsSplice = false;
+    for(vector<CigarOp>::const_iterator itr = bh.cigar().begin(); itr != bh.cigar().end(); ++itr)
+       if(itr->opcode == REF_SKIP){
+            containsSplice = true;
+            break;
+            }
+
+    if (containsSplice) {
+       //fprintf(fout, "\tXS:A:%c", bh.antisense_splice() ? '-' : '+');
+       nm="XS:A:";
+       nm+=(char)(bh.antisense_splice() ? '-' : '+');
+       auxdata.push_back(nm);
+       }
+
+    GBamRecord *brec = wbam.new_record(read_name, sam_flag, ref_name, sam_pos, map_quality,
+                        cigar, mate_ref_name.c_str(), mate_pos,
+                        insert_size, seq.c_str(), quals.c_str(), &auxdata);
+                        
+    
+    
+    wbam.write(brec);
+    delete brec;
 }
 
 /**

@@ -150,7 +150,6 @@ inline char* strMax(char *arg1, char *arg2) {
     return (strcmp(arg2, arg1) < 0)? arg1 : arg2;
 }
 
-
 inline int iround(double x) {
    return (int)floor(x + 0.5);
 }
@@ -287,7 +286,11 @@ char* strifind(char* str,  const char* substr);
 //Determines if a string begins with a given prefix
 //(returns false when any of the params is NULL,
 // but true when prefix is '' (empty string)!)
-bool startsWith(char* s, const char* prefix);
+bool startsWith(const char* s, const char* prefix);
+
+bool endsWith(const char* s, const char* suffix);
+//Note: returns true if suffix is empty string, but false if it's NULL
+
 
 // ELF hash function for strings
 int strhash(const char* str);
