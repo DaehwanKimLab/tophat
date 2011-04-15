@@ -33,17 +33,17 @@ void print_usage()
 
 void read_transcripts(FILE* f, GffReader& gffr) { 
   //assume gffr was just created but not initialized
-  gffr.init(f, false, true); //(gffile, mRNA-only, sortByLoc)
+  gffr.init(f, true, true); //(gffile, mRNA-only, sortByLoc)
   gffr.showWarnings(verbose);
   gffr.readAll(true, true, true); //(keepAttr, mergeCloseExons, noExonAttr)
   //now all parsed GffObjs are in gffr.gflst, grouped by genomic sequence
   }
 
+
 uint32_t get_junctions_from_gff(FILE* ref_mRNA_file,
                                 RefSequenceTable& rt)
 {
-	//GList<GSeqData> ref_rnas;
-	GffReader gff_reader;
+	GffReader gff_reader(ref_mRNA_file, true); //only recognizable transcript features, sort them by locus
 	if (ref_mRNA_file)
 	{
 		read_transcripts(ref_mRNA_file, gff_reader);
@@ -57,6 +57,22 @@ uint32_t get_junctions_from_gff(FILE* ref_mRNA_file,
 	for (int i=0;i<gff_reader.gflst.Count();i++) {
 		//ref data is grouped by genomic sequence
 		GffObj& rna = *(gff_reader.gflst[i]);
+		uint tlen=rna.len();
+		if (rna.hasErrors() || (tlen+500>GFF_MAX_LOCUS)) { //should probably report these in a file too..
+			//if (verbose) 
+			GMessage("Warning: transcript %s discarded (structural errors found, length=%d).\n", rna.getID(), tlen);
+			continue;
+			}
+		if (rna.isDiscarded()) {
+			//discarded generic "gene" or "locus" features with no other detailed subfeatures
+			continue;
+			}
+		if (rna.exons.Count()==0) {
+				//if (verbose)
+				// GMessage("Warning: %s %s found without exon segments (adding default exon).\n",rna.getFeatureName(), rna.getID());
+				rna.addExon(rna.start,rna.end);
+				}
+
 		if (rna.gseq_id!=last_gseqid) {
 		    gseqname=rna.getGSeqName();
 		    rt.get_id(gseqname, NULL, 0);
@@ -71,7 +87,6 @@ uint32_t get_junctions_from_gff(FILE* ref_mRNA_file,
 		    uniq_juncs.insert(make_pair(gseqname, make_pair(prex.end - 1, ex.start - 1)));
 		    }
 		} //for each loaded GFF record
-
 	return uniq_juncs.size();
 }
 

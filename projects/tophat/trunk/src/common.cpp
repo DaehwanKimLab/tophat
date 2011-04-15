@@ -13,7 +13,7 @@
 
 #include <iostream>
 #include <sstream>
-#include <stdarg.h>
+#include <cstdarg>
 #include <getopt.h>
 
 #include "common.h"
@@ -67,6 +67,7 @@ string gff_file = "";
 string ium_reads = "";
 string sam_header = "";
 string zpacker = "";
+string samtools_path = "samtools";
 
 bool solexa_quals = false;
 bool phred64_quals = false;
@@ -204,7 +205,8 @@ enum
     OPT_MAX_DELETION_LENGTH,
     OPT_MAX_INSERTION_LENGTH,
     OPT_NUM_CPUS,
-    OPT_ZPACKER
+    OPT_ZPACKER,
+    OPT_SAMTOOLS
   };
 
 static struct option long_options[] = {
@@ -248,6 +250,8 @@ static struct option long_options[] = {
 {"max-insertion-length", required_argument, 0, OPT_MAX_INSERTION_LENGTH},
 {"num-threads", required_argument, 0, OPT_NUM_CPUS},
 {"zpacker", required_argument, 0, OPT_ZPACKER},
+{"samtools", required_argument, 0, OPT_SAMTOOLS},
+
 {0, 0, 0, 0} // terminator
 };
 
@@ -406,6 +410,9 @@ int parse_options(int argc, char** argv, void (*print_usage)())
     case OPT_ZPACKER:
       zpacker =  optarg;
       break;
+    case OPT_SAMTOOLS:
+      samtools_path =  optarg;
+      break;
     case 'p':
     case OPT_NUM_CPUS:
       num_cpus=parseIntOpt(1,"-p/--num-threads must be at least 1",print_usage);
@@ -487,10 +494,8 @@ void FZPipe::rewind() {
           return;
           }
       }
-  if (filename.empty()) {
-        fprintf(stderr, "Error: FZStream::rewind() failed (missing filename)!\n");
-        exit(1);
-        }
+  if (filename.empty())
+      err_die("Error: FZStream::rewind() failed (missing filename)!\n");
   this->close();
   string pcmd(pipecmd);
   pcmd.append(" '");
@@ -498,8 +503,7 @@ void FZPipe::rewind() {
   pcmd.append("'");
   file=popen(pcmd.c_str(), "r");
   if (file==NULL) {
-    fprintf(stderr, "Error: FZStream::rewind() popen(%s) failed!\n",pcmd.c_str());
-    exit(1);
+    err_die("Error: FZStream::rewind() popen(%s) failed!\n",pcmd.c_str());
     }
  }
 
@@ -550,10 +554,30 @@ string guess_packer(const string& fname, bool use_all_cpus) {
   return picmd;
 }
 
+/*
+string getBam2SamCmd(const string& fname) {
+   string pipecmd("");
+   string fext=getFext(fname);
+   if (fext=="bam") {
+      pipecmd=samtools_path;
+      pipecmd.append(" view");
+      }
+  return pipecmd;
+}
+*/
+
+void err_die(const char* format,...) { // Error exit
+  va_list arguments;
+  va_start(arguments,format);
+  vfprintf(stderr,format,arguments);
+  va_end(arguments);
+  exit(1);
+}
+
 string getUnpackCmd(const string& fname, bool use_all_cpus) {
 //prep_reads should use guess_packer() instead
  string pipecmd("");
- if (zpacker.empty() || getFext(fname)!="z") {
+ if (zpacker.empty() || getFext(fname)!="z") { 
       return pipecmd;
       }
  pipecmd=zpacker;
@@ -568,29 +592,270 @@ string getUnpackCmd(const string& fname, bool use_all_cpus) {
  return pipecmd;
 }
 
-void writeSamHeader(FILE* fout) {
-  if (fout==NULL) {
-    fprintf(stderr, "Error: writeSamHeader(NULL)\n");
-    exit(1);
-    }
-  if (sam_header.empty()) {
-    fprintf(stderr, 
-        "Error: writeSamHeader() with empty sam_header string\n");
-    exit(1);
-    }
+void checkSamHeader() {
+  if (sam_header.empty())
+    err_die("Error: writeSamHeader() with empty sam_header string\n");
   //copy the SAM header
   FILE* fh=fopen(sam_header.c_str(), "r");
-  if (fh==NULL) {
-       fprintf(stderr, "Error: cannot open SAM header file %s\n",
-       sam_header.c_str());
-       exit(1);
-       }
+  if (fh==NULL)
+       err_die("Error: cannot open SAM header file %s\n",sam_header.c_str());
+  fclose(fh);
+}
+
+void writeSamHeader(FILE* fout) {
+  if (fout==NULL)
+    err_die("Error: writeSamHeader(NULL)\n");
+  checkSamHeader();
+  //copy the SAM header
+  FILE* fh=fopen(sam_header.c_str(), "r");
   int ch=-1;
   while ((ch=fgetc(fh))!=EOF) {
-    if (fputc(ch, fout)==EOF) {
-          fprintf(stderr, "Error copying SAM header\n");
-          exit(1);
-          }
+    if (fputc(ch, fout)==EOF)
+          err_die("Error copying SAM header\n");
     }
   fclose(fh);
 }
+
+//auxiliary functions for BAM record handling
+uint8_t* realloc_bdata(bam1_t *b, int size) {
+  if (b->m_data < size) {
+        b->m_data = size;
+        kroundup32(b->m_data);
+        b->data = (uint8_t*)realloc(b->data, b->m_data);
+        b->data_len=size;
+        }
+  return b->data;
+}
+
+uint8_t* dupalloc_bdata(bam1_t *b, int size) {
+  //same as realloc_bdata, but does not free previous data
+  //but returns it instead
+  //it ALWAYS duplicates data
+  b->m_data = size;
+  kroundup32(b->m_data);
+  uint8_t* odata=b->data;
+  b->data = (uint8_t*)malloc(b->m_data);
+  memcpy((void*)b->data, (void*)odata, b->data_len);
+  b->data_len=size;
+  return odata; //user must FREE this after
+}
+
+extern unsigned short bam_char2flag_table[];
+
+GBamRecord::GBamRecord(const char* qname, int32_t gseq_tid,
+                 int pos, bool reverse, const char* qseq, const char* cigar, const char* quals) {
+   novel=true;
+   b=bam_init1();
+   b->core.tid=gseq_tid;
+   if (pos<=0) {
+               b->core.pos=-1; //unmapped
+               //if (gseq_tid<0)
+               b->core.flag |= BAM_FUNMAP;
+               }
+          else b->core.pos=pos-1; //BAM is 0-based
+   b->core.qual=255;
+   int l_qseq=strlen(qseq);
+   //this may not be accurate, setting CIGAR is the correct way
+   //b->core.bin = bam_reg2bin(b->core.pos, b->core.pos+l_qseq-1);
+   b->core.l_qname=strlen(qname)+1; //includes the \0 at the end
+   memcpy(realloc_bdata(b, b->core.l_qname), qname, b->core.l_qname);
+   set_cigar(cigar); //this will also set core.bin
+   add_sequence(qseq, l_qseq);
+   add_quals(quals); //quals must be given as Phred33
+   if (reverse) { b->core.flag |= BAM_FREVERSE ; }
+   }
+
+GBamRecord::GBamRecord(const char* qname, int32_t flags, int32_t g_tid,
+             int pos, int map_qual, const char* cigar, int32_t mg_tid, int mate_pos,
+             int insert_size, const char* qseq, const char* quals,
+             const vector<string>* aux_strings) {
+  novel=true;
+  b=bam_init1();
+  b->core.tid=g_tid;
+  b->core.pos = (pos<=0) ? -1 : pos-1; //BAM is 0-based
+  b->core.qual=map_qual;
+  int l_qseq=strlen(qseq);
+  b->core.l_qname=strlen(qname)+1; //includes the \0 at the end
+  memcpy(realloc_bdata(b, b->core.l_qname), qname, b->core.l_qname);
+  set_cigar(cigar); //this will also set core.bin
+  add_sequence(qseq, l_qseq);
+  add_quals(quals); //quals must be given as Phred33
+  set_flags(flags);
+  set_mdata(mg_tid, (int32_t)(mate_pos-1), (int32_t)insert_size);
+  if (aux_strings!=NULL) {
+    for (vector<string>::const_iterator itr=aux_strings->begin();
+              itr!=aux_strings->end(); ++itr) {
+       add_aux(itr->c_str());
+       }
+    }
+}
+ void GBamRecord::set_cigar(const char* cigar) {
+   //requires b->core.pos and b->core.flag to have been set properly PRIOR to this call
+   int doff=b->core.l_qname;
+   uint8_t* after_cigar=NULL;
+   int after_cigar_len=0;
+   uint8_t* prev_bdata=NULL;
+   if (b->data_len>doff) {
+      //cigar string already allocated, replace it
+      int d=b->core.l_qname + b->core.n_cigar * 4;//offset of after-cigar data
+      after_cigar=b->data+d;
+      after_cigar_len=b->data_len-d;
+      }
+   const char *s;
+   char *t;
+   int i, op;
+   long x;
+   b->core.n_cigar = 0;
+   if (cigar!=NULL && cigar[0] != '*') {
+        for (s = cigar; *s; ++s) {
+            if (isalpha(*s)) b->core.n_cigar++;
+            else if (!isdigit(*s)) {
+                 err_die("Error: invalid CIGAR character (%s)\n",cigar);
+                 }
+            }
+        if (after_cigar_len>0) { //replace/insert into existing full data
+             prev_bdata=dupalloc_bdata(b, doff + b->core.n_cigar * 4 + after_cigar_len);
+             memcpy((void*)(b->data+doff+b->core.n_cigar*4),(void*)after_cigar, after_cigar_len);
+             free(prev_bdata);
+             }
+           else {
+             b->data = realloc_bdata(b, doff + b->core.n_cigar * 4);
+             }
+        for (i = 0, s = cigar; i != b->core.n_cigar; ++i) {
+            x = strtol(s, &t, 10);
+            op = toupper(*t);
+            if (op == 'M' || op == '=' || op == 'X') op = BAM_CMATCH;
+            else if (op == 'I') op = BAM_CINS;
+            else if (op == 'D') op = BAM_CDEL;
+            else if (op == 'N') op = BAM_CREF_SKIP;
+            else if (op == 'S') op = BAM_CSOFT_CLIP;
+            else if (op == 'H') op = BAM_CHARD_CLIP;
+            else if (op == 'P') op = BAM_CPAD;
+            else err_die("Error: invalid CIGAR operation (%s)\n",cigar);
+            s = t + 1;
+            bam1_cigar(b)[i] = x << BAM_CIGAR_SHIFT | op;
+        }
+        if (*s) err_die("Error: unmatched CIGAR operation (%s)\n",cigar);
+        b->core.bin = bam_reg2bin(b->core.pos, bam_calend(&b->core, bam1_cigar(b)));
+    } else {//no CIGAR string given
+        if (!(b->core.flag&BAM_FUNMAP)) {
+            fprintf(stderr, "Warning: mapped sequence without CIGAR (%s)\n", (char*)b->data);
+            b->core.flag |= BAM_FUNMAP;
+        }
+        b->core.bin = bam_reg2bin(b->core.pos, b->core.pos + 1);
+    }
+   } //set_cigar()
+
+ void GBamRecord::add_sequence(const char* qseq, int slen) {
+   //must be called AFTER set_cigar (cannot replace existing sequence for now)
+   if (qseq==NULL) return; //should we ever care about this?
+   if (slen<0) slen=strlen(qseq);
+   int doff = b->core.l_qname + b->core.n_cigar * 4;
+   if (strcmp(qseq, "*")!=0) {
+       b->core.l_qseq=slen;
+       if (b->core.n_cigar && b->core.l_qseq != (int32_t)bam_cigar2qlen(&b->core, bam1_cigar(b)))
+           err_die("Error: CIGAR and sequence length are inconsistent!(%s)\n",
+                  qseq);
+       uint8_t* p = (uint8_t*)realloc_bdata(b, doff + (b->core.l_qseq+1)/2 + b->core.l_qseq) + doff;
+       //also allocated quals memory
+       memset(p, 0, (b->core.l_qseq+1)/2);
+       for (int i = 0; i < b->core.l_qseq; ++i)
+           p[i/2] |= bam_nt16_table[(int)qseq[i]] << 4*(1-i%2);
+       } else b->core.l_qseq = 0;
+   }
+
+ void GBamRecord::add_quals(const char* quals) {
+   //requires core.l_qseq already set
+   //and must be called AFTER add_sequence(), which also allocates the memory for quals
+   uint8_t* p = b->data+(b->core.l_qname + b->core.n_cigar * 4 + (b->core.l_qseq+1)/2);
+   if (quals==NULL || quals[0]=='*') {
+      for (int i=0;i < b->core.l_qseq; i++) p[i] = 0xff;
+      return;
+      }
+   for (int i=0;i < b->core.l_qseq; i++) p[i] = quals[i]-33;
+   }
+
+ void GBamRecord::add_aux(const char* str) {
+     //requires: being called AFTER add_quals()
+     static char tag[2];
+     static uint8_t abuf[512];
+     //requires: being called AFTER add_quals()
+     int strl=strlen(str);
+     //int doff = b->core.l_qname + b->core.n_cigar*4 + (b->core.l_qseq+1)/2 + b->core.l_qseq + b->l_aux;
+     //int doff0=doff;
+     if (strl < 6 || str[2] != ':' || str[4] != ':')
+         parse_error("missing colon in auxiliary data");
+     tag[0] = str[0]; tag[1] = str[1];
+     uint8_t atype = str[3];
+     uint8_t* adata=abuf;
+     int alen=0;
+     if (atype == 'A' || atype == 'a' || atype == 'c' || atype == 'C') { // c and C for backward compatibility
+         atype='A';
+         alen=1;
+         adata=(uint8_t*)&str[5];
+         }
+      else if (atype == 'I' || atype == 'i') {
+         long long x=(long long)atoll(str + 5);
+         if (x < 0) {
+             if (x >= -127) {
+                 atype='c';
+                 abuf[0] =  (int8_t)x;
+                 alen=1;
+                 }
+             else if (x >= -32767) {
+                 atype = 's';
+                 *(int16_t*)abuf = (int16_t)x;
+                 alen=2;
+                 }
+             else {
+                 atype='i';
+                 *(int32_t*)abuf = (int32_t)x;
+                 alen=4;
+                 if (x < -2147483648ll)
+                     fprintf(stderr, "Parse warning: integer %lld is out of range.",
+                             x);
+                 }
+             } else { //x >=0
+             if (x <= 255) {
+                 atype = 'C';
+                 abuf[0] = (uint8_t)x;
+                 alen=1;
+                 }
+             else if (x <= 65535) {
+                 atype='S';
+                 *(uint16_t*)abuf = (uint16_t)x;
+                 alen=2;
+                 }
+             else {
+                 atype='I';
+                 *(uint32_t*)abuf = (uint32_t)x;
+                 alen=4;
+                 if (x > 4294967295ll)
+                     fprintf(stderr, "Parse warning: integer %lld is out of range.",
+                             x);
+                 }
+             }
+         } //integer type
+         else if (atype == 'f') {
+             *(float*)abuf = (float)atof(str + 5);
+             alen = sizeof(float);
+             }
+         else if (atype == 'd') { //?
+             *(float*)abuf = (float)atof(str + 9);
+             alen=8;
+             }
+         else if (atype == 'Z' || atype == 'H') {
+             if (atype == 'H') { // check whether the hex string is valid
+                 if ((strl - 5) % 2 == 1) parse_error("length of the hex string not even");
+                 for (int i = 0; i < strl - 5; ++i) {
+                     int c = toupper(str[5 + i]);
+                     if (!((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F')))
+                         parse_error("invalid hex character");
+                     }
+                 }
+             memcpy(abuf, str + 5, strl - 5);
+             abuf[strl-5] = 0;
+             alen=strl-4;
+             } else parse_error("unrecognized aux type");
+  this->add_aux(tag, atype, alen, adata);
+  }//add_aux()

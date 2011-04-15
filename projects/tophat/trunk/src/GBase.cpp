@@ -466,11 +466,22 @@ char* strifind(char* str,  const char* substr) {
 
 
 // tests if string s has the given prefix
-bool startsWith(char* s, const char* prefix) {
+bool startsWith(const char* s, const char* prefix) {
  if (prefix==NULL || s==NULL) return false;
  int i=0;
  while (prefix[i]!='\0' && prefix[i]==s[i]) i++;
  return (prefix[i]=='\0');
+ }
+
+// tests if string s ends with given suffix
+bool endsWith(const char* s, const char* suffix) {
+ if (suffix==NULL || s==NULL) return false;
+ if (suffix[0]==0) return true; //special case: empty suffix
+ int j=strlen(suffix)-1;
+ int i=strlen(s)-1;
+ if (i<j) return false;
+ while (j>=0 && s[i]==suffix[j]) { i--; j--; }
+ return (j==-1);
  }
 
 

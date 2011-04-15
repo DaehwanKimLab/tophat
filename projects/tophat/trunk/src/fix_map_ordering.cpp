@@ -22,7 +22,7 @@ using namespace std;
 
 struct MapOrdering
 {
-	MapOrdering(ReadTable& IT) : it(IT) {} 
+	//MapOrdering(ReadTable& IT) : it(IT) {}
 	bool operator()(pair<uint64_t, char*>& lhs, pair<uint64_t, char*>& rhs)
 	{
 		uint64_t lhs_id = lhs.first;
@@ -30,22 +30,21 @@ struct MapOrdering
 		return lhs_id > rhs_id;
 		//return it.observation_order(lhs_id) > it.observation_order(rhs_id);
 	}
-	ReadTable& it;
+	//ReadTable& it;
 };
 
-//void driver(FILE* reads_file, FILE* map_file)
-//void driver(FZStream& reads_file, FILE* map_file)
 void driver(FILE* map_file)
 {
-	ReadTable it;
+	//ReadTable it;
 	
 	char bwt_buf[4096];
 	
-	MapOrdering order(it);
-	
+	//MapOrdering order(it);
+	//MapOrdering order;
 	priority_queue< pair<uint64_t,char*>, 
-					vector<pair<uint64_t, char*> >, 
-					MapOrdering >  map_pq(it);
+					vector<pair<uint64_t, char*> >,
+					MapOrdering > map_pq;
+					//MapOrdering >  map_pq(it);
 	
 	while (fgets(bwt_buf, sizeof(bwt_buf), map_file))
 	{
@@ -90,7 +89,8 @@ void driver(FILE* map_file)
 
 		//char* p1 = strdup(name);
 		char* p2 = strdup(bwt_buf);
-		uint64_t id = it.get_id(name);
+		//uint64_t id = it.get_id(name);
+		uint64_t id = (uint64_t)atol(name);
 		
 		map_pq.push(make_pair(id,p2));
 		
@@ -116,7 +116,8 @@ void driver(FILE* map_file)
 
 void print_usage()
 {
-    fprintf(stderr, "Usage:   fix_map_ordering <map.bwtout> [<reads.fa/.fq>]\n");
+//    fprintf(stderr, "Usage:   fix_map_ordering <map.bwtout> [<reads.fa/.fq>]\n");
+  fprintf(stderr, "Usage:   fix_map_ordering <map.bwtout>\n");
 }
 
 int main(int argc, char** argv)

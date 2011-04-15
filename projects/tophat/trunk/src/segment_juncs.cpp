@@ -310,7 +310,7 @@ void store_read_extensions(MerExtensionTable& ext_table,
 			int curr_seed = --extension_counts[seed]; 
 			if (curr_seed < 0 || curr_seed > (int)ext_table[seed].size())
 			{
-				fprintf(stderr, "Error: curr_seed is %d, max is %lu\n", curr_seed, ext_table[seed].size());	
+				fprintf(stderr, "Error: curr_seed is %d, max is %lu\n", curr_seed, (long unsigned int)ext_table[seed].size());
 			}
 			
 			ext_table[seed][curr_seed] = ext;
@@ -2219,11 +2219,11 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
 		     << seg.support_read << endl
 		     << 0 << " - " << to << endl;
 
-		for (int i = 0; i < read_len; ++i)
+		for (unsigned int i = 0; i < read_len; ++i)
 		  cout << (int)left_mismatches[i];
 		cout << "\t";
 
-		for (int i = 0; i < read_len; ++i)
+		for (unsigned int i = 0; i < read_len; ++i)
 		  cout << (int)right_mismatches[i];
 		cout << endl;		
 	      }
@@ -2327,11 +2327,8 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
         RefSequenceTable::Sequence* ref_str = rt.get_seq(ref_id);
         
         if (!ref_str)
-        {
-            fprintf(stderr, "Error: couldn't get ref string for %u\n", ref_id);
-            exit(1);
-        }	
-        
+            err_die("Error: couldn't get ref string for %u\n", ref_id);
+
         if (talkative)
             fprintf(stderr, "Examining donor-acceptor pairings in %s\n", rt.get_name(ref_id));
         IntronMotifs& motifs = motif_itr->second;
@@ -2700,7 +2697,7 @@ void find_insertions_and_deletions(RefSequenceTable& rt,
 			 * that
 			 * 1. the alignment orientation is consistent
 			 * 2. the distance separation is in the appropriate range
-			 * 3. Both hits are aligned to the sam contig
+			 * 3. Both hits are aligned to the same contig
 			 */
 			if(leftHit->ref_id() != rightHit->ref_id()){
 				continue;
@@ -3023,7 +3020,8 @@ void align_microexon_segs(RefSequenceTable& rt,
 		num_segments += unaligned_segments.size();
 	}
 	
-	fprintf(stderr, "Aligning %d microexon segments in %lu windows\n", num_segments, microexon_windows.size());
+	fprintf(stderr, "Aligning %d microexon segments in %lu windows\n",
+	       num_segments, (long unsigned int)microexon_windows.size());
 	
 	extensions.clear();
 	
@@ -3084,8 +3082,9 @@ void align_microexon_segs(RefSequenceTable& rt,
 		num_segments += unaligned_segments.size();
 		delete itr->second;
 	}
-	fprintf(stderr, "Checked %d segments against %lu windows for microexon junctions\n", num_segments, microexon_windows.size());
-	fprintf(stderr, "Found %ld potential microexon junctions\n", juncs.size());
+	fprintf(stderr, "Checked %d segments against %lu windows for microexon junctions\n",
+	               num_segments, (long unsigned int)microexon_windows.size());
+	fprintf(stderr, "Found %ld potential microexon junctions\n", (long int)juncs.size());
 }
 
 /*
@@ -3093,11 +3092,12 @@ void align_microexon_segs(RefSequenceTable& rt,
  * at a time. Except, once its pants are on, it makes gold records. Alright, here we
  * go.
  */
+ 
 void look_for_hit_group(RefSequenceTable& rt,
 			//FILE* reads_file,
-            FZPipe& reads_file,
+			FZPipe& reads_file,
 			FZPipe& reads_file_for_segment_search,
-            FZPipe& reads_file_for_indel_discovery,
+			FZPipe& reads_file_for_indel_discovery,
 			ReadTable& unmapped_reads,
 			vector<HitStream>& seg_files,
 			int curr_file,
@@ -3109,204 +3109,173 @@ void look_for_hit_group(RefSequenceTable& rt,
 			eREAD read)
 
 {
-  HitStream& curr = seg_files[curr_file];
+  HitStream& hit_stream = seg_files[curr_file];
   HitsForRead hit_group;
   uint32_t order = unmapped_reads.observation_order(insert_id);
   int seq_key_len = min((int)min_anchor_len, 6);
-  
-  while(true)
-    {
-      uint64_t next_group_id = curr.next_group_id();
-      uint32_t next_order = unmapped_reads.observation_order(next_group_id);
-
-      // If we would have seen the hits by now, stop looking in this stream,
-      // but forward the search if possible.
-      if (order < next_order || next_group_id == 0)
-	{
-	  if (curr_file > 0)
-	    {
-	      look_for_hit_group(rt,
-				 reads_file,
-				 reads_file_for_segment_search,
-				 reads_file_for_indel_discovery,
-				 unmapped_reads,
-				 seg_files,
-				 curr_file - 1,
-				 insert_id,
-				 hits_for_read,
-				 juncs,
-				 deletions,
-				 insertions,
-				 read);
-	    }
-	  else if (!no_microexon_search)
-	    {
-	      char read_name[1024];
-	      char read_seq[1024];
-	      char read_alt_name[1024];
-	      char read_quals[1024];
-	      
-	      // The hits are missing for the leftmost segment, which means
-	      // we should try looking for junctions via seed and extend
-	      // using it (helps find junctions to microexons).
-	      bool got_read = get_read_from_stream(insert_id, 
-						   reads_file.file,
-						   FASTQ,
-						   false,
-						   read_name, 
-						   read_seq,
-						   read_alt_name,
-						   read_quals);
-	      
-	      if (!got_read)
-		break;
-	      
-	      string fwd_read = read_seq;
-	      if (color)
-		// remove the primer and the adjacent color
-		fwd_read.erase(0, 2);
-	      
-	      // make sure there are hits for all the other segs, all the 
-	      // way to the root (right-most) one.
-	      int empty_seg = 0;
-	      for (size_t h = 1; h < hits_for_read.size(); ++h)
-		{
-		  if (hits_for_read[h].hits.empty())
-		    empty_seg = h;
-		}
-	      
-	      // if not, no microexon alignment for this segment
-	      if (empty_seg != 0)
-		break;
-	      
-	      fwd_read = fwd_read.substr(0, segment_length);
-	      string rev_read = fwd_read;
-	      
-	      if (color)
-		reverse(rev_read.begin(), rev_read.end());
-	      else
-		reverse_complement(rev_read);
-	      
-	      for (size_t h = 0; h < hits_for_read[empty_seg + 1].hits.size(); ++h)
-		{
-		  const BowtieHit& bh = hits_for_read[empty_seg + 1].hits[h];
-		  RefSequenceTable::Sequence* ref_str = rt.get_seq(bh.ref_id());
-		  if (ref_str == NULL)
-		    continue;
-		  
-		  int ref_len = length(*ref_str);
-		  
-		  int left_boundary;
-		  int right_boundary;
-		  bool antisense = bh.antisense_align();
-		  vector<BowtieHit> empty_seg_hits;
-		  seed_alignments++;
-		  if (antisense)
-		    {
-		      left_boundary = max(0, bh.right() - (int)min_anchor_len);
-		      right_boundary = min(ref_len - 2,
-					   left_boundary +  max_microexon_stretch);
-		      if (right_boundary - left_boundary < 2 * seq_key_len)
-			continue;
-		      
-		      microaligned_segs++;
-		      
-		      add_to_microexon_windows(bh.ref_id(), left_boundary, right_boundary, rev_read, read); 
-		    }
-		  else
-		    {
-		      right_boundary = min(ref_len - 2,
-					   bh.left() + (int)min_anchor_len);
-		      left_boundary = max(0, right_boundary -  max_microexon_stretch);
-		      
-		      if (right_boundary - left_boundary < 2 * seq_key_len)
-			continue;
-		      
-		      microaligned_segs++;
-		      
-		      add_to_microexon_windows(bh.ref_id(), left_boundary, right_boundary, fwd_read, read);  
-		    }
-		}
-	    }
-	  break;
-	}
-	      
-      else if (curr.next_read_hits(hit_group))
-	{
-	  // If we found hits for the target group in the left stream,
-	  // add them to the accumulating vector and continue the search
-	  if (hit_group.insert_id == insert_id)
-	    {	
-	      hits_for_read[curr_file] = hit_group;
-	      if (curr_file > 0)
-		{
-		  // we need to look left (recursively) for the group we 
-		  // just read for this stream.
-		  look_for_hit_group(rt,
-				     reads_file,
-				     reads_file_for_segment_search,
-				     reads_file_for_indel_discovery,
-				     unmapped_reads,
-				     seg_files,
-				     curr_file - 1,
-				     insert_id,
-				     hits_for_read,
-				     juncs,
-				     deletions,
-				     insertions,
-				     read);
-		}
-	      break;
-	    }
-	  else if (curr_file > 0)
-	    {
-	      // If this is a different group, we need to start a whole new 
-	      // search for it, with a whole new vector of hits.
-	      vector<HitsForRead> hits_for_new_read(seg_files.size());
-	      hits_for_new_read[curr_file] = hit_group;
-	      
-	      look_for_hit_group(rt,
-				 reads_file,
-				 reads_file_for_segment_search,
-				 reads_file_for_indel_discovery,
-				 unmapped_reads,
-				 seg_files,
-				 curr_file - 1,
-				 hit_group.insert_id,
-				 hits_for_new_read,
-				 juncs,
-				 deletions,
-				 insertions,
-				 read);
-	      find_insertions_and_deletions(rt, reads_file_for_indel_discovery.file,
-                                                hits_for_new_read, deletions, insertions);
-	      find_gaps(rt, reads_file_for_segment_search.file, hits_for_new_read, juncs, read);
-	    }
-	}
-    }
+  while(true) {
+	uint64_t next_group_id = hit_stream.next_group_id();
+	uint32_t next_order = unmapped_reads.observation_order(next_group_id);
+	  // If we would have seen the hits by now, stop looking in this stream,
+	  // but forward the search if possible.
+	if (order < next_order || next_group_id == 0) {
+		 if (curr_file > 0) {
+			 look_for_hit_group(rt,
+			  reads_file,
+			  reads_file_for_segment_search,
+			  reads_file_for_indel_discovery,
+			  unmapped_reads,
+			  seg_files,
+			  curr_file - 1,
+			  insert_id,
+			  hits_for_read,
+			  juncs,
+			  deletions,
+			  insertions,
+			  read);
+			  }
+		 else
+		   if (!no_microexon_search) {
+			  //microexon search
+			  char read_name[1024];
+			  char read_seq[1024];
+			  char read_alt_name[1024];
+			  char read_quals[1024];
+			  // The hits are missing for the leftmost segment, which means
+			  // we should try looking for junctions via seed and extend
+			  // using it (helps find junctions to microexons).
+			  bool got_read = get_read_from_stream(insert_id, 
+					reads_file.file,
+					FASTQ,
+					false,
+					read_name,
+					read_seq,
+					read_alt_name,
+					read_quals);
+			  if (!got_read) {
+				  fprintf(stderr, "Warning: could not get read with insert_id=%d\n", (int)insert_id);
+				  break; //exit loop
+				  }
+			  string fwd_read = read_seq;
+			  if (color) // remove the primer and the adjacent color
+				 fwd_read.erase(0, 2);
+			  // make sure there are hits for all the other segs, all the
+			  // way to the root (right-most) one.
+			  int empty_seg = 0;
+			  for (size_t h = 1; h < hits_for_read.size(); ++h) {
+					   if (hits_for_read[h].hits.empty())
+						empty_seg = h;
+						}
+			  // if not, no microexon alignment for this segment
+			  if (empty_seg != 0)
+				  break;
+			  fwd_read = fwd_read.substr(0, segment_length);
+			  string rev_read = fwd_read;
+			  //check the reverse
+			  if (color) reverse(rev_read.begin(), rev_read.end());
+					else reverse_complement(rev_read);
+			  for (size_t h = 0; h < hits_for_read[empty_seg + 1].hits.size(); ++h) {
+				  const BowtieHit& bh = hits_for_read[empty_seg + 1].hits[h];
+				  RefSequenceTable::Sequence* ref_str = rt.get_seq(bh.ref_id());
+				  if (ref_str == NULL)
+					 continue;
+				  int ref_len = length(*ref_str);
+				  int left_boundary;
+				  int right_boundary;
+				  bool antisense = bh.antisense_align();
+				  vector<BowtieHit> empty_seg_hits;
+				  seed_alignments++;
+				  if (antisense) {
+					  left_boundary = max(0, bh.right() - (int)min_anchor_len);
+					  right_boundary = min(ref_len - 2,
+						 left_boundary +  max_microexon_stretch);
+					  if (right_boundary - left_boundary < 2 * seq_key_len)
+						  continue;
+					  microaligned_segs++;
+					  add_to_microexon_windows(bh.ref_id(), left_boundary, right_boundary, rev_read, read); 
+					  }
+				  else {
+					  right_boundary = min(ref_len - 2,
+						 bh.left() + (int)min_anchor_len);
+					  left_boundary = max(0, right_boundary -  max_microexon_stretch);
+					  if (right_boundary - left_boundary < 2 * seq_key_len)
+						  continue;
+					  microaligned_segs++;
+					  add_to_microexon_windows(bh.ref_id(), left_boundary, right_boundary, fwd_read, read);  
+					  }
+				  } //for h
+		   } // !no_microexon_search
+		 break;
+		 }
+	else if (hit_stream.next_read_hits(hit_group)) {
+		 // if we found hits for the target group in the left stream,
+		 // add them to the accumulating vector and continue the search
+		 if (hit_group.insert_id == insert_id) {
+			hits_for_read[curr_file] = hit_group;
+			if (curr_file > 0)
+			  // we need to look left (recursively) for the group we 
+			  // just read for this stream.
+			  look_for_hit_group(rt,
+					 reads_file,
+					 reads_file_for_segment_search,
+					 reads_file_for_indel_discovery,
+					 unmapped_reads,
+					 seg_files,
+					 curr_file - 1,
+					 insert_id,
+					 hits_for_read,
+					 juncs,
+					 deletions,
+					 insertions,
+					 read);
+			break;
+			} //same insert_id (group)
+		 else if (curr_file > 0) {
+			// different group, we need to start a whole new 
+			// search for it, with a whole new vector of hits.
+			vector<HitsForRead> hits_for_new_read(seg_files.size());
+			hits_for_new_read[curr_file] = hit_group;
+			look_for_hit_group(rt,
+			   reads_file,
+			   reads_file_for_segment_search,
+			   reads_file_for_indel_discovery,
+			   unmapped_reads,
+			   seg_files,
+			   curr_file - 1,
+			   hit_group.insert_id,
+			   hits_for_new_read,
+			   juncs,
+			   deletions,
+			   insertions,
+			   read);
+			find_insertions_and_deletions(rt, reads_file_for_indel_discovery.file, hits_for_new_read, deletions, insertions);
+			find_gaps(rt, reads_file_for_segment_search.file, hits_for_new_read, juncs, read);
+			} //different group
+		 }//got next group
+	} //while loop
 }
 
 
 
 bool process_next_hit_group(RefSequenceTable& rt,
 			    //FILE* reads_file,
-                FZPipe&  reads_file,
+			    FZPipe&  reads_file,
 			    FZPipe&  reads_file_for_segment_search,
-                FZPipe&  reads_file_for_indel_discovery,
+			    FZPipe&  reads_file_for_indel_discovery,
 			    ReadTable& unmapped_reads,
 			    vector<HitStream>& seg_files, 
 			    size_t curr_file,
 			    std::set<Junction, skip_count_lt>& juncs,
 			    std::set<Deletion>& deletions,
 			    std::set<Insertion>& insertions,
-  			    eREAD read)
+			    eREAD read)
 {
   HitStream& curr = seg_files[curr_file];
   HitsForRead hit_group;
   bool result = curr.next_read_hits(hit_group);
   vector<HitsForRead> hits_for_read(seg_files.size());
   hits_for_read.back() = hit_group;
-  
+
   look_for_hit_group(rt,
 		     reads_file,
 		     reads_file_for_segment_search,
@@ -3321,12 +3290,10 @@ bool process_next_hit_group(RefSequenceTable& rt,
 		     insertions,
 		     read);
   
-  if (result)
-    {
-      find_insertions_and_deletions(rt, reads_file_for_indel_discovery.file, hits_for_read, deletions, insertions);
-        find_gaps(rt, reads_file_for_segment_search.file, hits_for_read, juncs, read);
+  if (result) {
+    find_insertions_and_deletions(rt, reads_file_for_indel_discovery.file, hits_for_read, deletions, insertions);
+    find_gaps(rt, reads_file_for_segment_search.file, hits_for_read, juncs, read);
     }
-  
   return result;
 }
 
@@ -3347,7 +3314,6 @@ uint8_t get_cov(const vector<uint8_t>& cov, uint32_t c)
 
 void pair_covered_sites(ReadTable& it,
 			RefSequenceTable& rt,
-			//vector<FILE*>& seg_files,
 			vector<FZPipe*>& seg_files,
 			std::set<Junction, skip_count_lt>& cov_juncs,
 			size_t half_splice_mer_len)
@@ -3439,7 +3405,7 @@ void pair_covered_sites(ReadTable& it,
 	    }
 	}
     }
-  fprintf(stderr, "Found %d islands covering %ld bases\n", num_islands, cov_bases);
+  fprintf(stderr, "Found %d islands covering %ld bases\n", num_islands, (long int)cov_bases);
   
   juncs_from_ref_segs<RecordButterflyJuncs>(rt, 
 					    expected_don_acc_windows, 
@@ -3451,7 +3417,7 @@ void pair_covered_sites(ReadTable& it,
 					    max_cov_juncs,
 					    true,
 					    half_splice_mer_len);
-  fprintf(stderr, "Found %ld potential intra-island junctions\n", cov_juncs.size());
+  fprintf(stderr, "Found %ld potential intra-island junctions\n", (long int)cov_juncs.size());
 }
 
 void capture_island_ends(ReadTable& it,
@@ -3665,7 +3631,7 @@ void capture_island_ends(ReadTable& it,
 					     max_cov_juncs,
 					     true,
 					     half_splice_mer_len);
-  fprintf(stderr, "Found %ld potential island-end pairing junctions\n", cov_juncs.size());
+  fprintf(stderr, "Found %ld potential island-end pairing junctions\n", (long int)cov_juncs.size());
 }
 
 
@@ -3709,9 +3675,8 @@ void process_segment_hits(RefSequenceTable& rt,
     {
       num_group++;
       if (num_group % 500000 == 0)
-	fprintf(stderr, "\tProcessed %d root segment groups\n", num_group);
+	     fprintf(stderr, "\tProcessed %d root segment groups\n", num_group);
     }
-  
   fprintf(stderr, "Microaligned %d segments\n", microaligned_segs); 
 }
 
@@ -3804,9 +3769,9 @@ void driver(istream& ref_stream,
 			   READ_RIGHT);
       fprintf( stderr, "done.\n");
     }
-  fprintf(stderr, "Found %ld potential split-segment junctions\n", seg_juncs.size());
-  fprintf(stderr, "Found %ld potential small deletions\n", deletions.size());
-  fprintf(stderr, "Found %ld potential small insertions\n", insertions.size());
+  fprintf(stderr, "Found %ld potential split-segment junctions\n", (long int)seg_juncs.size());
+  fprintf(stderr, "Found %ld potential small deletions\n", (long int)deletions.size());
+  fprintf(stderr, "Found %ld potential small insertions\n", (long int)insertions.size());
   
 	//vector<FILE*> all_seg_files;
 	vector<FZPipe*> all_seg_files;
@@ -3962,7 +3927,7 @@ void driver(istream& ref_stream,
 
 int main(int argc, char** argv)
 {
-  fprintf(stderr, "segment_juncs v%s (%s)\n", PACKAGE_VERSION, SVN_REVISION); 
+  fprintf(stderr, "segment_juncs v%s (%s)\n", PACKAGE_VERSION, SVN_REVISION);
   fprintf(stderr, "---------------------------\n");
   
   int parse_ret = parse_options(argc, argv, print_usage);
