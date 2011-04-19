@@ -291,8 +291,7 @@ class GBamWriter {
                                    gseqname);
             }
 
-      GBamRecord *newbamrec=new GBamRecord(qname, gseq_tid, pos, reverse, qseq, cigar, qual);
-      return newbamrec;
+      return (new GBamRecord(qname, gseq_tid, pos, reverse, qseq, cigar, qual));
       }
 
    GBamRecord* new_record(const char* qname, int32_t flags, const char* gseqname,
@@ -307,18 +306,26 @@ class GBamWriter {
                    fprintf(stderr, "Warning: reference '%s' not found in header, will consider it '*'.\n",
                                    gseqname);
             }
-      int32_t mgseq_tid=get_tid(mgseqname);
-      if (mgseq_tid < 0 && strcmp(mgseqname, "*")) {
-            fprintf(stderr, "Warning: reference '%s' not found in header, will consider it '*'.\n",
-                                   mgseqname);
+      int32_t mgseq_tid=-1;
+      if (mgseqname!=NULL) {
+         if (strcmp(mgseqname, "=")==0) {
+            mgseq_tid=gseq_tid;
             }
-      return
-          new GBamRecord(qname, flags, gseq_tid, pos, map_qual, cigar,
-              mgseq_tid, mate_pos, insert_size, qseq, quals, aux_strings);
+          else {
+            mgseq_tid=get_tid(mgseqname);
+            if (mgseq_tid < 0 && strcmp(mgseqname, "*")) {
+                fprintf(stderr, "Warning: reference '%s' not found in header, will consider it '*'.\n",
+                                   mgseqname);
+                }
+            }
+          }
+      return (new GBamRecord(qname, flags, gseq_tid, pos, map_qual, cigar,
+              mgseq_tid, mate_pos, insert_size, qseq, quals, aux_strings));
       }
 
    void write(GBamRecord* brec) {
-      samwrite(this->bam_file,brec->get_b());
+      if (brec!=NULL)
+          samwrite(this->bam_file,brec->get_b());
       }
 };
 
