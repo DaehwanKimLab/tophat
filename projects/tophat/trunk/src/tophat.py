@@ -30,7 +30,7 @@ TopHat maps short sequences from spliced transcripts to whole genomes.
 Usage:
     tophat [options] <bowtie_index> <reads1[,reads2,...]> [reads1[,reads2,...]] \\
                                     [quals1,[quals2,...]] [quals1[,quals2,...]]
-    
+
 Options:
     -v/--version
     -o/--output-dir                <string>    [ default: ./tophat_out     ]
@@ -42,37 +42,37 @@ Options:
     -F/--min-isoform-fraction      <float>     [ default: 0.15             ]
     --max-insertion-length         <int>       [ default: 3                ]
     --max-deletion-length          <int>       [ default: 3                ]
-    --solexa-quals                          
+    --solexa-quals
     --solexa1.3-quals                          (same as phred64-quals)
     --phred64-quals                            (same as solexa1.3-quals)
     -Q/--quals
     --integer-quals
     -C/--color                                 (Solid - color space)
     --color-out
-    --library-type                 <string>    (fr-unstranded, fr-firststrand, 
+    --library-type                 <string>    (fr-unstranded, fr-firststrand,
                                                 fr-secondstrand)
     -p/--num-threads               <int>       [ default: 1                ]
     -G/--GTF                       <filename>
     -j/--raw-juncs                 <filename>
     --insertions                   <filename>
     --deletions                    <filename>
-    -r/--mate-inner-dist           <int>       
+    -r/--mate-inner-dist           <int>
     --mate-std-dev                 <int>       [ default: 20               ]
     --no-novel-juncs
     --allow-indels
-    --no-novel-indels              
-    --no-gtf-juncs                 
+    --no-novel-indels
+    --no-gtf-juncs
     --no-coverage-search
-    --coverage-search              
+    --coverage-search
     --no-closure-search
-    --closure-search      
+    --closure-search
     --microexon-search
     --butterfly-search
     --no-butterfly-search
     --keep-tmp
     --tmp-dir                      <dirname>   [ default: <output_dir>/tmp ]
     -z/--zpacker                   <program>   [ default: no compression   ]
-    
+
 Advanced Options:
     --segment-mismatches           <int>       [ default: 2                ]
     --segment-length               <int>       [ default: 25               ]
@@ -93,7 +93,7 @@ SAM Header Options (for embedding sequencing run metadata in output):
     --rg-platform-unit             <string>    (e.g Illumina lane ID)
     --rg-center                    <string>    (sequencing center name)
     --rg-date                      <string>    (ISO 8601 date of the sequencing run)
-    --rg-platform                  <string>    (Sequencing platform descriptor)  
+    --rg-platform                  <string>    (Sequencing platform descriptor)
 '''
 
 class Usage(Exception):
@@ -106,10 +106,9 @@ run_log = None
 run_cmd = None
 tmp_dir = output_dir + "tmp/"
 bin_dir = sys.path[0] + "/"
-use_zpacker = False # don't change it here, this is set by -z/--zpacker option 
-unmapped_reads_fifo = None # if use_BWT_FIFO, this is tricking bowtie into writing the 
+use_zpacker = False # don't change it here, this is set by -z/--zpacker option
+unmapped_reads_fifo = None # if use_BWT_FIFO, this is tricking bowtie into writing the
                            # unmapped reads into a compressed file
-
 use_BWT_FIFO = True # only works if use_zpacker == True
 #set this to True/False to enable/disable mkfifo compression of the unmapped reads file
 
@@ -127,15 +126,15 @@ sam_header = tmp_dir + "stub_header.sam"
 
 class TopHatParams:
 
-    # SpliceConstraints is a group of runtime parameters that specify what 
+    # SpliceConstraints is a group of runtime parameters that specify what
     # constraints to put on junctions discovered by the program.  These constraints
     # are used to filter out spurious/false positive junctions.
-    
+
     class SpliceConstraints:
-        def __init__(self, 
+        def __init__(self,
                      min_anchor_length,
                      min_intron_length,
-                     max_intron_length, 
+                     max_intron_length,
                      splice_mismatches,
                      min_isoform_fraction):
             self.min_anchor_length = min_anchor_length
@@ -143,7 +142,7 @@ class TopHatParams:
             self.max_intron_length = max_intron_length
             self.splice_mismatches = splice_mismatches
             self.min_isoform_fraction = min_isoform_fraction
-        
+
         def parse_options(self, opts):
             for option, value in opts:
                 if option in ("-m", "--splice-mismatches"):
@@ -156,7 +155,7 @@ class TopHatParams:
                     self.min_intron_length = int(value)
                 elif option in ("-I", "--max-intron-length"):
                     self.max_intron_length = int(value)
-        
+
         def check(self):
             if self.splice_mismatches not in [0,1,2]:
                 die("Error: arg to --splice-mismatches must be 0, 1, or 2")
@@ -168,11 +167,11 @@ class TopHatParams:
                 die("Error: arg to --min-intron-length must be greater than 0")
             if self.max_intron_length <= 0:
                 die("Error: arg to --max-intron-length must be greater than 0")
-    
+
     # SystemParams is a group of runtime parameters that determine how to handle
     # temporary files produced during a run and how many threads to use for threaded
     # stages of the pipeline (e.g. Bowtie)
-    
+
     class SystemParams:
         def __init__(self,
                      num_cpus,
@@ -181,7 +180,7 @@ class TopHatParams:
             self.keep_tmp = keep_tmp
             self.zipper = ""
             self.zipper_opts= []
-            
+
         def parse_options(self, opts):
             for option, value in opts:
                 if option in ("-p", "--num-threads"):
@@ -209,21 +208,21 @@ class TopHatParams:
             if self.num_cpus>1:
                  cmdline.extend(['-p'+str(self.num_cpus)])
             return cmdline
-        
+
         def check(self):
             if self.num_cpus<1 :
                  die("Error: arg to --num-threads must be greater than 0")
 #            if self.num_cpus>1 and self.zipper:
 #                 if self.zipper.endswith("gzip"): # try pigz instead
 #                     pigz=which("pigz")
-#                     if (pigz is not None): 
+#                     if (pigz is not None):
 #                         self.zipper=pigz
                     ##    self.zipper_opts.append('-p'+str(self.num_cpus))
                     ##else:
                     ##    print >> sys.stderr, "Consider installing 'pigz' for faster handling of compressed temporary files."
 #                 elif self.zipper.endswith("bzip2") and not self.zipper.endswith("pbzip2"): # try pbzip2 instead
 #                     pbzip=which("pbzip2")
-#                     if (pbzip is not None): 
+#                     if (pbzip is not None):
 #                         self.zipper=pbzip
                     ##    self.zipper_opts.append('-p'+str(self.num_cpus))
                     ##else:
@@ -233,9 +232,9 @@ class TopHatParams:
                 if not xzip:
                     die("Error: cannot find compression program "+self.zipper)
     # ReadParams is a group of runtime parameters that specify various properties
-    # of the user's reads (e.g. which quality scale their are on, how long the 
+    # of the user's reads (e.g. which quality scale their are on, how long the
     # fragments are, etc).
-    
+
     class ReadParams:
         def __init__(self,
                      solexa_quals,
@@ -268,7 +267,7 @@ class TopHatParams:
             self.reads_format = reads_format
             self.mate_inner_dist = mate_inner_dist
             self.mate_inner_dist_std_dev = mate_inner_dist_std_dev
-            self.read_group_id = read_group_id 
+            self.read_group_id = read_group_id
             self.sample_id = sample_id
             self.library_id = library_id
             self.description = description
@@ -276,7 +275,7 @@ class TopHatParams:
             self.seq_center = seq_center
             self.seq_run_date = seq_run_date
             self.seq_platform = seq_platform
-            
+
         def parse_options(self, opts):
             for option, value in opts:
                 if option == "--solexa-quals":
@@ -312,7 +311,7 @@ class TopHatParams:
                 elif option == "--rg-center":
                     self.seq_center = value
                 elif option == "--rg-date":
-                    self.seq_run_date = value    
+                    self.seq_run_date = value
                 elif option == "--rg-platform":
                     self.seq_platform = value
 
@@ -323,10 +322,10 @@ class TopHatParams:
                 die("Error: arg to --mate-std-dev must at least 0")
             if (not self.read_group_id and self.sample_id) or (self.read_group_id and not self.sample_id):
                 die("Error: --rg-id and --rg-sample must be specified or omitted together")
-    
+
     # SearchParams is a group of runtime parameters that specify how TopHat will
     # search for splice junctions
-    
+
     class SearchParams:
         def __init__(self,
                      min_closure_exon,
@@ -336,7 +335,7 @@ class TopHatParams:
                      max_coverage_intron,
                      min_segment_intron,
                      max_segment_intron):
-                     
+
              self.min_closure_exon_length = min_closure_exon
              self.min_closure_intron_length = min_closure_intron
              self.max_closure_intron_length = max_closure_intron
@@ -377,14 +376,14 @@ class TopHatParams:
                 die("Error: arg to --min-segment-intron must be at least 20")
             if self.max_segment_intron_length < 0:
                 die("Error: arg to --max-segment-intron must be at least 20")
-                    
-    def __init__(self):        
-        self.splice_constraints = self.SpliceConstraints(8,     # min_anchor 
+
+    def __init__(self):
+        self.splice_constraints = self.SpliceConstraints(8,     # min_anchor
                                                          50,    # min_intron
                                                          500000, # max_intron
                                                          0,     # splice_mismatches
                                                          0.15)  # min_isoform_frac
-        
+
         self.read_params = self.ReadParams(False,               # solexa_scale
                                            False,
                                            False,               # quals
@@ -404,10 +403,10 @@ class TopHatParams:
                                            None,                # sequencing center
                                            None,                # run date
                                            None)                # sequencing platform
-        
+
         self.system_params = self.SystemParams(1,               # bowtie_threads (num_cpus)
-                                               False)           # keep_tmp   
-                                               
+                                               False)           # keep_tmp
+
         self.search_params = self.SearchParams(100,             # min_closure_exon_length
                                                50,              # min_closure_intron_length
                                                5000,            # max_closure_intron_length
@@ -415,7 +414,7 @@ class TopHatParams:
                                                20000,           # max_coverage_intron_length
                                                50,              # min_segment_intron_length
                                                500000)          # max_segment_intron_length
-        
+
         self.gff_annotation = None
         self.raw_junctions = None
         self.find_novel_juncs = True
@@ -434,12 +433,12 @@ class TopHatParams:
         self.coverage_search = None
         self.microexon_search = False
         self.butterfly_search = None
-        
+
     def check(self):
         self.splice_constraints.check()
         self.read_params.check()
         self.system_params.check()
-       
+
         if self.segment_length <= 4:
             die("Error: arg to --segment-length must at least 4")
         if self.segment_mismatches < 0 or self.segment_mismatches > 3:
@@ -452,16 +451,16 @@ class TopHatParams:
 
         if self.read_params.library_type != "" and self.read_params.library_type not in library_types:
             die("Error: library-type should be one of: "+', '.join(library_types))
-        
+
         self.search_params.max_closure_intron_length = min(self.splice_constraints.max_intron_length,
                                                            self.search_params.max_closure_intron_length)
-        
+
         self.search_params.max_segment_intron_length = min(self.splice_constraints.max_intron_length,
                                                            self.search_params.max_segment_intron_length)
 
         self.search_params.max_coverage_intron_length = min(self.splice_constraints.max_intron_length,
                                                             self.search_params.max_coverage_intron_length)
-        
+
         if self.max_insertion_length >= self.segment_length:
             die("Error: the max insertion length ("+self.max_insertion_length+") can not be equal to or greater than the segment length ("+self.segment_length+")")
 
@@ -494,9 +493,9 @@ class TopHatParams:
                "--sam-header", sam_header,
                "--max-insertion-length", str(self.max_insertion_length),
                "--max-deletion-length", str(self.max_deletion_length)]
-        
+
         cmd.extend(self.system_params.cmd())
-               
+
         if self.read_params.mate_inner_dist != None:
             cmd.extend(["--inner-dist-mean", str(self.read_params.mate_inner_dist),
                         "--inner-dist-std-dev", str(self.read_params.mate_inner_dist_std_dev)])
@@ -507,7 +506,7 @@ class TopHatParams:
         if not self.coverage_search:
             cmd.append("--no-coverage-search")
         if not self.microexon_search:
-            cmd.append("--no-microexon-search")            
+            cmd.append("--no-microexon-search")
         if self.butterfly_search:
             cmd.append("--butterfly-search")
         if self.read_params.solexa_quals:
@@ -525,15 +524,15 @@ class TopHatParams:
         if self.read_params.phred64_quals:
             cmd.append("--phred64-quals")
         return cmd
-    
+
     # This is the master options parsing routine, which calls parse_options for
     # the delegate classes (e.g. SpliceConstraints) that handle certain groups
     # of options.
     def parse_options(self, argv):
         try:
-            opts, args = getopt.getopt(argv[1:], "hvp:m:F:a:i:I:G:r:o:j:z:g:QC", 
+            opts, args = getopt.getopt(argv[1:], "hvp:m:F:a:i:I:G:r:o:j:z:g:QC",
                                         ["version",
-                                         "help",  
+                                         "help",
                                          "output-dir=",
                                          "solexa-quals",
                                          "solexa1.3-quals",
@@ -593,17 +592,17 @@ class TopHatParams:
                                          "deletions="])
         except getopt.error, msg:
             raise Usage(msg)
-        
+
         self.splice_constraints.parse_options(opts)
         self.system_params.parse_options(opts)
         self.read_params.parse_options(opts)
         self.search_params.parse_options(opts)
-        
+
         global output_dir
         global logging_dir
         global tmp_dir
         global sam_header
-        
+
         custom_tmp_dir = None
         custom_out_dir = None
         # option processing
@@ -651,25 +650,25 @@ class TopHatParams:
                 self.bowtie_alignment_option = "-n"
             if option == "--max-insertion-length":
                 self.max_insertion_length = int(value)
-            if option == "--max-deletion-length": 
+            if option == "--max-deletion-length":
                 self.max_deletion_length = int(value)
             if option == "--insertions":
                 self.raw_insertions = value
             if option == "--deletions":
-                self.raw_deletions = value 
+                self.raw_deletions = value
             if option in ("-o", "--output-dir"):
                 custom_out_dir = value + "/"
             if option == "--tmp-dir":
                 custom_tmp_dir = value + "/"
-                
+
         if custom_out_dir != None:
             output_dir = custom_out_dir
             logging_dir = output_dir + "logs/"
             tmp_dir = output_dir + "tmp/"
-            sam_header = tmp_dir + "stub_header.sam" 
+            sam_header = tmp_dir + "stub_header.sam"
         if custom_tmp_dir != None:
             tmp_dir = custom_tmp_dir
-            sam_header = tmp_dir + "stub_header.sam" 
+            sam_header = tmp_dir + "stub_header.sam"
         if len(args) < 2:
             raise Usage(use_message)
         return args
@@ -699,27 +698,27 @@ def getFileBaseName(filepath):
         return fbase
      else:
         return fname
-   
+
 # Returns the current time in a nice format
 def right_now():
     curr_time = datetime.now()
     return curr_time.strftime("%c")
 
-# Ensures that the output, logging, and temp directories are present. If not, 
+# Ensures that the output, logging, and temp directories are present. If not,
 # they are created
 def prepare_output_dir():
-    
+
     print >> sys.stderr, "[%s] Preparing output location %s" % (right_now(), output_dir)
     if os.path.exists(output_dir):
         pass
-    else:        
+    else:
         os.mkdir(output_dir)
-        
+
     if os.path.exists(logging_dir):
         pass
-    else:        
+    else:
         os.mkdir(logging_dir)
-        
+
     if os.path.exists(tmp_dir):
         pass
     else:
@@ -732,42 +731,42 @@ def prepare_output_dir():
 # are there.
 def check_bowtie_index(idx_prefix):
     print >> sys.stderr, "[%s] Checking for Bowtie index files" % right_now()
-    
+
     idx_fwd_1 = idx_prefix + ".1.ebwt"
     idx_fwd_2 = idx_prefix + ".2.ebwt"
     idx_rev_1 = idx_prefix + ".rev.1.ebwt"
     idx_rev_2 = idx_prefix + ".rev.2.ebwt"
-    
+
     if os.path.exists(idx_fwd_1) and \
        os.path.exists(idx_fwd_2) and \
        os.path.exists(idx_rev_1) and \
        os.path.exists(idx_rev_2):
-        return 
+        return
     else:
         bowtie_idx_env_var = os.environ.get("BOWTIE_INDEXES")
         if bowtie_idx_env_var == None:
             die("Error: Could not find Bowtie index files " + idx_prefix + ".*")
-        idx_prefix = bowtie_idx_env_var + idx_prefix 
+        idx_prefix = bowtie_idx_env_var + idx_prefix
         idx_fwd_1 = idx_prefix + ".1.ebwt"
         idx_fwd_2 = idx_prefix + ".2.ebwt"
         idx_rev_1 = idx_prefix + ".rev.1.ebwt"
         idx_rev_2 = idx_prefix + ".rev.2.ebwt"
-        
+
         if os.path.exists(idx_fwd_1) and \
            os.path.exists(idx_fwd_2) and \
            os.path.exists(idx_rev_1) and \
            os.path.exists(idx_rev_2):
-            return 
+            return
         else:
             die("Error: Could not find Bowtie index files " + idx_prefix + ".*")
 
-# Reconstructs the multifasta file from which the Bowtie index was created, if 
+# Reconstructs the multifasta file from which the Bowtie index was created, if
 # it's not already there.
 def bowtie_idx_to_fa(idx_prefix):
     idx_name = idx_prefix.split('/')[-1]
     print >> sys.stderr, "[%s] Reconstituting reference FASTA file from Bowtie index" % (right_now())
-    
-    try:    
+
+    try:
         tmp_fasta_file_name = tmp_dir + idx_name + ".fa"
         tmp_fasta_file = open(tmp_fasta_file_name, "w")
 
@@ -777,22 +776,22 @@ def bowtie_idx_to_fa(idx_prefix):
                        idx_prefix]
 
         print >> sys.stderr, "Executing: " + " ".join(inspect_cmd) + " > " + tmp_fasta_file_name
-        ret = subprocess.call(inspect_cmd, 
+        ret = subprocess.call(inspect_cmd,
                               stdout=tmp_fasta_file,
                               stderr=inspect_log)
 
         # Bowtie reported an error
         if ret != 0:
            die(fail_str+"Error: bowtie-inspect returned an error")
-           
+
     # Bowtie not found
     except OSError, o:
         if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
             die(fail_str+"Error: bowtie-inspect not found on this system.  Did you forget to include it in your PATH?")
-  
+
     return tmp_fasta_file_name
 
-# Checks whether the multifasta file for the genome is present alongside the 
+# Checks whether the multifasta file for the genome is present alongside the
 # Bowtie index files for it.
 def check_fasta(idx_prefix):
     print >> sys.stderr, "[%s] Checking for reference FASTA file" % right_now()
@@ -802,22 +801,22 @@ def check_fasta(idx_prefix):
     else:
         bowtie_idx_env_var = os.environ.get("BOWTIE_INDEXES")
         if bowtie_idx_env_var != None:
-            idx_fasta = bowtie_idx_env_var + idx_prefix + ".fa" 
+            idx_fasta = bowtie_idx_env_var + idx_prefix + ".fa"
             if os.path.exists(idx_fasta):
                 return idx_fasta
-        
+
         print >> sys.stderr, "\tWarning: Could not find FASTA file " + idx_fasta
         idx_fa = bowtie_idx_to_fa(idx_prefix)
         return idx_fa
-    
+
 # Check that both the Bowtie index and the genome's fasta file are present
 def check_index(idx_prefix):
     check_bowtie_index(idx_prefix)
     ref_fasta_file = check_fasta(idx_prefix)
-    
+
     return (ref_fasta_file, None)
 
-# Retrive a tuple containing the system's version of Bowtie.  Parsed from 
+# Retrive a tuple containing the system's version of Bowtie.  Parsed from
 # `bowtie --version`
 def get_bowtie_version():
     try:
@@ -836,20 +835,20 @@ def get_bowtie_version():
             bowtie_version = [int(x) for x in version_val.split('.')]
         if len(bowtie_version) == 3:
             bowtie_version.append(0)
-        
+
         return bowtie_version
     except OSError, o:
        errmsg=fail_str+str(o)+"\n"
        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
            errmsg+="Error: bowtie not found on this system"
        die(errmsg)
-       
+
 def get_index_sam_header(read_params, idx_prefix):
     try:
         bowtie_sam_header_filename = tmp_name()
         bowtie_sam_header_file = open(bowtie_sam_header_filename,"w")
 
-        
+
         bowtie_header_cmd = [bowtie_path, "--sam"]
         if read_params.color:
             bowtie_header_cmd.append('-C')
@@ -858,19 +857,19 @@ def get_index_sam_header(read_params, idx_prefix):
 
         bowtie_sam_header_file.close()
         bowtie_sam_header_file = open(bowtie_sam_header_filename,"r")
-        
+
         sam_header_file = open(sam_header, "w")
-        
+
         preamble = []
         sq_dict_lines = []
-        
+
         for line in bowtie_sam_header_file.readlines():
             line = line.strip()
             if line.find("@SQ") != -1:
                 # Sequence dictionary record
                 cols = line.split('\t')
                 seq_name = None
-                for col in cols: 
+                for col in cols:
                     fields = col.split(':')
                     #print fields
                     if len(fields) > 0 and fields[0] == "SN":
@@ -887,7 +886,7 @@ def get_index_sam_header(read_params, idx_prefix):
 
 #       print >> sam_header_file, "@HD\tVN:1.0\tSO:sorted"
         print >> sam_header_file, "@HD\tVN:1.0\tSO:coordinate"
-    
+
         if read_params.read_group_id and read_params.sample_id:
             rg_str = "@RG\tID:%s\tSM:%s" % (read_params.read_group_id,
                                             read_params.sample_id)
@@ -905,18 +904,18 @@ def get_index_sam_header(read_params, idx_prefix):
                 rg_str += "\tDT:%s" % read_params.seq_run_date
             if read_params.seq_platform:
                 rg_str += "\tPL:%s" % read_params.seq_platform
-            
+
             print >> sam_header_file, rg_str
-        
+
         sq_dict_lines.sort(lambda x,y: cmp(x[0],y[0]))
         for [name, line] in sq_dict_lines:
             print >> sam_header_file, line
         print >> sam_header_file, "@PG\tID:TopHat\tVN:%s\tCL:%s" % (get_version(), run_cmd)
-        
+
         sam_header_file.close()
-        
+
         return sam_header
-        
+
     except OSError, o:
        errmsg=fail_str+str(o)+"\n"
        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
@@ -934,9 +933,9 @@ def check_bowtie():
     elif bowtie_version[0] < 1 and bowtie_version[1] < 12 and bowtie_version[2] < 3:
         die("Error: TopHat requires Bowtie 0.12.3 or later")
     print >> sys.stderr, "\tBowtie version:\t\t\t %s" % ".".join([str(x) for x in bowtie_version])
-    
 
-# Retrive a tuple containing the system's version of samtools.  Parsed from 
+
+# Retrive a tuple containing the system's version of samtools.  Parsed from
 # `samtools`
 def get_samtools_version():
     try:
@@ -951,7 +950,7 @@ def get_samtools_version():
             samtools_version_arr.append(version_match.group(4))
         else:
             samtools_version_arr.append(0)
-            
+
         return version_match.group(), samtools_version_arr
     except OSError, o:
        errmsg=fail_str+str(o)+"\n"
@@ -970,7 +969,7 @@ def check_samtools():
     elif  samtools_version_arr[1] < 1 or samtools_version_arr[2] < 7:
         die("Error: TopHat requires Samtools 0.1.7 or later")
     print >> sys.stderr, "\tSamtools %s" % samtools_version_str
-      
+
 
 
 class FastxReader:
@@ -998,11 +997,11 @@ class FastxReader:
     elif self.lastline[0] == '>':
       self.format='fasta'
       self.nextRecord=self.nextFasta
-    else: 
+    else:
       die("Error: cannot determine record type in input file %s" % fname)
     self.bufline=self.lastline
     self.lastline=None
-    
+
   def nextFastq(self):
     # returning tuple: (seqID, sequence_string, seq_len, qv_string)
     seqid,seqstr,qstr,seq_len='','','',0
@@ -1019,14 +1018,14 @@ class FastxReader:
           raise ValueError("Records in Fastq files should start with '@' character")
       seqid = line[1:].rstrip()
       seqstr = fline().rstrip()
-      
+
       #There may now be more sequence lines, or the "+" quality marker line:
       while True:
           line = fline()
           if not line:
              raise ValueError("Premature end of file (missing quality values for "+seqid+")")
           if line[0] == "+":
-             #sequence string ended  
+             #sequence string ended
              qtitle = line[1:].rstrip()
              # if qtitle and qtitle != seqid:
              #   raise ValueError("Different read ID for sequence and quality (%s vs %s)" \
@@ -1035,14 +1034,14 @@ class FastxReader:
           seqstr += line.rstrip() #removes trailing newlines
           #loop until + found
       seq_len = len(seqstr)
-      #at least one line of quality data should follow  
-      qstrlen=0  
+      #at least one line of quality data should follow
+      qstrlen=0
       #now read next lines as quality values until seq_len is reached
       while True:
           line=fline()
-          if not line : break #end of file  
+          if not line : break #end of file
           qstr += line.rstrip()
-          qstrlen=len(qstr)  
+          qstrlen=len(qstr)
           if qstrlen + self.isColor >= seq_len :
                break # qv string has reached the length of seq string
           #loop until qv has the same length as seq
@@ -1052,7 +1051,7 @@ class FastxReader:
                                 % (seqid, seq_len, qstrlen))
     except ValueError, err:
         die("\nError encountered parsing file "+self.fname+":\n "+str(err))
-    #return the record 
+    #return the record
     self.numrecords+=1
     if self.isColor :
         seq_len-=1
@@ -1077,7 +1076,7 @@ class FastxReader:
           line = fline()
           if not line: break
           if line[0] == '>':
-             #next sequence starts here  
+             #next sequence starts here
              self.ungetLine()
              break
           seqstr += line.rstrip()
@@ -1118,7 +1117,7 @@ class ZReader:
     def __init__(self, filename, sysparams, guess=True):
         self.fname=filename
         self.file=None
-        self.fsrc=None 
+        self.fsrc=None
         self.popen=None
         pipecmd=[]
         if guess:
@@ -1146,18 +1145,18 @@ class ZReader:
            pipecmd+=['-cd']
            try:
               self.fsrc=open(self.fname, 'rb')
-              self.popen=subprocess.Popen(pipecmd, 
-                    stdin=self.fsrc, 
+              self.popen=subprocess.Popen(pipecmd,
+                    stdin=self.fsrc,
                     stdout=subprocess.PIPE, close_fds=True)
            except Exception:
               die("Error: could not open pipe "+' '.join(pipecmd)+' < '+ self.fname)
            self.file=self.popen.stdout
-        else: 
+        else:
            self.file=open(filename)
     def close(self):
        if self.fsrc: self.fsrc.close()
        self.file.close()
-       if self.popen: 
+       if self.popen:
            self.popen.wait()
            self.popen=None
 
@@ -1168,8 +1167,8 @@ class ZWriter:
           pipecmd=[sysparams.zipper,"-cf", "-"]
           self.ftarget=open(filename, "wb")
           try:
-             self.popen=subprocess.Popen(pipecmd, 
-                   stdin=subprocess.PIPE, 
+             self.popen=subprocess.Popen(pipecmd,
+                   stdin=subprocess.PIPE,
                    stdout=self.ftarget, close_fds=True)
           except Exception:
               die("Error: could not open writer pipe "+' '.join(pipecmd)+' < '+ self.fname)
@@ -1185,15 +1184,15 @@ class ZWriter:
           self.popen.wait() #! required to actually flush the pipes (hmmm)
           self.popen=None
 
-# check_reads() has several jobs.  It examines the user's reads, one file at a 
-# time, and determnes the file format, read length, and other properties that 
-# are used to set the junction search strategy later on.  
-# TODO: When we add support for mixed read lengths, this routine 
-# will need to set the seed length differently. 
+# check_reads() has several jobs.  It examines the user's reads, one file at a
+# time, and determnes the file format, read length, and other properties that
+# are used to set the junction search strategy later on.
+# TODO: When we add support for mixed read lengths, this routine
+# will need to set the seed length differently.
 def check_reads(params, reads_files):
     print >> sys.stderr, "[%s] Checking reads" % right_now()
     get_bowtie_version()
-    
+
     seed_len = params.read_params.seed_length
     fileformat = params.read_params.reads_format
 
@@ -1226,12 +1225,11 @@ def check_reads(params, reads_files):
     if len(observed_formats) > 1:
         die("Error: TopHat requires all reads be either FASTQ or FASTA.  Mixing formats is not supported.")
     fileformat=list(observed_formats)[0]
-
     if seed_len != None:
         seed_len = max(seed_len, min_seed_len)
     else:
         seed_len = max_seed_len
-        
+
     print >> sys.stderr, "\tmin read length: %dbp, max read length: %dbp" % (min_seed_len, max_seed_len)
     print >> sys.stderr, "\tformat:\t\t %s" % fileformat
     if fileformat == "fastq":
@@ -1244,7 +1242,7 @@ def check_reads(params, reads_files):
     elif fileformat == "fasta":
         if params.read_params.color:
             params.read_params.integer_quals = True
-    
+
     #print seed_len, format, solexa_scale
     return TopHatParams.ReadParams(params.read_params.solexa_quals,
                                    params.read_params.phred64_quals,
@@ -1253,9 +1251,9 @@ def check_reads(params, reads_files):
                                    params.read_params.color,
                                    params.read_params.color_out,
                                    params.read_params.library_type,
-                                   seed_len, 
-                                   fileformat, 
-                                   params.read_params.mate_inner_dist, 
+                                   seed_len,
+                                   fileformat,
+                                   params.read_params.mate_inner_dist,
                                    params.read_params.mate_inner_dist_std_dev,
                                    params.read_params.read_group_id,
                                    params.read_params.sample_id,
@@ -1266,29 +1264,29 @@ def check_reads(params, reads_files):
                                    params.read_params.seq_run_date,
                                    params.read_params.seq_platform)
 
-# Format a DateTime as a pretty string.  
+# Format a DateTime as a pretty string.
 # FIXME: Currently doesn't support days!
 def formatTD(td):
   hours = td.seconds // 3600
   minutes = (td.seconds % 3600) // 60
   seconds = td.seconds % 60
-  return '%02d:%02d:%02d' % (hours, minutes, seconds) 
+  return '%02d:%02d:%02d' % (hours, minutes, seconds)
 
 # Calls the prep_reads executable, which prepares an internal read library.
 # The read library features reads with monotonically increasing integer IDs.
-# prep_reads also filters out very low complexy or garbage reads as well as 
+# prep_reads also filters out very low complexy or garbage reads as well as
 # polyA reads.
-def prep_reads(params, reads_list, quals_list, output_name):    
+def prep_reads(params, reads_list, quals_list, output_name):
     reads_suffix = ".fq"
     if use_zpacker: reads_suffix += ".z"
     kept_reads_filename = tmp_dir + output_name + reads_suffix
-    
+
     if os.path.exists(kept_reads_filename):
         os.remove(kept_reads_filename)
     kept_reads = open(kept_reads_filename, "wb")
-    
+
     filter_log = open(logging_dir + "prep_reads.log", "w")
-    
+
     filter_cmd = [prog_path("prep_reads")]
     filter_cmd.extend(params.cmd())
     if params.read_params.reads_format == "fastq":
@@ -1309,10 +1307,10 @@ def prep_reads(params, reads_list, quals_list, output_name):
        zip_cmd.extend(['-c','-'])
        shell_cmd +=' | '+' '.join(zip_cmd)
     shell_cmd += ' >' +kept_reads_filename
-    try:       
+    try:
         print >> run_log, shell_cmd
         if use_zpacker:
-            filter_proc = subprocess.Popen(filter_cmd, 
+            filter_proc = subprocess.Popen(filter_cmd,
                                   stdout=subprocess.PIPE,
                                   stderr=filter_log)
             zip_proc=subprocess.Popen(zip_cmd,
@@ -1346,7 +1344,7 @@ def bowtie(params,
     start_time = datetime.now()
     bwt_idx_name = bwt_idx_prefix.split('/')[-1]
     print >> sys.stderr, "[%s] Mapping reads against %s with Bowtie %s" % (start_time.strftime("%c"), bwt_idx_name, extra_output)
-    
+
     readfile_basename=getFileBaseName(reads_list)
     bwt_log = open(logging_dir + 'bowtie.'+readfile_basename+'.fixmap.log', "w")
     #bwt_mapped=mapped_reads
@@ -1362,9 +1360,9 @@ def bowtie(params,
          unmapped_reads_out=unmapped_reads_fifo
 
     # Launch Bowtie
-    try:    
+    try:
         bowtie_cmd = [bowtie_path]
-        
+
         if reads_format == "fastq":
             bowtie_cmd += ["-q"]
         elif reads_format == "fasta":
@@ -1392,9 +1390,8 @@ def bowtie(params,
                        os._exit(os.EX_OK)
                     signal.signal(signal.SIGTERM, on_sig_exit)
                     subprocess.call(zip_cmd,
-                                    stdin=open(unmapped_reads_fifo, "r"), 
+                                    stdin=open(unmapped_reads_fifo, "r"),
                                     stdout=open(unmapped_reads, "wb"))
-
                     os._exit(os.EX_OK)
 
         fix_map_cmd = [prog_path('fix_map_ordering')]
@@ -1413,29 +1410,29 @@ def bowtie(params,
                                  stdout=subprocess.PIPE)
            bowtie_cmd += ['-']
            shellcmd=' '.join(unzip_cmd) + "< " +reads_list +"|"
-           bowtie_proc = subprocess.Popen(bowtie_cmd, 
-                                 stdin=unzip_proc.stdout, 
-                                 stdout=subprocess.PIPE, 
+           bowtie_proc = subprocess.Popen(bowtie_cmd,
+                                 stdin=unzip_proc.stdout,
+                                 stdout=subprocess.PIPE,
                                  stderr=bwt_log)
            unzip_proc.stdout.close() # see http://bugs.python.org/issue7678
         else:
            bowtie_cmd += [reads_list]
-           bowtie_proc = subprocess.Popen(bowtie_cmd, 
+           bowtie_proc = subprocess.Popen(bowtie_cmd,
                                  stdout=subprocess.PIPE,
                                  stderr=bwt_log)
         if reads_format == "fastq":
             fix_map_cmd += ["--fastq"]
         elif reads_format == "fasta":
             fix_map_cmd += ["--fasta"]
-        
+
         if reads_for_ordering == None:
             reads_for_ordering = reads_list
-        
+
         fix_map_cmd.extend(['-',reads_for_ordering])
-        shellcmd += ' '.join(bowtie_cmd) + '|' + ' '.join(fix_map_cmd) 
+        shellcmd += ' '.join(bowtie_cmd) + '|' + ' '.join(fix_map_cmd)
         if use_zpacker:
            shellcmd += "|"+ ' '.join(zip_cmd)+" > " + mapped_reads
-           fix_order_proc = subprocess.Popen(fix_map_cmd, 
+           fix_order_proc = subprocess.Popen(fix_map_cmd,
                                           stdin=bowtie_proc.stdout,
                                           stdout=subprocess.PIPE)
            zip_proc = subprocess.Popen(zip_cmd,
@@ -1444,7 +1441,7 @@ def bowtie(params,
            fix_order_proc.stdout.close()
            shellcmd += "|"+ ' '.join(zip_cmd)
         else:
-           fix_order_proc = subprocess.Popen(fix_map_cmd, 
+           fix_order_proc = subprocess.Popen(fix_map_cmd,
                                           stdin=bowtie_proc.stdout,
                                           stdout=open(mapped_reads, "w"))
         bowtie_proc.stdout.close()
@@ -1462,8 +1459,8 @@ def bowtie(params,
                   pass
     except OSError, o:
         die(fail_str+"Error: "+str(o))
-            
-    # Success    
+
+    # Success
     #finish_time = datetime.now()
     #duration = finish_time - start_time
     #print >> sys.stderr, "\t\t\t[%s elapsed]" %  formatTD(duration)
@@ -1486,7 +1483,7 @@ def bowtie_segment(params,
     backup_bowtie_alignment_option = params.bowtie_alignment_option
     params.bowtie_alignment_option = "-v"
     params.max_hits *= 2
-    
+
     result = bowtie(params, bwt_idx_prefix, reads_list, reads_format,
                     mapped_reads, unmapped_reads, reads_for_ordering,
                     extra_output)
@@ -1494,37 +1491,37 @@ def bowtie_segment(params,
     params.bowtie_alignment_option = backup_bowtie_alignment_option
     params.max_hits /= 2
     return result
-    
+
 # Generate a new temporary filename in the user's tmp directory
 def tmp_name():
     tmp_root = tmp_dir
     if os.path.exists(tmp_root):
         pass
-    else:        
+    else:
         os.mkdir(tmp_root)
-    return tmp_root + os.tmpnam().split('/')[-1] 
+    return tmp_root + os.tmpnam().split('/')[-1]
 
 # Retrieve a .juncs file from a GFF file by calling the gtf_juncs executable
 def get_gtf_juncs(gff_annotation):
     print >> sys.stderr, "[%s] Reading known junctions from GTF file" % (right_now())
     gtf_juncs_log = open(logging_dir + "gtf_juncs.log", "w")
-    
+
     gff_prefix = gff_annotation.split('/')[-1].split('.')[0]
-    
+
     gtf_juncs_out_name  = tmp_dir + gff_prefix + ".juncs"
     gtf_juncs_out = open(gtf_juncs_out_name, "w")
-    
+
     #gtf_juncs_cmd = [bin_dir + "gtf_juncs", gff_annotation]
-    gtf_juncs_cmd=[prog_path("gtf_juncs"), gff_annotation]                 
-    try:    
+    gtf_juncs_cmd=[prog_path("gtf_juncs"), gff_annotation]
+    try:
         print >> run_log, " ".join(gtf_juncs_cmd)
-        retcode = subprocess.call(gtf_juncs_cmd, 
+        retcode = subprocess.call(gtf_juncs_cmd,
                                   stderr=gtf_juncs_log,
                                   stdout=gtf_juncs_out)
         # cvg_islands returned an error
         if retcode == 1:
             print >> sys.stderr, "\tWarning: TopHat did not find any junctions in GTF file"
-            return (False, gtf_juncs_out_name) 
+            return (False, gtf_juncs_out_name)
         elif retcode < 0:
             die(fail_str+"Error: GTF junction extraction failed with err ="+str(retcode))
     # cvg_islands not found
@@ -1539,20 +1536,20 @@ def get_gtf_juncs(gff_annotation):
 def build_juncs_bwt_index(external_splice_prefix, color):
     print >> sys.stderr, "[%s] Indexing splices" % (right_now())
     bowtie_build_log = open(logging_dir + "bowtie_build.log", "w")
-    
+
     #user_splices_out_prefix  = output_dir + "user_splices_idx"
-    
+
     bowtie_build_cmd = [prog_path("bowtie-build")]
     if color:
         bowtie_build_cmd += ["-C"]
-        
+
     bowtie_build_cmd += [external_splice_prefix + ".fa",
-                         external_splice_prefix]            
-    try:    
+                         external_splice_prefix]
+    try:
         print >> run_log, " ".join(bowtie_build_cmd)
-        retcode = subprocess.call(bowtie_build_cmd, 
+        retcode = subprocess.call(bowtie_build_cmd,
                                  stdout=bowtie_build_log)
-       
+
         if retcode != 0:
             die(fail_str+"Error: Splice sequence indexing failed with err ="+ str(retcode))
     except OSError, o:
@@ -1564,41 +1561,41 @@ def build_juncs_bwt_index(external_splice_prefix, color):
 
 # Build a splice index from a .juncs file, suitable for use with specified read
 # (or read segment) lengths
-def build_juncs_index(min_anchor_length, 
+def build_juncs_index(min_anchor_length,
                       read_length,
-                      juncs_prefix, 
+                      juncs_prefix,
                       external_juncs,
                       external_insertions,
-                      external_deletions,  
+                      external_deletions,
                       reference_fasta,
                       color):
     print >> sys.stderr, "[%s] Retrieving sequences for splices" % (right_now())
-    
+
     juncs_file_list = ",".join(external_juncs)
     insertions_file_list = ",".join(external_insertions)
     deletions_file_list = ",".join(external_deletions)
 
 
     juncs_db_log = open(logging_dir + "juncs_db.log", "w")
-    
+
     external_splices_out_prefix  = tmp_dir + juncs_prefix
     external_splices_out_name = external_splices_out_prefix + ".fa"
-    
+
     external_splices_out = open(external_splices_out_name, "w")
     # juncs_db_cmd = [bin_dir + "juncs_db",
-    juncs_db_cmd = [prog_path("juncs_db"), 
+    juncs_db_cmd = [prog_path("juncs_db"),
                     str(min_anchor_length),
                     str(read_length),
                     juncs_file_list,
                     insertions_file_list,
                     deletions_file_list,
-                    reference_fasta]            
-    try:    
+                    reference_fasta]
+    try:
         print >> run_log, " ".join(juncs_db_cmd)
-        retcode = subprocess.call(juncs_db_cmd, 
+        retcode = subprocess.call(juncs_db_cmd,
                                  stderr=juncs_db_log,
                                  stdout=external_splices_out)
-       
+
         if retcode != 0:
             die(fail_str+"Error: Splice sequence retrieval failed with err ="+str(retcode))
     # juncs_db not found
@@ -1607,7 +1604,7 @@ def build_juncs_index(min_anchor_length,
        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
            errmsg+="Error: juncs_db not found on this system"
        die(errmsg)
-       
+
     external_splices_out_prefix = build_juncs_bwt_index(external_splices_out_prefix, color)
     return external_splices_out_prefix
 
@@ -1633,119 +1630,61 @@ def write_sam_header(read_params, sam_file):
             rg_str += "\tDT:%s" % read_params.seq_run_date
         if read_params.seq_platform:
             rg_str += "\tPL:%s" % read_params.seq_platform
-        
+
         print >> sam_file, rg_str
     print >> sam_file, "@PG\tID:TopHat\tVN:%s\tCL:%s" % (get_version(), run_cmd)
-            
+
 # Write final TopHat output, via tophat_reports and wiggles
 def compile_reports(params, sam_header_filename, left_maps, left_reads, right_maps, right_reads, gff_annotation):
     print >> sys.stderr, "[%s] Reporting output tracks" % right_now()
-    
+
     left_maps = [x for x in left_maps if (os.path.exists(x) and os.path.getsize(x) > 25)]
     left_maps = ','.join(left_maps)
-    
+
     if len(right_maps) > 0:
         right_maps = [x for x in right_maps if (os.path.exists(x) and os.path.getsize(x) > 25)]
         right_maps = ','.join(right_maps)
-    
+
     report_log = open(logging_dir + "reports.log", "w")
     junctions = output_dir + "junctions.bed"
     insertions = output_dir + "insertions.bed"
-    deletions = output_dir + "deletions.bed" 
+    deletions = output_dir + "deletions.bed"
     coverage =  "coverage.wig"
-    accepted_hits_sam = tmp_dir + "accepted_hits.sam"
+    accepted_hits = output_dir + "accepted_hits"
     report_cmdpath = prog_path("tophat_reports")
     report_cmd = [report_cmdpath]
     report_cmd.extend(params.cmd())
-        
+    report_cmd.extend(["--samtools="+samtools_path])
     report_cmd.extend([junctions,
                        insertions,
                        deletions,
-                       accepted_hits_sam,
+                       "-",
                        left_maps,
                        left_reads])
     if len(right_maps) > 0 and right_reads != None:
         report_cmd.append(right_maps)
         report_cmd.append(right_reads)
-                    
-    try: 
-    
-        accepted_hits_sam_file = open(accepted_hits_sam, "w")
-        #write_sam_header(params.read_params, sorted_map)
-    
-        header = open(sam_header_filename, "r")
-        for line in header:
-            print >> accepted_hits_sam_file, line,
-    
-        accepted_hits_sam_file.close()
-        #accepted_hits_sam_file = open(accepted_hits_sam, "a")
-    
-        print >> run_log, " ".join(report_cmd)   
-        retcode = subprocess.call(report_cmd, 
-                                  stderr=report_log)
-       
-        if retcode != 0:
-            die(fail_str+"Error: Report generation failed with err ="+str(retcode))
-        
-        #tmp_bam = tmp_name()+".bam"
-        sam_to_bam_cmd = [samtools_path, "view", "-S", "-u", accepted_hits_sam]
-        sam_to_bam_log = open(logging_dir + "accepted_hits_sam_to_bam.log", "w")
-        try:
-          sam2bam_proc=subprocess.Popen(sam_to_bam_cmd, 
-                                stdout=subprocess.PIPE,
-                                stderr=sam_to_bam_log)
-          #tmp_bam_file = open(tmp_bam, "w")
-          bamsort_cmd = [samtools_path, "sort", "-", output_dir + "accepted_hits"]
-          sort_bam_log = open(logging_dir + "accepted_hits_bam_sort.log", "w")
 
-          bamsort_proc = subprocess.Popen(bamsort_cmd,
-                                stdin=sam2bam_proc.stdout,
-                                stderr=sort_bam_log)
-          sam2bam_proc.stdout.close()
-          print >> run_log, " ".join(sam_to_bam_cmd) + " | " + ' '.join(bamsort_cmd)
+    # -- tophat_reports will produce (uncompressed) BAM stream directly
+    try:
+          report_proc=subprocess.Popen(report_cmd,
+                       stdout=subprocess.PIPE,
+                       stderr=report_log)
+
+          bamsort_cmd = ["samtools", "sort", "-", accepted_hits]
+          bamsort_proc= subprocess.Popen(bamsort_cmd,
+                     stdin=report_proc.stdout)
+          report_proc.stdout.close()
+          print >> run_log, " ".join(report_cmd)+" | " + " ".join(bamsort_cmd)
           bamsort_proc.communicate()
-        except Exception, o:
-          die("Error converting to BAM with samtools " + str(o))
-        #if ret != 0:
-        #    die("Error: could not convert to BAM with samtools")
-        #print >> run_log, " ".join(sort_cmd)
-#        sorted_map_name = tmp_name()
-#        sorted_map = open(sorted_map_name, "w")
-#        write_sam_header(params.read_params, sorted_map)
-#        sorted_map.close()
-#        sorted_map = open(sorted_map_name, "a")
-#        
-#        sort_cmd =["sort",
-#                    "-k",
-#                    "3,3", 
-#                    "-k", 
-#                    "4,4n",
-#                    "--temporary-directory="+tmp_dir,
-#                    output_dir + accepted_hits]
-#                    
-                
-        #sort_bam_log = open(logging_dir + "accepted_hits_bam_sort.log", "w")
-        #ret = subprocess.call(sort_cmd, 
-        #                stdout=open('/dev/null'),
-        #                stderr=sort_bam_log)
-        #if ret != 0:
-        #    die("Error: could not sort BAM file with samtools")
-            
-        os.remove(accepted_hits_sam)
-#        print >> run_log, "mv %s %s" % (sorted_map, output_dir + accepted_hits)
-#        os.rename(sorted_map_name, output_dir + accepted_hits) 
+    except OSError, o:
+          die(fail_str+"Error: "+str(o))
 
 # FIXME: put wiggles back!
 #        wig_cmd = [prog_path("wiggles"), output_dir + accepted_hits, output_dir + coverage]
 #        print >> run_log, " ".join(wig_cmd)
 #        subprocess.call(wig_cmd,
 #                        stderr=open("/dev/null"))
-                        
-    # cvg_islands not found
-    except OSError, o:
-        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
-            print >> sys.stderr, fail_str, "Error: tophat_reports not found on this system"
-        die(str(o))
     return (coverage, junctions)
 
 
@@ -1756,12 +1695,11 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
 def open_output_files(prefix, num_files_prev, num_files, out_segf, extension, params):
        i = num_files_prev + 1
        while i <= num_files:
-          #out_fhandles.append(open(prefix + ("_seg%d" % i) + extension, "w"))
           segfname=prefix+("_seg%d" % i)+extension
-          out_segf.append(ZWriter(segfname,params.system_params));
+          out_segf.append(ZWriter(segfname,params.system_params))
           i += 1
 
-def split_reads(reads_filename, 
+def split_reads(reads_filename,
                 prefix,
                 fasta,
                 params,
@@ -1769,7 +1707,7 @@ def split_reads(reads_filename,
     #reads_file = open(reads_filename)
     zreads = ZReader(reads_filename, params.system_params, False)
     out_segfiles = []
-    
+
     if fasta:
         extension = ".fa"
     else:
@@ -1880,7 +1818,7 @@ def split_reads(reads_filename,
             read_quals = line.strip()
             if not fasta:
                 split_record(read_name, read_seq, read_quals, out_segfiles, offsets, params.read_params.color)
-                
+
         line_state += 1
         if fasta:
             line_state %= 2
@@ -1897,12 +1835,12 @@ def split_reads(reads_filename,
 # Find possible splice junctions using the "closure search" strategy, and report
 # them in closures.juncs.  Calls the executable closure_juncs
 def junctions_from_closures(params,
-                            left_maps, 
-                            right_maps, 
+                            left_maps,
+                            right_maps,
                             ref_fasta):
     #print >> sys.stderr, "[%s] " % right_now()
     print >> sys.stderr, "[%s] Searching for junctions via mate-pair closures" % right_now()
-    
+
     #maps = [x for x in seg_maps if (os.path.exists(x) and os.path.getsize(x) > 0)]
     #if len(maps) == 0:
     #    return None
@@ -1924,13 +1862,13 @@ def junctions_from_closures(params,
     juncs_cmd.extend([juncs_out,
                       ref_fasta,
                       left_maps,
-                      right_maps])            
+                      right_maps])
     try:
         print >> run_log, ' '.join(juncs_cmd)
-        retcode = subprocess.call(juncs_cmd, 
+        retcode = subprocess.call(juncs_cmd,
                                  stderr=juncs_log)
 
-        # spanning_reads returned an error 
+        # spanning_reads returned an error
         if retcode != 0:
            die(fail_str+"Error: closure-based junction search failed with err ="+str(retcode))
     # cvg_islands not found
@@ -1947,12 +1885,12 @@ def junctions_from_closures(params,
 def junctions_from_segments(params,
                             left_reads,
                             left_reads_map,
-                            left_seg_maps, 
+                            left_seg_maps,
                             right_reads,
                             right_reads_map,
                             right_seg_maps,
-                            unmapped_reads, 
-                            reads_format, 
+                            unmapped_reads,
+                            reads_format,
                             ref_fasta):
     print >> sys.stderr, "[%s] Searching for junctions via segment mapping" % right_now()
     #slash = left_seg_maps[0].rfind('/')
@@ -1968,9 +1906,9 @@ def junctions_from_segments(params,
     left_maps = ','.join(left_seg_maps)
     align_log = open(logging_dir + "segment_juncs.log", "w")
     align_cmd = [prog_path("segment_juncs")]
-    
+
     align_cmd.extend(params.cmd())
-    
+
     align_cmd.extend(["--ium-reads", ",".join(unmapped_reads),
                       ref_fasta,
                       juncs_out,
@@ -1981,13 +1919,13 @@ def junctions_from_segments(params,
                       left_maps])
     if right_seg_maps != None:
         right_maps = ','.join(right_seg_maps)
-        align_cmd.extend([right_reads, right_reads_map, right_maps])            
+        align_cmd.extend([right_reads, right_reads_map, right_maps])
     try:
         print >> run_log, " ".join(align_cmd)
-        retcode = subprocess.call(align_cmd, 
+        retcode = subprocess.call(align_cmd,
                                  stderr=align_log)
 
-        # spanning_reads returned an error 
+        # spanning_reads returned an error
         if retcode != 0:
            die(fail_str+"Error: segment-based junction search failed with err ="+str(retcode))
     # cvg_islands not found
@@ -2017,27 +1955,9 @@ def join_mapped_segments(params,
     possible_insertions = ",".join(possible_insertions)
     possible_deletions = ",".join(possible_deletions)
 
-    
     align_log = open(logging_dir + "long_spanning_reads.log", "w")
     align_cmd = [prog_path("long_spanning_reads")]
-    
-    ## if params.read_params.reads_format == "fastq":
-    ##     align_cmd += ["-q"]
-    ## elif params.read_params.reads_format == "fasta":
-    ##     align_cmd += ["-f"]
-    
-    alignments_out = open(alignments_out_name, "w")
-    ##write_sam_header(params.read_params, sorted_map)
-    
-    header = open(sam_header_filename, "r")
-    for line in header:
-        print >> alignments_out, line,
-    
-    alignments_out.close()
-    alignments_out = open(alignments_out_name, "a")
-    
-    #alignments_out = open(alignments_out_name, "w")
-    
+
     align_cmd.extend(params.cmd())
 
     align_cmd.append(ref_fasta)
@@ -2046,34 +1966,29 @@ def join_mapped_segments(params,
                        possible_insertions,
                        possible_deletions,
                        contig_seg_maps])
+
     if spliced_seg_maps != None:
         spliced_seg_maps = ','.join(spliced_seg_maps)
         align_cmd.append(spliced_seg_maps)
 
-    try:    
-        print >> run_log, " ".join(align_cmd),">", alignments_out_name
-        retcode = subprocess.call(align_cmd, 
-                                  stderr=align_log,
-                                  stdout=alignments_out)
-
-        # spanning_reads returned an error 
-        if retcode != 0:
-            die(fail_str+"Error: Segment join failed with err ="+str(retcode))
-     # cvg_islands not found
+    try:
+        print >> run_log, " ".join(align_cmd),">",alignments_out_name
+        join_proc=subprocess.Popen(align_cmd,
+                          stdout=open(alignments_out_name, "wb"),
+                          stderr=align_log)
+        join_proc.communicate()
     except OSError, o:
-        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
-            print >> sys.stderr, fail_str, "Error: long_spanning_reads not found on this system"
-        die(str(o))
-      
+        die(fail_str+"Error: "+str(o))
 
-# This class collects spliced and unspliced alignments for each of the 
+
+# This class collects spliced and unspliced alignments for each of the
 # left and right read files provided by the user.
 class Maps:
-        def __init__(self, 
+        def __init__(self,
                      unspliced_bwt,
                      unspliced_sam,
-                     seg_maps, 
-                     unmapped_segs, 
+                     seg_maps,
+                     unmapped_segs,
                      segs):
             self.unspliced_bwt = unspliced_bwt
             self.unspliced_sam = unspliced_sam
@@ -2081,8 +1996,8 @@ class Maps:
             self.unmapped_segs = unmapped_segs
             self.segs = segs
 
-# The main aligment routine of TopHat.  This function executes most of the 
-# workflow producing a set of candidate alignments for each cDNA fragment in a 
+# The main aligment routine of TopHat.  This function executes most of the
+# workflow producing a set of candidate alignments for each cDNA fragment in a
 # pair of SAM alignment files (for paired end reads).
 def spliced_alignment(params,
                       bwt_idx_prefix,
@@ -2095,7 +2010,7 @@ def spliced_alignment(params,
                       user_supplied_junctions,
                       user_supplied_insertions,
                       user_supplied_deletions):
-    
+
     possible_juncs = []
     possible_juncs.extend(user_supplied_junctions)
 
@@ -2104,11 +2019,11 @@ def spliced_alignment(params,
 
     possible_deletions = []
     possible_deletions.extend(user_supplied_deletions)
-    
+
     maps = { left_reads : [], right_reads : [] }
     #single_segments = False
 
-    # Perform the first part of the TopHat work flow on the left and right 
+    # Perform the first part of the TopHat work flow on the left and right
     # reads of paired ends separately - we'll use the pairing information later
     for reads in [left_reads, right_reads]:
         if reads == None or os.path.getsize(reads)<25 :
@@ -2120,23 +2035,23 @@ def spliced_alignment(params,
         if use_BWT_FIFO:
             unmapped_unspliced += ".z"
         num_segs = read_len / segment_len
-        if read_len % segment_len >= min(segment_len - 2, 20):
+        if read_len % segment_len >= min(segment_len -2, 20):
             num_segs += 1
         # Perform the initial Bowtie mapping of the full lenth reads
         (unspliced_map, unmapped) = bowtie(params,
-                                           bwt_idx_prefix, 
+                                           bwt_idx_prefix,
                                            reads,
                                            "fastq",
                                            unspliced_out,
                                            unmapped_unspliced,
                                            reads)
-        
+
         # TODO: should write BAM directly
         #unspliced_sam = tmp_name()+'.unspl.sam'
-        unspliced_sam = tmp_dir+fbasename+'.unspl.sam'
-         
-        # Convert the initial Bowtie maps into SAM format.  
-        # TODO: this step should be removable now that Bowtie supports SAM 
+        unspliced_sam = tmp_dir+fbasename+'.unspl.bam'
+
+        # Convert the initial Bowtie maps into SAM format.
+        # TODO: this step should be removable now that Bowtie supports SAM
         # format
         join_mapped_segments(params,
                              sam_header_filename,
@@ -2148,7 +2063,7 @@ def spliced_alignment(params,
                              [unspliced_map],
                              [],
                              unspliced_sam)
-        # Using the num_segs value returned by check_reads(), decide which 
+        # Using the num_segs value returned by check_reads(), decide which
         # junction discovery strategy to use
         if num_segs == 1:
             segment_len = read_len
@@ -2169,7 +2084,7 @@ def spliced_alignment(params,
         if num_segs > 1:
             # split up the IUM reads into segments
             read_segments = split_reads(unmapped_unspliced,
-                                        tmp_dir + fbasename, 
+                                        tmp_dir + fbasename,
                                         False,
                                         params,
                                         segment_len)
@@ -2191,7 +2106,7 @@ def spliced_alignment(params,
                     unmapped_seg += ".z"
                 extra_output = "(%d/%d)" % (i+1, len(read_segments))
                 (seg_map, unmapped) = bowtie_segment(params,
-                                                     bwt_idx_prefix, 
+                                                     bwt_idx_prefix,
                                                      seg,
                                                      "fastq",
                                                      seg_out,
@@ -2201,18 +2116,18 @@ def spliced_alignment(params,
                 seg_maps.append(seg_map)
                 unmapped_segs.append(unmapped)
                 segs.append(seg)
-            
+
             # Collect the segment maps for left and right reads together
-            maps[reads] = Maps(unspliced_map, unspliced_sam, seg_maps, unmapped_segs, segs) 
+            maps[reads] = Maps(unspliced_map, unspliced_sam, seg_maps, unmapped_segs, segs)
         else:
             # if there's only one segment, just collect the initial map as the only
             # map to be used downstream for coverage-based junction discovery
             read_segments = [reads]
             maps[reads] = Maps(unspliced_map, unspliced_sam, [unspliced_map], [unmapped_unspliced], read_segments)
-    
+
     # Unless the user asked not to discover new junctions, start that process
     # here
-    
+
     if params.find_novel_juncs or params.find_novel_indels:
         left_reads_map = maps[left_reads].unspliced_bwt
         left_seg_maps = maps[left_reads].seg_maps
@@ -2224,18 +2139,18 @@ def spliced_alignment(params,
         else:
             right_reads_map = None
             right_seg_maps = None
-        
+
         # Call segment_juncs to infer a list of possible splice junctions from
         # the regions of the genome covered in the initial and segment maps
-        juncs = junctions_from_segments(params, 
+        juncs = junctions_from_segments(params,
                                         left_reads,
                                         left_reads_map,
-                                        left_seg_maps, 
+                                        left_seg_maps,
                                         right_reads,
                                         right_reads_map,
                                         right_seg_maps,
                                         unmapped_reads,
-                                        "fastq", 
+                                        "fastq",
                                         ref_fasta)
         if params.find_novel_juncs:
                 if os.path.getsize(juncs[0]) != 0:
@@ -2245,7 +2160,7 @@ def spliced_alignment(params,
                     possible_insertions.append(juncs[1])
                 if os.path.getsize(juncs[2]) != 0:
                     possible_deletions.append(juncs[2])
-        # Optionally, and for paired reads only, use a closure search to 
+        # Optionally, and for paired reads only, use a closure search to
         # discover addtional junctions
         if params.find_novel_juncs and params.closure_search and left_reads != None and right_reads != None:
             juncs = junctions_from_closures(params,
@@ -2269,25 +2184,25 @@ def spliced_alignment(params,
     if len(possible_juncs) == 0:
         possible_juncs.append(os.devnull)
         print >> sys.stderr, "Warning: junction database is empty!"
-    if junc_idx_prefix != None:  
+    if junc_idx_prefix != None:
         build_juncs_index(3,
                           segment_len,
-                          junc_idx_prefix, 
+                          junc_idx_prefix,
                           possible_juncs,
                           possible_insertions,
                           possible_deletions,
                           ref_fasta,
                           params.read_params.color)
-    
+
     # Now map read segments (or whole IUM reads, if num_segs == 1) to the splice
     # index with Bowtie
     for reads in [left_reads, right_reads]:
         spliced_seg_maps = []
         if reads == None or reads not in maps:
             continue
-        
+
         if junc_idx_prefix != None:
-            i = 0    
+            i = 0
             for seg in maps[reads].segs:
                 #fsegdir=getFileDir(seg)
                 fsegname=getFileBaseName(seg)
@@ -2295,7 +2210,7 @@ def spliced_alignment(params,
                 seg_out = tmp_dir + fsegname + ".to_spliced.bwtout"
                 if use_zpacker: seg_out+=".z"
                 (seg_map, unmapped) = bowtie_segment(params,
-                                                     tmp_dir + junc_idx_prefix, 
+                                                     tmp_dir + junc_idx_prefix,
                                                      seg,
                                                      "fastq",
                                                      seg_out,
@@ -2303,12 +2218,12 @@ def spliced_alignment(params,
                                                      ordering)
                 spliced_seg_maps.append(seg_map)
                 i += 1
-        
-        # Join the contigous and spliced segment hits into full length read 
+
+        # Join the contigous and spliced segment hits into full length read
         # alignments
         rfname=getFileBaseName(reads)
         rfdir=getFileDir(reads)
-        mapped_reads = rfdir+rfname+".candidate_hits.sam"
+        mapped_reads = rfdir+rfname+".candidates.bam"
         join_mapped_segments(params,
                              sam_header_filename,
                              reads,
@@ -2319,52 +2234,67 @@ def spliced_alignment(params,
                              maps[reads].seg_maps,
                              spliced_seg_maps,
                              mapped_reads)
-
         if num_segs > 1:
-            # Merge the spliced and unspliced full length alignments into a 
+            # Merge the spliced and unspliced full length alignments into a
             # single SAM file.
-            # FIXME: we ought to be able to do this much more efficiently,
-            # since the individual SAM files are all already sorted in 
-            # increasing read ID order.  We should just be able to merge these
+            # The individual SAM files are all already sorted in
+            # increasing read ID order.
             # NOTE: We also should be able to address bug #134 here, by replacing
             # contiguous alignments that poke into an intron by a small amount by
             # the correct spliced alignment.
-            
-            # Using this requires converting to BAM upstream.  What a pain.
-#            merged_map = tmp_name() + ".sam"
-#
-#            merge_sort_cmd =["samtools", "merge", "-n", "-h",
-#                              sam_header_filename,
-#                              maps[reads].unspliced_sam, 
-#                              mapped_reads,
-#                              merged_map]
-                              
-            merged_map = tmp_name()
-            #TODO: make sure it is safe to use a simple merge here (sort -m)
-            merge_sort_cmd =["sort",
-                             "-k1,1n",
-                             "-m",
-                              "-T"+tmp_dir,
-                              maps[reads].unspliced_sam, 
-                              mapped_reads]
-            print >> run_log, " ".join(merge_sort_cmd), ">", merged_map
 
-            subprocess.call(merge_sort_cmd,
-                             stdout=open(merged_map,"w")) 
+            merged_map=rfdir+rfname+".candidates_and_unspl.bam"
+
+            merge_sort_fifo = tmp_dir + rfname+"_"+str(os.getpid())+".sam.merge_sort.fifo"
+
+            try:
+              if os.path.exists(merge_sort_fifo):
+                 os.remove(merge_sort_fifo)
+              os.mkfifo(merge_sort_fifo)
+            except OSError, o:
+                 die(fail_str+"Error at mkfifo("+merge_sort_fifo+") "+str(o))
+
+            try:
+                samfifo_cmd=[samtools_path, "view", "-h", mapped_reads]
+                print >> run_log, " ".join(samfifo_cmd)+" > "+merge_sort_fifo+" &"
+                if os.fork()==0:
+                   subprocess.call(samfifo_cmd,
+                                    stdout=open(merge_sort_fifo, "w"))
+                   os._exit(os.EX_OK)
+                samview_cmd=[samtools_path, "view", maps[reads].unspliced_sam]
+                samview_proc=subprocess.Popen(samview_cmd,
+                                 stdout=subprocess.PIPE)
+                merge_sort_cmd =["sort",
+                                  "-k1,1n", "-m",
+                                   "-T"+tmp_dir, "-",
+                                   merge_sort_fifo]
+                msort_proc=subprocess.Popen(merge_sort_cmd,
+                                stdin=samview_proc.stdout,
+                                stdout=subprocess.PIPE)
+                samview_proc.stdout.close()
+                rebam_cmd = [samtools_path, "view", "-S", "-b", "-"]
+                rebam_proc=subprocess.Popen(rebam_cmd,
+                               stdin=msort_proc.stdout,
+                               stdout=open(merged_map, "wb"))
+                msort_proc.stdout.close()
+                print >> run_log, " ".join(samview_cmd)+" | " + " ".join(merge_sort_cmd) + \
+                              " | "+" ".join(rebam_cmd)+" > "+merged_map
+                rebam_proc.communicate()
+            except OSError, o:
+                die(fail_str+"Error: "+str(o))
+            os.remove(merge_sort_fifo)
+            maps[reads] = [merged_map]
+            if not params.system_params.keep_tmp:
+                 os.remove(mapped_reads)
         else:
-            merged_map = mapped_reads
-        
+            maps[reads] = [mapped_reads]
         if not params.system_params.keep_tmp:
             os.remove(maps[reads].unspliced_bwt)
-            os.remove(maps[reads].unspliced_sam) 
-        print >> run_log, "mv %s %s" % (merged_map, mapped_reads)           
-        os.rename(merged_map, mapped_reads)
-                          
-        maps[reads] = [mapped_reads]
+            os.remove(maps[reads].unspliced_sam)
     return maps
 
 def die(msg=None):
- if msg is not None: 
+ if msg is not None:
     print >> sys.stderr, msg
     sys.exit(1)
 
@@ -2404,21 +2334,22 @@ def test_input_file(filename):
     try:
         test_file = open(filename, "r")
     # Bowtie not found
-    except IOError, o: 
+    except IOError, o:
         die("Error: Opening file %s" % filename)
     return
-    
+
 def main(argv=None):
     warnings.filterwarnings("ignore", "tmpnam is a potential security risk")
-    
+
     # Initialize default parameter values
     params = TopHatParams()
+
     try:
         if argv is None:
             argv = sys.argv
             args = params.parse_options(argv)
             params.check()
-        
+
         bwt_idx_prefix = args[0]
         left_reads_list = args[1]
         left_quals_list, right_quals_list = [], []
@@ -2434,36 +2365,36 @@ def main(argv=None):
             right_reads_list = None
             if params.read_params.quals:
                 left_quals_list = args[2]
-            
+
         print >> sys.stderr
         print >> sys.stderr, "[%s] Beginning TopHat run (v%s)" % (right_now(), get_version())
-        print >> sys.stderr, "-----------------------------------------------" 
-        
+        print >> sys.stderr, "-----------------------------------------------"
+
         start_time = datetime.now()
         prepare_output_dir()
-        
+
         global run_log
         run_log = open(logging_dir + "run.log", "w", 0)
         global run_cmd
         run_cmd = " ".join(argv)
         print >> run_log, run_cmd
-        
-        
-        # Validate all the input files, check all prereqs before committing 
+
+
+        # Validate all the input files, check all prereqs before committing
         # to the run
         (ref_fasta, ref_seq_dict) = check_index(bwt_idx_prefix)
-        
+
         check_bowtie()
         check_samtools()
-        
+
         sam_header_filename = get_index_sam_header(params.read_params, bwt_idx_prefix)
-        
+
         if not params.skip_check_reads:
             reads_list = left_reads_list
             if right_reads_list:
                 reads_list = reads_list + "," + right_reads_list
             params.read_params = check_reads(params, reads_list)
-            
+
         user_supplied_juncs = []
         user_supplied_insertions = []
         user_supplied_deletions = []
@@ -2487,7 +2418,7 @@ def main(argv=None):
 
         global unmapped_reads_fifo
         unmapped_reads_fifo = tmp_dir + str(os.getpid())+".bwt_unmapped.z.fifo"
-                
+
         # Now start the time consuming stuff
         left_kept_reads = prep_reads(params,
                                      left_reads_list,
@@ -2505,8 +2436,8 @@ def main(argv=None):
         # turn off integer-quals
         if params.read_params.integer_quals:
             params.read_params.integer_quals = False
-            
-        mapping = spliced_alignment(params, 
+
+        mapping = spliced_alignment(params,
                                     bwt_idx_prefix,
                                     sam_header_filename,
                                     ref_fasta,
@@ -2517,8 +2448,7 @@ def main(argv=None):
                                     user_supplied_juncs,
                                     user_supplied_insertions,
                                     user_supplied_deletions)
-                                    
-        
+
         left_maps = mapping[left_kept_reads]
         #left_unmapped_reads = mapping[1]
         right_maps = mapping[right_kept_reads]
@@ -2546,12 +2476,11 @@ def main(argv=None):
                 os.remove(tmp_dir+t)
             os.rmdir(tmp_dir)
 
-
         finish_time = datetime.now()
         duration = finish_time - start_time
         print >> sys.stderr,"-----------------------------------------------"
         print >> sys.stderr, "Run complete [%s elapsed]" %  formatTD(duration)
-        
+
     except Usage, err:
         print >> sys.stderr, sys.argv[0].split("/")[-1] + ": " + str(err.msg)
         print >> sys.stderr, "    for detailed help see http://tophat.cbcb.umd.edu/manual.html"
