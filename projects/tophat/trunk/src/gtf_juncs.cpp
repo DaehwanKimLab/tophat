@@ -35,7 +35,8 @@ void read_transcripts(FILE* f, GffReader& gffr) {
   //assume gffr was just created but not initialized
   gffr.init(f, true, true); //(gffile, mRNA-only, sortByLoc)
   gffr.showWarnings(verbose);
-  gffr.readAll(true, true, true); //(keepAttr, mergeCloseExons, noExonAttr)
+  //(keepAttr,   mergeCloseExons,  noExonAttr)
+  gffr.readAll(false, true, true); 
   //now all parsed GffObjs are in gffr.gflst, grouped by genomic sequence
   }
 
@@ -58,7 +59,7 @@ uint32_t get_junctions_from_gff(FILE* ref_mRNA_file,
 		//ref data is grouped by genomic sequence
 		GffObj& rna = *(gff_reader.gflst[i]);
 		uint tlen=rna.len();
-		if (rna.hasErrors() || (tlen+500>GFF_MAX_LOCUS)) { //should probably report these in a file too..
+		if (rna.hasErrors() || (tlen+500>GFF_MAX_LOCUS)) { 
 			//if (verbose) 
 			GMessage("Warning: transcript %s discarded (structural errors found, length=%d).\n", rna.getID(), tlen);
 			continue;
