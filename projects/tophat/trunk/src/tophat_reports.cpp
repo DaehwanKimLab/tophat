@@ -377,15 +377,36 @@ bool rewrite_sam_hit(const RefSequenceTable& rt,
 
                     sprintf(pos_buf, "%d", partner_pos);
                     sam_toks[t] = pos_buf;
-                    break;
                 }
                 else
                 {
                     sam_toks[t] = "0";
                 }
+		break;
             }
-            default:
-                break;
+	case 8: //TLEN
+	  {
+	    if (partner && bh.ref_id() == partner->ref_id())
+	      {
+		char tlen_buf[64];
+		int tlen = 0;
+
+		if (bh.left() < partner->left())
+		  tlen = partner->right() - bh.left();
+		else
+		  tlen = partner->left() - bh.right();
+		
+		sprintf(tlen_buf, "%d", tlen);
+		sam_toks[t] = tlen_buf;
+	      }
+	    else
+	      {
+		sam_toks[t] = "0";
+	      }
+	  }
+	  
+	default:
+	  break;
         }
         strcat (rebuf, sam_toks[t].c_str());
         if (t != sam_toks.size() - 1)

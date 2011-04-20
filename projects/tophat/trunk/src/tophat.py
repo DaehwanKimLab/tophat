@@ -59,7 +59,6 @@ Options:
     -r/--mate-inner-dist           <int>
     --mate-std-dev                 <int>       [ default: 20               ]
     --no-novel-juncs
-    --allow-indels
     --no-novel-indels
     --no-gtf-juncs
     --no-coverage-search
@@ -418,7 +417,7 @@ class TopHatParams:
         self.gff_annotation = None
         self.raw_junctions = None
         self.find_novel_juncs = True
-        self.find_novel_indels = False
+        self.find_novel_indels = True
         self.find_GFF_juncs = True
         self.skip_check_reads = False
         self.max_hits = 20
@@ -552,7 +551,6 @@ class TopHatParams:
                                          "GTF=",
                                          "raw-juncs=",
                                          "no-novel-juncs",
-                                         "allow-indels",
                                          "no-novel-indels",
                                          "no-gtf-juncs",
                                          "skip-check-reads",
@@ -620,8 +618,6 @@ class TopHatParams:
                 self.raw_junctions = value
             if option == "--no-novel-juncs":
                 self.find_novel_juncs = False
-            if option == "--allow-indels":
-                self.find_novel_indels = True
             if option == "--no-novel-indels":
                 self.find_novel_indels = False
             if option == "--no-gtf-juncs":
