@@ -70,7 +70,7 @@ Options:
     --no-butterfly-search
     --keep-tmp
     --tmp-dir                      <dirname>   [ default: <output_dir>/tmp ]
-    -z/--zpacker                   <program>   [ default: no compression   ]
+    -z/--zpacker                   <program>   [ default: gzip             ]
 
 Advanced Options:
     --segment-mismatches           <int>       [ default: 2                ]
@@ -177,7 +177,7 @@ class TopHatParams:
                      keep_tmp):
             self.num_cpus = num_cpus
             self.keep_tmp = keep_tmp
-            self.zipper = ""
+            self.zipper = "gzip"
             self.zipper_opts= []
 
         def parse_options(self, opts):
@@ -187,6 +187,8 @@ class TopHatParams:
                 elif option == "--keep-tmp":
                     self.keep_tmp = True
                 elif option in ("-z","--zpacker"):
+                    if value.lower() in ["-", " ", ".", "0", "none", "f", "false", "no"]:
+                        value=""
                     self.zipper = value
                     #if not self.zipper:
                     #   self.zipper='gzip'
@@ -841,7 +843,7 @@ def get_bowtie_version():
 
 def get_index_sam_header(read_params, idx_prefix):
     try:
-        bowtie_sam_header_filename = tmp_name()
+        bowtie_sam_header_filename = tmp_dir+idx_prefix+".bwt.samheader.sam"
         bowtie_sam_header_file = open(bowtie_sam_header_filename,"w")
 
 
@@ -1041,6 +1043,10 @@ class FastxReader:
           if qstrlen + self.isColor >= seq_len :
                break # qv string has reached the length of seq string
           #loop until qv has the same length as seq
+      if self.isColor and qstr[0]=="!":
+           #some color qual string have a '!' character at the beginning, should be stripped
+           qstr = qstr[1:]
+           qstrlen -= 1
       if seq_len != qstrlen+self.isColor :
            raise ValueError("Length mismatch between sequence and quality strings "+ \
                                 "for %s (%i vs %i)." \
@@ -1259,6 +1265,31 @@ def check_reads(params, reads_files):
                                    params.read_params.seq_center,
                                    params.read_params.seq_run_date,
                                    params.read_params.seq_platform)
+def log_tail(logfile, lines=1):
+    f=open(logfile, "r")
+    f.seek(0, 2)
+    fbytes= f.tell()
+    size=lines
+    block=-1
+    while size > 0 and fbytes+block*1024  > 0:
+        if (fbytes+block*1024 > 0):
+            ##Seek back once more, if possible
+            f.seek( block*1024, 2 )
+        else:
+            #Seek to the beginning
+            f.seek(0, 0)
+        data= f.read( 1024 )
+        linesFound= data.count('\n')
+        size -= linesFound
+        block -= 1
+    if (fbytes + block*1024 > 0):
+       f.seek(block*1024, 2)
+    else:
+       f.seek(0,0)
+    f.readline() # find a newline
+    lastBlocks= list( f.readlines() )
+    f.close()
+    return "\n".join(lastBlocks[-lines:])
 
 # Format a DateTime as a pretty string.
 # FIXME: Currently doesn't support days!
@@ -1280,8 +1311,8 @@ def prep_reads(params, reads_list, quals_list, output_name):
     if os.path.exists(kept_reads_filename):
         os.remove(kept_reads_filename)
     kept_reads = open(kept_reads_filename, "wb")
-
-    filter_log = open(logging_dir + "prep_reads.log", "w")
+    log_fname=logging_dir + "prep_reads.log"
+    filter_log = open(log_fname,"w")
 
     filter_cmd = [prog_path("prep_reads")]
     filter_cmd.extend(params.cmd())
@@ -1303,6 +1334,7 @@ def prep_reads(params, reads_list, quals_list, output_name):
        zip_cmd.extend(['-c','-'])
        shell_cmd +=' | '+' '.join(zip_cmd)
     shell_cmd += ' >' +kept_reads_filename
+    retcode=0
     try:
         print >> run_log, shell_cmd
         if use_zpacker:
@@ -1314,17 +1346,19 @@ def prep_reads(params, reads_list, quals_list, output_name):
                                   stdout=kept_reads)
             filter_proc.stdout.close() #as per http://bugs.python.org/issue7678
             zip_proc.communicate()
+            retcode=filter_proc.poll()
+            if retcode==0:
+              retcode=zip_proc.poll()
         else:
-           subprocess.call(filter_cmd,
+            retcode = subprocess.call(filter_cmd,
                                  stdout=kept_reads,
                                  stderr=filter_log)
+        if retcode:
+            die(fail_str+"Error running 'prep_reads'\n"+log_tail(log_fname))
 
-    # prep_reads not found
     except OSError, o:
         errmsg=fail_str+str(o)
-        if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
-            errmsg+="\nprep_reads not found on this system.  Did you forget to include it in your PATH?"
-        die("Error: "+errmsg)
+        die(errmsg+"\n"+log_tail(log_fname))
     kept_reads.close()
     return kept_reads_filename
 
@@ -1335,13 +1369,13 @@ def bowtie(params,
            reads_format,
            mapped_reads,
            unmapped_reads,
-           reads_for_ordering = None,
            extra_output = ""):
     start_time = datetime.now()
     bwt_idx_name = bwt_idx_prefix.split('/')[-1]
-    print >> sys.stderr, "[%s] Mapping reads against %s with Bowtie %s" % (start_time.strftime("%c"), bwt_idx_name, extra_output)
-
     readfile_basename=getFileBaseName(reads_list)
+    print >> sys.stderr, "[%s] Mapping %s against %s with Bowtie %s" % (start_time.strftime("%c"),
+                         readfile_basename, bwt_idx_name, extra_output)
+
     bwt_log = open(logging_dir + 'bowtie.'+readfile_basename+'.fixmap.log', "w")
     #bwt_mapped=mapped_reads
     unmapped_reads_out=unmapped_reads
@@ -1416,18 +1450,19 @@ def bowtie(params,
            bowtie_proc = subprocess.Popen(bowtie_cmd,
                                  stdout=subprocess.PIPE,
                                  stderr=bwt_log)
-        if reads_format == "fastq":
-            fix_map_cmd += ["--fastq"]
-        elif reads_format == "fasta":
-            fix_map_cmd += ["--fasta"]
+        #if reads_format == "fastq":
+        #    fix_map_cmd += ["--fastq"]
+        #elif reads_format == "fasta":
+        #    fix_map_cmd += ["--fasta"]
 
-        if reads_for_ordering == None:
-            reads_for_ordering = reads_list
+        #if reads_for_ordering == None:
+        #    reads_for_ordering = reads_list
 
-        fix_map_cmd.extend(['-',reads_for_ordering])
+        #fix_map_cmd.extend(['-', reads_for_ordering])
+        fix_map_cmd += ['-']
         shellcmd += ' '.join(bowtie_cmd) + '|' + ' '.join(fix_map_cmd)
         if use_zpacker:
-           shellcmd += "|"+ ' '.join(zip_cmd)+" > " + mapped_reads
+           shellcmd += "|"+ ' '.join(zip_cmd)
            fix_order_proc = subprocess.Popen(fix_map_cmd,
                                           stdin=bowtie_proc.stdout,
                                           stdout=subprocess.PIPE)
@@ -1435,7 +1470,6 @@ def bowtie(params,
                                  stdin=fix_order_proc.stdout,
                                  stdout=open(mapped_reads, "wb"))
            fix_order_proc.stdout.close()
-           shellcmd += "|"+ ' '.join(zip_cmd)
         else:
            fix_order_proc = subprocess.Popen(fix_map_cmd,
                                           stdin=bowtie_proc.stdout,
@@ -1472,8 +1506,7 @@ def bowtie_segment(params,
            reads_list,
            reads_format,
            mapped_reads,
-           unmapped_reads,
-           reads_for_ordering = None,
+           unmapped_reads=None,
            extra_output = ""):
 
     backup_bowtie_alignment_option = params.bowtie_alignment_option
@@ -1481,21 +1514,11 @@ def bowtie_segment(params,
     params.max_hits *= 2
 
     result = bowtie(params, bwt_idx_prefix, reads_list, reads_format,
-                    mapped_reads, unmapped_reads, reads_for_ordering,
-                    extra_output)
+                    mapped_reads, unmapped_reads, extra_output)
 
     params.bowtie_alignment_option = backup_bowtie_alignment_option
     params.max_hits /= 2
     return result
-
-# Generate a new temporary filename in the user's tmp directory
-def tmp_name():
-    tmp_root = tmp_dir
-    if os.path.exists(tmp_root):
-        pass
-    else:
-        os.mkdir(tmp_root)
-    return tmp_root + os.tmpnam().split('/')[-1]
 
 # Retrieve a .juncs file from a GFF file by calling the gtf_juncs executable
 def get_gtf_juncs(gff_annotation):
@@ -1507,7 +1530,6 @@ def get_gtf_juncs(gff_annotation):
     gtf_juncs_out_name  = tmp_dir + gff_prefix + ".juncs"
     gtf_juncs_out = open(gtf_juncs_out_name, "w")
 
-    #gtf_juncs_cmd = [bin_dir + "gtf_juncs", gff_annotation]
     gtf_juncs_cmd=[prog_path("gtf_juncs"), gff_annotation]
     try:
         print >> run_log, " ".join(gtf_juncs_cmd)
@@ -1518,7 +1540,7 @@ def get_gtf_juncs(gff_annotation):
         if retcode == 1:
             print >> sys.stderr, "\tWarning: TopHat did not find any junctions in GTF file"
             return (False, gtf_juncs_out_name)
-        elif retcode < 0:
+        elif retcode != 0:
             die(fail_str+"Error: GTF junction extraction failed with err ="+str(retcode))
     # cvg_islands not found
     except OSError, o:
@@ -1640,8 +1662,8 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
     if len(right_maps) > 0:
         right_maps = [x for x in right_maps if (os.path.exists(x) and os.path.getsize(x) > 25)]
         right_maps = ','.join(right_maps)
-
-    report_log = open(logging_dir + "reports.log", "w")
+    log_fname = logging_dir + "reports.log"
+    report_log = open(log_fname, "w")
     junctions = output_dir + "junctions.bed"
     insertions = output_dir + "insertions.bed"
     deletions = output_dir + "deletions.bed"
@@ -1661,7 +1683,8 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
         report_cmd.append(right_maps)
         report_cmd.append(right_reads)
 
-    # -- tophat_reports will produce (uncompressed) BAM stream directly
+    # -- tophat_reports now produces (uncompressed) BAM stream,
+    #    directly piped into samtools sort
     try:
           report_proc=subprocess.Popen(report_cmd,
                        stdout=subprocess.PIPE,
@@ -1673,8 +1696,11 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
           report_proc.stdout.close()
           print >> run_log, " ".join(report_cmd)+" | " + " ".join(bamsort_cmd)
           bamsort_proc.communicate()
+          retcode = report_proc.poll()
+          if retcode:
+            die(fail_str+"Error running tophat_reports\n"+log_tail(log_fname))
     except OSError, o:
-          die(fail_str+"Error: "+str(o))
+          die(fail_str+"Error: "+str(o)+"\n"+log_tail(log_fname))
 
 # FIXME: put wiggles back!
 #        wig_cmd = [prog_path("wiggles"), output_dir + accepted_hits, output_dir + coverage]
@@ -1944,6 +1970,7 @@ def join_mapped_segments(params,
                          contig_seg_maps,
                          spliced_seg_maps,
                          alignments_out_name):
+    #if len(contig_seg_maps)>1:
     print >> sys.stderr, "[%s] Joining segment hits" % right_now()
     contig_seg_maps = ','.join(contig_seg_maps)
 
@@ -2039,8 +2066,7 @@ def spliced_alignment(params,
                                            reads,
                                            "fastq",
                                            unspliced_out,
-                                           unmapped_unspliced,
-                                           reads)
+                                           unmapped_unspliced)
 
         # TODO: should write BAM directly
         #unspliced_sam = tmp_name()+'.unspl.sam'
@@ -2088,12 +2114,6 @@ def spliced_alignment(params,
             # Map each segment file independently with Bowtie
             for i in range(len(read_segments)):
                 seg = read_segments[i]
-                #extension = seg.rfind(".")
-                #assert extension != -1
-                #tmp = seg.rfind("/")
-                #assert tmp != -1
-                #seg_out =  tmp_dir + seg[tmp+1:extension] + ".bwtout"
-                #unmapped_seg = tmp_dir + seg[tmp+1:extension] + "_missing.fq"
                 fbasename=getFileBaseName(seg)
                 seg_out =  tmp_dir + fbasename + ".bwtout"
                 if use_zpacker: seg_out += ".z"
@@ -2107,7 +2127,6 @@ def spliced_alignment(params,
                                                      "fastq",
                                                      seg_out,
                                                      unmapped_seg,
-                                                     seg,
                                                      extra_output)
                 seg_maps.append(seg_map)
                 unmapped_segs.append(unmapped)
@@ -2200,18 +2219,17 @@ def spliced_alignment(params,
         if junc_idx_prefix != None:
             i = 0
             for seg in maps[reads].segs:
-                #fsegdir=getFileDir(seg)
                 fsegname=getFileBaseName(seg)
-                ordering = maps[reads].segs[i]
                 seg_out = tmp_dir + fsegname + ".to_spliced.bwtout"
                 if use_zpacker: seg_out+=".z"
+                extra_output = "(%d/%d)" % (i+1, len(maps[reads].segs))
                 (seg_map, unmapped) = bowtie_segment(params,
                                                      tmp_dir + junc_idx_prefix,
                                                      seg,
                                                      "fastq",
                                                      seg_out,
                                                      None,
-                                                     ordering)
+                                                     extra_output)
                 spliced_seg_maps.append(seg_map)
                 i += 1
 
@@ -2382,7 +2400,7 @@ def main(argv=None):
 
         check_bowtie()
         check_samtools()
-
+        print >> sys.stderr, "[%s] Generating SAM header for %s" % (right_now(), bwt_idx_prefix)
         sam_header_filename = get_index_sam_header(params.read_params, bwt_idx_prefix)
 
         if not params.skip_check_reads:
