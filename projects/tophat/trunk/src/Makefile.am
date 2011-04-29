@@ -464,6 +464,7 @@ bin_PROGRAMS = \
 	closure_juncs \
 	long_spanning_reads \
 	fix_map_ordering \
+	bam2fastx \
 	library_stats \
 	mask_sam \
 	wiggles \
@@ -568,6 +569,11 @@ extract_reads_LDFLAGS = $(BAM_LDFLAGS)
 fix_map_ordering_SOURCES = fix_map_ordering.cpp
 fix_map_ordering_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
 fix_map_ordering_LDFLAGS = $(BAM_LDFLAGS)
+
+bam2fastx_SOURCES = bam2fastx.cpp
+bam2fastx_LDADD = $(top_builddir)/src/libgc.a $(BAM_LIB)
+bam2fastx_LDFLAGS = $(BAM_LDFLAGS)
+
 
 closure_juncs_SOURCES = closures.cpp
 closure_juncs_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)

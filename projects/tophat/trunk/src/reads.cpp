@@ -218,8 +218,12 @@ bool next_fastx_read(FLineReader& fr, Read& read, ReadFormat reads_format,
           }
         read.qual.append(temp_qual);
       }
-    else
-      read.qual.append(buf);
+    else {
+      if (color && read.qual.length()==0 && buf[0]=='!')
+         read.qual.append(&(buf[1])); //some color qual strings start with '!' for the adaptor
+        else
+         read.qual.append(buf);
+      }
     if ((!color && read.qual.length()>=read.seq.length())
           || (color && read.qual.length()+1>=read.seq.length())) break;
     } //while qv lines
