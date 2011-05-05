@@ -71,6 +71,7 @@ Options:
     --keep-tmp
     --tmp-dir                      <dirname>   [ default: <output_dir>/tmp ]
     -z/--zpacker                   <program>   [ default: gzip             ]
+    --no-unmapped-fifo
 
 Advanced Options:
     --segment-mismatches           <int>       [ default: 2                ]
@@ -109,7 +110,7 @@ use_zpacker = False # don't change it here, this is set by -z/--zpacker option
 unmapped_reads_fifo = None # if use_BWT_FIFO, this is tricking bowtie into writing the
                            # unmapped reads into a compressed file
 use_BWT_FIFO = True # only works if use_zpacker == True
-#set this to True/False to enable/disable mkfifo compression of the unmapped reads file
+#can be disabled by -X/-no-unmapped-fifo option if there are any issues
 
 samtools_path = None
 bowtie_path = None
@@ -181,6 +182,8 @@ class TopHatParams:
             self.zipper_opts= []
 
         def parse_options(self, opts):
+            global use_zpacker
+            global use_BWT_FIFO
             for option, value in opts:
                 if option in ("-p", "--num-threads"):
                     self.num_cpus = int(value)
@@ -192,8 +195,8 @@ class TopHatParams:
                     self.zipper = value
                     #if not self.zipper:
                     #   self.zipper='gzip'
-            global use_zpacker
-            global use_BWT_FIFO
+                elif option == "--no-unmapped-fifo":
+                    use_BWT_FIFO=False
             if self.zipper:
                 use_zpacker=True
                 if self.num_cpus>1 and not self.zipper_opts:
@@ -586,6 +589,7 @@ class TopHatParams:
                                          "rg-platform=",
                                          "tmp-dir=",
                                          "zpacker=",
+                                         "no-unmapped-fifo",
                                          "max-insertion-length=",
                                          "min-insertion-length=",
                                          "insertions=",
@@ -1023,9 +1027,9 @@ class FastxReader:
           if not line:
              raise ValueError("Premature end of file (missing quality values for "+seqid+")")
           if line[0] == "+":
-             #sequence string ended
-             qtitle = line[1:].rstrip()
-             # if qtitle and qtitle != seqid:
+             # -- sequence string ended
+             #qtitle = line[1:].rstrip()
+             #if qtitle and qtitle != seqid:
              #   raise ValueError("Different read ID for sequence and quality (%s vs %s)" \
              #                    % (seqid, qtitle))
              break
@@ -1915,13 +1919,8 @@ def junctions_from_segments(params,
                             reads_format,
                             ref_fasta):
     print >> sys.stderr, "[%s] Searching for junctions via segment mapping" % right_now()
-    #slash = left_seg_maps[0].rfind('/')
-    #juncs_out = ""
-    #if slash != -1:
-    #    juncs_out += left_seg_maps[0][:slash+1]
     out_path=getFileDir(left_seg_maps[0])
     juncs_out=out_path+"segment.juncs"
-    #insertions_out = ""
     insertions_out=out_path+"segment.insertions"
     deletions_out =out_path+"segment.deletions"
 
@@ -1970,8 +1969,10 @@ def join_mapped_segments(params,
                          contig_seg_maps,
                          spliced_seg_maps,
                          alignments_out_name):
-    #if len(contig_seg_maps)>1:
-    print >> sys.stderr, "[%s] Joining segment hits" % right_now()
+    if len(contig_seg_maps)>1:
+       print >> sys.stderr, "[%s] Joining segment hits" % right_now()
+    else:
+       print >> sys.stderr, "[%s] Processing bowtie hits" % right_now()
     contig_seg_maps = ','.join(contig_seg_maps)
 
     possible_juncs = ','.join(possible_juncs)
@@ -2258,9 +2259,10 @@ def spliced_alignment(params,
             # the correct spliced alignment.
 
             merged_map=rfdir+rfname+".candidates_and_unspl.bam"
-
             merge_sort_fifo = tmp_dir + rfname+"_"+str(os.getpid())+".sam.merge_sort.fifo"
 
+            unspl_bwtfile=maps[reads].unspliced_bwt
+            unspl_samfile=maps[reads].unspliced_sam
             try:
               if os.path.exists(merge_sort_fifo):
                  os.remove(merge_sort_fifo)
@@ -2303,8 +2305,8 @@ def spliced_alignment(params,
         else:
             maps[reads] = [mapped_reads]
         if not params.system_params.keep_tmp:
-            os.remove(maps[reads].unspliced_bwt)
-            os.remove(maps[reads].unspliced_sam)
+            os.remove(unspl_bwtfile)
+            os.remove(unspl_samfile)
     return maps
 
 def die(msg=None):
