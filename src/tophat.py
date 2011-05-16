@@ -847,9 +847,8 @@ def get_bowtie_version():
 
 def get_index_sam_header(read_params, idx_prefix):
     try:
-        bowtie_sam_header_filename = tmp_dir+idx_prefix+".bwt.samheader.sam"
+        bowtie_sam_header_filename = tmp_dir+idx_prefix.split('/')[-1]+".bwt.samheader.sam"
         bowtie_sam_header_file = open(bowtie_sam_header_filename,"w")
-
 
         bowtie_header_cmd = [bowtie_path, "--sam"]
         if read_params.color:
@@ -2394,7 +2393,6 @@ def main(argv=None):
         global run_cmd
         run_cmd = " ".join(argv)
         print >> run_log, run_cmd
-
 
         # Validate all the input files, check all prereqs before committing
         # to the run
