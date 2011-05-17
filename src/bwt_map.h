@@ -808,10 +808,11 @@ public:
 	  //if (!_hit_file || (feof(_hit_file) && buffered_hit.insert_id() == 0))
 	  //  return false;
 	  if (!this->ready())
-	      err_die("Error: next_read_hits() called on HitFactory with no file handle\n");
-      if (this->eof() && buffered_hit.insert_id() == 0) {
-              return false;
-              }
+	      //err_die("Error: next_read_hits() called on HitFactory with no file handle\n");
+	      return false;
+	  if (this->eof() && buffered_hit.insert_id() == 0) {
+	          return false;
+	          }
 	  
 	  //char bwt_buf[2048]; bwt_buf[0] = 0;
 	  char bwt_seq[2048]; bwt_seq[0] = 0;

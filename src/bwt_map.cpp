@@ -77,7 +77,7 @@ void HitTable::add_hit(const BowtieHit& bh, bool check_uniqueness)
 			}
 		}
 	}
-    _total_hits++;
+	_total_hits++;
 	hl.push_back(bh);
 }
 
@@ -106,7 +106,7 @@ void LineHitFactory::rewind(HitStream& hs)
         hs._fzpipe->rewind();
         hs._hit_file=hs._fzpipe->file;
         }
-        else ::rewind((FILE*)(hs._hit_file));
+      else if (hs._hit_file) ::rewind((FILE*)(hs._hit_file));
 }
 
 bool LineHitFactory::next_record(HitStream& hs, const char*& buf, size_t& buf_size) {
@@ -130,8 +130,6 @@ void LineHitFactory::closeStream(HitStream& hs) {
      return;
      }
   if (hs._hit_file!=NULL) {
-    //if (hs._hit_file_name.empty())
-    //    fprintf(stderr, "Warning: HitFactory closing HitStream with no file name!\n");
     fclose((FILE*)(hs._hit_file));
     hs._hit_file=NULL;
     }
@@ -139,7 +137,8 @@ void LineHitFactory::closeStream(HitStream& hs) {
 void BAMHitFactory::openStream(HitStream& hs) {
   if (hs._hit_file==NULL) {
      if (hs._hit_file_name.empty())
-         err_die("Error: invalid HitStream set for BAMHitFactory(file name missing)\n");
+         //err_die("Error: invalid HitStream set for BAMHitFactory(file name missing)\n");
+         return; //invalid stream, could be just a place holder
      //open the file here if not already open
      string fext=getFext(hs._hit_file_name);
      if (fext=="sam")
