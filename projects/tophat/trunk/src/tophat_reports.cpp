@@ -14,7 +14,6 @@
 #define SVN_REVISION "XXX"
 #endif
 
-
 #include <cassert>
 #include <cstdio>
 #include <cstring>
@@ -705,16 +704,14 @@ void driver(GBamWriter& bam_writer,
 	ReadTable it;
 	RefSequenceTable rt(sam_header, true);
 
-	//SAMHitFactory hit_factory(it,rt);
 	BAMHitFactory hit_factory(it,rt);
-
 	JunctionSet junctions;
 	{
 	  HitStream l_hs(left_map_fname, &hit_factory, false, true, true, true);
 	  HitStream r_hs(right_map_fname, &hit_factory, false, true, true, true);
 	  get_junctions_from_best_hits(l_hs, r_hs, it, junctions);
 	  //this resets the streams
-	}
+	 }
 	HitStream left_hs(left_map_fname, &hit_factory, false, true, true, true);
 	HitStream right_hs(right_map_fname, &hit_factory, false, true, true, true);
 
@@ -727,12 +724,12 @@ void driver(GBamWriter& bam_writer,
 
 	left_hs.next_read_hits(curr_left_hit_group);
 	right_hs.next_read_hits(curr_right_hit_group);
-
+    
 	uint32_t curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
 	uint32_t curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
 
-	// Read hits, extract junctions, and toss the ones that arent strongly enough supported.
 
+	// Read hits, extract junctions, and toss the ones that arent strongly enough supported.
 	filter_junctions(junctions);
 	//size_t num_juncs_after_filter = junctions.size();
 	//fprintf(stderr, "Filtered %lu junctions\n", num_unfiltered_juncs - num_juncs_after_filter);
@@ -740,11 +737,11 @@ void driver(GBamWriter& bam_writer,
 	size_t small_overhangs = 0;
 	for (JunctionSet::iterator i = junctions.begin(); i != junctions.end(); ++i)
 	  {
-	if (i->second.accepted &&
+	  if (i->second.accepted &&
 		(i->second.left_extent < min_anchor_len || i->second.right_extent < min_anchor_len))
-	  {
+	    {
 		small_overhangs++;
-	  }
+	    }
 	  }
 
 	if (small_overhangs >0)
@@ -755,7 +752,6 @@ void driver(GBamWriter& bam_writer,
 	DeletionSet final_deletions;
 
 	fprintf (stderr, "Reporting final accepted alignments...");
-
 	// While we still have unreported hits...
 	while(curr_left_obs_order != 0xFFFFFFFF ||
 	  curr_right_obs_order != 0xFFFFFFFF)
@@ -789,7 +785,7 @@ void driver(GBamWriter& bam_writer,
 		// Get next hit group
 		left_hs.next_read_hits(curr_left_hit_group);
 		curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
-	  }
+	  } //left singletons 
 
 	// Chew up right singletons
 	while (curr_left_obs_order > curr_right_obs_order &&
@@ -910,9 +906,10 @@ void driver(GBamWriter& bam_writer,
 		right_hs.next_read_hits(curr_right_hit_group);
 		curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
 	  }
-	  }
+ 
+	 } //while we still have unreported hits..
 
-	fprintf (stderr, "done\n");
+	fprintf (stderr, "done.\n");
 
 	small_overhangs = 0;
 	for (JunctionSet::iterator i = final_junctions.begin(); i != final_junctions.end();)
