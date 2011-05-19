@@ -18,6 +18,12 @@
 #include "bam/bam.h"
 #include "bam/sam.h"
 
+
+#ifdef MEM_DEBUG
+ void process_mem_usage(double& vm_usage, double& resident_set);
+ void print_mem_usage();
+#endif
+
 /*
  * Maximum allowable length of an
  * an insertion. Used mainly in

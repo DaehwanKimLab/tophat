@@ -216,29 +216,14 @@ class TopHatParams:
         def check(self):
             if self.num_cpus<1 :
                  die("Error: arg to --num-threads must be greater than 0")
-#            if self.num_cpus>1 and self.zipper:
-#                 if self.zipper.endswith("gzip"): # try pigz instead
-#                     pigz=which("pigz")
-#                     if (pigz is not None):
-#                         self.zipper=pigz
-                    ##    self.zipper_opts.append('-p'+str(self.num_cpus))
-                    ##else:
-                    ##    print >> sys.stderr, "Consider installing 'pigz' for faster handling of compressed temporary files."
-#                 elif self.zipper.endswith("bzip2") and not self.zipper.endswith("pbzip2"): # try pbzip2 instead
-#                     pbzip=which("pbzip2")
-#                     if (pbzip is not None):
-#                         self.zipper=pbzip
-                    ##    self.zipper_opts.append('-p'+str(self.num_cpus))
-                    ##else:
-                    ##    print >> sys.stderr, "Consider installing 'pigz' or 'pbzip2' for faster handling of temporary files."
             if self.zipper:
                 xzip=which(self.zipper)
                 if not xzip:
                     die("Error: cannot find compression program "+self.zipper)
+
     # ReadParams is a group of runtime parameters that specify various properties
     # of the user's reads (e.g. which quality scale their are on, how long the
     # fragments are, etc).
-
     class ReadParams:
         def __init__(self,
                      solexa_quals,
@@ -728,6 +713,14 @@ def prepare_output_dir():
           os.makedirs(tmp_dir)
         except OSError, o:
           die("\nError creating directory %s (%s)" % (tmp_dir, o))
+
+
+# to be added as preexec_fn for every subprocess.Popen() call:
+# see http://bugs.python.org/issue1652
+def subprocess_setup():
+ # Python installs a SIGPIPE handler by default, which causes
+ # gzip or other de/compression pipes to complain about "stdout: Broken pipe"
+   signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 # Check that the Bowtie index specified by the user is present and all files
 # are there.
@@ -1345,6 +1338,7 @@ def prep_reads(params, reads_list, quals_list, output_name):
                                   stdout=subprocess.PIPE,
                                   stderr=filter_log)
             zip_proc=subprocess.Popen(zip_cmd,
+                                  preexec_fn=subprocess_setup,
                                   stdin=filter_proc.stdout,
                                   stdout=kept_reads)
             filter_proc.stdout.close() #as per http://bugs.python.org/issue7678
@@ -1470,11 +1464,13 @@ def bowtie(params,
                                           stdin=bowtie_proc.stdout,
                                           stdout=subprocess.PIPE)
            zip_proc = subprocess.Popen(zip_cmd,
+                                 preexec_fn=subprocess_setup,
                                  stdin=fix_order_proc.stdout,
                                  stdout=open(mapped_reads, "wb"))
            fix_order_proc.stdout.close()
         else:
            fix_order_proc = subprocess.Popen(fix_map_cmd,
+                                          preexec_fn=subprocess_setup,
                                           stdin=bowtie_proc.stdout,
                                           stdout=open(mapped_reads, "w"))
         bowtie_proc.stdout.close()
@@ -1690,11 +1686,13 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
     #    directly piped into samtools sort
     try:
           report_proc=subprocess.Popen(report_cmd,
+                       preexec_fn=subprocess_setup,
                        stdout=subprocess.PIPE,
                        stderr=report_log)
 
           bamsort_cmd = ["samtools", "sort", "-", accepted_hits]
           bamsort_proc= subprocess.Popen(bamsort_cmd,
+                     preexec_fn=subprocess_setup,
                      stdin=report_proc.stdout)
           report_proc.stdout.close()
           print >> run_log, " ".join(report_cmd)+" | " + " ".join(bamsort_cmd)
@@ -1943,6 +1941,7 @@ def junctions_from_segments(params,
     try:
         print >> run_log, " ".join(align_cmd)
         retcode = subprocess.call(align_cmd,
+                                 preexec_fn=subprocess_setup,
                                  stderr=align_log)
 
         # spanning_reads returned an error
@@ -1997,6 +1996,7 @@ def join_mapped_segments(params,
     try:
         print >> run_log, " ".join(align_cmd),">",alignments_out_name
         join_proc=subprocess.Popen(align_cmd,
+                          preexec_fn=subprocess_setup,
                           stdout=open(alignments_out_name, "wb"),
                           stderr=align_log)
         join_proc.communicate()
@@ -2289,6 +2289,7 @@ def spliced_alignment(params,
                 samview_proc.stdout.close()
                 rebam_cmd = [samtools_path, "view", "-S", "-b", "-"]
                 rebam_proc=subprocess.Popen(rebam_cmd,
+                               preexec_fn=subprocess_setup,
                                stdin=msort_proc.stdout,
                                stdout=open(merged_map, "wb"))
                 msort_proc.stdout.close()

@@ -184,9 +184,10 @@ void BAMHitFactory::rewind(HitStream& hs)
 }
 
 string BAMHitFactory::hitfile_rec(HitStream& hs, const char* hit_buf) {
-  string sam_line;
   const bam1_t* bamrec=(const bam1_t*)hit_buf;
-  sam_line=bam_format1(((samfile_t*)(hs._hit_file))->header, bamrec);
+  char* tamline=bam_format1(((samfile_t*)(hs._hit_file))->header, bamrec);
+  string sam_line(tamline);
+  free(tamline);
   return sam_line;
   }
 
