@@ -39,8 +39,18 @@ void format_qual_string(string& qual_str)
 
 void filter_garbage_reads(vector<FZPipe>& reads_files, vector<FZPipe>& quals_files)
 {	
+
   int num_reads_chucked = 0, num_reads = 0;
+  int min_read_len = 2000000;
+  int max_read_len = 0;
   int next_id = 0;
+  FILE* fw=NULL;
+  if (!aux_outfile.empty()) {
+    fw=fopen(aux_outfile.c_str(), "w");
+    if (fw==NULL)
+       err_die("Error: cannot create file %s\n",aux_outfile.c_str());
+    }
+
   for (size_t fi = 0; fi < reads_files.size(); ++fi)
     {
       Read read;
@@ -54,16 +64,18 @@ void filter_garbage_reads(vector<FZPipe>& reads_files, vector<FZPipe>& quals_fil
       skip_lines(frq);
       
       while (!fr.isEof()) {
-	  //read.clear();
-	  // Get the next read from the file
+	    //read.clear();
+	    // Get the next read from the file
         if (!next_fastx_read(fr, read, reads_format, ((quals) ? &frq : NULL)))
             break;
+        if (read.seq.length()<12) {
+            ++num_reads_chucked;
+            continue;
+            }
+        if ((int)read.seq.length()<min_read_len) min_read_len=read.seq.length();
+        if ((int)read.seq.length()>max_read_len) max_read_len=read.seq.length();
 	    format_qual_string(read.qual);
         std::transform(read.seq.begin(), read.seq.end(), read.seq.begin(), ::toupper);
-        // daehwan - check this.
-        // if(read.seq.length() < 20)
-        //  continue;
-
         ++num_reads;
         ++next_id;
         char counts[256];
@@ -149,6 +161,13 @@ void filter_garbage_reads(vector<FZPipe>& reads_files, vector<FZPipe>& quals_fil
   
   fprintf(stderr, "%d out of %d reads have been filtered out\n", 
 	  num_reads_chucked, num_reads);
+  if (fw!=NULL) {
+    fprintf(fw, "min_read_len=%d\n",min_read_len);
+    fprintf(fw, "max_read_len=%d\n",max_read_len);
+    fprintf(fw, "reads_in =%d\n",num_reads);
+    fprintf(fw, "reads_out=%d\n",num_reads-num_reads_chucked);
+    fclose(fw);
+    }
 }
 
 void print_usage()
