@@ -117,6 +117,7 @@ int num_cpus = 1;
 float min_isoform_fraction = 0.15f;
 
 string output_dir = "tophat_out";
+string aux_outfile = ""; //auxiliary output file name (e.g. prep_reads read stats)
 string gene_filter = "";
 string gff_file = "";
 string ium_reads = "";
@@ -261,7 +262,8 @@ enum
     OPT_MAX_INSERTION_LENGTH,
     OPT_NUM_CPUS,
     OPT_ZPACKER,
-    OPT_SAMTOOLS
+    OPT_SAMTOOLS,
+    OPT_AUX_OUT
   };
 
 static struct option long_options[] = {
@@ -306,7 +308,7 @@ static struct option long_options[] = {
 {"num-threads", required_argument, 0, OPT_NUM_CPUS},
 {"zpacker", required_argument, 0, OPT_ZPACKER},
 {"samtools", required_argument, 0, OPT_SAMTOOLS},
-
+{"aux-outfile", required_argument, 0, OPT_AUX_OUT},
 {0, 0, 0, 0} // terminator
 };
 
@@ -467,6 +469,9 @@ int parse_options(int argc, char** argv, void (*print_usage)())
       break;
     case OPT_SAMTOOLS:
       samtools_path =  optarg;
+      break;
+    case OPT_AUX_OUT:
+      aux_outfile =  optarg;
       break;
     case 'p':
     case OPT_NUM_CPUS:

@@ -519,7 +519,7 @@ class TopHatParams:
     # of options.
     def parse_options(self, argv):
         try:
-            opts, args = getopt.getopt(argv[1:], "hvp:m:F:a:i:I:G:r:o:j:z:g:QC",
+            opts, args = getopt.getopt(argv[1:], "hvp:m:F:a:i:I:G:r:o:j:z:s:g:QC",
                                         ["version",
                                          "help",
                                          "output-dir=",
@@ -558,6 +558,7 @@ class TopHatParams:
                                          "max-coverage-intron=",
                                          "min-segment-intron=",
                                          "max-segment-intron=",
+                                         "seed-length=",
                                          "segment-length=",
                                          "segment-mismatches=",
                                          "bowtie-n",
@@ -816,7 +817,8 @@ def check_index(idx_prefix):
 def get_bowtie_version():
     try:
         # Launch Bowtie to capture its version info
-        proc = subprocess.Popen([bowtie_path, "--version"], stdout=subprocess.PIPE)
+        proc = subprocess.Popen([bowtie_path, "--version"], 
+                          stdout=subprocess.PIPE)
         stdout_value = proc.communicate()[0]
         bowtie_version = None
         bowtie_out = repr(stdout_value)
@@ -847,7 +849,9 @@ def get_index_sam_header(read_params, idx_prefix):
         if read_params.color:
             bowtie_header_cmd.append('-C')
         bowtie_header_cmd.extend([idx_prefix, '/dev/null'])
-        subprocess.call(bowtie_header_cmd,stdout=bowtie_sam_header_file, stderr=open('/dev/null'))
+        subprocess.call(bowtie_header_cmd, 
+                   stdout=bowtie_sam_header_file, 
+                   stderr=open('/dev/null'))
 
         bowtie_sam_header_file.close()
         bowtie_sam_header_file = open(bowtie_sam_header_filename,"r")
@@ -934,7 +938,7 @@ def check_bowtie():
 def get_samtools_version():
     try:
         # Launch Bowtie to capture its version info
-        proc = subprocess.Popen(samtools_path,stderr=subprocess.PIPE)
+        proc = subprocess.Popen(samtools_path, stderr=subprocess.PIPE)
         samtools_out = proc.communicate()[1]
 
         # Find the version identifier
@@ -1144,6 +1148,7 @@ class ZReader:
            try:
               self.fsrc=open(self.fname, 'rb')
               self.popen=subprocess.Popen(pipecmd,
+                    preexec_fn=subprocess_setup,
                     stdin=self.fsrc,
                     stdout=subprocess.PIPE, close_fds=True)
            except Exception:
@@ -1166,6 +1171,7 @@ class ZWriter:
           self.ftarget=open(filename, "wb")
           try:
              self.popen=subprocess.Popen(pipecmd,
+                   preexec_fn=subprocess_setup,
                    stdin=subprocess.PIPE,
                    stdout=self.ftarget, close_fds=True)
           except Exception:
@@ -1179,18 +1185,14 @@ class ZWriter:
       self.file.close()
       if self.ftarget: self.ftarget.close()
       if self.popen:
-          self.popen.wait() #! required to actually flush the pipes (hmmm)
+          self.popen.wait() #! required to actually flush the pipes (eek!)
           self.popen=None
 
-# check_reads() has several jobs.  It examines the user's reads, one file at a
-# time, and determnes the file format, read length, and other properties that
-# are used to set the junction search strategy later on.
-# TODO: When we add support for mixed read lengths, this routine
-# will need to set the seed length differently.
-def check_reads(params, reads_files):
-    print >> sys.stderr, "[%s] Checking reads" % right_now()
-    get_bowtie_version()
-
+# check_reads_format() examines the first few records in the user files
+# to determines the file format
+def check_reads_format(params, reads_files):
+    #print >> sys.stderr, "[%s] Checking reads" % right_now()
+    #
     seed_len = params.read_params.seed_length
     fileformat = params.read_params.reads_format
 
@@ -1198,7 +1200,6 @@ def check_reads(params, reads_files):
     # observed_scales = set([])
     min_seed_len = 99999
     max_seed_len = 0
-    max_qual = -1
     files = reads_files.split(',')
 
     for f_name in files:
@@ -1207,17 +1208,16 @@ def check_reads(params, reads_files):
         #except IOError:
         #   die("Error: could not open file "+f_name)
         freader=FastxReader(zf.file, params.read_params.color, zf.fname)
-        while True:
+        toread=4 #just sample the first 4 reads
+        while toread>0:
             seqid, seqstr, seq_len, qstr = freader.nextRecord()
             if not seqid: break
+            toread-=1
             if seq_len < 20:
                   print >> sys.stderr, "Warning: found a read < 20bp in", f_name
             else:
                 min_seed_len = min(seq_len, min_seed_len)
                 max_seed_len = max(seq_len, max_seed_len)
-            if freader.format == "fastq":
-                max_line_qual = max([ord(x) for x in list(qstr)])
-                max_qual = max(max_line_qual, max_qual)
         zf.close()
         observed_formats.add(freader.format)
     if len(observed_formats) > 1:
@@ -1227,8 +1227,7 @@ def check_reads(params, reads_files):
         seed_len = max(seed_len, min_seed_len)
     else:
         seed_len = max_seed_len
-
-    print >> sys.stderr, "\tmin read length: %dbp, max read length: %dbp" % (min_seed_len, max_seed_len)
+    #print >> sys.stderr, "\tmin read length: %dbp, max read length: %dbp" % (min_seed_len, max_seed_len)
     print >> sys.stderr, "\tformat:\t\t %s" % fileformat
     if fileformat == "fastq":
         quality_scale = "phred33 (default)"
@@ -1242,6 +1241,7 @@ def check_reads(params, reads_files):
             params.read_params.integer_quals = True
 
     #print seed_len, format, solexa_scale
+    #NOTE: seed_len will be re-evaluated later by prep_reads
     return TopHatParams.ReadParams(params.read_params.solexa_quals,
                                    params.read_params.phred64_quals,
                                    params.read_params.quals,
@@ -1261,6 +1261,7 @@ def check_reads(params, reads_files):
                                    params.read_params.seq_center,
                                    params.read_params.seq_run_date,
                                    params.read_params.seq_platform)
+
 def log_tail(logfile, lines=1):
     f=open(logfile, "r")
     f.seek(0, 2)
@@ -1295,11 +1296,25 @@ def formatTD(td):
   seconds = td.seconds % 60
   return '%02d:%02d:%02d' % (hours, minutes, seconds)
 
+class PrepReadsInfo:
+    def __init__(self, fname, side):
+           try:
+             f=open(fname,"r")
+             self.min_len=int(f.readline().split("=")[-1])
+             self.max_len=int(f.readline().split("=")[-1])
+             self.in_count=int(f.readline().split("=")[-1])
+             self.out_count=int(f.readline().split("=")[-1])
+             if (self.out_count==0) or (self.max_len<16):
+               raise Exception()
+           except Exception, e:
+             die(fail_str+"Error retrieving prep_reads info.")
+           print >> sys.stderr, "\t%s reads: min. length=%s, count=%s" %  (side, self.min_len, self.out_count)
 # Calls the prep_reads executable, which prepares an internal read library.
 # The read library features reads with monotonically increasing integer IDs.
 # prep_reads also filters out very low complexy or garbage reads as well as
 # polyA reads.
-def prep_reads(params, reads_list, quals_list, output_name):
+#--> returns the tuple (internal_read_library_file, read_info)
+def prep_reads(params, reads_list, quals_list, output_name, side="Left "):
     reads_suffix = ".fq"
     if use_zpacker: reads_suffix += ".z"
     kept_reads_filename = tmp_dir + output_name + reads_suffix
@@ -1316,7 +1331,8 @@ def prep_reads(params, reads_list, quals_list, output_name):
         filter_cmd += ["--fastq"]
     elif params.read_params.reads_format == "fasta":
         filter_cmd += ["--fasta"]
-
+    info_file=output_dir+output_name+".info"
+    filter_cmd += ["--aux-outfile="+info_file]
     filter_cmd.append(reads_list)
 
     if params.read_params.quals:
@@ -1357,7 +1373,8 @@ def prep_reads(params, reads_list, quals_list, output_name):
         errmsg=fail_str+str(o)
         die(errmsg+"\n"+log_tail(log_fname))
     kept_reads.close()
-    return kept_reads_filename
+
+    return kept_reads_filename, PrepReadsInfo(info_file, side)
 
 # Call bowtie
 def bowtie(params,
@@ -1693,6 +1710,7 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
           bamsort_cmd = ["samtools", "sort", "-", accepted_hits]
           bamsort_proc= subprocess.Popen(bamsort_cmd,
                      preexec_fn=subprocess_setup,
+                     stderr=open(logging_dir + "reports.samtools_sort.log", "w"),
                      stdin=report_proc.stdout)
           report_proc.stdout.close()
           print >> run_log, " ".join(report_cmd)+" | " + " ".join(bamsort_cmd)
@@ -2270,7 +2288,7 @@ def spliced_alignment(params,
                  die(fail_str+"Error at mkfifo("+merge_sort_fifo+") "+str(o))
 
             try:
-                samfifo_cmd=[samtools_path, "view", "-h", mapped_reads]
+                samfifo_cmd=[ samtools_path, "view", "-h", mapped_reads ]
                 print >> run_log, " ".join(samfifo_cmd)+" > "+merge_sort_fifo+" &"
                 if os.fork()==0:
                    subprocess.call(samfifo_cmd,
@@ -2279,7 +2297,7 @@ def spliced_alignment(params,
                 samview_cmd=[samtools_path, "view", maps[reads].unspliced_sam]
                 samview_proc=subprocess.Popen(samview_cmd,
                                  stdout=subprocess.PIPE)
-                merge_sort_cmd =["sort",
+                merge_sort_cmd = ["sort",
                                   "-k1,1n", "-m",
                                    "-T"+tmp_dir, "-",
                                    merge_sort_fifo]
@@ -2291,6 +2309,7 @@ def spliced_alignment(params,
                 rebam_proc=subprocess.Popen(rebam_cmd,
                                preexec_fn=subprocess_setup,
                                stdin=msort_proc.stdout,
+                               stderr=open(logging_dir+"sort_rebam.log","w"),
                                stdout=open(merged_map, "wb"))
                 msort_proc.stdout.close()
                 print >> run_log, " ".join(samview_cmd)+" | " + " ".join(merge_sort_cmd) + \
@@ -2354,6 +2373,7 @@ def test_input_file(filename):
         die("Error: Opening file %s" % filename)
     return
 
+
 def main(argv=None):
     warnings.filterwarnings("ignore", "tmpnam is a potential security risk")
 
@@ -2403,12 +2423,13 @@ def main(argv=None):
         check_samtools()
         print >> sys.stderr, "[%s] Generating SAM header for %s" % (right_now(), bwt_idx_prefix)
         sam_header_filename = get_index_sam_header(params.read_params, bwt_idx_prefix)
+        print >> sys.stderr, "[%s] Preparing reads" % (right_now())
 
         if not params.skip_check_reads:
             reads_list = left_reads_list
             if right_reads_list:
                 reads_list = reads_list + "," + right_reads_list
-            params.read_params = check_reads(params, reads_list)
+            params.read_params = check_reads_format(params, reads_list)
 
         user_supplied_juncs = []
         user_supplied_insertions = []
@@ -2435,19 +2456,27 @@ def main(argv=None):
         unmapped_reads_fifo = tmp_dir + str(os.getpid())+".bwt_unmapped.z.fifo"
 
         # Now start the time consuming stuff
-        left_kept_reads = prep_reads(params,
+        min_read_len=99999
+        max_read_len=0
+        left_kept_reads, left_reads_info = prep_reads(params,
                                      left_reads_list,
                                      left_quals_list,
-                                     "left_kept_reads")
-
+                                     "left_kept_reads", "Left ")
         if right_reads_list != None:
-            right_kept_reads = prep_reads(params,
+            right_kept_reads, right_reads_info = prep_reads(params,
                                           right_reads_list,
                                           right_quals_list,
-                                          "right_kept_reads")
+                                          "right_kept_reads", "Right")
+            min_read_len=min(right_reads_info.min_len, min_read_len)
+            max_read_len=max(right_reads_info.max_len, max_read_len)
         else:
             right_kept_reads = None
-
+        seed_len=params.read_params.seed_length
+        if seed_len != None:
+            seed_len = max(seed_len, min_read_len)
+        else:
+            seed_len = max_read_len
+        params.read_params.seed_length=seed_len
         # turn off integer-quals
         if params.read_params.integer_quals:
             params.read_params.integer_quals = False
