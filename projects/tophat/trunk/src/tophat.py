@@ -817,7 +817,7 @@ def check_index(idx_prefix):
 def get_bowtie_version():
     try:
         # Launch Bowtie to capture its version info
-        proc = subprocess.Popen([bowtie_path, "--version"], 
+        proc = subprocess.Popen([bowtie_path, "--version"],
                           stdout=subprocess.PIPE)
         stdout_value = proc.communicate()[0]
         bowtie_version = None
@@ -849,8 +849,8 @@ def get_index_sam_header(read_params, idx_prefix):
         if read_params.color:
             bowtie_header_cmd.append('-C')
         bowtie_header_cmd.extend([idx_prefix, '/dev/null'])
-        subprocess.call(bowtie_header_cmd, 
-                   stdout=bowtie_sam_header_file, 
+        subprocess.call(bowtie_header_cmd,
+                   stdout=bowtie_sam_header_file,
                    stderr=open('/dev/null'))
 
         bowtie_sam_header_file.close()
@@ -2456,12 +2456,12 @@ def main(argv=None):
         unmapped_reads_fifo = tmp_dir + str(os.getpid())+".bwt_unmapped.z.fifo"
 
         # Now start the time consuming stuff
-        min_read_len=99999
-        max_read_len=0
         left_kept_reads, left_reads_info = prep_reads(params,
                                      left_reads_list,
                                      left_quals_list,
                                      "left_kept_reads", "Left ")
+        min_read_len=left_reads_info.min_len
+        max_read_len=left_reads_info.max_len
         if right_reads_list != None:
             right_kept_reads, right_reads_info = prep_reads(params,
                                           right_reads_list,
