@@ -156,9 +156,8 @@ void BAMHitFactory::openStream(HitStream& hs) {
      //_beginning = bgzf_tell(sam_file->x.bam);
      _sam_header=sam_file->header;
      if (inspect_header(hs) == false)
-         err_die("Error: could not parse SAM header for file %s\n",
+         err_die("Error: invalid SAM header for file %s\n",
                  hs._hit_file_name.c_str());
-
      }
 }
 
@@ -1156,54 +1155,18 @@ bool BAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
     return true;
 }
 
-static const unsigned MAX_HEADER_LEN = 4 * 1024 * 1024; // 4 MB
-
 bool BAMHitFactory::inspect_header(HitStream& hs)
 {
     bam_header_t* header = ((samfile_t*)(hs._hit_file))->header;
     
-    if (header == NULL)
-    {
-        fprintf(stderr, "Warning: No BAM header\n");
-        return false;
-    }
-    
-    if (header->l_text >= MAX_HEADER_LEN)
-    {
-        fprintf(stderr, "Warning: BAM header too large\n");
-        return false;
-    }
-
-	if (header->l_text == 0)
-	{
-		fprintf(stderr, "Warning: BAM header has 0 length or is corrupted.  Try using 'samtools reheader'.\n");
-        return false;
-	}
-	
-	
-    if (header->text != NULL)
-    {
-        char* h_text = strdup(header->text);
-        char* pBuf = h_text;
-        while(pBuf - h_text < header->l_text)
-        {
-            char* nl = strchr(pBuf, '\n');
-            if (nl) 
-            {
-                *nl = 0; 
-                //parse_header_string(pBuf, _rg_props);
-                pBuf = ++nl;
-            }
-            else 
-            {
-                pBuf = h_text + header->l_text;
-            }
-        }
-        
-        free(h_text);
-    }
-    
-    //finalize_rg_props();
+    if (header == NULL) {
+       fprintf(stderr, "Warning: No BAM header\n");
+       return false;
+       }
+    if (header->l_text == 0) {
+      fprintf(stderr, "Warning: BAM header has 0 length or is corrupted.  Try using 'samtools reheader'.\n");
+      return false;
+      }
     return true;
 }
 
