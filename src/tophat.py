@@ -84,6 +84,10 @@ Advanced Options:
     --max-coverage-intron          <int>       [ default: 20000            ]
     --min-segment-intron           <int>       [ default: 50               ]
     --max-segment-intron           <int>       [ default: 500000           ]
+    --no-sort-bam                              [Output BAM is not coordinate-sorted]
+    --no-convert-bam                           [Do not convert to bam format.
+                                                Output is <output_dir>accepted_hit.sam.
+                                                Implies --no-sort-bam.]
 
 SAM Header Options (for embedding sequencing run metadata in output):
     --rg-id                        <string>    (read group ID)
@@ -366,8 +370,22 @@ class TopHatParams:
             if self.max_segment_intron_length < 0:
                 die("Error: arg to --max-segment-intron must be at least 20")
 
-    def __init__(self):
-        self.splice_constraints = self.SpliceConstraints(8,     # min_anchor
+    class ReportParams:
+        def __init__(self):
+            self.sort_bam = True
+            self.convert_bam = True
+
+        def parse_options(self, opts):
+            for option, value in opts:
+                if option == "--no-sort-bam":
+                    self.sort_bam = False
+                if option == "--no-convert-bam":
+                    self.convert_bam = False
+                    self.sort_bam = False
+                    
+                    
+    def __init__(self):        
+        self.splice_constraints = self.SpliceConstraints(8,     # min_anchor 
                                                          50,    # min_intron
                                                          500000, # max_intron
                                                          0,     # splice_mismatches
@@ -404,6 +422,7 @@ class TopHatParams:
                                                50,              # min_segment_intron_length
                                                500000)          # max_segment_intron_length
 
+        self.report_params = self.ReportParams()
         self.gff_annotation = None
         self.raw_junctions = None
         self.find_novel_juncs = True
@@ -579,7 +598,9 @@ class TopHatParams:
                                          "max-insertion-length=",
                                          "min-insertion-length=",
                                          "insertions=",
-                                         "deletions="])
+                                         "deletions=",
+                                         "no-sort-bam",
+                                         "no-convert-bam"])
         except getopt.error, msg:
             raise Usage(msg)
 
@@ -587,6 +608,7 @@ class TopHatParams:
         self.system_params.parse_options(opts)
         self.read_params.parse_options(opts)
         self.search_params.parse_options(opts)
+        self.report_params.parse_options(opts)
 
         global output_dir
         global logging_dir
@@ -881,8 +903,6 @@ def get_index_sam_header(read_params, idx_prefix):
                 preamble.append(line)
         #for line in preamble:
         #    print >> sam_header_file, line
-
-#       print >> sam_header_file, "@HD\tVN:1.0\tSO:sorted"
         print >> sam_header_file, "@HD\tVN:1.0\tSO:coordinate"
 
         if read_params.read_group_id and read_params.sample_id:
@@ -1645,7 +1665,6 @@ def build_juncs_index(min_anchor_length,
 # Print out the sam header, embedding the user's specified library properties.
 # FIXME: also needs SQ dictionary lines
 def write_sam_header(read_params, sam_file):
-    #print >> sam_file, "@HD\tVN:1.0\tSO:sorted"
     print >> sam_file, "@HD\tVN:1.0\tSO:coordinate"
     if read_params.read_group_id and read_params.sample_id:
         rg_str = "@RG\tID:%s\tSM:%s" % (read_params.read_group_id,
@@ -1698,6 +1717,74 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
     if len(right_maps) > 0 and right_reads != None:
         report_cmd.append(right_maps)
         report_cmd.append(right_reads)
+                    
+    try: 
+    
+        accepted_hits_sam_file = open(accepted_hits_sam, "w")
+        #write_sam_header(params.read_params, sorted_map)
+    
+        header = open(sam_header_filename, "r")
+        for line in header:
+            print >> accepted_hits_sam_file, line,
+    
+        accepted_hits_sam_file.close()
+        #accepted_hits_sam_file = open(accepted_hits_sam, "a")
+    
+        print >> run_log, " ".join(report_cmd)   
+        retcode = subprocess.call(report_cmd, 
+                                  stderr=report_log)
+       
+        # spanning_reads returned an error 
+        if retcode != 0:
+            die(fail_str+"Error: Report generation failed with err ="+str(retcode))
+
+        if params.report_params.convert_bam:
+            tmp_bam = tmp_name() 
+            sam_to_bam_cmd = ["samtools", "view", "-S", "-b", accepted_hits_sam]
+            print >> run_log, " ".join(sam_to_bam_cmd) + " > " + tmp_bam
+            sam_to_bam_log = open(logging_dir + "accepted_hits_sam_to_bam.log", "w")
+            tmp_bam_file = open(tmp_bam, "w")
+            ret = subprocess.call(sam_to_bam_cmd, 
+                                  stdout=tmp_bam_file,
+                                  stderr=sam_to_bam_log)
+            if ret != 0:
+                die("Error: could not convert to BAM with samtools")
+
+            if params.report_params.sort_bam:
+                sort_cmd = ["samtools", "sort", tmp_bam, output_dir + "accepted_hits"]
+                print >> run_log, " ".join(sort_cmd)
+        #        sorted_map_name = tmp_name()
+        #        sorted_map = open(sorted_map_name, "w")
+        #        write_sam_header(params.read_params, sorted_map)
+        #        sorted_map.close()
+        #        sorted_map = open(sorted_map_name, "a")
+        #        
+        #        sort_cmd =["sort",
+        #                    "-k",
+        #                    "3,3", 
+        #                    "-k", 
+        #                    "4,4n",
+        #                    "--temporary-directory="+tmp_dir,
+        #                    output_dir + accepted_hits]
+        #                    
+
+                sort_bam_log = open(logging_dir + "accepted_hits_bam_sort.log", "w")
+                ret = subprocess.call(sort_cmd, 
+                                stdout=open('/dev/null'),
+                                stderr=sort_bam_log)
+                if ret != 0:
+                    die("Error: could not sort BAM file with samtools")
+            else:
+                # --no-sort-bam
+                os.rename(tmp_bam, output_dir + "accepted_hits.bam")
+
+            os.remove(accepted_hits_sam)
+        else:
+            # --no-convert-bam
+            os.rename(accepted_hits_sam, output_dir + "accepted_hits.sam")
+                
+#        print >> run_log, "mv %s %s" % (sorted_map, output_dir + accepted_hits)
+#        os.rename(sorted_map_name, output_dir + accepted_hits) 
 
     # -- tophat_reports now produces (uncompressed) BAM stream,
     #    directly piped into samtools sort
