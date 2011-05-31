@@ -210,7 +210,7 @@ read_rc68	16	fake	36	255	16M2D8M	*	0	0	GCTTGCGTCATACACAGTAGAGTC	****************
 read_rc381	16	fake	36	255	16M2D8M	*	0	0	GCTTGCGTCATACACAGTAGAGTC	************************	NM:i:2	NH:i:1
 read_rc844	16	fake	36	255	16M2D8M	*	0	0	GCTTGCGTCATACACAGTAGAGTC	************************	NM:i:2	NH:i:1
 read_rc916	16	fake	36	255	16M2D8M	*	0	0	GCTTGCGTCATACACAGTAGAGTC	************************	NM:i:2	NH:i:1
-read34	0	fake	37	3	15M2D9M	*	0	0	CTTGCGGCATACACAGCAGAGTCG	************************	NM:i:4	NH:i:2	CC:Z:=	CP:i:37
+read34	256	fake	37	3	15M2D9M	*	0	0	CTTGCGGCATACACAGCAGAGTCG	************************	NM:i:4	NH:i:2	CC:Z:=	CP:i:37
 read34	0	fake	37	3	17M2D7M	*	0	0	CTTGCGGCATACACAGCAGAGTCG	************************	NM:i:4	NH:i:2
 read968	0	fake	37	255	15M2D9M	*	0	0	CTTGCGTCATTCACAGTAGAGTCG	************************	NM:i:3	NH:i:1
 read_rc34	16	fake	37	255	15M2D9M	*	0	0	CTTGCGGCATACACAGCAGAGTCG	************************	NM:i:4	NH:i:1
@@ -296,7 +296,7 @@ read95	0	fake	46	255	8M2D16M	*	0	0	TACACAGTAGAGTCGCGGTCCGTC	********************
 read284	0	fake	46	255	8M2D16M	*	0	0	TACACAGTAGCGTCGCGGTCCGCC	************************	NM:i:5	NH:i:1
 read301	0	fake	46	255	8M2D16M	*	0	0	TACACAGTAAAGTCGCGGTCCGAC	************************	NM:i:4	NH:i:1
 read691	0	fake	46	255	8M2D16M	*	0	0	TACACAGTGGAGTCGCGGACCGAC	************************	NM:i:5	NH:i:1
-read_rc70	16	fake	46	3	5M2D19M	*	0	0	TACACTGTAGAGTCGCGGACCGAC	************************	NM:i:4	NH:i:2	CC:Z:=	CP:i:46
+read_rc70	272	fake	46	3	5M2D19M	*	0	0	TACACTGTAGAGTCGCGGACCGAC	************************	NM:i:4	NH:i:2	CC:Z:=	CP:i:46
 read_rc70	16	fake	46	3	6M2D18M	*	0	0	TACACTGTAGAGTCGCGGACCGAC	************************	NM:i:4	NH:i:2
 read_rc95	16	fake	46	255	6M2D18M	*	0	0	TACACAGTAGAGTCGCGGTCCGTC	************************	NM:i:3	NH:i:1
 read_rc187	16	fake	46	255	6M2D18M	*	0	0	GAGACAGTAGAGTCGCGGTCCGAC	************************	NM:i:4	NH:i:1
