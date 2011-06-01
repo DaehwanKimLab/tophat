@@ -1741,22 +1741,23 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
             else:
                 print >> run_log, " ".join(report_cmd)
                 report_proc=subprocess.call(report_cmd,
-                                            stdout=accepted_hits,
+                                            stdout=open(accepted_hits,"wb"),
                                             stderr=report_log)
                 os.rename(accepted_hits, output_dir + "accepted_hits.bam")
         else: 
             print >> run_log, " ".join(report_cmd)
             report_proc=subprocess.call(report_cmd,
-                                         stdout=accepted_hits,
+                                         stdout=open(accepted_hits,"wb"),
                                          stderr=report_log)
             tmp_sam = tmp_name()
-            bam_to_sam_cmd = ["samtools", "view", "-S", "-H", accepted_hits_bam]
+            bam_to_sam_cmd = ["samtools", "view", "-S", "-H", accepted_hits]
             print >> run_log, " ".join(bam_to_sam_cmd) + " > " + tmp_sam
             bam_to_sam_log = open(logging_dir + "accepted_hits_bam_to_sam.log", "w")
             tmp_sam_file = open(tmp_bam, "w")
             ret = subprocess.call(bam_to_sam_cmd, 
                                   stdout=tmp_sam_file,
                                   stderr=bam_to_sam_log)
+            os.rename(accepted_hits, output_dir + "accepted_hits.sam")
             
     except OSError, o:
           die(fail_str+"Error: "+str(o)+"\n"+log_tail(log_fname))
