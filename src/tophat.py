@@ -1749,7 +1749,8 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
             report_proc=subprocess.call(report_cmd,
                                          stdout=open(accepted_hits,"wb"),
                                          stderr=report_log)
-            tmp_sam = tmp_name()
+            tmp_sam = tmp_dir + "/accepted_hits.sam"
+            
             bam_to_sam_cmd = ["samtools", "view", "-S", "-H", accepted_hits]
             print >> run_log, " ".join(bam_to_sam_cmd) + " > " + tmp_sam
             bam_to_sam_log = open(logging_dir + "accepted_hits_bam_to_sam.log", "w")
