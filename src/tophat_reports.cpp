@@ -385,6 +385,7 @@ void print_sam_for_hits(const RefSequenceTable& rt,
     bool multipleHits = (hits.hits.size() > 1);
     for (size_t i = 0; i < hits.hits.size(); ++i)
 	{
+        bool primary = (i == primaryHit);
         size_t index = index_vector[i];
         const BowtieHit& bh = hits.hits[index];
         rewrite_sam_record(bam_writer, rt,
@@ -395,7 +396,7 @@ void print_sam_for_hits(const RefSequenceTable& rt,
                            frag_type,
                            hits.hits.size(),
                            (i < hits.hits.size()-1) ? &(hits.hits[index_vector[i+1]]) : NULL,
-                           primaryHit,
+                           primary,
                            (multipleHits? i: -1));
 	}
 }
