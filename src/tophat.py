@@ -1739,11 +1739,13 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
                 if retcode:
                     die(fail_str+"Error running tophat_reports\n"+log_tail(log_fname))
             else:
+                print >> run_log, " ".join(report_cmd)
                 report_proc=subprocess.call(report_cmd,
                                             stdout=accepted_hits,
                                             stderr=report_log)
                 os.rename(accepted_hits, output_dir + "accepted_hits.bam")
         else: 
+            print >> run_log, " ".join(report_cmd)
             report_proc=subprocess.call(report_cmd,
                                          stdout=accepted_hits,
                                          stderr=report_log)
