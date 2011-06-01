@@ -444,7 +444,7 @@ void print_sam_for_hits(const RefSequenceTable& rt,
             index_vector.push_back(i);
         
         sort(index_vector.begin(), index_vector.end(), s);
-        primaryHit = random() % right_hits.hits.size();
+        primaryHit = random() % left_hits.hits.size();
     }
     
     bool got_left_read = get_read_from_stream(left_hits.insert_id, 
