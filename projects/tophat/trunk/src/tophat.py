@@ -2404,7 +2404,7 @@ def prog_path(program):
 
 # FIXME: this should get set during the make dist autotools phase of the build
 def get_version():
-   return "1.2.1"
+   return "1.3.0"
 
 def mlog(msg):
   print >> sys.stderr, "[DBGLOG]:"+msg
