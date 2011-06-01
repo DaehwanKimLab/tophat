@@ -1739,9 +1739,15 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
                 if retcode:
                     die(fail_str+"Error running tophat_reports\n"+log_tail(log_fname))
             else:
+                report_proc=subprocess.call(report_cmd,
+                                            stdout=accepted_hits,
+                                            stderr=report_log)
                 os.rename(accepted_hits, output_dir + "accepted_hits.bam")
-        else:
-            tmp_sam = tmp_name() 
+        else: 
+            report_proc=subprocess.call(report_cmd,
+                                         stdout=accepted_hits,
+                                         stderr=report_log)
+            tmp_sam = tmp_name()
             bam_to_sam_cmd = ["samtools", "view", "-S", "-H", accepted_hits_bam]
             print >> run_log, " ".join(bam_to_sam_cmd) + " > " + tmp_sam
             bam_to_sam_log = open(logging_dir + "accepted_hits_bam_to_sam.log", "w")
