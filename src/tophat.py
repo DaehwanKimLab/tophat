@@ -1758,7 +1758,7 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
             ret = subprocess.call(bam_to_sam_cmd, 
                                   stdout=tmp_sam_file,
                                   stderr=bam_to_sam_log)
-            os.rename(accepted_hits, output_dir + "accepted_hits.sam")
+            os.rename(tmp_sam, output_dir + "accepted_hits.sam")
             
     except OSError, o:
           die(fail_str+"Error: "+str(o)+"\n"+log_tail(log_fname))
