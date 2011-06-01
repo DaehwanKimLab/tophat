@@ -1717,94 +1717,39 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
     if len(right_maps) > 0 and right_reads != None:
         report_cmd.append(right_maps)
         report_cmd.append(right_reads)
-                    
-    try: 
-    
-        accepted_hits_sam_file = open(accepted_hits_sam, "w")
-        #write_sam_header(params.read_params, sorted_map)
-    
-        header = open(sam_header_filename, "r")
-        for line in header:
-            print >> accepted_hits_sam_file, line,
-    
-        accepted_hits_sam_file.close()
-        #accepted_hits_sam_file = open(accepted_hits_sam, "a")
-    
-        print >> run_log, " ".join(report_cmd)   
-        retcode = subprocess.call(report_cmd, 
-                                  stderr=report_log)
-       
-        # spanning_reads returned an error 
-        if retcode != 0:
-            die(fail_str+"Error: Report generation failed with err ="+str(retcode))
-
-        if params.report_params.convert_bam:
-            tmp_bam = tmp_name() 
-            sam_to_bam_cmd = ["samtools", "view", "-S", "-b", accepted_hits_sam]
-            print >> run_log, " ".join(sam_to_bam_cmd) + " > " + tmp_bam
-            sam_to_bam_log = open(logging_dir + "accepted_hits_sam_to_bam.log", "w")
-            tmp_bam_file = open(tmp_bam, "w")
-            ret = subprocess.call(sam_to_bam_cmd, 
-                                  stdout=tmp_bam_file,
-                                  stderr=sam_to_bam_log)
-            if ret != 0:
-                die("Error: could not convert to BAM with samtools")
-
-            if params.report_params.sort_bam:
-                sort_cmd = ["samtools", "sort", tmp_bam, output_dir + "accepted_hits"]
-                print >> run_log, " ".join(sort_cmd)
-        #        sorted_map_name = tmp_name()
-        #        sorted_map = open(sorted_map_name, "w")
-        #        write_sam_header(params.read_params, sorted_map)
-        #        sorted_map.close()
-        #        sorted_map = open(sorted_map_name, "a")
-        #        
-        #        sort_cmd =["sort",
-        #                    "-k",
-        #                    "3,3", 
-        #                    "-k", 
-        #                    "4,4n",
-        #                    "--temporary-directory="+tmp_dir,
-        #                    output_dir + accepted_hits]
-        #                    
-
-                sort_bam_log = open(logging_dir + "accepted_hits_bam_sort.log", "w")
-                ret = subprocess.call(sort_cmd, 
-                                stdout=open('/dev/null'),
-                                stderr=sort_bam_log)
-                if ret != 0:
-                    die("Error: could not sort BAM file with samtools")
-            else:
-                # --no-sort-bam
-                os.rename(tmp_bam, output_dir + "accepted_hits.bam")
-
-            os.remove(accepted_hits_sam)
-        else:
-            # --no-convert-bam
-            os.rename(accepted_hits_sam, output_dir + "accepted_hits.sam")
-                
-#        print >> run_log, "mv %s %s" % (sorted_map, output_dir + accepted_hits)
-#        os.rename(sorted_map_name, output_dir + accepted_hits) 
-
     # -- tophat_reports now produces (uncompressed) BAM stream,
     #    directly piped into samtools sort
     try:
-          report_proc=subprocess.Popen(report_cmd,
-                       preexec_fn=subprocess_setup,
-                       stdout=subprocess.PIPE,
-                       stderr=report_log)
+        if params.report_params.convert_bam:
+            if params.report_params.sort_bam:            
+                report_proc=subprocess.Popen(report_cmd,
+                                             preexec_fn=subprocess_setup,
+                                             stdout=subprocess.PIPE,
+                                             stderr=report_log)
 
-          bamsort_cmd = ["samtools", "sort", "-", accepted_hits]
-          bamsort_proc= subprocess.Popen(bamsort_cmd,
-                     preexec_fn=subprocess_setup,
-                     stderr=open(logging_dir + "reports.samtools_sort.log", "w"),
-                     stdin=report_proc.stdout)
-          report_proc.stdout.close()
-          print >> run_log, " ".join(report_cmd)+" | " + " ".join(bamsort_cmd)
-          bamsort_proc.communicate()
-          retcode = report_proc.poll()
-          if retcode:
-            die(fail_str+"Error running tophat_reports\n"+log_tail(log_fname))
+                bamsort_cmd = ["samtools", "sort", "-", accepted_hits]
+                bamsort_proc= subprocess.Popen(bamsort_cmd,
+                                               preexec_fn=subprocess_setup,
+                                               stderr=open(logging_dir + "reports.samtools_sort.log", "w"),
+                                               stdin=report_proc.stdout)
+                report_proc.stdout.close()
+                print >> run_log, " ".join(report_cmd)+" | " + " ".join(bamsort_cmd)
+                bamsort_proc.communicate()
+                retcode = report_proc.poll()
+                if retcode:
+                    die(fail_str+"Error running tophat_reports\n"+log_tail(log_fname))
+            else:
+                os.rename(accepted_hits, output_dir + "accepted_hits.bam")
+        else:
+            tmp_sam = tmp_name() 
+            bam_to_sam_cmd = ["samtools", "view", "-S", "-H", accepted_hits_bam]
+            print >> run_log, " ".join(bam_to_sam_cmd) + " > " + tmp_sam
+            bam_to_sam_log = open(logging_dir + "accepted_hits_bam_to_sam.log", "w")
+            tmp_sam_file = open(tmp_bam, "w")
+            ret = subprocess.call(bam_to_sam_cmd, 
+                                  stdout=tmp_sam_file,
+                                  stderr=bam_to_sam_log)
+            
     except OSError, o:
           die(fail_str+"Error: "+str(o)+"\n"+log_tail(log_fname))
 
