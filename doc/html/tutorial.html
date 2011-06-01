@@ -201,32 +201,66 @@
 	  	
 	<br/>
   	<h2 id="inst">Install quick-start</h2><br/>
-      	<p>Download and extract the appropriate <a href="./downloads/tophat-1.1.0.tar.gz">TopHat</a>
+      	<p>Download and extract the latest <a href="./downloads/">TopHat</a>
             and <a href="https://sourceforge.net/project/showfiles.php?group_id=236897&package_id=288231">Bowtie</a> releases.</p>
-            You will need the following Bowtie in your <tt>PATH</tt>:
+            You will need the following Bowtie programs in your <tt>PATH</tt>:
             <ul>
         	      <li><tt>bowtie</tt></li>
         	      <li><tt>bowtie-build</tt></li>
 				  <li><tt>bowtie-inspect</tt></li>
         	</ul>
+            You will also need the <tt>samtools</tt> program in your <tt>PATH</tt>, and if you plan to compile Tophat from source 
+            you should also install the SAM tools package, by following these steps:
+            <ul><ul>
+               <li><a href="http://samtools.sourceforge.net/">Download</a>
+                  the SAM tools</li>
+                <li>Unpack the SAM tools tarball and <tt>cd</tt> to
+                  the SAM tools source directory.</li>
+                <li>Build the SAM tools by typing <tt>make</tt> at
+                  the command line.</li>
+                <li>Choose a directory into which you wish to copy
+                  the SAM tools binary, the included library <tt>libbam.a</tt>,
+                  and the library headers. A common choice is <tt>/usr/local/</tt>.
+                </li>
+                <li>Copy libbam.a to the <tt>lib/</tt> directory in
+                  the folder you've chosen above (e.g. <tt>/usr/local/lib/</tt>)</li>
+                <li>Create a directory called "<tt>bam</tt>" in the
+                  <tt>include/</tt> directory (e.g.
+                  /usr/local/include/bam) </li>
+                <li>Copy the headers (files ending in .h) to the <tt>include/bam</tt>
+                  directory you've created above (e.g. <tt>/usr/local/include/bam</tt>)
+                </li>
+                <li>Copy the samtools binary to some directory in
+                      your PATH.</li>
+            </ul></ul>
       	<p>
 		<p> To install TopHat, unpack the tarball and change to the package 
 			directory as follows: </p> <p>
-			<blockquote>tar zxvf tophat-1.1.0.tar.gz</blockquote> 
-			<blockquote>cd tophat-1.0.7/</blockquote>
+			<blockquote>tar zxvf tophat-1.2.0.tar.gz</blockquote> 
+			<blockquote>cd tophat-1.2.0/</blockquote>
 		  <p>Now build the package: </p> <p> 
 			<blockquote>./configure --prefix=/path/to/install/directory/</blockquote>
+            <ul><ul>
+            <p><b>Note:</b> 
+            If you copied the SAM tools library and header files to someplace other than <tt>/usr/local/</tt>, you
+            may need to supply the <tt>--with-bam</tt> configuration option. 
+            For example, if you placed the libbam.a files in <tt>/opt/biotools/lib/</tt> and SAM tools .h files in <tt>/opt/biotools/include/bam/</tt>
+            then the <tt>configure</tt> command will become something like this:
+            <blockquote>./configure --prefix=/opt/biotools --with-bam=/opt/biotools</blockquote>
+            (in this example tophat and its modules will be installed in <tt>/opt/biotools/bin/</tt> directory)
+            <p>
+            </ul></ul>
+            After the <tt>configure</tt> script finishes successfully, build the Tophat package:
 			<blockquote>make</blockquote>
 		  <p>Finally, install TopHat:</p><p>
 			<blockquote>make install</blockquote>
-			
-		  <p>You may want to add the <tt>tophat</tt> script to your path.</p>
-    	
+			<p>This will install tophat and its modules into <tt>/path/to/install/directory/bin</tt> directory. 
+            You may want to add that directory to your shell's <tt>PATH</tt> if it's not there already.<p>
       	<br/>
 
 		<h2 id="test">Testing the installation</h2><br/>
 		<p>
-		After you've installed Bowtie and TopHat, you should 
+		After you installed Bowtie, Samtools and TopHat, you should 
 		test the pipeline on a simple test data set, which you can download 
 		<a href="./downloads/test_data.tar.gz">here</a>.  This data is not meant
 		to exhaustively test all the features of TopHat.  It's just to 

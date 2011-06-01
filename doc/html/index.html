@@ -202,23 +202,23 @@
 		<p>This release includes some very substantial performance improvements, bug fixes, and enhancements.
 			<ul>
 			<li>Geo Pertea has restructured the internal workflow of TopHat so 
-				that nearly all temporary data is compressed during a run.  
+				that nearly all temporary data is compressed during a run.
 				This greatly reduces the on-disk footprint of TopHat runs, and 
-				also greatly reduces the amount of disk I/O.  These enhancements
+				also reduces the amount of disk I/O.  These enhancements
 				should improve running time on networked filesystems.
 			<li>Thanks to contributions from the <a href="http://picard.sourceforge.net/">Picard</a> team (notably Alec Wysoker at the Broad Institute),
 				TopHat has some needed SAM compliance fixes and some additional
 				command line options that make it easier to incorporate TopHat
 				into sequencing core workflows and automated processing pipelines.
-			<li>TopHat can optionally use Bowtie's <tt>-n</tt> flag to improve
-				overall read mapping reads.  The default is still to use <tt>-v</tt>,
+			<li>TopHat can optionally use Bowtie's <tt>-n</tt> flag as an alternative
+				to the read mapping protocol.  The default is still to use <tt>-v</tt>,
 				which can result in better spliced alignment accuracy when reads
 				contain relatively few sequencing errors (particularly at the 3' end)
-			<li>TopHat now supports both GTF and GFF3.
-			<li>TopHat now can take zipped FASTQ files as input, and it will 
-				determine at runtime which unzipping routine to use (e.g. gunzip, bunzip2)
-			<li>The initial read inspection, used to determine FASTQ format, 
-				read length, and other parameters needed for the run, is significantly faster.
+			<li>TopHat now supports both <a href="http://cufflinks.cbcb.umd.edu/gff.html">GTF2 and GFF3</a>
+			<li>TopHat can take gzip or bzip2 compressed FASTQ or FASTA files as input,
+			    decompressing them on the fly (the decompression program is determined based on the file name suffix)
+			<li>The initial read inspection stage, used to determine the format, read length
+				and other parameters needed for the run, is now significantly faster.
 			<li>Numerous other minor bug fixes
 			</ul>
 	    </p><br/>
