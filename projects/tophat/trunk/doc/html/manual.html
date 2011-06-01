@@ -269,16 +269,18 @@
          <li><tt>bowtie-inspect</tt></li>
          <li><tt>bowtie-build</tt></li>
       </ul>
-	  <p>Because TopHat outputs alignments in BAM format, you will need to download and install the <a href="http://samtools.sourceforge.net/">SAM tools</a>.  You may want to take a look at the <a href="http://cufflinks.cbcb.umd.edu/tutorial.html">Cufflinks</a> installation instructions for more details on how to best install the SAM tools.</li>
+	  <p>Because TopHat outputs alignments in BAM format, you will need to download and install the <a href="http://samtools.sourceforge.net/">SAM tools</a>. 
+      You may want to take a look at the <a href="tutorial.html">Getting started</a> guide for more detailed installation instructions, 
+      including installation of SAM tools.
 	  <p>You will also need Python <strong>version 2.4 or higher</strong>.
       </p>
   	  <br/>
   	  <h2 id="bins">Obtaining and installing TopHat</h2><br/>
-	  <p> You can download the source release <a href="./downloads/">here</a>. </p>
+	  <p> You can download the latest source release <a href="./downloads/">here</a>. </p>
 	  <p> To install TopHat, unpack the tarball and change to the package 
 		directory as follows: </p> <p>
-		<blockquote>tar zxvf tophat-1.1.0.tar.gz</blockquote> 
-		<blockquote>cd tophat-1.1.0/</blockquote>
+		<blockquote>tar zxvf tophat-1.2.0.tar.gz</blockquote> 
+		<blockquote>cd tophat-1.2.0/</blockquote>
 	  <p>Now build the package: </p> <p> 
 		<blockquote>./configure --prefix=/path/to/install/directory/</blockquote>
 		<blockquote>make</blockquote>
@@ -620,7 +622,10 @@
 	  <tr><td VALIGN=top nowrap>
 	  <tt>-z/--zpacker </tt>
 	  </td><td VALIGN=top>
-	  Manually specify the program used for unzipping
+	  manually specify the program used for compression of temporary files;
+	  default is <tt>gzip</tt>; use <tt>-z0</tt> to disable compression altogether. 
+	  Any program that is option-compatible with gzip can be used (e.g. bzip2, pigz, 
+	  pbzip2).
 	  </td></tr>
 	</td></tr>
 	 </table><br/>
