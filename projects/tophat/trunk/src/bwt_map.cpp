@@ -1394,6 +1394,9 @@ void print_hit(FILE* fout,
 			seq.c_str(),
 			quals.c_str());
 	
+    if (!sam_readgroup_id.empty())
+    	fprintf(fout, "\tRG:Z:%s", sam_readgroup_id.c_str());
+    
 	fprintf(fout, "\tNM:i:%d", bh.edit_dist() + indel_distance);
 
 	bool containsSplice = false;
@@ -1515,6 +1518,14 @@ void print_bamhit(GBamWriter& wbam,
     fprintf(fout, "\tNM:i:%d", bh.edit_dist() + indel_distance);
     */
     vector<string> auxdata;
+    
+    if (!sam_readgroup_id.empty())
+    {
+        string nm("RG:Z:");
+        nm += sam_readgroup_id;
+        auxdata.push_back(nm);
+    }
+    
     string nm("NM:i:");
     str_appendInt(nm, bh.edit_dist() + indel_distance);
     auxdata.push_back(nm);

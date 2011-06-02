@@ -81,6 +81,7 @@ extern std::string gene_filter;
 
 extern std::string ium_reads;
 extern std::string sam_header;
+extern std::string sam_readgroup_id;
 extern std::string zpacker; //path to program to use for de/compression (gzip, pigz, bzip2, pbzip2)
 extern std::string samtools_path; //path to samtools executable
 extern std::string aux_outfile; //auxiliary output file name

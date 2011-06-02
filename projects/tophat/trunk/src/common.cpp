@@ -122,6 +122,7 @@ string gene_filter = "";
 string gff_file = "";
 string ium_reads = "";
 string sam_header = "";
+string sam_readgroup_id = "";
 string zpacker = "";
 string samtools_path = "samtools";
 
@@ -253,6 +254,7 @@ enum
     OPT_SOLEXA_QUALS,
     OPT_PHRED64_QUALS,
     OPT_SAM_HEADER,
+    OPT_SAM_READGROUP_ID,
     OPT_QUALS,
     OPT_INTEGER_QUALS,
     OPT_COLOR,
@@ -271,6 +273,7 @@ static struct option long_options[] = {
 {"fastq",		no_argument,		0,	OPT_FASTQ},
 {"min-anchor",		required_argument,	0,	OPT_MIN_ANCHOR},
 {"sam-header",		required_argument,	0,	OPT_SAM_HEADER},
+{"rg-id",		required_argument,	0,	OPT_SAM_READGROUP_ID},
 {"splice-mismatches",	required_argument,	0,	OPT_SPLICE_MISMATCHES},
 {"verbose",		no_argument,		0,	OPT_VERBOSE},
 {"inner-dist-mean",	required_argument,	0,	OPT_INSERT_LENGTH_MEAN},
@@ -420,6 +423,9 @@ int parse_options(int argc, char** argv, void (*print_usage)())
     case OPT_SAM_HEADER:
       sam_header = optarg;
       break;
+    case OPT_SAM_READGROUP_ID:
+        sam_readgroup_id = optarg;
+        break;
     case OPT_BUTTERFLY_SEARCH:
       butterfly_search = true;
       break;
