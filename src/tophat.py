@@ -529,6 +529,8 @@ class TopHatParams:
                 cmd.append("--color-out")
         if self.read_params.library_type != "":
             cmd.extend(["--library-type", self.read_params.library_type])
+        if self.read_params.read_group_id != "":
+            cmd.extend(["--rg-id", self.read_params.read_group_id])
         if self.read_params.phred64_quals:
             cmd.append("--phred64-quals")
         return cmd
