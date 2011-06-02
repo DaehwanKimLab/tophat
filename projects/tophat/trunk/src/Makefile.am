@@ -1,4 +1,4 @@
-include $(top_srcdir)/build-aux/tophat.mk
+#include $(top_srcdir)/build-aux/tophat.mk
 
 #SUBDIRS = samtools
 
@@ -472,11 +472,15 @@ bin_PROGRAMS = \
 
 
 #-- scripts to be installed in $prefix/bin
-dist_bin_SCRIPTS = \
-	contig_to_chr_coords.py \
-	tophat.py \
-	bed_to_juncs.py \
-	sra_to_solid.py
+bin_SCRIPTS = \
+	contig_to_chr_coords \
+	tophat \
+	bed_to_juncs \
+	sra_to_solid
+
+SUFFIXES = .py
+.py:
+	(echo '#!$(PYTHON)'; sed '/^#!/d' $<) > $@
 
 
 #-- tophat library for linking convienence
