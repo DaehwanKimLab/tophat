@@ -1743,17 +1743,19 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
             else:
                 print >> run_log, " ".join(report_cmd)
                 report_proc=subprocess.call(report_cmd,
+                                            preexec_fn=subprocess_setup,
                                             stdout=open(accepted_hits,"wb"),
                                             stderr=report_log)
                 os.rename(accepted_hits, output_dir + "accepted_hits.bam")
         else: 
             print >> run_log, " ".join(report_cmd)
             report_proc=subprocess.call(report_cmd,
-                                         stdout=open(accepted_hits,"wb"),
-                                         stderr=report_log)
-            tmp_sam = tmp_dir + "/accepted_hits.sam"
+                                        preexec_fn=subprocess_setup,
+                                        stdout=open(accepted_hits,"wb"),
+                                        stderr=report_log)
+            tmp_sam = output_dir + "accepted_hits.sam"
             
-            bam_to_sam_cmd = ["samtools", "view", "-S", "-H", accepted_hits]
+            bam_to_sam_cmd = ["samtools", "view", "-h", accepted_hits]
             print >> run_log, " ".join(bam_to_sam_cmd) + " > " + tmp_sam
             bam_to_sam_log = open(logging_dir + "accepted_hits_bam_to_sam.log", "w")
             tmp_sam_file = open(tmp_sam, "w")
@@ -1761,8 +1763,9 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
                                   stdout=tmp_sam_file,
                                   stderr=bam_to_sam_log)
             tmp_sam_file.close()
-            print >> run_log, "mv %s %s" % (tmp_sam, output_dir + "accepted_hits.sam")
-            os.rename(tmp_sam, output_dir + "accepted_hits.sam")
+            os.remove(accepted_hits)
+            #print >> run_log, "mv %s %s" % (tmp_sam, output_dir + "accepted_hits.sam")
+            #os.rename(tmp_sam, output_dir + "accepted_hits.sam")
             
     except OSError, o:
           die(fail_str+"Error: "+str(o)+"\n"+log_tail(log_fname))
