@@ -382,10 +382,10 @@ class TopHatParams:
                 if option == "--no-convert-bam":
                     self.convert_bam = False
                     self.sort_bam = False
-                    
-                    
-    def __init__(self):        
-        self.splice_constraints = self.SpliceConstraints(8,     # min_anchor 
+
+
+    def __init__(self):
+        self.splice_constraints = self.SpliceConstraints(8,     # min_anchor
                                                          50,    # min_intron
                                                          500000, # max_intron
                                                          0,     # splice_mismatches
@@ -457,7 +457,7 @@ class TopHatParams:
 
         library_types = ["fr-unstranded", "fr-firststrand", "fr-secondstrand"]
 
-        if self.read_params.library_type != "" and self.read_params.library_type not in library_types:
+        if self.read_params.library_type and self.read_params.library_type not in library_types:
             die("Error: library-type should be one of: "+', '.join(library_types))
 
         self.search_params.max_closure_intron_length = min(self.splice_constraints.max_intron_length,
@@ -527,9 +527,9 @@ class TopHatParams:
             cmd.append("--color")
             if self.read_params.color_out:
                 cmd.append("--color-out")
-        if self.read_params.library_type != "":
+        if self.read_params.library_type:
             cmd.extend(["--library-type", self.read_params.library_type])
-        if self.read_params.read_group_id != "":
+        if self.read_params.read_group_id:
             cmd.extend(["--rg-id", self.read_params.read_group_id])
         if self.read_params.phred64_quals:
             cmd.append("--phred64-quals")
@@ -1349,6 +1349,7 @@ def prep_reads(params, reads_list, quals_list, output_name, side="Left "):
 
     filter_cmd = [prog_path("prep_reads")]
     filter_cmd.extend(params.cmd())
+
     if params.read_params.reads_format == "fastq":
         filter_cmd += ["--fastq"]
     elif params.read_params.reads_format == "fasta":
@@ -1356,7 +1357,6 @@ def prep_reads(params, reads_list, quals_list, output_name, side="Left "):
     info_file=output_dir+output_name+".info"
     filter_cmd += ["--aux-outfile="+info_file]
     filter_cmd.append(reads_list)
-
     if params.read_params.quals:
         filter_cmd.append(quals_list)
     shell_cmd = ' '.join(filter_cmd)
@@ -1723,7 +1723,7 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
     #    directly piped into samtools sort
     try:
         if params.report_params.convert_bam:
-            if params.report_params.sort_bam:            
+            if params.report_params.sort_bam:
                 report_proc=subprocess.Popen(report_cmd,
                                              preexec_fn=subprocess_setup,
                                              stdout=subprocess.PIPE,
@@ -1747,26 +1747,26 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
                                             stdout=open(accepted_hits,"wb"),
                                             stderr=report_log)
                 os.rename(accepted_hits, output_dir + "accepted_hits.bam")
-        else: 
+        else:
             print >> run_log, " ".join(report_cmd)
             report_proc=subprocess.call(report_cmd,
                                         preexec_fn=subprocess_setup,
                                         stdout=open(accepted_hits,"wb"),
                                         stderr=report_log)
             tmp_sam = output_dir + "accepted_hits.sam"
-            
+
             bam_to_sam_cmd = ["samtools", "view", "-h", accepted_hits]
             print >> run_log, " ".join(bam_to_sam_cmd) + " > " + tmp_sam
             bam_to_sam_log = open(logging_dir + "accepted_hits_bam_to_sam.log", "w")
             tmp_sam_file = open(tmp_sam, "w")
-            ret = subprocess.call(bam_to_sam_cmd, 
+            ret = subprocess.call(bam_to_sam_cmd,
                                   stdout=tmp_sam_file,
                                   stderr=bam_to_sam_log)
             tmp_sam_file.close()
             os.remove(accepted_hits)
             #print >> run_log, "mv %s %s" % (tmp_sam, output_dir + "accepted_hits.sam")
             #os.rename(tmp_sam, output_dir + "accepted_hits.sam")
-            
+
     except OSError, o:
           die(fail_str+"Error: "+str(o)+"\n"+log_tail(log_fname))
 
