@@ -478,9 +478,9 @@ bin_SCRIPTS = \
 	bed_to_juncs \
 	sra_to_solid
 
-SUFFIXES = .py
-.py:
-	(echo '#!$(PYTHON)'; sed '/^#!/d' $<) > $@
+#SUFFIXES = .py
+#.py:
+#	(echo '#!$(PYTHON)'; sed '/^#!/d' $<) > $@
 
 
 #-- tophat library for linking convienence
