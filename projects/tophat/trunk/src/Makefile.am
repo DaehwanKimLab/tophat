@@ -472,7 +472,7 @@ bin_PROGRAMS = \
 
 
 #-- scripts to be installed in $prefix/bin
-bin_SCRIPTS = \
+dist_bin_SCRIPTS = \
 	contig_to_chr_coords \
 	tophat \
 	bed_to_juncs \
