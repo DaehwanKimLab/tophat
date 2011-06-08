@@ -2374,7 +2374,7 @@ def spliced_alignment(params,
         else:
             os.rename(unspl_samfile, merged_map)
             maps[reads] = [merged_map]
-            
+
         if not params.system_params.keep_tmp:
             os.remove(unspl_bwtfile)
 
