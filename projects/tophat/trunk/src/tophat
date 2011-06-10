@@ -1982,7 +1982,8 @@ def junctions_from_segments(params,
                             unmapped_reads,
                             reads_format,
                             ref_fasta):
-    print >> sys.stderr, "[%s] Searching for junctions via segment mapping" % right_now()
+    if left_reads_map != left_seg_maps[0]:
+       print >> sys.stderr, "[%s] Searching for junctions via segment mapping" % right_now()
     out_path=getFileDir(left_seg_maps[0])
     juncs_out=out_path+"segment.juncs"
     insertions_out=out_path+"segment.insertions"
@@ -2127,7 +2128,7 @@ def spliced_alignment(params,
         num_segs = read_len / segment_len
         if read_len % segment_len >= min(segment_len -2, 20):
             num_segs += 1
-        # Perform the initial Bowtie mapping of the full lenth reads
+        # Perform the initial Bowtie mapping of the full length reads
         (unspliced_map, unmapped) = bowtie(params,
                                            bwt_idx_prefix,
                                            reads,
@@ -2135,13 +2136,11 @@ def spliced_alignment(params,
                                            unspliced_out,
                                            unmapped_unspliced)
 
-        # TODO: should write BAM directly
-        #unspliced_sam = tmp_name()+'.unspl.sam'
         unspliced_sam = tmp_dir+fbasename+'.unspl.bam'
 
-        # Convert the initial Bowtie maps into SAM format.
-        # TODO: this step should be removable now that Bowtie supports SAM
-        # format
+        # Convert the initial Bowtie maps into BAM format.
+        # TODO: this step should be replaced by a more direct conversion
+        #  because Bowtie can actually output SAM format now
         join_mapped_segments(params,
                              sam_header_filename,
                              reads,
