@@ -133,6 +133,8 @@ bool integer_quals = false;
 bool color = false;
 bool color_out = false;
 
+string gtf_juncs = "";
+
 eLIBRARY_TYPE library_type = LIBRARY_TYPE_NONE;
 
 extern void print_usage();
@@ -265,7 +267,8 @@ enum
     OPT_NUM_CPUS,
     OPT_ZPACKER,
     OPT_SAMTOOLS,
-    OPT_AUX_OUT
+    OPT_AUX_OUT,
+    OPT_GTF_JUNCS
   };
 
 static struct option long_options[] = {
@@ -312,6 +315,7 @@ static struct option long_options[] = {
 {"zpacker", required_argument, 0, OPT_ZPACKER},
 {"samtools", required_argument, 0, OPT_SAMTOOLS},
 {"aux-outfile", required_argument, 0, OPT_AUX_OUT},
+{"gtf-juncs", required_argument, 0, OPT_GTF_JUNCS},
 {0, 0, 0, 0} // terminator
 };
 
@@ -482,6 +486,9 @@ int parse_options(int argc, char** argv, void (*print_usage)())
     case 'p':
     case OPT_NUM_CPUS:
       num_cpus=parseIntOpt(1,"-p/--num-threads must be at least 1",print_usage);
+      break;
+    case OPT_GTF_JUNCS:
+      gtf_juncs = optarg;
       break;
     default:
       print_usage();
@@ -772,7 +779,7 @@ GBamRecord::GBamRecord(const char* qname, int32_t flags, int32_t g_tid,
    int i, op;
    long x;
    b->core.n_cigar = 0;
-   if (cigar!=NULL && cigar[0] != '*') {
+   if (cigar != NULL && strcmp(cigar, "*") != 0) {
         for (s = cigar; *s; ++s) {
             if (isalpha(*s)) b->core.n_cigar++;
             else if (!isdigit(*s)) {
@@ -834,7 +841,7 @@ GBamRecord::GBamRecord(const char* qname, int32_t flags, int32_t g_tid,
    //requires core.l_qseq already set
    //and must be called AFTER add_sequence(), which also allocates the memory for quals
    uint8_t* p = b->data+(b->core.l_qname + b->core.n_cigar * 4 + (b->core.l_qseq+1)/2);
-   if (quals==NULL || quals[0]=='*') {
+   if (quals==NULL || strcmp(quals, "*") == 0) {
       for (int i=0;i < b->core.l_qseq; i++) p[i] = 0xff;
       return;
       }
