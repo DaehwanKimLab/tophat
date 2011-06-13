@@ -598,7 +598,7 @@ class TopHatParams:
                                          "zpacker=",
                                          "no-unmapped-fifo",
                                          "max-insertion-length=",
-                                         "min-insertion-length=",
+                                         "max-deletion-length=",
                                          "insertions=",
                                          "deletions=",
                                          "no-sort-bam",
