@@ -1331,6 +1331,9 @@ class PrepReadsInfo:
            except Exception, e:
              die(fail_str+"Error retrieving prep_reads info.")
            print >> sys.stderr, "\t%s reads: min. length=%s, count=%s" %  (side, self.min_len, self.out_count)
+           if self.min_len < 20:
+               print >> sys.stderr, "Warning: short reads (<20bp) will make TopHat quite slow and take large amount of memory because they are likely to be mapped to too many places"
+
 # Calls the prep_reads executable, which prepares an internal read library.
 # The read library features reads with monotonically increasing integer IDs.
 # prep_reads also filters out very low complexy or garbage reads as well as
