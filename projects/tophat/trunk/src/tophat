@@ -2143,6 +2143,11 @@ def spliced_alignment(params,
         num_segs = read_len / segment_len
         if read_len % segment_len >= min(segment_len -2, 20):
             num_segs += 1
+
+        # daehwan - check this out
+        if num_segs <= 1:
+            print >> sys.stderr, "Warning: you have only one segment per read\n\twe strongly recommend that you decrease --segment-length to about half the read length because TopHat will work better with multiple segments"
+            
         # Perform the initial Bowtie mapping of the full length reads
         (unspliced_map, unmapped) = bowtie(params,
                                            bwt_idx_prefix,
