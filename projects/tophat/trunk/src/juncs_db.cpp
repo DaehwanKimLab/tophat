@@ -68,32 +68,31 @@ bool splice_junc_lt(const pair<size_t, size_t>& lhs,
  */ 
 template<typename TStr>
 void print_insertion(const Insertion& insertion,
-				  int read_len,
-				  TStr& ref_str,
-				  const string& ref_name,
-				  ostream& splice_db)
+		     int read_len,
+		     TStr& ref_str,
+		     const string& ref_name,
+		     ostream& splice_db)
 {
-	int half_splice_len = read_len - min_anchor_len;
-
-	size_t left_start, right_start;
-	size_t left_end, right_end;
-	if (insertion.left >= 0 && insertion.left <= length(ref_str))
-	{
-		left_start = (int)insertion.left - half_splice_len + 1 >= 0 ? (int)insertion.left - half_splice_len + 1 : 0;
-		left_end = left_start + half_splice_len;
-		
-		right_start = (int)left_end; 
-		right_end = right_start + half_splice_len  < length(ref_str) ? right_start + half_splice_len : length(ref_str);
-		
-		Infix<RefSequenceTable::Sequence>::Type left_splice = infix(ref_str, left_start, left_end);
-		Infix<RefSequenceTable::Sequence>::Type right_splice = infix(ref_str, right_start, right_end); 
-		
-		splice_db << ">" << ref_name << "|" << left_start << "|" << insertion.left << "-" << insertion.sequence 
-			  << "|" << right_end << "|ins|" << ("fwd")  << endl;
-
-		splice_db << left_splice << insertion.sequence << right_splice << endl;
-	}
-		
+  int half_splice_len = read_len - min_anchor_len;
+  
+  size_t left_start, right_start;
+  size_t left_end, right_end;
+  if (insertion.left >= 0 && insertion.left <= length(ref_str))
+    {
+      left_start = (int)insertion.left - half_splice_len + 1 >= 0 ? (int)insertion.left - half_splice_len + 1 : 0;
+      left_end = left_start + half_splice_len;
+      
+      right_start = (int)left_end; 
+      right_end = right_start + half_splice_len  < length(ref_str) ? right_start + half_splice_len : length(ref_str);
+      
+      Infix<RefSequenceTable::Sequence>::Type left_splice = infix(ref_str, left_start, left_end);
+      Infix<RefSequenceTable::Sequence>::Type right_splice = infix(ref_str, right_start, right_end); 
+      
+      splice_db << ">" << ref_name << "|" << left_start << "|" << insertion.left << "-" << insertion.sequence 
+		<< "|" << right_end << "|ins|" << ("fwd")  << endl;
+      
+      splice_db << left_splice << insertion.sequence << right_splice << endl;
+    }
 }
 
 
@@ -105,47 +104,36 @@ void print_splice(const Junction& junction,
 				  const string& ref_name,
 				  ostream& splice_db)
 {
-	int half_splice_len = read_len - min_anchor_len;
+  // daehwan - this is tentative, let's think about this more :)
+  // int half_splice_len = read_len - min_anchor_len;
+  int half_splice_len = read_len;
 
-	size_t left_start, right_start;
-	size_t left_end, right_end;
-	
-	if (junction.left >= 0 && junction.left <= length(ref_str) &&
-		junction.right >= 0 && junction.right <= length(ref_str))
-	{
-		left_start = (int)junction.left - half_splice_len + 1 >= 0 ? (int)junction.left - half_splice_len + 1 : 0;
-		left_end = left_start + half_splice_len;
-		
-		right_start = junction.right;
-		right_end = right_start + half_splice_len < length(ref_str) ? right_start + half_splice_len : length(ref_str) - right_start;
-		
-		Infix<RefSequenceTable::Sequence>::Type left_splice = infix(ref_str,
-																 left_start, 
-																 left_end);
-		Infix<RefSequenceTable::Sequence>::Type right_splice = infix(ref_str, 
-																  right_start, 
-																  right_end);
-		
-		splice_db << ">" << ref_name << "|" << left_start << "|" << junction.left <<
-			"-" << junction.right << "|" << right_end << "|" << tag << endl;
-
-		splice_db << left_splice << right_splice << endl;
-	}
-		
+  size_t left_start, right_start;
+  size_t left_end, right_end;
+  
+  if (junction.left >= 0 && junction.left <= length(ref_str) &&
+      junction.right >= 0 && junction.right <= length(ref_str))
+    {
+      left_start = (int)junction.left - half_splice_len + 1 >= 0 ? (int)junction.left - half_splice_len + 1 : 0;
+      left_end = left_start + half_splice_len;
+      
+      right_start = junction.right;
+      right_end = right_start + half_splice_len < length(ref_str) ? right_start + half_splice_len : length(ref_str) - right_start;
+      
+      Infix<RefSequenceTable::Sequence>::Type left_splice = infix(ref_str,
+								  left_start, 
+								  left_end);
+      Infix<RefSequenceTable::Sequence>::Type right_splice = infix(ref_str, 
+								   right_start, 
+								   right_end);
+      
+      splice_db << ">" << ref_name << "|" << left_start << "|" << junction.left <<
+	"-" << junction.right << "|" << right_end << "|" << tag << endl;
+      
+      splice_db << left_splice << right_splice << endl;
+    }
 }
 
-
-//const char *short_options = "v";
-//
-//static struct option long_options[] = {
-//{"verbose",		no_argument,	0,							'v'},
-////{"insert-len",      required_argument,       0,            'I'},
-////{"insert-stddev",      required_argument,       0,            's'},
-////{"max-dist",       required_argument,       0,            'd'},
-////{"min-intron",       required_argument,       0,            'i'},
-////{"min-exon",       required_argument,       0,            'e'},
-//{0, 0, 0, 0} // terminator
-//};
 
 /**
  * Parse an int out of optarg and enforce that it be at least 'lower';

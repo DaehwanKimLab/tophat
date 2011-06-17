@@ -16,10 +16,11 @@
 #include <seqan/sequence.h>
 #include <bam/sam.h>
 #include "common.h"
-
+#include "junctions.h"
 
 
 using namespace std;
+
 
 /**
  * The main purpose of this struct is to provide a
@@ -40,10 +41,10 @@ private:
 	bool _indelFreeAlignment;
 
 	/**
-	 * Is this alignment free of splices? Note, if there is no alignment
+	 * Is this alignment free of unannotated splices? Note, if there is no alignment
 	 * this should still be false
 	 */
-	bool _spliceFreeAlignment;
+	bool _unannotatedSpliceFreeAlignment;
 
 	/**
 	 * Is there an alignment?
@@ -51,14 +52,12 @@ private:
 	bool _aligned;
 
 public:
-	AlignStatus();
-	AlignStatus(const BowtieHit& bh);
+  AlignStatus();
+  AlignStatus(const BowtieHit& bh, const JunctionSet& gtf_junctions);
 
-	bool operator<(const AlignStatus& rhs) const;
-
-	bool operator==(const AlignStatus& rhs) const;
-
-	bool operator!=(const AlignStatus& rhs) const;
+  bool operator<(const AlignStatus& rhs) const;
+  bool operator==(const AlignStatus& rhs) const;
+  bool operator!=(const AlignStatus& rhs) const;
 };
 
 #endif

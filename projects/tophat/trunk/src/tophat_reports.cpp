@@ -48,27 +48,27 @@ using namespace seqan;
 using std::set;
 
 void fragment_best_alignments(const HitsForRead& hits_for_read,
-							  FragmentAlignmentGrade& best_grade,
-							  HitsForRead& best_hits)
+			      FragmentAlignmentGrade& best_grade,
+			      HitsForRead& best_hits,
+			      const JunctionSet& gtf_junctions)
 {
-	const vector<BowtieHit>& hits = hits_for_read.hits;
-    
-	for (size_t i = 0; i < hits.size(); ++i)
+  const vector<BowtieHit>& hits = hits_for_read.hits;
+  for (size_t i = 0; i < hits.size(); ++i)
+    {
+      FragmentAlignmentGrade g(hits[i], gtf_junctions);
+      // Is the new status better than the current best one?
+      if (best_grade < g)
 	{
-		FragmentAlignmentGrade g(hits[i]);
-		// Is the new status better than the current best one?
-		if (best_grade < g)
-		{
-			best_hits.hits.clear();
-			best_grade = g;
-			best_hits.hits.push_back(hits[i]);
-		}
-		else if (!(g < best_grade)) // is it just as good?
-		{
-			best_grade.num_alignments++;
-			best_hits.hits.push_back(hits[i]);
-		}
+	  best_hits.hits.clear();
+	  best_grade = g;
+	  best_hits.hits.push_back(hits[i]);
 	}
+      else if (!(g < best_grade)) // is it just as good?
+	{
+	  best_grade.num_alignments++;
+	  best_hits.hits.push_back(hits[i]);
+	}
+    }
 }
 
 void insert_best_alignments(const HitsForRead& left_hits,
@@ -238,11 +238,11 @@ bool rewrite_sam_record(GBamWriter& bam_writer, const RefSequenceTable& rt,
     }
 	vector<string> auxdata;
 	add_auxData(auxdata, sam_toks, rt, bh, insert_side, num_hits, next_hit, hitIndex);
-	int insert_size=atoi(sam_toks[8].c_str()); //TLEN
+	int tlen =atoi(sam_toks[8].c_str()); //TLEN
 	int mate_pos=atoi(sam_toks[7].c_str());
 	GBamRecord* bamrec=bam_writer.new_record(read_alt_name, flag, sam_toks[2].c_str(), gpos, mapQ,
                                              sam_toks[5].c_str(), sam_toks[6].c_str(), mate_pos,
-                                             insert_size, sam_toks[9].c_str(), sam_toks[10].c_str(), &auxdata);
+                                             tlen, sam_toks[9].c_str(), sam_toks[10].c_str(), &auxdata);
 	bam_writer.write(bamrec);
 	delete bamrec;
 	return true;
@@ -261,7 +261,6 @@ bool rewrite_sam_record(GBamWriter& bam_writer, const RefSequenceTable& rt,
                         bool primary,
                         int hitIndex)
 {
-    
 	// Rewrite this hit, filling in the alt name, mate mapping
 	// and setting the pair flag
 	vector<string> sam_toks;
@@ -286,28 +285,29 @@ bool rewrite_sam_record(GBamWriter& bam_writer, const RefSequenceTable& rt,
 		double err_prob = 1 - (1.0 / grade.num_alignments);
 		mapQ = (int)(-10.0 * log(err_prob) / log(10.0));
     }
-	int insert_size=0; //TLEN
+	int tlen=0; //TLEN
 	int mate_pos=atoi(sam_toks[7].c_str());
 	if (partner) {
-		if (partner->ref_id()==bh.ref_id()) {
+	  if (partner->ref_id()==bh.ref_id()) {
             sam_toks[6] = "="; //same chromosome
             //TLEN:
-            insert_size = bh.left()<partner->left() ? partner->right() - bh.left() :
-            bh.right() - partner->left();
-        }
-		else { //partner on different chromosome/contig
-            sam_toks[6] = rt.get_name(partner->ref_id());
+            tlen = bh.left() < partner->left() ? partner->right() - bh.left() :
+	      partner->left() - bh.right();
+	  }
+
+	    else { //partner on different chromosome/contig
+	      sam_toks[6] = rt.get_name(partner->ref_id());
             if (sam_toks[6].empty()) {
-                //FIXME -- this should never happen
-                sam_toks[6] = "=";
-                fprintf(stderr, "Warning: partner ref_id %d has no entry in ref table?\n", partner->ref_id());
+	      //FIXME -- this should never happen
+	      sam_toks[6] = "=";
+	      fprintf(stderr, "Warning: partner ref_id %d has no entry in ref table?\n", partner->ref_id());
             }
-        }
-		mate_pos = partner->left() + 1;
-		if (grade.happy())
-            flag |= 0x0002;
-		if (partner->antisense_align())
-            flag |=  0x0020;
+	  }
+	    mate_pos = partner->left() + 1;
+	    if (grade.happy())
+	      flag |= 0x0002;
+	    if (partner->antisense_align())
+	      flag |=  0x0020;
     }
     else {
 		sam_toks[6] = "*";
@@ -318,7 +318,7 @@ bool rewrite_sam_record(GBamWriter& bam_writer, const RefSequenceTable& rt,
 	add_auxData(auxdata, sam_toks, rt, bh, insert_side, num_hits, next_hit, hitIndex);
 	GBamRecord* bamrec=bam_writer.new_record(read_alt_name, flag, sam_toks[2].c_str(), gpos, mapQ,
                                              sam_toks[5].c_str(), sam_toks[6].c_str(), mate_pos,
-                                             insert_size, sam_toks[9].c_str(), sam_toks[10].c_str(), &auxdata);
+                                             tlen, sam_toks[9].c_str(), sam_toks[10].c_str(), &auxdata);
 	bam_writer.write(bamrec);
 	delete bamrec;
 	return true;
@@ -624,9 +624,10 @@ void exclude_hits_on_filtered_junctions(const JunctionSet& junctions,
 }
 
 void get_junctions_from_best_hits(HitStream& left_hs,
-                                  HitStream& right_hs,
-                                  ReadTable& it,
-                                  JunctionSet& junctions)
+				  HitStream& right_hs,
+				  ReadTable& it,
+				  JunctionSet& junctions,
+				  const JunctionSet& gtf_junctions)
 {
 	HitsForRead curr_left_hit_group;
 	HitsForRead curr_right_hit_group;
@@ -650,8 +651,7 @@ void get_junctions_from_best_hits(HitStream& left_hs,
 			FragmentAlignmentGrade grade;
             
 			// Process hits for left singleton, select best alignments
-			fragment_best_alignments(curr_left_hit_group, grade, best_hits);
-            
+			fragment_best_alignments(curr_left_hit_group, grade, best_hits, gtf_junctions);
 			update_junctions(best_hits, junctions);
             
 			// Get next hit group
@@ -668,8 +668,7 @@ void get_junctions_from_best_hits(HitStream& left_hs,
 			FragmentAlignmentGrade grade;
             
 			// Process hit for right singleton, select best alignments
-			fragment_best_alignments(curr_right_hit_group,grade, best_hits);
-            
+			fragment_best_alignments(curr_right_hit_group,grade, best_hits, gtf_junctions);
 			update_junctions(best_hits, junctions);
             
 			// Get next hit group
@@ -688,8 +687,7 @@ void get_junctions_from_best_hits(HitStream& left_hs,
 				right_best_hits.insert_id = curr_right_obs_order;
                 
 				FragmentAlignmentGrade grade;
-				fragment_best_alignments(curr_right_hit_group, grade, right_best_hits);
-                
+				fragment_best_alignments(curr_right_hit_group, grade, right_best_hits, gtf_junctions);
 				update_junctions(right_best_hits, junctions);
 			}
 			else if (curr_right_hit_group.hits.empty())
@@ -699,8 +697,7 @@ void get_junctions_from_best_hits(HitStream& left_hs,
                 
 				FragmentAlignmentGrade grade;
 				// Process hits for left singleton, select best alignments
-				fragment_best_alignments(curr_left_hit_group, grade, left_best_hits);
-                
+				fragment_best_alignments(curr_left_hit_group, grade, left_best_hits, gtf_junctions);
 				update_junctions(left_best_hits, junctions);
 			}
 			else
@@ -710,6 +707,8 @@ void get_junctions_from_best_hits(HitStream& left_hs,
 				left_best_hits.insert_id = curr_left_obs_order;
 				right_best_hits.insert_id = curr_right_obs_order;
                 
+				// daehwan - apply gtf_junctions here, too!
+				
 				InsertAlignmentGrade grade;
 				insert_best_alignments(curr_left_hit_group,
                                        curr_right_hit_group,
@@ -734,44 +733,78 @@ void get_junctions_from_best_hits(HitStream& left_hs,
 
 
 void driver(GBamWriter& bam_writer,
-            string& left_map_fname,
-            FILE* left_reads,
-            string& right_map_fname,
-            FILE* right_reads,
-            FILE* junctions_out,
-            FILE* insertions_out,
-            FILE* deletions_out)
+	    string& left_map_fname,
+	    FILE* left_reads,
+	    string& right_map_fname,
+	    FILE* right_reads,
+	    FILE* junctions_out,
+	    FILE* insertions_out,
+	    FILE* deletions_out)
 {
-	ReadTable it;
-	RefSequenceTable rt(sam_header, true);
+  ReadTable it;
+  RefSequenceTable rt(sam_header, true);
     srandom(1);
+  JunctionSet gtf_junctions;
+  if (gtf_juncs != "")
+    {
+      char splice_buf[2048];
+      FILE* splice_coords = fopen(gtf_juncs.c_str(), "r");
+      if (splice_coords)
+	{
+	  while (fgets(splice_buf, sizeof(splice_buf), splice_coords))
+	    {
+	      char* nl = strrchr(splice_buf, '\n');
+	      char* buf = splice_buf;
+	      if (nl) *nl = 0;
+			
+	      char* ref_name = get_token((char**)&buf, "\t");
+	      char* scan_left_coord = get_token((char**)&buf, "\t");
+	      char* scan_right_coord = get_token((char**)&buf, "\t");
+	      char* orientation = get_token((char**)&buf, "\t");
+	  
+	      if (!scan_left_coord || !scan_right_coord || !orientation)
+		{
+		  fprintf(stderr,"Error: malformed splice coordinate record\n");
+		  exit(1);
+		}
+	      
+	      uint32_t ref_id = rt.get_id(ref_name, NULL, 0);
+	      uint32_t left_coord = atoi(scan_left_coord);
+	      uint32_t right_coord = atoi(scan_right_coord);
+	      bool antisense = *orientation == '-';
+
+	      // add 1 to left_coord to meet BED format
+	      gtf_junctions.insert(make_pair<Junction, JunctionStats>(Junction(ref_id, left_coord + 1, right_coord, antisense), JunctionStats()));
+	    }
+	}
+    }
+
 	BAMHitFactory hit_factory(it,rt);
 	JunctionSet junctions;
 	{
-        HitStream l_hs(left_map_fname, &hit_factory, false, true, true, true);
-        HitStream r_hs(right_map_fname, &hit_factory, false, true, true, true);
-        get_junctions_from_best_hits(l_hs, r_hs, it, junctions);
-        //this resets the streams
-    }
+	  HitStream l_hs(left_map_fname, &hit_factory, false, true, true, true);
+	  HitStream r_hs(right_map_fname, &hit_factory, false, true, true, true);
+	  get_junctions_from_best_hits(l_hs, r_hs, it, junctions, gtf_junctions);
+	  //this resets the streams
+	 }
+
 	HitStream left_hs(left_map_fname, &hit_factory, false, true, true, true);
 	HitStream right_hs(right_map_fname, &hit_factory, false, true, true, true);
     
 	size_t num_unfiltered_juncs = junctions.size();
-    
 	fprintf(stderr, "Loaded %lu junctions\n", (long unsigned int) num_unfiltered_juncs);
     
 	HitsForRead curr_left_hit_group;
 	HitsForRead curr_right_hit_group;
-    
+
 	left_hs.next_read_hits(curr_left_hit_group);
 	right_hs.next_read_hits(curr_right_hit_group);
-    
+
 	uint32_t curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
 	uint32_t curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
-    
-    
+
 	// Read hits, extract junctions, and toss the ones that arent strongly enough supported.
-	filter_junctions(junctions);
+	filter_junctions(junctions, gtf_junctions);
 	//size_t num_juncs_after_filter = junctions.size();
 	//fprintf(stderr, "Filtered %lu junctions\n", num_unfiltered_juncs - num_juncs_after_filter);
     
@@ -795,7 +828,7 @@ void driver(GBamWriter& bam_writer,
 	fprintf (stderr, "Reporting final accepted alignments...");
 	// While we still have unreported hits...
 	while(curr_left_obs_order != 0xFFFFFFFF ||
-          curr_right_obs_order != 0xFFFFFFFF)
+	      curr_right_obs_order != 0xFFFFFFFF)
     {
         // Chew up left singletons
         while (curr_left_obs_order < curr_right_obs_order &&
@@ -808,7 +841,7 @@ void driver(GBamWriter& bam_writer,
             exclude_hits_on_filtered_junctions(junctions, curr_left_hit_group);
             
             // Process hits for left singleton, select best alignments
-            fragment_best_alignments(curr_left_hit_group, grade, best_hits);
+            fragment_best_alignments(curr_left_hit_group, grade, best_hits, gtf_junctions);
             
             if (best_hits.hits.size() <= max_multihits)
             {
@@ -839,7 +872,7 @@ void driver(GBamWriter& bam_writer,
             exclude_hits_on_filtered_junctions(junctions, curr_right_hit_group);
             
             // Process hit for right singleton, select best alignments
-            fragment_best_alignments(curr_right_hit_group, grade, best_hits);
+            fragment_best_alignments(curr_right_hit_group, grade, best_hits, gtf_junctions);
             
             if (best_hits.hits.size() <= max_multihits)
             {
@@ -873,7 +906,7 @@ void driver(GBamWriter& bam_writer,
                 right_best_hits.insert_id = curr_right_obs_order;
                 
                 FragmentAlignmentGrade grade;
-                fragment_best_alignments(curr_right_hit_group, grade, right_best_hits);
+                fragment_best_alignments(curr_right_hit_group, grade, right_best_hits, gtf_junctions);
                 
                 if (right_best_hits.hits.size() <= max_multihits)
                 {
@@ -895,7 +928,7 @@ void driver(GBamWriter& bam_writer,
                 
                 FragmentAlignmentGrade grade;
                 // Process hits for left singleton, select best alignments
-                fragment_best_alignments(curr_left_hit_group, grade, left_best_hits);
+                fragment_best_alignments(curr_left_hit_group, grade, left_best_hits, gtf_junctions);
                 
                 if (left_best_hits.hits.size() <= max_multihits)
                 {
@@ -954,25 +987,20 @@ void driver(GBamWriter& bam_writer,
     
 	small_overhangs = 0;
 	for (JunctionSet::iterator i = final_junctions.begin(); i != final_junctions.end();)
-    {
-        //const JunctionStats& stats = i->second;
-        if (i->second.supporting_hits == 0 ||
-            i->second.left_extent < 8 ||
-            i->second.right_extent < 8)
-        {
-            final_junctions.erase(i++);
-        }
-        else
-        {
-            ++i;
-        }
-    }
-    
-    
-    
-    //	if (small_overhangs > 0)
-    //		fprintf(stderr, "Warning: %lu small overhang junctions!\n", small_overhangs);
-    
+	  {
+	    if (i->second.supporting_hits == 0 || i->second.left_extent < 8 ||	i->second.right_extent < 8)
+	      {
+		final_junctions.erase(i++);
+	      }
+	    else
+	      {
+		++i;
+	      }
+	  }
+
+//	if (small_overhangs > 0)
+//		fprintf(stderr, "Warning: %lu small overhang junctions!\n", small_overhangs);
+
 	fprintf (stderr, "Printing junction BED track...");
 	print_junctions(junctions_out, final_junctions, rt);
 	fprintf (stderr, "done\n");

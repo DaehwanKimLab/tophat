@@ -74,6 +74,7 @@ Options:
     --no-unmapped-fifo
 
 Advanced Options:
+    --initial-read-mismatches      <int>       [ default: 2                ]
     --segment-mismatches           <int>       [ default: 2                ]
     --segment-length               <int>       [ default: 25               ]
     --bowtie-n                                 [ default: bowtie -v        ]
@@ -430,6 +431,7 @@ class TopHatParams:
         self.find_GFF_juncs = True
         self.skip_check_reads = False
         self.max_hits = 20
+        self.initial_read_mismatches = 2
         self.segment_length = 25
         self.segment_mismatches = 2
         self.bowtie_alignment_option = "-v"
@@ -580,6 +582,7 @@ class TopHatParams:
                                          "min-segment-intron=",
                                          "max-segment-intron=",
                                          "seed-length=",
+                                         "initial-read-mismatches=",
                                          "segment-length=",
                                          "segment-mismatches=",
                                          "bowtie-n",
@@ -654,6 +657,8 @@ class TopHatParams:
                 self.butterfly_search = True
             if option == "--no-butterfly-search":
                 self.butterfly_search = False
+            if option == "--initial-read-mismatches":
+                self.initial_read_mismatches = int(value)
             if option == "--segment-length":
                 self.segment_length = int(value)
             if option == "--segment-mismatches":
@@ -1406,6 +1411,7 @@ def bowtie(params,
            bwt_idx_prefix,
            reads_list,
            reads_format,
+           num_mismatches,
            mapped_reads,
            unmapped_reads,
            extra_output = ""):
@@ -1464,7 +1470,7 @@ def bowtie(params,
                     os._exit(os.EX_OK)
 
         fix_map_cmd = [prog_path('fix_map_ordering')]
-        bowtie_cmd += [params.bowtie_alignment_option, str(params.segment_mismatches),
+        bowtie_cmd += [params.bowtie_alignment_option, str(num_mismatches),
                          "-p", str(params.system_params.num_cpus),
                          "-k", str(params.max_hits),
                          "-m", str(params.max_hits),
@@ -1547,15 +1553,21 @@ def bowtie_segment(params,
            reads_list,
            reads_format,
            mapped_reads,
-           unmapped_reads=None,
+           unmapped_reads = None,
            extra_output = ""):
 
     backup_bowtie_alignment_option = params.bowtie_alignment_option
     params.bowtie_alignment_option = "-v"
     params.max_hits *= 2
 
-    result = bowtie(params, bwt_idx_prefix, reads_list, reads_format,
-                    mapped_reads, unmapped_reads, extra_output)
+    result = bowtie(params,
+                    bwt_idx_prefix,
+                    reads_list,
+                    reads_format,
+                    params.segment_mismatches,
+                    mapped_reads,
+                    unmapped_reads,
+                    extra_output)
 
     params.bowtie_alignment_option = backup_bowtie_alignment_option
     params.max_hits /= 2
@@ -2136,6 +2148,7 @@ def spliced_alignment(params,
                                            bwt_idx_prefix,
                                            reads,
                                            "fastq",
+                                           params.initial_read_mismatches,
                                            unspliced_out,
                                            unmapped_unspliced)
 

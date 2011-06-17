@@ -92,6 +92,8 @@ extern bool integer_quals;
 extern bool color;
 extern bool color_out;
 
+extern std::string gtf_juncs;
+
 enum eLIBRARY_TYPE
   {
     LIBRARY_TYPE_NONE = 0,

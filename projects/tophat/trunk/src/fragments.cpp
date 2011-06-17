@@ -26,7 +26,9 @@ void best_fragment_mappings(uint64_t refid,
       BowtieHit& h1 = hits_in_ref[i];
       uint64_t fragment_id = h1.insert_id();
       uint32_t obs_order = it.observation_order(fragment_id);
-      FragmentAlignmentGrade s(h1);
+
+      JunctionSet dummy;
+      FragmentAlignmentGrade s(h1, dummy);
       
       pair<FragmentAlignmentGrade, vector<FragmentAlignment*> >& fragment_best
 	= best_status_for_fragments[obs_order];
