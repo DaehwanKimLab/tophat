@@ -49,6 +49,8 @@ void junctions_from_spliced_hit(const BowtieHit& h,
 	  stats.supporting_hits++;
 	  new_juncs.push_back(make_pair(junc, stats));
 	  //fall through this case to MATCH is intentional
+	  j += cigar[c].length;
+	  break;
 	case MATCH:
 	  j += cigar[c].length;
 	  break;
@@ -270,13 +272,16 @@ void knockout_shadow_junctions(JunctionSet& junctions)
     }
 }
 
-void filter_junctions(JunctionSet& junctions)
+void filter_junctions(JunctionSet& junctions, const JunctionSet& gtf_junctions)
 {
   for (JunctionSet::iterator i = junctions.begin(); i != junctions.end(); ++i)
     {
-      accept_if_valid(i->first, i->second);
+      if (gtf_junctions.find(i->first) == gtf_junctions.end())
+	accept_if_valid(i->first, i->second);
+      else
+	i->second.accepted = true;
     }
-	
+
   knockout_shadow_junctions(junctions);
 }
 

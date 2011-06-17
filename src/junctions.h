@@ -121,7 +121,7 @@ void print_junctions(FILE* junctions_out,
 
 bool accept_if_valid(const Junction& j, JunctionStats& s);
 
-void filter_junctions(JunctionSet& junctions);
+void filter_junctions(JunctionSet& junctions, const JunctionSet& gtf_junctions);
 
 void get_junctions_from_hits(HitStream& hit_stream, 
 			     ReadTable& it, 

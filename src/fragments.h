@@ -23,9 +23,9 @@ struct FragmentAlignmentGrade
     status = AlignStatus();
   }
   
-  FragmentAlignmentGrade(const BowtieHit& h1) 
+  FragmentAlignmentGrade(const BowtieHit& h1, const JunctionSet& gtf_junctions) 
   {
-    status = AlignStatus(h1);
+    status = AlignStatus(h1, gtf_junctions);
     edit_dist = h1.edit_dist(); 
     num_alignments = 1;
   }

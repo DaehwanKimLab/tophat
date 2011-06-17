@@ -424,11 +424,6 @@
 	  of a long read.  The default is 500000.
 	  </td></tr>
 	  <tr><td VALIGN=top nowrap>
-	  <tt>--allow-indels</tt>
-	  </td><td VALIGN=top>
-	  Allow indel search. Indel search is disabled by default.
-	  </td></tr>
-	  <tr><td VALIGN=top nowrap>
 	  <tt>--max-insertion-length &lt;int&gt;</tt>
 	  </td><td VALIGN=top>
 	  The maximum insertion length.  The default is 3.
@@ -544,15 +539,22 @@
 	  </td><td VALIGN=top>
 	  </td></tr>
 	  <tr><td VALIGN=top nowrap>
-	  <tt>--segment-mismatches</tt>
+	  <tt>--initial-read-mismatches</tt>
 	  </td><td VALIGN=top>
-	  Read segments are mapped independently, allowing up to this many mismatches
-	  in each segment alignment.  The default is 2.
+	  Reads are initially mapped, allowing up to this many mismatches
+	  in each read alignment.  The default is 2.
 	  </td></tr>
 	  <tr><td VALIGN=top nowrap>
 	  <tt>--bowtie-n</tt>
 	  </td><td VALIGN=top>
-	  TopHat uses "-v" in Bowtie for mapping (the default), but with this option, "-n" is used instead.
+	  TopHat uses "-v" in Bowtie for initial read mapping (the default), but with this option, "-n" is used instead.
+	  Read segments are always mapped using "-v" option.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--segment-mismatches</tt>
+	  </td><td VALIGN=top>
+	  Read segments are mapped independently, allowing up to this many mismatches
+	  in each segment alignment.  The default is 2.
 	  </td></tr>
 	  <tr><td VALIGN=top nowrap>
 	  <tt>--segment-length</tt>
