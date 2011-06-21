@@ -162,8 +162,8 @@ void filter_garbage_reads(vector<FZPipe>& reads_files, vector<FZPipe>& quals_fil
   fprintf(stderr, "%d out of %d reads have been filtered out\n", 
 	  num_reads_chucked, num_reads);
   if (fw!=NULL) {
-    fprintf(fw, "min_read_len=%d\n",min_read_len);
-    fprintf(fw, "max_read_len=%d\n",max_read_len);
+    fprintf(fw, "min_read_len=%d\n",min_read_len - (color ? 1 : 0));
+    fprintf(fw, "max_read_len=%d\n",max_read_len - (color ? 1 : 0));
     fprintf(fw, "reads_in =%d\n",num_reads);
     fprintf(fw, "reads_out=%d\n",num_reads-num_reads_chucked);
     fclose(fw);

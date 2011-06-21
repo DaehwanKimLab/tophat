@@ -779,7 +779,7 @@ void driver(GBamWriter& bam_writer,
 	}
     }
 
-	BAMHitFactory hit_factory(it,rt);
+  BAMHitFactory hit_factory(it,rt);
 	JunctionSet junctions;
 	{
 	  HitStream l_hs(left_map_fname, &hit_factory, false, true, true, true);
