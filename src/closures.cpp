@@ -437,8 +437,8 @@ public:
   }
 };
 
-void closure_driver(vector<FILE*> map1, 
-		    vector<FILE*> map2, 
+void closure_driver(vector<FZPipe>& map1, 
+		    vector<FZPipe>& map2, 
 		    ifstream& ref_stream, 
 		    FILE* juncs_file)
 {
@@ -456,8 +456,8 @@ void closure_driver(vector<FILE*> map1,
   assert(map1.size() == map2.size());
   for (size_t num = 0; num < map1.size(); ++num)
     {
-      HitStream left_hs(map1[num], &hit_factory, false, true, false);
-      HitStream right_hs(map2[num], &hit_factory, false, true, false);
+      HitStream left_hs(map1[num].file, &hit_factory, false, true, false);
+      HitStream right_hs(map2[num].file, &hit_factory, false, true, false);
       
       HitsForRead curr_left_hit_group;
       HitsForRead curr_right_hit_group;
@@ -517,11 +517,11 @@ void closure_driver(vector<FILE*> map1,
   
   for (size_t num = 0; num < map1.size(); ++num)
     {
-      rewind(map1[num]);
-      rewind(map2[num]);
+      map1[num].rewind();
+      map2[num].rewind();
       
-      HitStream left_hs = HitStream(map1[num], &hit_factory, false, true, false);
-      HitStream right_hs = HitStream(map2[num], &hit_factory, false, true, false);
+      HitStream left_hs = HitStream(map1[num].file, &hit_factory, false, true, false);
+      HitStream right_hs = HitStream(map2[num].file, &hit_factory, false, true, false);
       
       HitsForRead curr_left_hit_group;
       HitsForRead curr_right_hit_group;
@@ -566,6 +566,12 @@ void closure_driver(vector<FILE*> map1,
 	      curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
 	    }
 	}
+    }
+
+  for (size_t num = 0; num < map1.size(); ++num)
+    {
+      map1[num].close();
+      map2[num].close();
     }
   
   fprintf(stderr, "%lu Forward strand splices\n", fwd_splices.size());
@@ -644,12 +650,14 @@ int main(int argc, char** argv)
 
   string left_file_list = argv[optind++];
   vector<string> left_file_names;
-  vector<FILE*> left_files;
+  vector<FZPipe> left_files;
   tokenize(left_file_list, ",", left_file_names);
+
+  string unzcmd = getUnpackCmd(left_file_names[0], false);
   for (size_t i = 0; i < left_file_names.size(); ++i)
     {
-      FILE* seg_file = fopen(left_file_names[i].c_str(), "r");
-      if (seg_file == NULL)
+      FZPipe seg_file(left_file_names[i], unzcmd);
+      if (seg_file.file == NULL)
         {
 	  fprintf(stderr, "Error: cannot open file %s for reading\n",
 		  left_file_names[i].c_str());
@@ -666,12 +674,12 @@ int main(int argc, char** argv)
   
   string right_file_list = argv[optind++];
   vector<string> right_file_names;
-  vector<FILE*> right_files;
+  vector<FZPipe> right_files;
   tokenize(right_file_list, ",", right_file_names);
   for (size_t i = 0; i < right_file_names.size(); ++i)
     {
-      FILE* seg_file = fopen(right_file_names[i].c_str(), "r");
-      if (seg_file == NULL)
+      FZPipe seg_file(right_file_names[i], unzcmd);
+      if (seg_file.file == NULL)
 	{
 	  fprintf(stderr, "Error: cannot open %s for reading\n",
 		  right_file_names[i].c_str());
