@@ -695,8 +695,8 @@ uint8_t* realloc_bdata(bam1_t *b, int size) {
         b->m_data = size;
         kroundup32(b->m_data);
         b->data = (uint8_t*)realloc(b->data, b->m_data);
-        b->data_len=size;
         }
+  if (b->data_len<size) b->data_len=size;
   return b->data;
 }
 
@@ -792,7 +792,7 @@ GBamRecord::GBamRecord(const char* qname, int32_t flags, int32_t g_tid,
              free(prev_bdata);
              }
            else {
-             b->data = realloc_bdata(b, doff + b->core.n_cigar * 4);
+             realloc_bdata(b, doff + b->core.n_cigar * 4);
              }
         for (i = 0, s = cigar; i != b->core.n_cigar; ++i) {
             x = strtol(s, &t, 10);
