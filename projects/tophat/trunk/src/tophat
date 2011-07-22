@@ -2225,7 +2225,7 @@ def spliced_alignment(params,
             # if there's only one segment, just collect the initial map as the only
             # map to be used downstream for coverage-based junction discovery
             read_segments = [reads]
-            maps[reads] = Maps(unspliced_map, unspliced_sam, [unspliced_map], [unmapped_unspliced], read_segments)
+            maps[reads] = Maps(unspliced_map, unspliced_sam, [unspliced_map], [unmapped_unspliced], [unmapped_unspliced])
 
     # Unless the user asked not to discover new junctions, start that process
     # here
@@ -2306,9 +2306,9 @@ def spliced_alignment(params,
         if junc_idx_prefix != None:
             i = 0
             for seg in maps[reads].segs:
-                fsegname=getFileBaseName(seg)
+                fsegname = getFileBaseName(seg)
                 seg_out = tmp_dir + fsegname + ".to_spliced.bwtout"
-                if use_zpacker: seg_out+=".z"
+                if use_zpacker: seg_out += ".z"
                 extra_output = "(%d/%d)" % (i+1, len(maps[reads].segs))
                 (seg_map, unmapped) = bowtie_segment(params,
                                                      tmp_dir + junc_idx_prefix,
@@ -2321,26 +2321,26 @@ def spliced_alignment(params,
                 i += 1
 
         # Join the contigous and spliced segment hits into full length read
-        # alignments
-        rfname=getFileBaseName(reads)
-        rfdir=getFileDir(reads)
+        # alignments or convert a spliced segment hit into a genomic-coordinate hit
+        rfname = getFileBaseName(reads)
+        rfdir = getFileDir(reads)
         mapped_reads = rfdir + rfname + ".candidates.bam"
-        merged_map=rfdir + rfname+".candidates_and_unspl.bam"
+        merged_map =rfdir + rfname + ".candidates_and_unspl.bam"
         unspl_bwtfile = maps[reads].unspliced_bwt
         unspl_samfile = maps[reads].unspliced_sam
 
-        if num_segs > 1:
-            join_mapped_segments(params,
-                                 sam_header_filename,
-                                 reads,
-                                 ref_fasta,
-                                 possible_juncs,
-                                 possible_insertions,
-                                 possible_deletions,
-                                 maps[reads].seg_maps,
-                                 spliced_seg_maps,
-                                 mapped_reads)
+        join_mapped_segments(params,
+                             sam_header_filename,
+                             reads,
+                             ref_fasta,
+                             possible_juncs,
+                             possible_insertions,
+                             possible_deletions,
+                             maps[reads].seg_maps,
+                             spliced_seg_maps,
+                             mapped_reads)
 
+        if num_segs > 1:
             # Merge the spliced and unspliced full length alignments into a
             # single SAM file.
             # The individual SAM files are all already sorted in
@@ -2388,15 +2388,17 @@ def spliced_alignment(params,
                 die(fail_str+"Error: "+str(o))
             os.remove(merge_sort_fifo)
             maps[reads] = [merged_map]
+
             if not params.system_params.keep_tmp:
                 os.remove(mapped_reads)
                 os.remove(unspl_samfile)
+                os.remove(unspl_bwtfile)
         else:
-            os.rename(unspl_samfile, merged_map)
+            os.rename(mapped_reads, merged_map)
             maps[reads] = [merged_map]
-
-        if not params.system_params.keep_tmp:
-            os.remove(unspl_bwtfile)
+            if not params.system_params.keep_tmp:
+                os.remove(unspl_samfile)
+                os.remove(unspl_bwtfile)
 
     return maps
 
