@@ -726,137 +726,135 @@ struct DnaSpliceStrings
 
 struct IntronMotifs
 {
-	IntronMotifs(uint32_t rid) : ref_id(rid) {}
-	uint32_t ref_id;
+  IntronMotifs(uint32_t rid) : ref_id(rid) {}
+  uint32_t ref_id;
 	
-
-	
-	vector<pair<size_t, DnaSpliceStrings> > fwd_donors;
-	vector<pair<size_t, DnaSpliceStrings> > fwd_acceptors;
-	vector<pair<size_t, DnaSpliceStrings> > rev_donors;
-	vector<pair<size_t, DnaSpliceStrings> > rev_acceptors;	
-	
-	void unique(vector<pair<size_t, DnaSpliceStrings> >& f)
-	{
-		sort(f.begin(), f.end());
-		vector<pair<size_t, DnaSpliceStrings> >::iterator i = std::unique(f.begin(), f.end());
-		f.erase(i, f.end());
-	}
-	
-	void unique()
-	{
-		unique(fwd_donors);
-		unique(fwd_acceptors);
-		unique(rev_donors);
-		unique(rev_acceptors);
-	}
-	
-	void attach_mers(RefSequenceTable::Sequence& ref_str)
-	{
-		attach_upstream_mers(ref_str, fwd_donors);
-		attach_upstream_mers(ref_str, rev_acceptors);
-		
-		attach_downstream_mers(ref_str, rev_donors);
-		attach_downstream_mers(ref_str, fwd_acceptors);		
-	}
-	
-	void attach_upstream_mers(RefSequenceTable::Sequence& ref_str,
-							  vector<pair<size_t, DnaSpliceStrings> >& dinucs)
-	{
-		for (size_t i = 0; i < dinucs.size(); ++i)
-		{
-			size_t pos = dinucs[i].first;
-			int half_splice_mer_len = 32;
-
-			if (color)
-			  {
-			    if (pos <= (size_t)half_splice_mer_len+1 || pos >= length(ref_str))
-			      continue; 
-
-			    Dna5String seg_str = seqan::infixWithLength(ref_str,
-									pos - half_splice_mer_len - 1,
-									half_splice_mer_len + 1);
-			    stringstream ss(stringstream::in | stringstream::out);
-			    string s;
-			    ss << seg_str;
-			    ss >> s;
-			    
-			    string col_seg_str = convert_bp_to_color(s, true);
-			    uint64_t idx = colorstr_to_idx(col_seg_str);
-
-			    dinucs[i].second.fwd_string = idx;
-			    dinucs[i].second.rev_string = rc_color_str(idx);
-			    dinucs[i].second.first_in_string = s[1];
-			    dinucs[i].second.last_in_string = s[half_splice_mer_len];
-			  }
-			else
-			  {
-			    if (pos <= (size_t)half_splice_mer_len || pos >= length(ref_str))
-			      continue; 
-
-			    Dna5String seg_str = seqan::infixWithLength(ref_str,
-									pos - half_splice_mer_len,
-									half_splice_mer_len);
-
-			    stringstream ss(stringstream::in | stringstream::out);
-			    string s;
-			    ss << seg_str;
-			    ss >> s;
-			    uint64_t idx = dna5str_to_idx(s);
-			    dinucs[i].second.fwd_string = idx;
-			    dinucs[i].second.rev_string = rc_dna_str(idx);
-			  }
-		}
-	}
+  vector<pair<size_t, DnaSpliceStrings> > fwd_donors;
+  vector<pair<size_t, DnaSpliceStrings> > fwd_acceptors;
+  vector<pair<size_t, DnaSpliceStrings> > rev_donors;
+  vector<pair<size_t, DnaSpliceStrings> > rev_acceptors;	
   
+  void unique(vector<pair<size_t, DnaSpliceStrings> >& f)
+  {
+    sort(f.begin(), f.end());
+    vector<pair<size_t, DnaSpliceStrings> >::iterator i = std::unique(f.begin(), f.end());
+    f.erase(i, f.end());
+  }
+  
+  void unique()
+  {
+    unique(fwd_donors);
+    unique(fwd_acceptors);
+    unique(rev_donors);
+    unique(rev_acceptors);
+  }
+  
+  void attach_mers(RefSequenceTable::Sequence& ref_str)
+  {
+    attach_upstream_mers(ref_str, fwd_donors);
+    attach_upstream_mers(ref_str, rev_acceptors);
+    
+    attach_downstream_mers(ref_str, rev_donors);
+    attach_downstream_mers(ref_str, fwd_acceptors);		
+  }
+  
+  void attach_upstream_mers(RefSequenceTable::Sequence& ref_str,
+			    vector<pair<size_t, DnaSpliceStrings> >& dinucs)
+  {
+    for (size_t i = 0; i < dinucs.size(); ++i)
+      {
+	size_t pos = dinucs[i].first;
+	int half_splice_mer_len = 32;
 	
-	void attach_downstream_mers(RefSequenceTable::Sequence& ref_str,
-								vector<pair<size_t, DnaSpliceStrings> >& dinucs)
-	{
-		for (size_t i = 0; i < dinucs.size(); ++i)
-		{
-			size_t pos = dinucs[i].first;
-			
-			int half_splice_mer_len = 32;
-			
-			if (pos + 2 + half_splice_mer_len >= length(ref_str))
-				continue; 
-
-			if (color)
-			  {
-			    Dna5String seg_str = seqan::infixWithLength(ref_str,
-									pos + 2 - 1,
-									half_splice_mer_len + 1);
-			    stringstream ss(stringstream::in | stringstream::out);
-			    string s;
-			    ss << seg_str;
-			    ss >> s;
-
-			    string col_seg_str = convert_bp_to_color(s, true);
-			    uint64_t idx = colorstr_to_idx(col_seg_str);
-
-			    dinucs[i].second.fwd_string = idx;
-			    dinucs[i].second.rev_string = rc_color_str(idx);
-			    dinucs[i].second.first_in_string = s[1];
-			    dinucs[i].second.last_in_string = s[half_splice_mer_len];
-			  }
-			else
-			  {
-			    Dna5String seg_str = seqan::infixWithLength(ref_str,
-									pos + 2,
-									half_splice_mer_len);
-			    
-			    stringstream ss(stringstream::in | stringstream::out);
-			    string s;
-			    ss << seg_str;
-			    ss >> s;
-			    uint64_t idx = dna5str_to_idx(s);
-
-			    dinucs[i].second.fwd_string = idx;
-			    dinucs[i].second.rev_string = rc_dna_str(idx);
-			  }
-		}
-	}
+	if (color)
+	  {
+	    if (pos <= (size_t)half_splice_mer_len+1 || pos >= length(ref_str))
+	      continue; 
+	    
+	    Dna5String seg_str = seqan::infixWithLength(ref_str,
+							pos - half_splice_mer_len - 1,
+							half_splice_mer_len + 1);
+	    stringstream ss(stringstream::in | stringstream::out);
+	    string s;
+	    ss << seg_str;
+	    ss >> s;
+	    
+	    string col_seg_str = convert_bp_to_color(s, true);
+	    uint64_t idx = colorstr_to_idx(col_seg_str);
+	    
+	    dinucs[i].second.fwd_string = idx;
+	    dinucs[i].second.rev_string = rc_color_str(idx);
+	    dinucs[i].second.first_in_string = s[1];
+	    dinucs[i].second.last_in_string = s[half_splice_mer_len];
+	  }
+	else
+	  {
+	    if (pos <= (size_t)half_splice_mer_len || pos >= length(ref_str))
+	      continue; 
+	    
+	    Dna5String seg_str = seqan::infixWithLength(ref_str,
+							pos - half_splice_mer_len,
+							half_splice_mer_len);
+	    
+	    stringstream ss(stringstream::in | stringstream::out);
+	    string s;
+	    ss << seg_str;
+	    ss >> s;
+	    uint64_t idx = dna5str_to_idx(s);
+	    dinucs[i].second.fwd_string = idx;
+	    dinucs[i].second.rev_string = rc_dna_str(idx);
+	  }
+      }
+  }
+  
+  
+  void attach_downstream_mers(RefSequenceTable::Sequence& ref_str,
+			      vector<pair<size_t, DnaSpliceStrings> >& dinucs)
+  {
+    for (size_t i = 0; i < dinucs.size(); ++i)
+      {
+	size_t pos = dinucs[i].first;
+	
+	int half_splice_mer_len = 32;
+	
+	if (pos + 2 + half_splice_mer_len >= length(ref_str))
+	  continue; 
+	
+	if (color)
+	  {
+	    Dna5String seg_str = seqan::infixWithLength(ref_str,
+							pos + 2 - 1,
+							half_splice_mer_len + 1);
+	    stringstream ss(stringstream::in | stringstream::out);
+	    string s;
+	    ss << seg_str;
+	    ss >> s;
+	    
+	    string col_seg_str = convert_bp_to_color(s, true);
+	    uint64_t idx = colorstr_to_idx(col_seg_str);
+	    
+	    dinucs[i].second.fwd_string = idx;
+	    dinucs[i].second.rev_string = rc_color_str(idx);
+	    dinucs[i].second.first_in_string = s[1];
+	    dinucs[i].second.last_in_string = s[half_splice_mer_len];
+	  }
+	else
+	  {
+	    Dna5String seg_str = seqan::infixWithLength(ref_str,
+							pos + 2,
+							half_splice_mer_len);
+	    
+	    stringstream ss(stringstream::in | stringstream::out);
+	    string s;
+	    ss << seg_str;
+	    ss >> s;
+	    uint64_t idx = dna5str_to_idx(s);
+	    
+	    dinucs[i].second.fwd_string = idx;
+	    dinucs[i].second.rev_string = rc_dna_str(idx);
+	  }
+      }
+  }
 };
 
 struct PackedSplice
@@ -1618,7 +1616,7 @@ struct RecordExtendableJuncs
 	    char first_in_downstream = right_sites[R].second.first_in_string;
 	    uint64_t rc_upstream_dna_str = left_sites[L].second.rev_string;
 	    uint64_t rc_downstream_dna_str = right_sites[R].second.rev_string;
-	    
+
 	    if (extendable_junction(upstream_dna_str,
 				    downstream_dna_str, splice_mer_len, 7, false,
 				    last_in_upstream, first_in_downstream) ||
@@ -2153,6 +2151,13 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
 	String<char> seg_str;
 	assign(seg_str, org_seg_str);
 
+	// daehwan
+	if (bDebug)
+	  {
+	    cout << "coord: " << seg.left << " " << seg.right << endl
+		 << "seg_str: " << seg_str << endl;
+	  }
+
 	if (color)
 	  {
 	    bool remove_primer = true;
@@ -2292,7 +2297,7 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
             for (size_t i = 0; i <= to; ++i)
 	      {
                 // Look at a slice of the reference without creating a copy.
-                DnaString curr = seqan::infix(seg_str, i - left_color_offset, i + 2 - left_color_offset);
+                DnaString curr = seqan::infix(org_seg_str, i - left_color_offset, i + 2 - left_color_offset);
                 
                 if (curr == acceptor_dinuc && !skip_fwd)
 		  motifs.fwd_acceptors.push_back(make_pair(seg.left + i, DnaSpliceStrings(0,0)));
@@ -2306,7 +2311,7 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
             for (size_t i = 0; i <= to; ++i)
 	      {
                 // Look at a slice of the reference without creating a copy.
-                DnaString curr = seqan::infix(seg_str, i - left_color_offset, i + 2 - left_color_offset);
+                DnaString curr = seqan::infix(org_seg_str, i - left_color_offset, i + 2 - left_color_offset);
                 
                 if (curr == donor_dinuc && !skip_fwd)
 		  motifs.fwd_donors.push_back(make_pair(seg.left + i, DnaSpliceStrings(0,0)));
@@ -2343,7 +2348,7 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
         vector<pair<size_t, DnaSpliceStrings> >& fwd_acceptors = motifs.fwd_acceptors;
         vector<pair<size_t, DnaSpliceStrings> >& rev_acceptors = motifs.rev_acceptors;
         vector<pair<size_t, DnaSpliceStrings> >& rev_donors = motifs.rev_donors;
-        
+
         //const char* ref_name = rt.get_name(motif_itr->second.ref_id);
         
         JunctionRecorder recorder;
@@ -3447,7 +3452,7 @@ void capture_island_ends(ReadTable& it,
 	  for (size_t h = 0; h < hit_group.hits.size(); ++h)
 	    {
 	      BowtieHit& bh = hit_group.hits[h];
-	      
+
 	      pair<map<uint32_t, vector<bool> >::iterator, bool> ret = 
 		coverage_map.insert(make_pair(bh.ref_id(), vector<bool>()));
 	      vector<bool>& ref_cov = ret.first->second;
@@ -3588,6 +3593,7 @@ void capture_island_ends(ReadTable& it,
 							       READ_DONTCARE,
 							       c,
 							       c + 1));
+
 		  curr_look_right = &(expected_look_right_windows.back());
 		}
 	      else if (curr_look_right)
@@ -3610,7 +3616,7 @@ void capture_island_ends(ReadTable& it,
   fprintf(stderr, "Map contains %d good islands\n", num_islands + 1);
   fprintf(stderr, "%d are left looking bases\n", left_looking);
   fprintf(stderr, "%d are right looking bases\n", right_looking);
-  
+
   vector<RefSeg> expected_don_acc_windows;
   expected_don_acc_windows.insert(expected_don_acc_windows.end(),
 				  expected_look_right_windows.begin(),
