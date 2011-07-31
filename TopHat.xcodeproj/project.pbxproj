@@ -55,6 +55,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		ED16447113CD453F0083D2FD /* tophat */ = {isa = PBXFileReference; explicitFileType = text.script.python; name = tophat; path = src/tophat; sourceTree = "<group>"; };
 		ED2A44BD11DE77C7009AD73B /* gtf_juncs.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = gtf_juncs.cpp; path = src/gtf_juncs.cpp; sourceTree = "<group>"; };
 		ED2A44C911DE78E2009AD73B /* gff.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = gff.cpp; path = src/gff.cpp; sourceTree = "<group>"; };
 		ED2A44CA11DE78E2009AD73B /* gff.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = gff.h; path = src/gff.h; sourceTree = "<group>"; };
@@ -94,7 +95,6 @@
 		ED6D624F118B5B6B00A682F4 /* tokenize.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = tokenize.cpp; path = src/tokenize.cpp; sourceTree = "<group>"; };
 		ED6D6250118B5B6B00A682F4 /* tokenize.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = tokenize.h; path = src/tokenize.h; sourceTree = "<group>"; };
 		ED6D6251118B5B6B00A682F4 /* tophat_reports.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = tophat_reports.cpp; path = src/tophat_reports.cpp; sourceTree = "<group>"; };
-		ED6D6252118B5B6B00A682F4 /* tophat.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; name = tophat.py; path = src/tophat.py; sourceTree = "<group>"; };
 		ED6D6253118B5B6B00A682F4 /* wiggles.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = wiggles.cpp; path = src/wiggles.cpp; sourceTree = "<group>"; };
 		ED6D6254118B5B6B00A682F4 /* wiggles.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = wiggles.h; path = src/wiggles.h; sourceTree = "<group>"; };
 		ED6D6255118B5B7300A682F4 /* Makefile.am */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = Makefile.am; path = src/Makefile.am; sourceTree = "<group>"; };
@@ -224,7 +224,6 @@
 				ED6D624F118B5B6B00A682F4 /* tokenize.cpp */,
 				ED6D6250118B5B6B00A682F4 /* tokenize.h */,
 				ED6D6251118B5B6B00A682F4 /* tophat_reports.cpp */,
-				ED6D6252118B5B6B00A682F4 /* tophat.py */,
 				ED6D6253118B5B6B00A682F4 /* wiggles.cpp */,
 				ED6D6254118B5B6B00A682F4 /* wiggles.h */,
 				EDBBA56011DE75750015175B /* GBase.cpp */,
@@ -239,6 +238,7 @@
 				EDBBA56C11DE75750015175B /* GStr.h */,
 				EDBBA57811DE75B30015175B /* gtf_tracking.cpp */,
 				EDBBA57911DE75B30015175B /* gtf_tracking.h */,
+				ED16447113CD453F0083D2FD /* tophat */,
 				EDBBA58511DE75E80015175B /* codons.cpp */,
 				EDBBA58611DE75E80015175B /* codons.h */,
 				ED2A457711E240E4009AD73B /* sam_juncs.cpp */,
