@@ -464,6 +464,7 @@ bin_PROGRAMS = \
 	closure_juncs \
 	long_spanning_reads \
 	fix_map_ordering \
+	bam_merge \
 	bam2fastx \
 	library_stats \
 	mask_sam \
@@ -578,6 +579,9 @@ bam2fastx_SOURCES = bam2fastx.cpp
 bam2fastx_LDADD = $(top_builddir)/src/libgc.a $(BAM_LIB)
 bam2fastx_LDFLAGS = $(BAM_LDFLAGS)
 
+bam_merge_SOURCES = bam_merge.cpp
+bam_merge_LDADD = $(top_builddir)/src/libgc.a $(BAM_LIB)
+bam_merge_LDFLAGS = $(BAM_LDFLAGS)
 
 closure_juncs_SOURCES = closures.cpp
 closure_juncs_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)

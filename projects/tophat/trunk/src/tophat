@@ -71,7 +71,7 @@ Options:
     --keep-tmp
     --tmp-dir                      <dirname>   [ default: <output_dir>/tmp ]
     -z/--zpacker                   <program>   [ default: gzip             ]
-    --no-unmapped-fifo
+    -X/--unmapped-fifo                         [ use mkfifo to compress more temporary files]
 
 Advanced Options:
     --initial-read-mismatches      <int>       [ default: 2                ]
@@ -111,11 +111,12 @@ run_log = None
 run_cmd = None
 tmp_dir = output_dir + "tmp/"
 bin_dir = sys.path[0] + "/"
-use_zpacker = False # don't change it here, this is set by -z/--zpacker option
-unmapped_reads_fifo = None # if use_BWT_FIFO, this is tricking bowtie into writing the
+use_zpacker = False # this is set by -z/--zpacker option (-z0 leaves it False)
+
+use_BWT_FIFO = False # can only be set to True if use_zpacker is True
+# enabled by -X/-unmapped-fifo option (unless -z0)
+unmapped_reads_fifo = None # if use_BWT_FIFO is True, this is tricking bowtie into writing the
                            # unmapped reads into a compressed file
-use_BWT_FIFO = True # only works if use_zpacker == True
-#can be disabled by -X/-no-unmapped-fifo option if there are any issues
 
 samtools_path = None
 bowtie_path = None
@@ -200,8 +201,8 @@ class TopHatParams:
                     self.zipper = value
                     #if not self.zipper:
                     #   self.zipper='gzip'
-                elif option == "--no-unmapped-fifo":
-                    use_BWT_FIFO=False
+                elif option in ("-X", "--unmapped-fifo"):
+                    use_BWT_FIFO=True
             if self.zipper:
                 use_zpacker=True
                 if self.num_cpus>1 and not self.zipper_opts:
@@ -542,7 +543,7 @@ class TopHatParams:
     # of options.
     def parse_options(self, argv):
         try:
-            opts, args = getopt.getopt(argv[1:], "hvp:m:F:a:i:I:G:r:o:j:z:s:g:QC",
+            opts, args = getopt.getopt(argv[1:], "hvp:m:F:a:i:I:G:r:o:j:Xz:s:g:QC",
                                         ["version",
                                          "help",
                                          "output-dir=",
@@ -599,7 +600,7 @@ class TopHatParams:
                                          "rg-platform=",
                                          "tmp-dir=",
                                          "zpacker=",
-                                         "no-unmapped-fifo",
+                                         "unmapped-fifo",
                                          "max-insertion-length=",
                                          "max-deletion-length=",
                                          "insertions=",
@@ -2147,7 +2148,7 @@ def spliced_alignment(params,
         # daehwan - check this out
         if num_segs <= 1:
             print >> sys.stderr, "Warning: you have only one segment per read\n\twe strongly recommend that you decrease --segment-length to about half the read length because TopHat will work better with multiple segments"
-            
+
         # Perform the initial Bowtie mapping of the full length reads
         (unspliced_map, unmapped) = bowtie(params,
                                            bwt_idx_prefix,
@@ -2348,45 +2349,18 @@ def spliced_alignment(params,
             # NOTE: We also should be able to address bug #134 here, by replacing
             # contiguous alignments that poke into an intron by a small amount by
             # the correct spliced alignment.
-            merge_sort_fifo = tmp_dir + rfname+"_"+str(os.getpid())+".sam.merge_sort.fifo"
-            try:
-              if os.path.exists(merge_sort_fifo):
-                 os.remove(merge_sort_fifo)
-              os.mkfifo(merge_sort_fifo)
-            except OSError, o:
-                 die(fail_str+"Error at mkfifo("+merge_sort_fifo+") "+str(o))
 
             try:
-                samfifo_cmd=[ samtools_path, "view", "-h", mapped_reads ]
-                print >> run_log, " ".join(samfifo_cmd)+" > "+merge_sort_fifo+" &"
-                if os.fork()==0:
-                   subprocess.call(samfifo_cmd,
-                                    stdout=open(merge_sort_fifo, "w"))
-                   os._exit(os.EX_OK)
-                samview_cmd=[samtools_path, "view", maps[reads].unspliced_sam]
-                samview_proc=subprocess.Popen(samview_cmd,
-                                 stdout=subprocess.PIPE)
-                merge_sort_cmd = ["sort",
-                                  "-k1,1n", "-m",
-                                   "-T"+tmp_dir, "-",
-                                   merge_sort_fifo]
-                msort_proc=subprocess.Popen(merge_sort_cmd,
-                                stdin=samview_proc.stdout,
-                                stdout=subprocess.PIPE)
-                samview_proc.stdout.close()
-                rebam_cmd = [samtools_path, "view", "-S", "-b", "-"]
-                rebam_proc=subprocess.Popen(rebam_cmd,
-                               preexec_fn=subprocess_setup,
-                               stdin=msort_proc.stdout,
-                               stderr=open(logging_dir+"sort_rebam.log","w"),
-                               stdout=open(merged_map, "wb"))
-                msort_proc.stdout.close()
-                print >> run_log, " ".join(samview_cmd)+" | " + " ".join(merge_sort_cmd) + \
-                              " | "+" ".join(rebam_cmd)+" > "+merged_map
-                rebam_proc.communicate()
+                merge_cmd = [ prog_path("bam_merge"), merged_map,
+                                        maps[reads].unspliced_sam,
+                                        mapped_reads ]
+                print >> run_log, " ".join(merge_cmd)
+                ret = subprocess.call( merge_cmd,
+                                   stderr=open(logging_dir + "sam_merge.log", "w") )
+                if ret != 0:
+                    die(fail_str+"Error executing: "+" ".join(merge_cmd))
             except OSError, o:
                 die(fail_str+"Error: "+str(o))
-            os.remove(merge_sort_fifo)
             maps[reads] = [merged_map]
 
             if not params.system_params.keep_tmp:
@@ -2434,7 +2408,7 @@ def prog_path(program):
 
 # FIXME: this should get set during the make dist autotools phase of the build
 def get_version():
-   return "1.3.1"
+   return "1.3.2"
 
 def mlog(msg):
   print >> sys.stderr, "[DBGLOG]:"+msg
