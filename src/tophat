@@ -2385,7 +2385,7 @@ def die(msg=None):
 # (current script path is tested first, then PATH envvar)
 def which(program):
     def is_executable(fpath):
-        return os.path.exists(fpath) and os.access(fpath, os.X_OK)
+        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
     fpath, fname = os.path.split(program)
     if fpath:
         if is_executable(program):
