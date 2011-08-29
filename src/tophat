@@ -2439,7 +2439,8 @@ def main(argv=None):
         left_quals_list, right_quals_list = [], []
         if (not params.read_params.quals and len(args) > 2) or (params.read_params.quals and len(args) > 3):
             if params.read_params.mate_inner_dist == None:
-                die("Error: you must set the mean inner distance between mates with -r")
+                params.read_params.mate_inner_dist = 50 
+                #die("Error: you must set the mean inner distance between mates with -r")
 
             right_reads_list = args[2]
             if params.read_params.quals:
