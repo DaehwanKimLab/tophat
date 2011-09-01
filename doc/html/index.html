@@ -129,14 +129,6 @@
 		
     </div> <!-- End of "rightside" -->
     <div id="leftside">
-	 <h2>iGenomes index and annotation packages available for download - 7/31/2011</h2>
-		  <p> Illumina has generously provided a set of freely downloadable packages that contain everything you need to get started working with TopHat and Cufflinks.  
-          These packages contain Bowtie indexes for the human, mouse, and fly genomes as well as many others.  
-          The packages also contain annotation files (in GTF format) from UCSC, Ensembl, NCBI, and other sources.  
-          These files are augmented with the special attributes Cufflinks needs to perform differential splicing and promoter analysis.  
-          We strongly encourage users to download and try these packages!
-		  <p></p>
-		  <br>
       <h2>TopHat 1.3.2 release 9/1/2011</h2>
       <p> Version 1.3.2 includes the following fixes and improvements:
 	<ul>
@@ -144,8 +136,18 @@
 	  <li> Tophat no longer requires named pipes (<i>mkfifo</i>) to work, which were used in the previous version 
            to compress some of the temporary files, but was not supported on some file/systems;
            for systems supporting <i>mkfifo</i> the new -X option can be used to re-enable this functionality
+	  <li> coverage-search is now working for a short read (e.g., &lt;40-bp) where a read is splitted into only one segment.
 	</ul>
       </p><br/>
+
+	  <h2>iGenomes index and annotation packages available for download - 7/31/2011</h2>
+	  <p> Illumina has generously provided a set of freely downloadable packages that contain everything you need to get started working with TopHat and Cufflinks.  
+            These packages contain Bowtie indexes for the human, mouse, and fly genomes as well as many others.  
+          The packages also contain annotation files (in GTF format) from UCSC, Ensembl, NCBI, and other sources.  
+          These files are augmented with the special attributes Cufflinks needs to perform differential splicing and promoter analysis.  
+          We strongly encourage users to download and try these packages!
+		  <p></p>
+		  <br>
       <h2>TopHat 1.3.1 release 6/23/2011</h2>
       <p> Version 1.3.1 includes the following bug fixes and changes.
 	<ul>
