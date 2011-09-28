@@ -127,37 +127,55 @@ std::string getUnpackCmd(const std::string& fname, bool use_all_cpus=false);
 void checkSamHeader();
 void writeSamHeader(FILE* fout);
 
-struct FZPipe {
- FILE* file;
- std::string filename;
- std::string pipecmd;
- FZPipe():filename(),pipecmd() {
-   file=NULL;
-   }
- FZPipe(std::string& fname, std::string& pcmd):filename(fname),pipecmd(pcmd) {
-   //open as a compressed file reader
-   file=NULL;
-   this->openRead(fname.c_str(), pipecmd);
-   }
- void close() {
-   if (file!=NULL) {
-     if (pipecmd.empty()) fclose(file);
-                     else pclose(file);
-     file=NULL;
-     }
-   }
- FILE* openWrite(const char* fname, std::string& popencmd);
- FILE* openWrite(const char* fname);
- FILE* openRead(const char* fname, std::string& popencmd);
+class FZPipe {
+ public:
+	 FILE* file;
+	 std::string filename;
+	 std::string pipecmd;
+	 bool is_bam;
+	 FZPipe(std::string& fname, bool is_mapping):filename(fname),pipecmd() {
+	   //this constructor is only to use FZPipe as a READER
+       //also accepts/recognizes BAM files
+	   //for which it only stores the filename, other fields/methods are unused
+	   is_bam=false;
+       if (is_mapping && getFext(fname) == "bam") {
+           file=(FILE*)this;
+           is_bam=true;
+           return;
+           }
+  	   pipecmd=getUnpackCmd(fname); //also bam2fastx
+       this->openRead(fname.c_str(), pipecmd);
+	   }
 
- FILE* openRead(const char* fname);
- FILE* openRead(const std::string fname, std::string& popencmd) {
-   return this->openRead(fname.c_str(),popencmd);
-   }
- FILE* openRead(const std::string fname) {
-   return this->openRead(fname.c_str());
-   }
- void rewind();
+	 FZPipe():filename(),pipecmd() {
+	   is_bam=false;
+	   file=NULL;
+	   }
+	 FZPipe(std::string& fname, std::string& pcmd):filename(fname),pipecmd(pcmd) {
+	   //open as a compressed file reader
+	   is_bam=false;
+	   file=NULL;
+	   this->openRead(fname.c_str(), pipecmd);
+	   }
+	 void close() {
+	   if (file!=NULL) {
+		 if (pipecmd.empty()) fclose(file);
+						 else pclose(file);
+		 file=NULL;
+		 }
+	   }
+	 FILE* openWrite(const char* fname, std::string& popencmd);
+	 FILE* openWrite(const char* fname);
+	 FILE* openRead(const char* fname, std::string& popencmd);
+
+	 FILE* openRead(const char* fname);
+	 FILE* openRead(const std::string fname, std::string& popencmd) {
+	   return this->openRead(fname.c_str(),popencmd);
+	   }
+	 FILE* openRead(const std::string fname) {
+	   return this->openRead(fname.c_str());
+	   }
+	 void rewind();
 };
 
 void err_die(const char* format,...);
@@ -260,10 +278,13 @@ class GBamWriter {
          err_die("Error: could not create BAM file %s!\n",fname);
       //do we need to call bam_header_write() ?
       }
+   void create(const char* fname, bam_header_t* bh, bool uncompressed=false) {
+	 bam_header=bh;
+	 create(fname,uncompressed);
+     }
 
    GBamWriter(const char* fname, bam_header_t* bh, bool uncompressed=false) {
-      bam_header=bh;
-      create(fname, uncompressed);
+      create(fname, bh, uncompressed);
       }
 
    GBamWriter(const char* fname, const char* samfname, bool uncompressed=false) {
@@ -336,6 +357,9 @@ class GBamWriter {
    void write(GBamRecord* brec) {
       if (brec!=NULL)
           samwrite(this->bam_file,brec->get_b());
+      }
+   void write(bam1_t* b) {
+      samwrite(this->bam_file, b);
       }
 };
 

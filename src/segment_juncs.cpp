@@ -4068,6 +4068,7 @@ int main(int argc, char** argv)
     }
 
   //FILE* left_reads_map_file = fopen(left_reads_map_file_name.c_str(), "r");
+  /*
   FZPipe left_reads_map_file(left_reads_map_file_name, unzcmd);
   if (left_reads_map_file.file==NULL)
     {
@@ -4075,7 +4076,7 @@ int main(int argc, char** argv)
 	      left_reads_map_file_name.c_str());
       exit(1);
     }
-
+  */
   vector<string> left_segment_file_names;
   //vector<FILE*> left_segment_files;
   vector<FZPipe> left_segment_files;

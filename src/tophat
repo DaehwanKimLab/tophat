@@ -1071,11 +1071,14 @@ class FastxReader:
           if qstrlen + self.isColor >= seq_len :
                break # qv string has reached the length of seq string
           #loop until qv has the same length as seq
-      if self.isColor and qstr[0]=="!":
-           #some color qual string have a '!' character at the beginning, should be stripped
-           qstr = qstr[1:]
-           qstrlen -= 1
-      if seq_len != qstrlen+self.isColor :
+      #if self.isColor and qstr[0]=="!":
+      #     #some color qual string have a '!' character at the beginning, should be stripped
+      #     qstr = qstr[1:]
+      #     qstrlen -= 1
+      if self.isColor and seq_len==qstrlen+1:
+            qstr="!"+qstr
+            qstrlen += 1
+      if seq_len != qstrlen :
            raise ValueError("Length mismatch between sequence and quality strings "+ \
                                 "for %s (%i vs %i)." \
                                 % (seqid, seq_len, qstrlen))
@@ -1083,9 +1086,10 @@ class FastxReader:
         die("\nError encountered parsing file "+self.fname+":\n "+str(err))
     #return the record
     self.numrecords+=1
-    if self.isColor :
-        seq_len-=1
-        seqstr = seqstr[1:]
+    ##--discard the primer base [NO]
+    #if self.isColor :
+    #    seq_len-=1
+    #    seqstr = seqstr[1:]
     return (seqid, seqstr, seq_len, qstr)
 
   def nextFasta(self):
@@ -1119,9 +1123,9 @@ class FastxReader:
         die("\nError encountered parsing fasta file "+self.fname+"\n "+str(err))
     #return the record and continue
     self.numrecords+=1
-    if self.isColor :
-        seq_len-=1
-        seqstr = seqstr[1:]
+    #if self.isColor : # -- discard primer base
+    #    seq_len-=1
+    #    seqstr = seqstr[1:]
     return (seqid, seqstr, seq_len, None)
 
   def getLine(self):
@@ -2439,7 +2443,7 @@ def main(argv=None):
         left_quals_list, right_quals_list = [], []
         if (not params.read_params.quals and len(args) > 2) or (params.read_params.quals and len(args) > 3):
             if params.read_params.mate_inner_dist == None:
-                params.read_params.mate_inner_dist = 50 
+                params.read_params.mate_inner_dist = 50
                 #die("Error: you must set the mean inner distance between mates with -r")
 
             right_reads_list = args[2]

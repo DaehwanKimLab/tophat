@@ -147,16 +147,21 @@ bool next_fastq_record(FLineReader& fr,
     else
       qual.append(fline);
     
-    if ((!color && qual.length()>=seq.length()) || (color && qual.length()+1>=seq.length())) break;
+     //if ((!color && qual.length()>=seq.length()) || (color && qual.length()+1>=seq.length())) break;
+     if (qual.length()+1>=seq.length()) break;
      }
   // final check
-  if ((!color && seq.length()!=qual.length()) || (color && seq.length()!=qual.length()+1)) {
-           err_exit("Error: qual length (%d) differs from seq length (%d) for fastq record %s!\n",
+  if (color && qual.length()==seq.length()-1) {
+	    string tmpq("!");
+	    tmpq+=qual;
+	    qual=tmpq;
+        }
+  if (seq.length()!=qual.length()) {
+           err_exit("Error: qual string length (%d) differs from seq length (%d) for read %s!\n",
                qual.length(), seq.length(), alt_name.c_str());
            return false;
            }
   //
-
   return !(qual.empty());
 }
 
@@ -229,7 +234,14 @@ bool next_fastx_read(FLineReader& fr, Read& read, ReadFormat reads_format,
     } //while qv lines
   
   // final check
-  if ((!color && read.seq.length()!=read.qual.length()) || (color && read.seq.length()!=read.qual.length()+1)) {
+  // final check
+  if (color && read.qual.length()==read.seq.length()-1) {
+	    string tmpq("!");
+	    tmpq+=read.qual;
+	    read.qual=tmpq;
+        }
+  if (read.seq.length()!=read.qual.length()) {
+  //if ((!color && read.seq.length()!=read.qual.length()) || (color && read.seq.length()!=read.qual.length()+1)) {
            err_exit("Error: qual length (%d) differs from seq length (%d) for fastq record %s!\n",
                read.qual.length(), read.seq.length(), read.alt_name.c_str());
            return false;

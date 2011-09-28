@@ -600,6 +600,10 @@ string guess_packer(const string& fname, bool use_all_cpus) {
    //only needed for the primary input files (given by user)
    string picmd("");
    string fext=getFext(fname);
+   if (fext=="bam") {
+     picmd="bam2fastx";
+     return picmd;
+     }
    if (fext=="gz" || fext=="gzip" || fext=="z") {
       if (use_all_cpus && str_endsWith(zpacker,"pigz")) {
            picmd=zpacker;
@@ -648,9 +652,14 @@ void err_die(const char* format,...) { // Error exit
 }
 
 string getUnpackCmd(const string& fname, bool use_all_cpus) {
-//prep_reads should use guess_packer() instead
+ //prep_reads should use guess_packer() instead
  string pipecmd("");
- if (zpacker.empty() || getFext(fname)!="z") { 
+ string fext=getFext(fname);
+ if (fext=="bam") {
+    pipecmd="bam2fastx";
+    return pipecmd;
+    }
+ if (zpacker.empty() || fext!="z") { 
       return pipecmd;
       }
  pipecmd=zpacker;
