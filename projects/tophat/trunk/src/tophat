@@ -1890,7 +1890,7 @@ def split_reads(reads_filename,
     line_state = 0
     read_name = ""
     read_seq = ""
-    read_qual = ""
+    read_quals = ""
     num_segments = 0
     offsets = []
     for line in zreads.file:
