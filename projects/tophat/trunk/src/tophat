@@ -1749,7 +1749,7 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
                                              stdout=subprocess.PIPE,
                                              stderr=report_log)
 
-                bamsort_cmd = ["samtools", "sort", "-", accepted_hits]
+                bamsort_cmd = [samtools_path, "sort", "-", accepted_hits]
                 bamsort_proc= subprocess.Popen(bamsort_cmd,
                                                preexec_fn=subprocess_setup,
                                                stderr=open(logging_dir + "reports.samtools_sort.log", "w"),
@@ -1775,7 +1775,7 @@ def compile_reports(params, sam_header_filename, left_maps, left_reads, right_ma
                                         stderr=report_log)
             tmp_sam = output_dir + "accepted_hits.sam"
 
-            bam_to_sam_cmd = ["samtools", "view", "-h", accepted_hits]
+            bam_to_sam_cmd = [samtools_path, "view", "-h", accepted_hits]
             print >> run_log, " ".join(bam_to_sam_cmd) + " > " + tmp_sam
             bam_to_sam_log = open(logging_dir + "accepted_hits_bam_to_sam.log", "w")
             tmp_sam_file = open(tmp_sam, "w")
