@@ -1484,7 +1484,8 @@ def bowtie(params,
         shellcmd=""
         unzip_proc=None
         zip_proc=None
-        if use_zpacker:
+        z_input=use_zpacker and reads_list.endswith(".z")
+        if z_input:
            unzip_proc = subprocess.Popen(unzip_cmd,
                                  stdin=open(reads_list, "rb"),
                                  stdout=subprocess.PIPE)
