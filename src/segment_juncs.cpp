@@ -2154,8 +2154,8 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
 	// daehwan
 	if (bDebug)
 	  {
-	    cout << "coord: " << seg.left << " " << seg.right << endl
-		 << "seg_str: " << seg_str << endl;
+	    cout << "coord: " << seg.left << " " << seg.right << endl;
+	    //<< "seg_str: " << seg_str << endl;
 	  }
 
 	if (color)
@@ -2852,20 +2852,21 @@ void find_gaps(RefSequenceTable& rt,
 	  
 	  if (!found_right_partner && (found_distant_right_partner || found_right_right_partner))
 	    {
+	      const int look_bp = 8;
 	      size_t color_offset = color ? 1 : 0;
 	      
 	      string support_read;
 	      if (found_distant_right_partner)
-		support_read = seq.substr(color_offset + (s+1) * segment_length - 5, 10);
+		support_read = seq.substr(color_offset + (s+1) * segment_length - look_bp, look_bp * 2);
 	      else
-		support_read = seq.substr(color_offset + (s+1) * segment_length - 5, segment_length + 10);
+		support_read = seq.substr(color_offset + (s+1) * segment_length - look_bp, segment_length + look_bp * 2);
 
 	      BowtieHit& d_bh = found_distant_right_partner ? dr_bh : rr_bh;
 	      if (!bh.antisense_align())
 		{
 		  RefSeg right_seg(bh.ref_id(), POINT_DIR_BOTH, bh.antisense_align(), read, 0, 0, support_read);
-		  right_seg.left = max(0, bh.right() - 5);
-		  right_seg.right = d_bh.left() + 5;
+		  right_seg.left = max(0, bh.right() - look_bp);
+		  right_seg.right = d_bh.left() + look_bp;
 		  expected_don_acc_windows.push_back(right_seg);
 		}
 	      else
@@ -2876,15 +2877,16 @@ void find_gaps(RefSequenceTable& rt,
 		    reverse_complement(support_read);
 		  
 		  RefSeg left_seg(bh.ref_id(), POINT_DIR_BOTH, bh.antisense_align(), read, 0, 0, support_read);
-		  left_seg.left = d_bh.right() - 5;
-		  left_seg.right = bh.left() + 5; // num allowed bowtie mismatches
+		  left_seg.left = d_bh.right() - look_bp;
+		  left_seg.right = bh.left() + look_bp;
 		  expected_don_acc_windows.push_back(left_seg);	
 		}
 	      
 	      // daehwan
 	      if (bDebug)
 		{
-		  cout << (bh.antisense_align() ? "-" : "+") << endl
+		  cout << "insert id: " << bh.insert_id() << endl
+		       << (bh.antisense_align() ? "-" : "+") << endl
 		       << seq << endl
 		       << "(" << s << ") - " << support_read << endl;
 		}
