@@ -440,10 +440,11 @@ class TopHatParams:
         self.max_deletion_length = 3
         self.raw_insertions = None
         self.raw_deletions = None
-        self.closure_search = None
-        self.coverage_search = None
+        self.closure_search = False
+        self.no_coverage_search = False # set if the user specifically disables coverage search
+        self.coverage_search = True
         self.microexon_search = False
-        self.butterfly_search = None
+        self.butterfly_search = False
 
     def check(self):
         self.splice_constraints.check()
@@ -514,7 +515,7 @@ class TopHatParams:
             cmd.extend(["--gtf-annotations", str(self.gff_annotation)])
         if not self.closure_search:
             cmd.append("--no-closure-search")
-        if not self.coverage_search:
+        if self.no_coverage_search:
             cmd.append("--no-coverage-search")
         if not self.microexon_search:
             cmd.append("--no-microexon-search")
@@ -645,10 +646,12 @@ class TopHatParams:
             if option == "--skip-check-reads":
                 self.skip_check_reads = True
             if option == "--no-coverage-search":
+                self.no_coverage_search = True
                 self.coverage_search = False
             if option == "--no-closure-search":
                 self.closure_search = False
             if option == "--coverage-search":
+                self.no_coverage_search = False
                 self.coverage_search = True
             if option == "--closure-search":
                 self.closure_search = True
@@ -1591,7 +1594,7 @@ def get_gtf_juncs(gff_annotation):
 
     gtf_juncs_cmd=[prog_path("gtf_juncs"), gff_annotation]
     try:
-        print >> run_log, " ".join(gtf_juncs_cmd)
+        print >> run_log, " ".join(gtf_juncs_cmd), " > "+gtf_juncs_out_name
         retcode = subprocess.call(gtf_juncs_cmd,
                                   stderr=gtf_juncs_log,
                                   stdout=gtf_juncs_out)
@@ -2187,7 +2190,7 @@ def spliced_alignment(params,
             # which is the most sensitive and specific, fastest, and lightest-weight.
             if not params.closure_search:
                 params.closure_search = False
-            if not params.coverage_search:
+            if not params.coverage_search: # disable coverage search unless it was asked for specifically
                 params.coverage_search = False
             if not params.butterfly_search:
                 params.butterfly_search = False
