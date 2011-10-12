@@ -451,8 +451,8 @@ class TopHatParams:
         self.read_params.check()
         self.system_params.check()
 
-        if self.segment_length <= 4:
-            die("Error: arg to --segment-length must at least 4")
+        if self.segment_length < 10:
+            die("Error: arg to --segment-length must at least 10")
         if self.segment_mismatches < 0 or self.segment_mismatches > 3:
             die("Error: arg to --segment-mismatches must in [0, 3]")
 
@@ -1228,7 +1228,7 @@ class ZWriter:
 def check_reads_format(params, reads_files):
     #print >> sys.stderr, "[%s] Checking reads" % right_now()
     #
-    seed_len = params.read_params.seed_length
+    #seed_len = params.read_params.seed_length
     fileformat = params.read_params.reads_format
 
     observed_formats = set([])
@@ -1258,10 +1258,10 @@ def check_reads_format(params, reads_files):
     if len(observed_formats) > 1:
         die("Error: TopHat requires all reads be either FASTQ or FASTA.  Mixing formats is not supported.")
     fileformat=list(observed_formats)[0]
-    if seed_len != None:
-        seed_len = max(seed_len, min_seed_len)
-    else:
-        seed_len = max_seed_len
+    #if seed_len != None:
+    #    seed_len = max(seed_len, max_seed_len)
+    #else:
+    #    seed_len = max_seed_len
     #print >> sys.stderr, "\tmin read length: %dbp, max read length: %dbp" % (min_seed_len, max_seed_len)
     print >> sys.stderr, "\tformat:\t\t %s" % fileformat
     if fileformat == "fastq":
@@ -1284,7 +1284,8 @@ def check_reads_format(params, reads_files):
                                    params.read_params.color,
                                    params.read_params.color_out,
                                    params.read_params.library_type,
-                                   seed_len,
+                                   #seed_len,
+                                   params.read_params.seed_length,
                                    fileformat,
                                    params.read_params.mate_inner_dist,
                                    params.read_params.mate_inner_dist_std_dev,
@@ -1642,7 +1643,7 @@ def build_juncs_bwt_index(external_splice_prefix, color):
 # Build a splice index from a .juncs file, suitable for use with specified read
 # (or read segment) lengths
 def build_juncs_index(min_anchor_length,
-                      read_length,
+                      max_seg_len,
                       juncs_prefix,
                       external_juncs,
                       external_insertions,
@@ -1665,7 +1666,7 @@ def build_juncs_index(min_anchor_length,
     # juncs_db_cmd = [bin_dir + "juncs_db",
     juncs_db_cmd = [prog_path("juncs_db"),
                     str(min_anchor_length),
-                    str(read_length),
+                    str(max_seg_len),
                     juncs_file_list,
                     insertions_file_list,
                     deletions_file_list,
@@ -2138,6 +2139,34 @@ def spliced_alignment(params,
     maps = { left_reads : [], right_reads : [] }
     #single_segments = False
 
+    max_seg_len = segment_len #this is the ref seq span on either side of the junctions
+                              #to be extracted into segment_juncs.fa
+
+    num_segs = int(read_len / segment_len)
+    if (read_len % segment_len) >= min(segment_len -2, 20):
+       num_segs += 1
+    if num_segs>1 :
+       max_seg_len += (read_len % segment_len) # to be used by juncs_db
+
+    # daehwan - check this out
+    if num_segs <= 1:
+            print >> sys.stderr, "Warning: you have only one segment per read\n\twe strongly recommend that you decrease --segment-length to about half the read length because TopHat will work better with multiple segments"
+
+    # Using the num_segs value returned by check_reads(), decide which
+    # junction discovery strategy to use
+    if num_segs == 1:
+        segment_len = read_len
+    elif num_segs >= 3:
+        # if we have at least three segments, just use split segment search,
+        # which is the most sensitive and specific, fastest, and lightest-weight.
+        if not params.closure_search:
+            params.closure_search = False
+        if not params.coverage_search: # disable coverage search unless it was asked for specifically
+            params.coverage_search = False
+        if not params.butterfly_search:
+            params.butterfly_search = False
+    if not params.closure_search:
+        params.closure_search = False
     # Perform the first part of the TopHat work flow on the left and right
     # reads of paired ends separately - we'll use the pairing information later
     for reads in [left_reads, right_reads]:
@@ -2149,13 +2178,6 @@ def spliced_alignment(params,
         unmapped_unspliced = tmp_dir + fbasename + "_missing.fq"
         if use_BWT_FIFO:
             unmapped_unspliced += ".z"
-        num_segs = read_len / segment_len
-        if read_len % segment_len >= min(segment_len -2, 20):
-            num_segs += 1
-
-        # daehwan - check this out
-        if num_segs <= 1:
-            print >> sys.stderr, "Warning: you have only one segment per read\n\twe strongly recommend that you decrease --segment-length to about half the read length because TopHat will work better with multiple segments"
 
         # Perform the initial Bowtie mapping of the full length reads
         (unspliced_map, unmapped) = bowtie(params,
@@ -2181,21 +2203,6 @@ def spliced_alignment(params,
                              [unspliced_map],
                              [],
                              unspliced_sam)
-        # Using the num_segs value returned by check_reads(), decide which
-        # junction discovery strategy to use
-        if num_segs == 1:
-            segment_len = read_len
-        elif num_segs >= 3:
-            # if we have at least three segments, just use split segment search,
-            # which is the most sensitive and specific, fastest, and lightest-weight.
-            if not params.closure_search:
-                params.closure_search = False
-            if not params.coverage_search: # disable coverage search unless it was asked for specifically
-                params.coverage_search = False
-            if not params.butterfly_search:
-                params.butterfly_search = False
-        if not params.closure_search:
-            params.closure_search = False
         seg_maps = []
         unmapped_segs = []
         segs = []
@@ -2297,7 +2304,8 @@ def spliced_alignment(params,
         print >> sys.stderr, "Warning: junction database is empty!"
     if junc_idx_prefix != None:
         build_juncs_index(3,
-                          segment_len,
+                          #segment_len,
+                          max_seg_len,
                           junc_idx_prefix,
                           possible_juncs,
                           possible_insertions,
@@ -2529,8 +2537,8 @@ def main(argv=None):
         else:
             right_kept_reads = None
         seed_len=params.read_params.seed_length
-        if seed_len != None:
-            seed_len = max(seed_len, min_read_len)
+        if seed_len:
+            seed_len = max(seed_len, max_read_len)
         else:
             seed_len = max_read_len
         params.read_params.seed_length=seed_len
