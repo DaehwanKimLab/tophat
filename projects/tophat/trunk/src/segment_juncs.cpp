@@ -43,8 +43,8 @@ using namespace seqan;
 using namespace std;
 using namespace __gnu_cxx;
 
-// daehwan
-bool bDebug = false;
+// daehwan //geo
+//#define B_DEBUG 1
 
 void print_usage()
 {
@@ -58,6 +58,7 @@ static const int max_cov_juncs = 5000000;
 static const int max_seg_juncs = 10000000;
 int max_microexon_stretch = 2000;
 int butterfly_overhang = 6;
+
 
 void get_seqs(istream& ref_stream,
 			  RefSequenceTable& rt,
@@ -2147,17 +2148,13 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
             continue;
         
         DnaString org_seg_str = seqan::infix(*ref_str, seg.left + left_color_offset, seg.right + right_color_offset);
-
 	String<char> seg_str;
 	assign(seg_str, org_seg_str);
 
-	// daehwan
-	if (bDebug)
-	  {
-	    cout << "coord: " << seg.left << " " << seg.right << endl;
+	#ifdef B_DEBUG
+   cout << "coord: " << seg.left << " " << seg.right << endl;
 	    //<< "seg_str: " << seg_str << endl;
-	  }
-
+  #endif
 	if (color)
 	  {
 	    bool remove_primer = true;
@@ -2216,22 +2213,21 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
 	      }
 
 	    // daehwan
-	    if (bDebug)
-	      {
-		cout << "antisense: " << (seg.antisense ? "-" : "+") << endl
-		     << seqan::infix(seg_str, 0, segment_length) << " "
-		     << seqan::infix(seg_str, length(seg_str) - segment_length, length(seg_str)) << endl
-		     << seg.support_read << endl
-		     << 0 << " - " << to << endl;
+      #ifdef B_DEBUG
+      cout << "antisense: " << (seg.antisense ? "-" : "+") << endl
+           << seqan::infix(seg_str, 0, segment_length) << " "
+           << seqan::infix(seg_str, length(seg_str) - segment_length, length(seg_str)) << endl
+           << seg.support_read << endl
+           << 0 << " - " << to << endl;
 
-		for (unsigned int i = 0; i < read_len; ++i)
-		  cout << (int)left_mismatches[i];
-		cout << "\t";
+      for (unsigned int i = 0; i < read_len; ++i)
+        cout << (int)left_mismatches[i];
+      cout << "\t";
 
-		for (unsigned int i = 0; i < read_len; ++i)
-		  cout << (int)right_mismatches[i];
-		cout << endl;		
-	      }
+      for (unsigned int i = 0; i < read_len; ++i)
+        cout << (int)right_mismatches[i];
+      cout << endl;
+      #endif
 	  }
 
 	if (seg.points_where == POINT_DIR_BOTH)
@@ -2254,13 +2250,11 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
 		      left_mismatch = left_mismatches[i-1];
 		    
 		    // daehwan
-		    if (bDebug)
-		      {
+#ifdef B_DEBUG
 			cout << "i: " << i << endl
 			     << "mismatches: " << (int)left_mismatch
 			     << " - " << (int)right_mismatches[i] << endl;
-		      }
-
+#endif
 		    if (left_mismatch + right_mismatches[i] <= 2)
 		      {
 			size_t pos = length(seg_str) - (read_len - i) - 2;
@@ -2278,10 +2272,9 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
 			      }
 
 			    // daehwan
-			    if (bDebug)
-			      {
-				cout << curr << ":" << partner << " added" << endl;
-			      }
+        #ifdef B_DEBUG
+				  cout << curr << ":" << partner << " added" << endl;
+        #endif
 			  }
 		      }
 		  }
@@ -2298,7 +2291,6 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
 	      {
                 // Look at a slice of the reference without creating a copy.
                 DnaString curr = seqan::infix(org_seg_str, i - left_color_offset, i + 2 - left_color_offset);
-                
                 if (curr == acceptor_dinuc && !skip_fwd)
 		  motifs.fwd_acceptors.push_back(make_pair(seg.left + i, DnaSpliceStrings(0,0)));
                 else if (curr == rev_donor_dinuc && !skip_rev)
@@ -2312,7 +2304,6 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
 	      {
                 // Look at a slice of the reference without creating a copy.
                 DnaString curr = seqan::infix(org_seg_str, i - left_color_offset, i + 2 - left_color_offset);
-                
                 if (curr == donor_dinuc && !skip_fwd)
 		  motifs.fwd_donors.push_back(make_pair(seg.left + i, DnaSpliceStrings(0,0)));
                 else if (curr == rev_acceptor_dinuc && !skip_rev)
@@ -2472,7 +2463,7 @@ void detect_small_insertion(RefSequenceTable& rt,
 
 	RefSequenceTable::Sequence* ref_str = rt.get_seq(leftHit.ref_id());
 	if(!ref_str){
-		fprintf(stderr, "Error in accessing sequence record\n");
+		fprintf(stderr, "Error accessing sequence record\n");
 	}else{
 		size_t read_length = seqan::length(read_sequence);
 		int begin_offset = 0;
@@ -2552,7 +2543,7 @@ void detect_small_deletion(RefSequenceTable& rt,
 
 	RefSequenceTable::Sequence* ref_str = rt.get_seq(leftHit.ref_id());
 	if(!ref_str){
-		fprintf(stderr, "Error in accessing sequence record\n");
+		fprintf(stderr, "Error accessing sequence record\n");
 	}else{
 		int begin_offset = 0;
 		int end_offset = 0;
@@ -2883,16 +2874,15 @@ void find_gaps(RefSequenceTable& rt,
 		}
 	      
 	      // daehwan
-	      if (bDebug)
-		{
+      #ifdef B_DEBUG
 		  cout << "insert id: " << bh.insert_id() << endl
 		       << (bh.antisense_align() ? "-" : "+") << endl
 		       << seq << endl
 		       << "(" << s << ") - " << support_read << endl;
-		}
+      #endif
 	    }
-	}      
-    }
+	   }
+    } //for each hits_for_read
 
   juncs_from_ref_segs<RecordSegmentJuncs>(rt, 
 				      expected_don_acc_windows, 
@@ -3475,7 +3465,6 @@ void capture_island_ends(ReadTable& it,
     }
   
   static const int min_cov_length = segment_length + 2;
-  
   long covered_bases = 0;
   int long_enough_bases = 0;
   int left_looking = 0;
@@ -3489,8 +3478,9 @@ void capture_island_ends(ReadTable& it,
        itr != coverage_map.end();
        ++itr)
     {
-      //fprintf (stderr, "Finding pairings in ref seg %u\n", (int)itr->first);
-      
+      #ifdef B_DEBUG
+      fprintf (stderr, "Finding pairings in ref seg %u\n", (int)itr->first);
+      #endif
       vector<bool>& cov = itr->second;
       vector<bool> long_enough(cov.size());
       
@@ -3499,59 +3489,63 @@ void capture_island_ends(ReadTable& it,
       static const uint8_t min_cov = 1;
       
       for (size_t c = 1; c < cov.size(); ++c)
-	{
-	  int c_cov = cov[c]; //get_cov(cov, c);
-	  if (c_cov < min_cov || c == (cov.size()) - 1)
-	    {
-	      int putative_exon_length = (int)c - (int)last_uncovered;
-	      int last_pos_cov = cov[c - 1]; //get_cov(cov,c - 1);
-	      if (last_pos_cov >= min_cov && putative_exon_length >= min_cov_length)
-		{
-		  //fprintf (stdout, "%s\t%d\t%d\n", rt.get_name(itr->first), last_uncovered + 1, c);
-		  covered_bases += (c + 1 - last_uncovered);
-		  //fprintf(stderr, "making new segment from %d to %d\n", last_uncovered + 1, c);
-		  for (int l = (int)c; l > (int)last_uncovered; --l)
-		    {
-		      long_enough[l] = true;
-		    }
-		}
-	      last_uncovered = c;
-	    }
-	}
+      {
+      int c_cov = cov[c]; //get_cov(cov, c);
+      if (c_cov < min_cov || c == (cov.size()) - 1)
+        {
+          int putative_exon_length = (int)c - (int)last_uncovered;
+          int last_pos_cov = cov[c - 1]; //get_cov(cov,c - 1);
+
+          if (last_pos_cov >= min_cov && putative_exon_length >= min_cov_length)
+            {
+              #ifdef B_DEBUG
+              fprintf(stderr, "%s\t%d\t%d\n", rt.get_name(itr->first), (int)(last_uncovered + 1), (int)c);
+              fprintf(stderr, "putative exon length = %d, min_cov_length=%d\n",putative_exon_length, min_cov_length);
+              #endif
+              covered_bases += (c + 1 - last_uncovered);
+              //fprintf(stderr, "making new segment from %d to %d\n", (int)(last_uncovered + 1), (int)c);
+              for (int l = (int)c; l > (int)last_uncovered; --l)
+                {
+                  long_enough[l] = true;
+                }
+            }
+          last_uncovered = c;
+        }
+      }
       
       vector<bool>& ref_cov = long_enough;
       vector<uint8_t> cov_state(ref_cov.size(), UNCOVERED);
       
       for (size_t c = 1; c < ref_cov.size(); ++c)
-	{
-	  if (ref_cov[c])
-	    {
-	      long_enough_bases++;
-	      if (!ref_cov[c - 1])
-		{
-		  num_islands += 1;
-		  
-		  for (int r = (int)c - extend; 
-		       r >= 0 && r < (int)c + repeat_tol && r < (int)cov_state.size(); 
-		       ++r)
-		    {
-		      cov_state[r] |= LOOK_LEFT;
-		    }
-		}
-	    }
-	  else
-	    {
-	      if (ref_cov[c - 1])
-		{
-		  for (int l = (int)c - repeat_tol; 
-		       l >= 0 && l < (int)c + extend && l < (int)cov_state.size(); 
-		       ++l)
-		    {
-		      cov_state[l] |= LOOK_RIGHT;
-		    }	
-		}
-	    }
-	}
+      {
+      if (ref_cov[c])
+        {
+          long_enough_bases++;
+          if (!ref_cov[c - 1])
+      {
+        num_islands += 1;
+
+        for (int r = (int)c - extend;
+             r >= 0 && r < (int)c + repeat_tol && r < (int)cov_state.size();
+             ++r)
+          {
+            cov_state[r] |= LOOK_LEFT;
+          }
+      }
+        }
+      else
+        {
+          if (ref_cov[c - 1])
+          {
+            for (int l = (int)c - repeat_tol;
+                 l >= 0 && l < (int)c + extend && l < (int)cov_state.size();
+                 ++l)
+              {
+                cov_state[l] |= LOOK_RIGHT;
+              }
+          }
+        }
+      }
       
       RefSeg* curr_look_left = NULL;
       RefSeg* curr_look_right = NULL;
@@ -3937,7 +3931,7 @@ int main(int argc, char** argv)
 {
   fprintf(stderr, "segment_juncs v%s (%s)\n", PACKAGE_VERSION, SVN_REVISION);
   fprintf(stderr, "---------------------------\n");
-  
+
   int parse_ret = parse_options(argc, argv, print_usage);
   if (parse_ret)
     return parse_ret;

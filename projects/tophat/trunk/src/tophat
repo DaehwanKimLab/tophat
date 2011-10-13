@@ -2143,10 +2143,12 @@ def spliced_alignment(params,
                               #to be extracted into segment_juncs.fa
 
     num_segs = int(read_len / segment_len)
-    if (read_len % segment_len) >= min(segment_len -2, 20):
-       num_segs += 1
-    if num_segs>1 :
-       max_seg_len += (read_len % segment_len) # to be used by juncs_db
+    if (read_len % segment_len) >= min(segment_len-2, 20):
+        #remainder is shorter but long enough to become a new segment
+        num_segs += 1
+    else:
+       # the last segment is longer
+       if num_segs>1: max_seg_len += (read_len % segment_len)
 
     # daehwan - check this out
     if num_segs <= 1:
