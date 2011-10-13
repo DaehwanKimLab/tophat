@@ -2539,8 +2539,9 @@ def main(argv=None):
         else:
             right_kept_reads = None
         seed_len=params.read_params.seed_length
-        if seed_len:
-            seed_len = max(seed_len, max_read_len)
+        if seed_len: #if read len was explicitly given
+            seed_len = max(seed_len, min_read_len)
+            #can't be smaller than minimum length observed
         else:
             seed_len = max_read_len
         params.read_params.seed_length=seed_len
