@@ -1,0 +1,107 @@
+# Directories to search for header files
+SEQAN = ./SeqAn-1.2
+SEARCHDIRS := -I. -I${SEQAN} -I.. -I/opt/geo/include
+
+SYSTYPE :=     $(shell uname)
+
+# C compiler
+
+MACHTYPE :=     $(shell uname -m)
+ifeq ($(MACHTYPE), i686)
+    MARCH = -march=i686
+else
+    MARCH = 
+endif    
+
+CC      := g++
+BASEFLAGS  = -Wall ${SEARCHDIRS} $(MARCH) -DHAVE_CONFIG_H \
+-fno-strict-aliasing -D_REENTRANT
+
+
+ifeq ($(findstring debug,$(MAKECMDGOALS)),)
+  CFLAGS = -O2 -DNDEBUG $(BASEFLAGS)
+  LDFLAGS = -L/opt/geo/lib
+else
+  CFLAGS = -g -DMEM_DEBUG -DDEBUG $(BASEFLAGS)
+  LDFLAGS = -g -L/opt/geo/lib
+endif
+
+%.o : %.c
+	${CC} ${CFLAGS} -c $< -o $@
+
+%.o : %.cc
+	${CC} ${CFLAGS} -c $< -o $@
+
+%.o : %.C
+	${CC} ${CFLAGS} -c $< -o $@
+
+%.o : %.cpp
+	${CC} ${CFLAGS} -c $< -o $@
+
+%.o : %.cxx
+	${CC} ${CFLAGS} -c $< -o $@
+
+# C/C++ linker
+
+LINKER    := g++
+LIBS = -lz -lbam
+
+COM_OBJS = common.o reads.o tokenize.o 
+PREP_OBJS = ${COM_OBJS} qual.o
+GFF_OBJS  = GBase.o GStr.o codons.o gdna.o GFaSeqGet.o gff.o
+SEG_OBJS = ${COM_OBJS} bwt_map.o junctions.o
+LONGSR_OBJS = ${COM_OBJS} bwt_map.o junctions.o
+
+ALL_EXE = fix_map_ordering bam_merge bam2fastx prep_reads extract_reads long_spanning_reads segment_juncs tophat_reports
+
+.PHONY : all
+# all: prep_reads
+# all_exe: prep_reads extract_reads segment_juncs long_spanning_reads
+#all: $(ALL_EXE)
+#debug: $(ALL_EXE)
+all: segment_juncs
+debug: segment_juncs
+#all: bam_dump
+#all: sam2bam
+#debug: sam2bam
+#all: prep_reads
+#debug: prep_reads
+sam2bam: ./sam2bam.o
+	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
+bam_dump: ./bam_dump.o
+	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
+#all: prep_reads
+#debug: prep_reads
+all_bin: ${ALL_EXE}
+bwt2sam: ${COM_OBJS} bwt_map.o bwt2sam.o
+	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
+bam2bed: ./bam2bed.o
+	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
+bam2fastx: ./bam2fastx.o
+	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
+bam_merge: ./bam_merge.o ./GBase.o
+	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
+bwt_map.o: bwt_map.h
+fix_map_ordering: ${COM_OBJS} bwt_map.o ./fix_map_ordering.o
+	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
+long_spanning_reads: ${SEG_OBJS} ./long_spanning_reads.o 
+	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
+prep_reads: ${PREP_OBJS} ./prep_reads.o
+	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
+extract_reads: ${COM_OBJS} ./extract_reads.o
+	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
+gtf_juncs: ${COM_OBJS} bwt_map.o ${GFF_OBJS} ./gtf_juncs.o
+	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
+segment_juncs: ${SEG_OBJS} ./segment_juncs.o
+	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
+tophat_reports: ${SEG_OBJS} bwt_map.o deletions.o insertions.o inserts.o fragments.o align_status.o tophat_reports.o 
+	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
+
+# target for removing all object files
+
+.PHONY : clean
+clean:: 
+	${RM} ${SEG_OBJS} segment_juncs core.*
+#	${RM} *.o sam2bam core core.* ${ALL_EXE} *.o* 
+
+
