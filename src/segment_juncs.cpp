@@ -58,7 +58,7 @@ static const int max_cov_juncs = 5000000;
 static const int max_seg_juncs = 10000000;
 int max_microexon_stretch = 2000;
 int butterfly_overhang = 6;
-
+int min_cov_length = 20;
 
 void get_seqs(istream& ref_stream,
 			  RefSequenceTable& rt,
@@ -3435,7 +3435,6 @@ void capture_island_ends(ReadTable& it,
   build_coverage_map(it, rt, seg_files, coverage_map);
   
   //static const int min_cov_length = segment_length + 2;
-  static const int min_cov_length = segment_length - 2;
   long covered_bases = 0;
   int long_enough_bases = 0;
   int left_looking = 0;
@@ -4103,6 +4102,8 @@ int main(int argc, char** argv)
 	  right_segment_files.push_back(seg_file);
 	}
     }
+  // min_cov_length=20;
+  if (min_cov_length>segment_length-2) min_cov_length=segment_length-2;
   
   driver(ref_stream, 
 	 juncs_file,
