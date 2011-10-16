@@ -3435,7 +3435,7 @@ void capture_island_ends(ReadTable& it,
   build_coverage_map(it, rt, seg_files, coverage_map);
   
   //static const int min_cov_length = segment_length + 2;
-  static const int min_cov_length = 18;
+  static const int min_cov_length = segment_length - 2;
   long covered_bases = 0;
   int long_enough_bases = 0;
   int left_looking = 0;
