@@ -440,11 +440,10 @@ class TopHatParams:
         self.max_deletion_length = 3
         self.raw_insertions = None
         self.raw_deletions = None
+        self.coverage_search = None
         self.closure_search = False
-        self.no_coverage_search = False # set if the user specifically disables coverage search
-        self.coverage_search = True
         self.microexon_search = False
-        self.butterfly_search = False
+        self.butterfly_search = None
 
     def check(self):
         self.splice_constraints.check()
@@ -513,11 +512,11 @@ class TopHatParams:
                         "--inner-dist-std-dev", str(self.read_params.mate_inner_dist_std_dev)])
         if self.gff_annotation != None:
             cmd.extend(["--gtf-annotations", str(self.gff_annotation)])
-        if not self.closure_search:
+        if self.closure_search == False:
             cmd.append("--no-closure-search")
-        if self.no_coverage_search:
+        if self.coverage_search == False:
             cmd.append("--no-coverage-search")
-        if not self.microexon_search:
+        if self.microexon_search == False:
             cmd.append("--no-microexon-search")
         if self.butterfly_search:
             cmd.append("--butterfly-search")
@@ -646,13 +645,11 @@ class TopHatParams:
             if option == "--skip-check-reads":
                 self.skip_check_reads = True
             if option == "--no-coverage-search":
-                self.no_coverage_search = True
                 self.coverage_search = False
+            if option == "--coverage-search":
+                self.coverage_search = True
             if option == "--no-closure-search":
                 self.closure_search = False
-            if option == "--coverage-search":
-                self.no_coverage_search = False
-                self.coverage_search = True
             if option == "--closure-search":
                 self.closure_search = True
             if option == "--microexon-search":
@@ -2154,21 +2151,25 @@ def spliced_alignment(params,
     if num_segs <= 1:
             print >> sys.stderr, "Warning: you have only one segment per read\n\twe strongly recommend that you decrease --segment-length to about half the read length because TopHat will work better with multiple segments"
 
-    # Using the num_segs value returned by check_reads(), decide which
-    # junction discovery strategy to use
-    if num_segs == 1:
-        segment_len = read_len
-    elif num_segs >= 3:
+    # Using the num_segs value returned by check_reads(),
+    # decide which junction discovery strategy to use
+    if num_segs<3:
+       #if params.butterfly_search != False:
+       #   params.butterfly_search = True
+       if params.coverage_search != False:
+               params.coverage_search = True
+       if num_segs == 1:
+         segment_len = read_len
+    else: #num_segs >= 3:
         # if we have at least three segments, just use split segment search,
         # which is the most sensitive and specific, fastest, and lightest-weight.
-        if not params.closure_search:
-            params.closure_search = False
-        if not params.coverage_search: # disable coverage search unless it was asked for specifically
-            params.coverage_search = False
-        if not params.butterfly_search:
-            params.butterfly_search = False
-    if not params.closure_search:
-        params.closure_search = False
+        # so unless specifically requested, disable the other junction searches
+        if params.closure_search != True:
+               params.closure_search = False
+        if params.coverage_search != True:
+               params.coverage_search = False
+        if params.butterfly_search != True:
+                params.butterfly_search = False
     # Perform the first part of the TopHat work flow on the left and right
     # reads of paired ends separately - we'll use the pairing information later
     for reads in [left_reads, right_reads]:
