@@ -443,11 +443,10 @@ public:
 		//_by_name.clear();
 		_by_id.clear();
 	}
-	
-private:
-	
+
+	// daehwan
 	// This is FNV-1, see http://en.wikipedia.org/wiki/Fowler_Noll_Vo_hash
-	inline uint32_t hash_string(const char* __s)
+	static inline uint32_t hash_string(const char* __s)
 	{
 		uint32_t hash = 0x811c9dc5;
 		for ( ; *__s; ++__s)
@@ -457,6 +456,8 @@ private:
 		}
 		return hash;
 	}
+	
+private:
 	
 	//IDTable _by_name;
 	uint32_t _next_id;
