@@ -2214,19 +2214,19 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
 
 	    // daehwan
 #ifdef B_DEBUG2
-      cout << "antisense: " << (seg.antisense ? "-" : "+") << endl
-           << seqan::infix(seg_str, 0, segment_length) << " "
-           << seqan::infix(seg_str, length(seg_str) - segment_length, length(seg_str)) << endl
-           << seg.support_read << endl
-           << 0 << " - " << to << endl;
+		cout << "antisense: " << (seg.antisense ? "-" : "+") << endl
+		     << seqan::infix(seg_str, 0, segment_length) << " "
+		     << seqan::infix(seg_str, length(seg_str) - segment_length, length(seg_str)) << endl
+		     << seg.support_read << endl
+		     << 0 << " - " << to << endl;
 
-      for (unsigned int i = 0; i < read_len; ++i)
-        cout << (int)left_mismatches[i];
-      cout << "\t";
+		for (unsigned int i = 0; i < read_len; ++i)
+		  cout << (int)left_mismatches[i];
+		cout << "\t";
 
-      for (unsigned int i = 0; i < read_len; ++i)
-        cout << (int)right_mismatches[i];
-      cout << endl;
+		for (unsigned int i = 0; i < read_len; ++i)
+		  cout << (int)right_mismatches[i];
+		cout << endl;		
 #endif
 	  }
 
@@ -2273,7 +2273,7 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
 
 			    // daehwan
         #ifdef B_DEBUG2
-				  cout << curr << ":" << partner << " added" << endl;
+				cout << curr << ":" << partner << " added" << endl;
         #endif
 			  }
 		      }
@@ -2816,7 +2816,7 @@ void find_gaps(RefSequenceTable& rt,
 	  seg_partner_hit_stream.next_read_hits(partner_hit_group);
 	  next_order = seg_partner_hit_stream.next_group_id();
 	}
-      
+
       has_partner = insert_id == partner_hit_group.insert_id;
     }
   
@@ -3083,7 +3083,7 @@ void find_gaps(RefSequenceTable& rt,
 		  left_seg.right = bh.left() + look_bp;
 		  expected_don_acc_windows.push_back(left_seg);	
 		}
-
+	      
 	      // daehwan
       #ifdef B_DEBUG2
 		  cout << "insert id: " << bh.insert_id() << endl
@@ -3091,8 +3091,8 @@ void find_gaps(RefSequenceTable& rt,
 		       << seq << endl
 		       << "(" << s << ") - " << support_read << endl;
       #endif
+		}
 	    }
-	}
     } //for each hits_for_read
 
   juncs_from_ref_segs<RecordSegmentJuncs>(rt, 
@@ -3484,9 +3484,9 @@ void look_for_hit_group(RefSequenceTable& rt,
 
 
 bool process_next_hit_group(RefSequenceTable& rt,
-			    FZPipe& reads_file,
-			    FZPipe& reads_file_for_segment_search,
-			    FZPipe& reads_file_for_indel_discovery,
+			    FZPipe&  reads_file,
+			    FZPipe&  reads_file_for_segment_search,
+			    FZPipe&  reads_file_for_indel_discovery,
 			    ReadTable& unmapped_reads,
 			    vector<HitStream>& seg_files, 
 			    size_t last_file_idx,
@@ -3617,37 +3617,37 @@ void pair_covered_sites(ReadTable& it,
       
       size_t island_left_edge = 0;
       for (size_t c = 1; c < cov.size(); ++c)
-      {
-        if (cov[c])
-          {
-            cov_bases++;
-            if (!cov[c - 1])
-            {
-              num_islands += 1;
-              int edge = (int)c - extend;
-              edge = max(edge, 0);
-              island_left_edge = edge;
-            }
-          }
-        else
-          {
-            if (cov[c - 1])
-            {
-              expected_don_acc_windows.push_back(RefSeg(itr->first,
-                          POINT_DIR_LEFT,
-                          false, /* not important */
-                          READ_DONTCARE,
-                          island_left_edge,
-                          c + extend));
-              expected_don_acc_windows.push_back(RefSeg(itr->first,
-                          POINT_DIR_RIGHT,
-                          false, /* not important */
-                          READ_DONTCARE,
-                          island_left_edge,
-                          c + extend));
-            }
-          }
-      }
+	{
+	  if (cov[c])
+	    {
+	      cov_bases++;
+	      if (!cov[c - 1])
+		{
+		  num_islands += 1;
+		  int edge = (int)c - extend;
+		  edge = max(edge, 0);
+		  island_left_edge = edge;
+		}
+	    }
+	  else
+	    {
+	      if (cov[c - 1])
+		{
+		  expected_don_acc_windows.push_back(RefSeg(itr->first,
+							    POINT_DIR_LEFT,
+							    false, /* not important */
+							    READ_DONTCARE,
+							    island_left_edge,
+							    c + extend));
+		  expected_don_acc_windows.push_back(RefSeg(itr->first,
+							    POINT_DIR_RIGHT,
+							    false, /* not important */
+							    READ_DONTCARE,
+							    island_left_edge,
+							    c + extend));	
+		}
+	    }
+	}
     }
   fprintf(stderr, "Found %d islands covering %ld bases\n", num_islands, (long int)cov_bases);
   
@@ -3691,71 +3691,75 @@ void capture_island_ends(ReadTable& it,
 			 size_t half_splice_mer_len)
 {
   //static int island_repeat_tolerance = 10;
-  BowtieHitFactory hit_factory(it,rt);
   vector<RefSeg> expected_look_left_windows;
   vector<RefSeg> expected_look_right_windows;
 
   // daehwan
-  bool check_exons = false;
-  static const uint32_t chr14_id = RefSequenceTable::hash_string("chr14");
-  vector<ReadInfo> hits;
+//#define DEBUG_CHECK_EXONS 1
+//#define DEBUG_RANGE_ONLY 1
 
+#ifndef DEBUG_CHECK_EXONS
   build_coverage_map(it, rt, seg_files, coverage_map);
-
+#else
+  //build coverage map here, so we can debug it
+  #ifdef DEBUG_RANGE_ONLY
+   static const uint32_t chr14_id = RefSequenceTable::hash_string("chr14");
+  #endif
+  vector<ReadInfo> hits;
+  BowtieHitFactory hit_factory(it,rt);
+  
   for (size_t f = 0; f < seg_files.size(); ++f)
-    {
-      fprintf(stderr, "Adding hits from segment file %d to coverage map\n", (int)f);
-      seg_files[f]->rewind();
-      FILE* fp = seg_files[f]->file;
-      //rewind(fp);
-      HitStream hs(fp, &hit_factory, false, false, false);
-      
-      HitsForRead hit_group;
-      while (hs.next_read_hits(hit_group))
 	{
+	  fprintf(stderr, "Adding hits from segment file %d to coverage map\n", (int)f);
+	  seg_files[f]->rewind();
+	  FILE* fp = seg_files[f]->file;
+	  //rewind(fp);
+	  HitStream hs(fp, &hit_factory, false, false, false);
+	  
+	  HitsForRead hit_group;
+	  while (hs.next_read_hits(hit_group))
+	  {
 	  for (size_t h = 0; h < hit_group.hits.size(); ++h)
-	    {
-	      BowtieHit& bh = hit_group.hits[h];
-
-	      // daehwan
-	      if (check_exons)
 		{
-		  if (bh.ref_id() != chr14_id)
-		    continue;
+		  BowtieHit& bh = hit_group.hits[h];
+		  // daehwan
+		  //if (check_exons) <-- DEBUG_CHECK_EXONS
+		  #ifdef DEBUG_RANGE_ONLY
+		     if (bh.ref_id() != chr14_id)
+		       continue;
+
+		     // if (bh.left() < 66567028 && bh.right() > 66604392)
+		     if (bh.left() < 66400000 || bh.right() > 66700000)
+		       continue;
+
+		     ReadInfo read_info;
+		     read_info.read_id = bh.insert_id();
+		     read_info.left = bh.left();
+		     read_info.right = bh.right();
+		     hits.push_back(read_info);
+		   #endif
+
+		  pair<map<uint32_t, vector<bool> >::iterator, bool> ret = 
+		     coverage_map.insert(make_pair(bh.ref_id(), vector<bool>()));
+		  vector<bool>& ref_cov = ret.first->second;
 		  
-		  // if (bh.left() < 66567028 && bh.right() > 66604392)
-		  if (bh.left() < 66400000 || bh.right() > 66700000)
-		    continue;
-
-		  ReadInfo read_info;
-		  read_info.read_id = bh.insert_id();
-		  read_info.left = bh.left();
-		  read_info.right = bh.right();
-		  hits.push_back(read_info);
+		  size_t right_extent = bh.right();
+		  
+		  if (right_extent >= ref_cov.size())
+		   {
+		   ref_cov.resize(right_extent + 1, 0);
+		   }
+		  for (uint32_t c = (uint32_t)bh.left(); c < (uint32_t)bh.right(); ++c)
+		   {
+		   ref_cov[c] = true;
+		   }
 		}
-
-	      pair<map<uint32_t, vector<bool> >::iterator, bool> ret = 
-		coverage_map.insert(make_pair(bh.ref_id(), vector<bool>()));
-	      vector<bool>& ref_cov = ret.first->second;
-	      
-	      size_t right_extent = bh.right();
-	      
-	      if (right_extent >= ref_cov.size())
-		{
-		  ref_cov.resize(right_extent + 1, 0);
-		}
-	      
-	      for (uint32_t c = (uint32_t)bh.left(); c < (uint32_t)bh.right(); ++c)
-		{
-		  ref_cov[c] = true;
-		}
-	    }
+	  }
 	}
-    }
 
   sort(hits.begin(), hits.end());
-  
-  static const int min_cov_length = segment_length + 2;
+#endif 
+//  static const int min_cov_length = segment_length + 2;
   long covered_bases = 0;
   int long_enough_bases = 0;
   int left_looking = 0;
@@ -3784,148 +3788,147 @@ void capture_island_ends(ReadTable& it,
       uint8_t c_cov = cov[c]; //get_cov(cov, c);
       if (c_cov < min_cov || c == (cov.size()) - 1)
         {
-          int putative_exon_length = (int)c - (int)last_uncovered;
-          uint32_t last_pos_cov = cov[c - 1]; //get_cov(cov,c - 1);
-
-          if (last_pos_cov >= min_cov && putative_exon_length >= min_cov_length)
+        int putative_exon_length = (int)c - (int)last_uncovered;
+        uint32_t last_pos_cov = cov[c - 1]; //get_cov(cov,c - 1);
+        if (last_pos_cov >= min_cov && putative_exon_length >= min_cov_length)
+          {
+          #ifdef B_DEBUG
+          fprintf(stderr, "cov. island: %d-%d\n", (int)(last_uncovered + 1), (int)c);
+          fprintf(stderr, "\t(putative exon length = %d, min_cov_length=%d)\n",putative_exon_length, min_cov_length);
+          #endif
+          covered_bases += (c + 1 - last_uncovered);
+          for (int l = (int)c; l > (int)last_uncovered; --l)
             {
-              #ifdef B_DEBUG
-              fprintf(stderr, "cov. island: %d-%d\n", (int)(last_uncovered + 1), (int)c);
-              fprintf(stderr, "\t(putative exon length = %d, min_cov_length=%d)\n",putative_exon_length, min_cov_length);
-              #endif
-              covered_bases += (c + 1 - last_uncovered);
-              for (int l = (int)c; l > (int)last_uncovered; --l)
-                {
-                  long_enough[l] = true;
-                }
+              long_enough[l] = true;
             }
-          last_uncovered = c;
+          }
+        last_uncovered = c;
         }
       }
-      
       vector<bool>& ref_cov = long_enough;
       vector<uint8_t> cov_state(ref_cov.size(), UNCOVERED);
 
       // daehwan - print islands (exons)
-      if (check_exons)
-	{
+      //if (check_exons)
+#ifdef DEBUG_CHECK_EXONS
+	//{
 	  uint32_t left = 0, right = 0;
 	  for (size_t c = 1; c < ref_cov.size(); ++c)
-	    {
-	      if (ref_cov[c] && !ref_cov[c-1])
 		{
-		  left = c;
-		  cout << "Exon: " << left << "-";
-		}
-	      else if (!ref_cov[c] && ref_cov[c-1])
-		{
-		  right = c - 1;
-		  cout << right << endl;
-		  for (size_t k = 0; k < hits.size(); ++k)
+		if (ref_cov[c] && !ref_cov[c-1])
+		  {
+		   left = c;
+		   cout << "Exon: " << left << "-";
+		  }
+		  else if (!ref_cov[c] && ref_cov[c-1])
+		  {
+		    right = c - 1;
+		    cout << right << endl;
+		    for (size_t k = 0; k < hits.size(); ++k)
 		    {
 		      const ReadInfo& hit = hits[k];
 		      if (hit.right < left)
-			continue;
-		      
+		         continue;
+		
 		      if (hit.left > right)
-			break;
+		         break;
 		      
 		      cout << "\t" << hit.read_id << " " << hit.left << "-" << hit.right << endl;
 		    }
+		  }
+		}
+	//}
+#endif
+	for (size_t c = 1; c < ref_cov.size(); ++c)
+	{
+	  if (ref_cov[c])
+		{
+		  long_enough_bases++;
+		  if (!ref_cov[c - 1])
+		  {
+		  num_islands += 1;
+		  
+		  for (int r = (int)c - extend; 
+		       r >= 0 && r < (int)c + repeat_tol && r < (int)cov_state.size(); 
+		       ++r)
+		    {
+		      cov_state[r] |= LOOK_LEFT;
+		    }
+		  }
+	    }
+	  else
+	    {
+	      if (ref_cov[c - 1])
+		{
+		  for (int l = (int)c - repeat_tol; 
+		       l >= 0 && l < (int)c + extend && l < (int)cov_state.size(); 
+		       ++l)
+		    {
+		      cov_state[l] |= LOOK_RIGHT;
+		    }	
 		}
 	    }
 	}
       
-      for (size_t c = 1; c < ref_cov.size(); ++c)
-      {
-      if (ref_cov[c])
-        {
-          long_enough_bases++;
-          if (!ref_cov[c - 1])
-          {
-            num_islands += 1;
-
-            for (int r = (int)c - extend;
-                 r >= 0 && r < (int)c + repeat_tol && r < (int)cov_state.size();
-                 ++r)
-              {
-                cov_state[r] |= LOOK_LEFT;
-              }
-          }
-        }
-      else
-        {
-          if (ref_cov[c - 1])
-          {
-            for (int l = (int)c - repeat_tol;
-                 l >= 0 && l < (int)c + extend && l < (int)cov_state.size();
-                 ++l)
-              {
-                cov_state[l] |= LOOK_RIGHT;
-              }
-          }
-        }
-      }
-      
       RefSeg* curr_look_left = NULL;
       RefSeg* curr_look_right = NULL;
       
-      for (size_t c = 1; c < cov_state.size(); ++c)
-      {
-        if (cov_state[c] & LOOK_LEFT)
-          {
-            left_looking++;
-            if (!(cov_state[c-1] & LOOK_LEFT))
-            {
-              expected_look_left_windows.push_back(RefSeg(itr->first,
-                            POINT_DIR_LEFT,
-                            false, /* not important */
-                            READ_DONTCARE,
-                            c,
-                            c + 1));
-              curr_look_left = &(expected_look_left_windows.back());
-            }
-            else if (curr_look_left)
-            {
-              curr_look_left->right++;
-            }
-          }
-        else
-          {
-            if ((cov_state[c-1] & LOOK_LEFT))
-            {
-              curr_look_left = NULL;
-            }
-          }
+	for (size_t c = 1; c < cov_state.size(); ++c)
+	{
+	  if (cov_state[c] & LOOK_LEFT)
+	    {
+	      left_looking++;
+	      if (!(cov_state[c-1] & LOOK_LEFT))
+		{
+		  expected_look_left_windows.push_back(RefSeg(itr->first,
+							      POINT_DIR_LEFT,
+							      false, /* not important */
+							      READ_DONTCARE,
+							      c,
+							      c + 1));
+		  curr_look_left = &(expected_look_left_windows.back());
+		}
+	      else if (curr_look_left)
+		{
+		  curr_look_left->right++;
+		}
+	    }
+	  else
+	    {
+	      if ((cov_state[c-1] & LOOK_LEFT))
+		{
+		  curr_look_left = NULL;
+		}
+	    }
+	  
+	  if (cov_state[c] & LOOK_RIGHT)
+	    {
+	      right_looking++;
+	      if (!(cov_state[c-1] & LOOK_RIGHT))
+		  {
+		    expected_look_right_windows.push_back(RefSeg(itr->first,
+							         POINT_DIR_RIGHT,
+							         false, /* not important */
+							         READ_DONTCARE,
+							         c,
+							         c + 1));
 
-        if (cov_state[c] & LOOK_RIGHT)
-          {
-            right_looking++;
-            if (!(cov_state[c-1] & LOOK_RIGHT))
-            {
-              expected_look_right_windows.push_back(RefSeg(itr->first,
-                             POINT_DIR_RIGHT,
-                             false, /* not important */
-                             READ_DONTCARE,
-                             c,
-                             c + 1));
-
-              curr_look_right = &(expected_look_right_windows.back());
-            }
-            else if (curr_look_right)
-            {
-              curr_look_right->right++;
-            }
-          }
-        else
-          {
-            if ((cov_state[c-1] & LOOK_RIGHT))
-            {
-              curr_look_right = NULL;
-            }
-          }
-      }
-    }
+		    curr_look_right = &(expected_look_right_windows.back());
+		  }
+	      else if (curr_look_right)
+		   {
+		     curr_look_right->right++;
+		   }
+	    }
+	  else
+	    {
+	      if ((cov_state[c-1] & LOOK_RIGHT))
+		   {
+		     curr_look_right = NULL;
+		   }
+	    }
+	 }
+	}
   
   fprintf(stderr, " Map covers %ld bases\n", covered_bases);
   fprintf(stderr, " Map covers %d bases in sufficiently long segments\n", long_enough_bases);
@@ -3942,7 +3945,7 @@ void capture_island_ends(ReadTable& it,
 				  expected_look_left_windows.begin(),
 				  expected_look_left_windows.end());
   
-  coverage_map.clear();
+  if (!butterfly_search) coverage_map.clear(); //free some memory
   juncs_from_ref_segs<RecordExtendableJuncs>(rt, 
 					     expected_don_acc_windows, 
 					     cov_juncs, 
@@ -3958,9 +3961,9 @@ void capture_island_ends(ReadTable& it,
 
 
 void process_segment_hits(RefSequenceTable& rt,
-			  FZPipe& reads_file,
+              FZPipe& reads_file,
 			  FZPipe& reads_file_for_segment_search,
-			  FZPipe& reads_file_for_indel_discovery,
+              FZPipe& reads_file_for_indel_discovery,
 			  vector<FZPipe>& seg_files,
 			  FZPipe& partner_reads_map_file,
 			  FZPipe& seg_partner_reads_map_file,
@@ -4063,7 +4066,7 @@ void driver(istream& ref_stream,
   ReadTable it;
   BowtieHitFactory hit_factory(it,rt);
   fprintf(stderr, ">> Performing segment-search:\n");
-
+  
   if (left_seg_files.size() > 1)
     {
       fprintf( stderr, "Loading left segment hits...\n");
@@ -4107,19 +4110,19 @@ void driver(istream& ref_stream,
   fprintf(stderr, "\tfound %ld potential small insertions\n", (long int)insertions.size());
   
   //vector<FILE*> all_seg_files;
-  vector<FZPipe*> all_seg_files;
+	vector<FZPipe*> all_seg_files;
   for (vector<FZPipe>::size_type i = 0; i != left_seg_files.size();i++)
     {
-      all_seg_files.push_back( &(left_seg_files[i]) );
-    }
+       all_seg_files.push_back( &(left_seg_files[i]) );
+	   }
   
   for (vector<FZPipe>::size_type i = 0; i != right_seg_files.size();i++)
     {
-      all_seg_files.push_back( &(right_seg_files[i]) );
-    }
-  //copy(left_seg_files.begin(), left_seg_files.end(), back_inserter(all_seg_files));
-  //copy(right_seg_files.begin(), right_seg_files.end(), back_inserter(all_seg_files));
-  
+       all_seg_files.push_back( &(right_seg_files[i]) );
+       }
+	//copy(left_seg_files.begin(), left_seg_files.end(), back_inserter(all_seg_files));
+	//copy(right_seg_files.begin(), right_seg_files.end(), back_inserter(all_seg_files));
+
 #if 0
   // daehwan - check this out as Cole insists on using segments gives better results.
   vector<FZPipe*> all_map_files;
@@ -4139,44 +4142,44 @@ void driver(istream& ref_stream,
   if (!no_coverage_search || butterfly_search)
     {
       if (ium_reads != "")
-      {
-        vector<string> ium_read_files;
-        tokenize(ium_reads,",", ium_read_files);
-        vector<FZPipe> iums;
-        string unzcmd=getUnpackCmd(ium_read_files[0],false);
-        for (size_t ium = 0; ium < ium_read_files.size(); ++ium)
-          {
-            //fprintf (stderr, "Indexing extensions in %s\n", ium_read_files[ium].c_str());
-            FZPipe ium_file(ium_read_files[ium],unzcmd);
-            if (ium_file.file==NULL)
-            {
-              fprintf (stderr, "Can't open file %s for reading, skipping...\n",ium_read_files[ium].c_str());
-              continue;
-            }
-            iums.push_back(ium_file);
-          }
+	  {
+	    vector<string> ium_read_files;
+	    tokenize(ium_reads,",", ium_read_files);
+	    vector<FZPipe> iums;
+          string unzcmd=getUnpackCmd(ium_read_files[0],false);
+	    for (size_t ium = 0; ium < ium_read_files.size(); ++ium)
+	      {
+              //fprintf (stderr, "Indexing extensions in %s\n", ium_read_files[ium].c_str());
+				  FZPipe ium_file(ium_read_files[ium],unzcmd);
+				  if (ium_file.file==NULL)
+		  {
+		    fprintf (stderr, "Can't open file %s for reading, skipping...\n",ium_read_files[ium].c_str());
+		    continue;
+		  }
+	        iums.push_back(ium_file);
+	      }
 
-        index_read_mers(iums, 5);
-      }
+	    index_read_mers(iums, 5);
+	  }
       else
-      {
-        no_coverage_search = true;
-        butterfly_search = false;
-      }
-      
+	  { //no unmapped reads
+	    no_coverage_search = true;
+	    butterfly_search = false;
+	  }
+
       if (!no_coverage_search)
-      {
-        // looking for junctions by island end pairings
-        fprintf(stderr, ">> Performing coverage-search:\n");
-        capture_island_ends(it,
-                rt,
-                all_seg_files,
-                cov_juncs,
-                coverage_map,
-                5);
-        fprintf(stderr, "\tfound %d potential junctions\n",(int)cov_juncs.size());
-      }
-    }
+	    { //coverage search
+	    // looking for junctions by island end pairings
+	    fprintf(stderr, ">> Performing coverage-search:\n");
+	    capture_island_ends(it,
+			      rt,
+			      all_seg_files,
+			      cov_juncs, 
+			      coverage_map,
+			      5);
+		fprintf(stderr, "\tfound %d potential junctions\n",(int)cov_juncs.size());
+	    }
+    } //coverage search or butterfly search
   
   if (butterfly_search)
     {
@@ -4193,7 +4196,7 @@ void driver(istream& ref_stream,
       
       fprintf(stderr, "\tfound %d potential junctions\n",(int)butterfly_juncs.size());
     }
-
+  
   coverage_map.clear();
   
   std::set<Junction, skip_count_lt> microexon_juncs;
@@ -4239,7 +4242,6 @@ void driver(istream& ref_stream,
   //fprintf (stderr, "done\n");
   fprintf (stderr, "Reported %d total possible splices\n", (int)juncs.size());
   
-  
   fprintf (stderr, "Reporting potential deletions...\n");
 	if(deletions_out){
       for(std::set<Deletion>::iterator itr = deletions.begin(); itr != deletions.end(); ++itr){
@@ -4277,9 +4279,9 @@ void driver(istream& ref_stream,
 
 int main(int argc, char** argv)
 {
-  fprintf(stderr, "segment_juncs v%s (%s)\n", PACKAGE_VERSION, SVN_REVISION); 
+  fprintf(stderr, "segment_juncs v%s (%s)\n", PACKAGE_VERSION, SVN_REVISION);
   fprintf(stderr, "---------------------------\n");
-
+  
   int parse_ret = parse_options(argc, argv, print_usage);
   if (parse_ret)
     return parse_ret;
@@ -4318,9 +4320,10 @@ int main(int argc, char** argv)
     {
       print_usage();
       return 1;
-    }
-
+    } 
+ 
   string left_reads_file_name = argv[optind++];
+
   if(optind >= argc)
     {
       print_usage();
@@ -4361,6 +4364,7 @@ int main(int argc, char** argv)
     }
   
   // Open the approppriate files
+  
   ifstream ref_stream(ref_file_name.c_str(), ifstream::in);
   if (!ref_stream.good())
 	  {
@@ -4394,7 +4398,7 @@ int main(int argc, char** argv)
               deletions_file_name.c_str());
       exit(1);
     }
-
+	
   //FILE* left_reads_file = fopen(left_reads_file_name.c_str(), "r");
   //FILE* left_reads_file_for_indel_discovery = fopen(left_reads_file_name.c_str(),"r");
   string unzcmd=getUnpackCmd(left_reads_file_name, false);
@@ -4457,12 +4461,12 @@ int main(int argc, char** argv)
       right_reads_file_for_segment_search.openRead(right_reads_file_name, unzcmd);
       right_reads_file_for_indel_discovery.openRead(right_reads_file_name, unzcmd);
       if (right_reads_file.file==NULL || right_reads_file_for_indel_discovery.file==NULL)
-	{
-	  fprintf(stderr, "Error: cannot open %s for reading\n",
-		  right_reads_file_name.c_str());
-	  exit(1);
-	}
-
+		{
+		  fprintf(stderr, "Error: cannot open %s for reading\n",
+			  right_reads_file_name.c_str());
+		  exit(1);
+		}
+      
       right_reads_map_file = FZPipe(right_reads_map_file_name, unzcmd);
       if (right_reads_map_file.file == NULL)
 	{
@@ -4474,14 +4478,14 @@ int main(int argc, char** argv)
       vector<string> right_segment_file_names;
       tokenize(right_segment_file_list, ",",right_segment_file_names);
       for (size_t i = 0; i < right_segment_file_names.size(); ++i)
-	{
-	  FZPipe seg_file(right_segment_file_names[i],unzcmd);
+		  {
+      FZPipe seg_file(right_segment_file_names[i],unzcmd);
 	  if (seg_file.file == NULL)
-	    {
-	      fprintf(stderr, "Error: cannot open segment map %s for reading\n",
+			{
+			  fprintf(stderr, "Error: cannot open segment map %s for reading\n",
 		      right_segment_file_names[i].c_str());
-	      exit(1);
-	    }
+			  exit(1);
+			}
 	  right_segment_files.push_back(seg_file);
 
 	  if (i == right_segment_file_names.size() - 1)
@@ -4492,8 +4496,8 @@ int main(int argc, char** argv)
 		  fprintf(stderr, "Error: cannot open %s for reading\n",
 			  right_segment_file_names[i].c_str());
 		  exit(1);
-		}
-	    }
+	}
+		  }
 	}
     }
   // min_cov_length=20;
@@ -4505,10 +4509,10 @@ int main(int argc, char** argv)
 	 deletions_file,
 	 left_reads_file,
 	 left_reads_file_for_segment_search,
-	 left_reads_file_for_indel_discovery,
+	 left_reads_file_for_indel_discovery, 
 	 left_reads_map_file,
 	 left_segment_file_for_segment_search,
-	 left_segment_files,
+	 left_segment_files, 
 	 right_reads_file,
 	 right_reads_file_for_segment_search,
 	 right_reads_file_for_indel_discovery,
