@@ -120,7 +120,8 @@ bool next_fastq_record(FLineReader& fr,
     if (fline==NULL) return false;
     }
   //must be on '+' line here
-  if (fline==NULL || (reads_format == FASTQ && fline[0] != '+') || (reads_format == FASTA && quals && fline[0] != '>')) {
+  if (fline==NULL || (reads_format == FASTQ && fline[0] != '+') ||
+      (reads_format == FASTA && quals && fline[0] != '>')) {
      err_exit("Error: '+' not found for fastq record %s\n",fline);
      return false;
      }
@@ -131,36 +132,41 @@ bool next_fastq_record(FLineReader& fr,
   while ((fline=fr.nextLine())!=NULL) {
     if (integer_quals)
       {
-	vector<string> integer_qual_values;
-	tokenize(string(fline), " ", integer_qual_values);
+      vector<string> integer_qual_values;
+      tokenize(string(fline), " ", integer_qual_values);
 
-	string temp_qual;
-	for (size_t i = 0; i < integer_qual_values.size(); ++i)
-	  {
-	    int qual_value = atoi(integer_qual_values[i].c_str());
-	    if (qual_value < 0) qual_value = 0;
-	    temp_qual.push_back((char)(qual_value + 33));
-	  }
+      string temp_qual;
+      for (size_t i = 0; i < integer_qual_values.size(); ++i)
+        {
+          int qual_value = atoi(integer_qual_values[i].c_str());
+          if (qual_value < 0) qual_value = 0;
+          temp_qual.push_back((char)(qual_value + 33));
+        }
 
-	qual.append(temp_qual);
+      qual.append(temp_qual);
       }
     else
       qual.append(fline);
-    
-     //if ((!color && qual.length()>=seq.length()) || (color && qual.length()+1>=seq.length())) break;
-     if (qual.length()+1>=seq.length()) break;
+      if (qual.length()>=seq.length()-1) break;
      }
   // final check
-  if (color && qual.length()==seq.length()-1) {
-	    string tmpq("!");
-	    tmpq+=qual;
-	    qual=tmpq;
+  if (color) {
+     if (seq.length()==qual.length()) {
+        //discard first qv
+        qual=qual.substr(1);
         }
-  if (seq.length()!=qual.length()) {
+     if (seq.length()!=qual.length()+1) {
+        err_exit("Error: length of quality string does not match seq length (%d) for color read %s!\n",
+           seq.length(), alt_name.c_str());
+        }
+     }
+  else {
+    if (seq.length()!=qual.length()) {
            err_exit("Error: qual string length (%d) differs from seq length (%d) for read %s!\n",
                qual.length(), seq.length(), alt_name.c_str());
-           return false;
+           //return false;
            }
+    }
   //
   return !(qual.empty());
 }
@@ -224,30 +230,31 @@ bool next_fastx_read(FLineReader& fr, Read& read, ReadFormat reads_format,
         read.qual.append(temp_qual);
       }
     else {
-      // if (color && read.qual.length()==0 && buf[0]=='!')
-      //   read.qual.append(&(buf[1])); //some color qual strings start with '!' for the adaptor
-      //  else
-         read.qual.append(buf);
+        read.qual.append(buf);
       }
-    if ((!color && read.qual.length()>=read.seq.length())
-          || (color && read.qual.length()+1>=read.seq.length())) break;
+    if (read.qual.length()>=read.seq.length()-1)
+          break;
     } //while qv lines
   
   // final check
-  // final check
-  if (color && read.qual.length()==read.seq.length()-1) {
-	    string tmpq("!");
-	    tmpq+=read.qual;
-	    read.qual=tmpq;
+  if (color) {
+     if (read.seq.length()==read.qual.length()) {
+        //discard first qv
+        read.qual=read.qual.substr(1);
         }
-  if (read.seq.length()!=read.qual.length()) {
-  //if ((!color && read.seq.length()!=read.qual.length()) || (color && read.seq.length()!=read.qual.length()+1)) {
+     if (read.seq.length()!=read.qual.length()+1) {
+        err_exit("Error: length of quality string does not match sequence length (%d) for color read %s!\n",
+            read.seq.length(), read.alt_name.c_str());
+        }
+     }
+  else {
+   if (read.seq.length()!=read.qual.length()) {
            err_exit("Error: qual length (%d) differs from seq length (%d) for fastq record %s!\n",
                read.qual.length(), read.seq.length(), read.alt_name.c_str());
            return false;
            }
-  //
-  return !(read.qual.empty());
+    }
+  return !(read.seq.empty());
 }
 
 // This could be faster.
