@@ -94,9 +94,10 @@ void filter_garbage_reads(vector<FZPipe>& reads_files, vector<FZPipe>& quals_fil
         double percent_N = (double)(counts[(size_t)'N']) / read.seq.length();
         double percent_4 = (double)(counts[(size_t)'4']) / read.seq.length();
 
-        if (reads_format == FASTQ)
+    /*    if (reads_format == FASTQ)
 	  {
-	    if (color)
+	  // no need to check this here, next_fastx_reads() took care of it
+	     if (color)
 	      {
 		if (read.seq.length() != read.qual.length() &&
 		    read.seq.length() != read.qual.length() + 1)
@@ -113,7 +114,8 @@ void filter_garbage_reads(vector<FZPipe>& reads_files, vector<FZPipe>& quals_fil
 		    continue;
 		  }
 	      }
-	  }
+
+	  } */
 
         // daehwan - check this later, it's due to bowtie
         if (color && read.seq[1] == '4') {
@@ -135,16 +137,12 @@ void filter_garbage_reads(vector<FZPipe>& reads_files, vector<FZPipe>& quals_fil
           {
             if (reads_format == FASTQ or (reads_format == FASTA && quals))
               {
-		bool remove_first_qv = false;
-		// remove the first quality value
-		if (color && read.seq.length() == read.qual.length())
-		  remove_first_qv = true;
-		  
-                printf("@%d\n%s\n+%s\n%s\n",
+
+              printf("@%d\n%s\n+%s\n%s\n",
 		       next_id,
 		       read.seq.c_str(),
 		       read.name.c_str(),
-		       remove_first_qv ? read.qual.substr(1).c_str() : read.qual.c_str());
+		       read.qual.c_str());
               }
             else if (reads_format == FASTA)
               {
@@ -160,7 +158,6 @@ void filter_garbage_reads(vector<FZPipe>& reads_files, vector<FZPipe>& quals_fil
                    read.name.c_str(),
                    qual.c_str());
               }
-          //} only used if fastq_db is false (?)
           }
       } //while !fr.isEof()
     fr.close();
