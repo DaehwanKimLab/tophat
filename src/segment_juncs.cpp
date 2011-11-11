@@ -4414,7 +4414,7 @@ int main(int argc, char** argv)
     }
 
   //FILE* left_reads_map_file = fopen(left_reads_map_file_name.c_str(), "r");
-  FZPipe left_reads_map_file(left_reads_map_file_name, unzcmd);
+  FZPipe left_reads_map_file(left_reads_map_file_name, true);
   if (left_reads_map_file.file == NULL)
     {
       fprintf(stderr, "Error: cannot open %s for reading\n",
@@ -4426,27 +4426,29 @@ int main(int argc, char** argv)
   vector<FZPipe> left_segment_files;
   tokenize(left_segment_file_list, ",",left_segment_file_names);
   FZPipe left_segment_file_for_segment_search;
+  if (left_segment_file_names.size()>0)
+     unzcmd=getUnpackCmd(left_segment_file_names[0], false);
   for (size_t i = 0; i < left_segment_file_names.size(); ++i)
     {
       FZPipe seg_file(left_segment_file_names[i], unzcmd);
       if (seg_file.file == NULL)
         {
-	  fprintf(stderr, "Error: cannot open segment map file %s for reading\n",
-		  left_segment_file_names[i].c_str());
-	  exit(1);
+        fprintf(stderr, "Error: cannot open segment map file %s for reading\n",
+          left_segment_file_names[i].c_str());
+        exit(1);
         }
       left_segment_files.push_back(seg_file);
 
       if (i == left_segment_file_names.size() - 1)
-	{
-	  left_segment_file_for_segment_search = FZPipe(left_segment_file_names[i], unzcmd);
-	  if (left_segment_file_for_segment_search.file == NULL)
-	    {
-	      fprintf(stderr, "Error: cannot open %s for reading\n",
-		      left_segment_file_names[i].c_str());
-	      exit(1);
-	    }
-	}
+      {
+        left_segment_file_for_segment_search = FZPipe(left_segment_file_names[i], unzcmd);
+        if (left_segment_file_for_segment_search.file == NULL)
+          {
+            fprintf(stderr, "Error: cannot open %s for reading\n",
+              left_segment_file_names[i].c_str());
+            exit(1);
+          }
+      }
     }
   FZPipe right_reads_map_file;
   vector<FZPipe> right_segment_files;
@@ -4457,36 +4459,40 @@ int main(int argc, char** argv)
 
   if (right_segment_file_list != "")
     {
+      unzcmd=getUnpackCmd(right_reads_file_name, false);
       right_reads_file.openRead(right_reads_file_name, unzcmd);
       right_reads_file_for_segment_search.openRead(right_reads_file_name, unzcmd);
       right_reads_file_for_indel_discovery.openRead(right_reads_file_name, unzcmd);
       if (right_reads_file.file==NULL || right_reads_file_for_indel_discovery.file==NULL)
-		{
-		  fprintf(stderr, "Error: cannot open %s for reading\n",
-			  right_reads_file_name.c_str());
-		  exit(1);
-		}
+      {
+        fprintf(stderr, "Error: cannot open %s for reading\n",
+          right_reads_file_name.c_str());
+        exit(1);
+      }
       
-      right_reads_map_file = FZPipe(right_reads_map_file_name, unzcmd);
+      right_reads_map_file = FZPipe(right_reads_map_file_name, true);
       if (right_reads_map_file.file == NULL)
-	{
-	  fprintf(stderr, "Error: cannot open %s for reading\n",
-		  right_reads_map_file_name.c_str());
-	  exit(1);
-	}
+      {
+        fprintf(stderr, "Error: cannot open %s for reading\n",
+          right_reads_map_file_name.c_str());
+        exit(1);
+      }
             
       vector<string> right_segment_file_names;
       tokenize(right_segment_file_list, ",",right_segment_file_names);
+      if (right_segment_file_names.size()>0)
+         unzcmd=getUnpackCmd(right_segment_file_names[0], false);
+
       for (size_t i = 0; i < right_segment_file_names.size(); ++i)
 		  {
       FZPipe seg_file(right_segment_file_names[i],unzcmd);
-	  if (seg_file.file == NULL)
-			{
-			  fprintf(stderr, "Error: cannot open segment map %s for reading\n",
-		      right_segment_file_names[i].c_str());
-			  exit(1);
-			}
-	  right_segment_files.push_back(seg_file);
+      if (seg_file.file == NULL)
+        {
+          fprintf(stderr, "Error: cannot open segment map %s for reading\n",
+            right_segment_file_names[i].c_str());
+          exit(1);
+        }
+      right_segment_files.push_back(seg_file);
 
 	  if (i == right_segment_file_names.size() - 1)
 	    {

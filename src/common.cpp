@@ -108,7 +108,7 @@ ReadFormat reads_format = FASTQ;
 
 bool verbose = false;
 
-int max_multihits = 40;
+unsigned int max_multihits = 40;
 bool no_closure_search = false;
 bool no_coverage_search = false;
 bool no_microexon_search = false;

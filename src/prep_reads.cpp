@@ -39,7 +39,7 @@ void format_qual_string(string& qual_str)
 
 void filter_garbage_reads(vector<FZPipe>& reads_files, vector<FZPipe>& quals_files)
 {	
-
+   //TODO: add the option to write the garbage reads into separate file(s)
   int num_reads_chucked = 0, num_reads = 0;
   int min_read_len = 2000000;
   int max_read_len = 0;
@@ -59,7 +59,7 @@ void filter_garbage_reads(vector<FZPipe>& reads_files, vector<FZPipe>& quals_fil
       
       FZPipe fq;
       if (quals)
-	    fq = quals_files[fi];
+	      fq = quals_files[fi];
       FLineReader frq(fq);
       skip_lines(frq);
       
@@ -148,9 +148,9 @@ void filter_garbage_reads(vector<FZPipe>& reads_files, vector<FZPipe>& quals_fil
               {
                 string qual;
                 if (color)
-              qual = string(read.seq.length()-1, 'I').c_str();
+                  qual = string(read.seq.length()-1, 'I').c_str();
                 else
-              qual = string(read.seq.length(), 'I').c_str();
+                  qual = string(read.seq.length(), 'I').c_str();
 
                 printf("@%d\n%s\n+%s\n%s\n",
                    next_id,

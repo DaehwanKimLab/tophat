@@ -292,7 +292,7 @@ public:
 	uint32_t observation_order(ReadID ID)
 	{
 		if (ID == 0)
-			return 0xFFFFFFFF;
+			return VMAXINT32;
 		return ID;
 	}
 	

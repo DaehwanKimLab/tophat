@@ -105,7 +105,7 @@ void junctions_from_alignment(const BowtieHit& spliced_alignment,
 	}
       else
 	{
-	  assert(junc.first.refid != 0xFFFFFFFF);
+	  assert(junc.first.refid != VMAXINT32);
 	  junctions[junc.first] = junc.second;
 	}
     }
@@ -227,7 +227,7 @@ void knockout_shadow_junctions(JunctionSet& junctions)
       uint32_t refid = ref_ids[i];
 		
       Junction dummy_left(refid, 0, 0, true);
-      Junction dummy_right(refid, 0xFFFFFFFF, 0xFFFFFFFF, true);
+      Junction dummy_right(refid, VMAXINT32, VMAXINT32, true);
       
       pair<JunctionSet::iterator, JunctionSet::iterator> r;
       r.first = junctions.lower_bound(dummy_left);
@@ -236,39 +236,39 @@ void knockout_shadow_junctions(JunctionSet& junctions)
       JunctionSet::iterator itr = r.first;
       
       while(itr != r.second && itr != junctions.end())
-	{
-	  if (itr->second.accepted)
-	    {
-	      Junction fuzzy_left = itr->first;
-	      Junction fuzzy_right = itr->first;
-	      fuzzy_left.left -= min_anchor_len;
-	      fuzzy_right.right += min_anchor_len;
-	      fuzzy_left.antisense = !itr->first.antisense;
-	      fuzzy_right.antisense = !itr->first.antisense;
-	      
-	      pair<JunctionSet::iterator, JunctionSet::iterator> s;
-	      s.first = junctions.lower_bound(fuzzy_left);
-	      s.second = junctions.upper_bound(fuzzy_right);
-	      JunctionSet::iterator itr2 = s.first;
-	      
-	      int junc_support = itr->second.supporting_hits;
-	      
-	      while(itr2 != s.second && itr2 != junctions.end())
-		{
-		  int left_diff = itr->first.left - itr2->first.left;
-		  int right_diff = itr->first.right - itr2->first.right;
-		  if (itr != itr2 && 
-		      itr->first.antisense != itr2->first.antisense && 
-		      (left_diff < min_anchor_len || right_diff < min_anchor_len))
-		    {
-		      if (junc_support < itr2->second.supporting_hits)
-			itr->second.accepted = false;
-		    }
-		  ++itr2;
-		}
-	    }
-	  ++itr;
-	}
+      {
+        if (itr->second.accepted && !itr->second.gtf_match)
+          {
+            Junction fuzzy_left = itr->first;
+            Junction fuzzy_right = itr->first;
+            fuzzy_left.left -= min_anchor_len;
+            fuzzy_right.right += min_anchor_len;
+            fuzzy_left.antisense = !itr->first.antisense;
+            fuzzy_right.antisense = !itr->first.antisense;
+
+            pair<JunctionSet::iterator, JunctionSet::iterator> s;
+            s.first = junctions.lower_bound(fuzzy_left);
+            s.second = junctions.upper_bound(fuzzy_right);
+            JunctionSet::iterator itr2 = s.first;
+
+            int junc_support = itr->second.supporting_hits;
+
+            while(itr2 != s.second && itr2 != junctions.end())
+              {
+                int left_diff = itr->first.left - itr2->first.left;
+                int right_diff = itr->first.right - itr2->first.right;
+                if (itr != itr2 &&
+                    itr->first.antisense != itr2->first.antisense &&
+                    (left_diff < min_anchor_len || right_diff < min_anchor_len))
+                  {
+                    if (junc_support < itr2->second.supporting_hits)
+                      itr->second.accepted = false;
+                  }
+                ++itr2;
+              }
+          }
+        ++itr;
+      }
     }
 }
 
@@ -277,9 +277,11 @@ void filter_junctions(JunctionSet& junctions, const JunctionSet& gtf_junctions)
   for (JunctionSet::iterator i = junctions.begin(); i != junctions.end(); ++i)
     {
       if (gtf_junctions.find(i->first) == gtf_junctions.end())
-	accept_if_valid(i->first, i->second);
-      else
-	i->second.accepted = true;
+        accept_if_valid(i->first, i->second);
+      else {//automatically accept junctions matching GTF
+        i->second.accepted = true;
+        i->second.gtf_match = true;
+        }
     }
 
   knockout_shadow_junctions(junctions);
@@ -332,7 +334,7 @@ void get_junctions_from_hits(HitStream& hit_stream,
   
   uint32_t curr_obs_order = it.observation_order(curr_hit_group.insert_id);
   
-  while(curr_obs_order != 0xFFFFFFFF)
+  while(curr_obs_order != VMAXINT32)
     {
       for (size_t i = 0; i < curr_hit_group.hits.size(); ++i)
 	{

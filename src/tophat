@@ -7,7 +7,6 @@ tophat.py
 Created by Cole Trapnell on 2008-12-25.
 Copyright (c) 2008 Cole Trapnell. All rights reserved.
 """
-
 import sys
 try:
     import psyco
@@ -53,6 +52,7 @@ Options:
                                                 fr-secondstrand)
     -p/--num-threads               <int>       [ default: 1                ]
     -G/--GTF                       <filename>
+    -T/--transcriptome                         [Map only to the transcriptome]
     -j/--raw-juncs                 <filename>
     --insertions                   <filename>
     --deletions                    <filename>
@@ -123,6 +123,9 @@ bowtie_path = None
 fail_str = "\t[FAILED]\n"
 
 sam_header = tmp_dir + "stub_header.sam"
+
+gtf_juncs = None #file name with junctions extracted from given GFF file
+
 
 # TopHatParams captures all of the runtime paramaters used by TopHat, and many
 # of these are passed as command line options to exectubles run by the pipeline
@@ -426,6 +429,7 @@ class TopHatParams:
 
         self.report_params = self.ReportParams()
         self.gff_annotation = None
+        self.transcriptome_only = False
         self.raw_junctions = None
         self.find_novel_juncs = True
         self.find_novel_indels = True
@@ -512,6 +516,8 @@ class TopHatParams:
                         "--inner-dist-std-dev", str(self.read_params.mate_inner_dist_std_dev)])
         if self.gff_annotation != None:
             cmd.extend(["--gtf-annotations", str(self.gff_annotation)])
+            if gtf_juncs:
+               cmd.extend(["--gtf-juncs", gtf_juncs])
         if self.closure_search == False:
             cmd.append("--no-closure-search")
         if self.coverage_search == False:
@@ -543,7 +549,7 @@ class TopHatParams:
     # of options.
     def parse_options(self, argv):
         try:
-            opts, args = getopt.getopt(argv[1:], "hvp:m:F:a:i:I:G:r:o:j:Xz:s:g:QC",
+            opts, args = getopt.getopt(argv[1:], "hvp:m:F:a:i:I:G:Tr:o:j:Xz:s:g:QC",
                                         ["version",
                                          "help",
                                          "output-dir=",
@@ -563,6 +569,7 @@ class TopHatParams:
                                          "min-intron-length=",
                                          "max-intron-length=",
                                          "GTF=",
+                                         "transcriptome",
                                          "raw-juncs=",
                                          "no-novel-juncs",
                                          "no-novel-indels",
@@ -634,6 +641,8 @@ class TopHatParams:
                 self.max_hits = int(value)
             if option in ("-G", "--GTF"):
                 self.gff_annotation = value
+            if option in ("-T", "--transcriptome"):
+                self.transcriptome_only = True
             if option in ("-j", "--raw-juncs"):
                 self.raw_junctions = value
             if option == "--no-novel-juncs":
@@ -721,6 +730,10 @@ def getFileBaseName(filepath):
 def right_now():
     curr_time = datetime.now()
     return curr_time.strftime("%c")
+
+# The TopHat logging formatter
+def th_log(out_str):
+    print >> sys.stderr, "[%s] %s" % (right_now(), out_str)
 
 # Ensures that the output, logging, and temp directories are present. If not,
 # they are created
@@ -1071,25 +1084,27 @@ class FastxReader:
           if qstrlen + self.isColor >= seq_len :
                break # qv string has reached the length of seq string
           #loop until qv has the same length as seq
-      #if self.isColor and qstr[0]=="!":
-      #     #some color qual string have a '!' character at the beginning, should be stripped
-      #     qstr = qstr[1:]
-      #     qstrlen -= 1
-      if self.isColor and seq_len==qstrlen+1:
-            qstr="!"+qstr
-            qstrlen += 1
-      if seq_len != qstrlen :
-           raise ValueError("Length mismatch between sequence and quality strings "+ \
-                                "for %s (%i vs %i)." \
-                                % (seqid, seq_len, qstrlen))
+      if self.isColor:
+           # and qstrlen==seq_len :
+           if qstrlen==seq_len:
+             #qual string may have a dummy qv at the beginning, should be stripped
+             qstr = qstr[1:]
+             qstrlen -= 1
+           if qstrlen!=seq_len-1:
+             raise ValueError("Length mismatch between sequence and quality strings "+ \
+                                "for %s (%i vs %i)." % (seqid, seq_len, qstrlen))
+      else:
+           if seq_len != qstrlen :
+              raise ValueError("Length mismatch between sequence and quality strings "+ \
+                                "for %s (%i vs %i)." % (seqid, seq_len, qstrlen))
     except ValueError, err:
         die("\nError encountered parsing file "+self.fname+":\n "+str(err))
     #return the record
     self.numrecords+=1
     ##--discard the primer base [NO]
-    #if self.isColor :
-    #    seq_len-=1
-    #    seqstr = seqstr[1:]
+    if self.isColor :
+        seq_len-=1
+        seqstr = seqstr[1:]
     return (seqid, seqstr, seq_len, qstr)
 
   def nextFasta(self):
@@ -1123,9 +1138,9 @@ class FastxReader:
         die("\nError encountered parsing fasta file "+self.fname+"\n "+str(err))
     #return the record and continue
     self.numrecords+=1
-    #if self.isColor : # -- discard primer base
-    #    seq_len-=1
-    #    seqstr = seqstr[1:]
+    if self.isColor : # -- discard primer base
+        seq_len-=1
+        seqstr=seqstr[1:]
     return (seqid, seqstr, seq_len, None)
 
   def getLine(self):
@@ -1146,6 +1161,22 @@ class FastxReader:
       self.bufline=self.lastline
       self.lastline=None
 #< class FastxReader
+
+def fa_write(fhandle, seq_id, seq):
+    """
+    Write to a file in the FASTA format.
+
+    Arguments:
+    - `fhandle`: A file handle open for writing
+    - `seq_id`: The sequence id string for this sequence
+    - `seq`: An unformatted string of the sequence to write
+    """
+    line_len = 60
+    fhandle.write(">" + seq_id + "\n")
+    for i in xrange(len(seq) / line_len + 1):
+        start = i * line_len
+        end = (i+1) * line_len if (i+1) * line_len < len(seq) else len(seq)
+        fhandle.write( seq[ start:end ] + "\n")
 
 class ZReader:
     def __init__(self, filename, sysparams, guess=True):
@@ -1686,6 +1717,38 @@ def build_juncs_index(min_anchor_length,
     external_splices_out_prefix = build_juncs_bwt_index(external_splices_out_prefix, color)
     return external_splices_out_prefix
 
+def build_idx_from_fa(fasta_fname, out_dir):
+    """ Build a bowtie index from a FASTA file.
+
+    Arguments:
+    - `fasta_fname`: File path to FASTA file.
+    - `out_dir`: Output directory to place index in. (includes os.sep)
+
+    Returns:
+    - The path to the Bowtie index.
+    """
+    bwt_idx_path = out_dir + os.path.basename(fasta_fname).replace(".fa", "")
+    bowtie_idx_cmd = [prog_path("bowtie-build"),
+                      "-f",
+                      fasta_fname,
+                      bwt_idx_path]
+    try:
+        th_log("Building Bowtie index from " + os.path.basename(fasta_fname))
+        print >> run_log, " ".join(bowtie_idx_cmd)
+        retcode = subprocess.call(bowtie_idx_cmd,
+                                  stdout=open(os.devnull, "w"),
+                                  stderr=open(os.devnull, "w"))
+        if retcode != 0:
+            die(fail_str + "Error: Couldn't build bowtie index with err = "
+                + str(retcode))
+    except OSError, o:
+       errmsg=fail_str+str(o)+"\n"
+       if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
+           errmsg+="Error: bowtie-build not found on this system"
+       die(errmsg)
+
+    return bwt_idx_path
+
 # Print out the sam header, embedding the user's specified library properties.
 # FIXME: also needs SQ dictionary lines
 def write_sam_header(read_params, sam_file):
@@ -2100,14 +2163,147 @@ class Maps:
         def __init__(self,
                      unspliced_bwt,
                      unspliced_sam,
+                     m2g_map,
                      seg_maps,
                      unmapped_segs,
                      segs):
             self.unspliced_bwt = unspliced_bwt
             self.unspliced_sam = unspliced_sam
+            self.gtfmap = m2g_map
             self.seg_maps = seg_maps
             self.unmapped_segs = unmapped_segs
             self.segs = segs
+
+# Map2GTF stuff
+def m2g_convert_coords(params, gtf_fname, reads, out_fname):
+    """ajjkljlks
+
+    Arguments:
+    - `params`: TopHat parameters
+    - `gtf_fname`: File name pointing to the annotation.
+    - `reads`: The reads to convert coords (in Bowtie format).
+    - `out_fname`: The file name pointing to the output.
+    """
+    m2g_cmd = [prog_path("map2gtf")]
+    m2g_cmd.extend(params.cmd())
+    m2g_cmd.append(gtf_fname)
+    m2g_cmd.append(reads)
+    m2g_cmd.append(out_fname)
+    fbasename = getFileBaseName(reads)
+    m2g_log = logging_dir + "m2g_" + fbasename + ".out"
+    m2g_err = logging_dir + "m2g_" + fbasename + ".err"
+
+    try:
+        th_log("Converting " + fbasename + " to genomic coordinates (map2gtf)")
+        print >> run_log, " ".join(m2g_cmd) + " > " + m2g_log
+        ret = subprocess.call(m2g_cmd,
+                              stdout=open(m2g_log, "w"),
+                              stderr=open(m2g_err, "w"))
+        if ret != 0:
+            die(fail_str + " Error: map2gtf returned an error")
+    except OSError, o:
+        err_msg = fail_str + str(o)
+        die(err_msg + "\n")
+
+
+def gtf_to_fasta(params, trans_gtf, genome, out_fname):
+    """ Make the transcriptome from a GTF.
+
+    Arguments:
+    - `trans_gtf`:
+    - `genome`:
+    - `out_fname`:
+    """
+    # TODO: Call gtf_to_fasta
+    g2f_cmd = [prog_path("gtf_to_fasta")]
+    g2f_cmd.extend(params.cmd())
+    g2f_cmd.append(trans_gtf)
+    g2f_cmd.append(genome)
+    g2f_cmd.append(out_fname)
+
+    g2f_log = logging_dir + "g2f.out"
+    g2f_err = logging_dir + "g2f.err"
+
+    try:
+        print >> run_log, " ".join(g2f_cmd)+" > " + g2f_log
+        ret = subprocess.call(g2f_cmd,
+                              stdout = open(g2f_log, "w"),
+                              stderr = open(g2f_err, "w"))
+        if ret != 0:
+            die(fail_str + " Error: gtf_to_fasta returned an error.")
+    except OSError, o:
+        err_msg = fail_str + str(o)
+        die(err_msg + "\n")
+
+def map2gtf(params, ref_fasta, left_reads, right_reads):
+    """ Main GTF mapping function
+
+    Arguments:
+    - `params`: The TopHat parameters.
+    - `ref_fasta`: The reference genome.
+    - `left_reads`: A list of reads.
+    - `right_reads`: A list of reads (empty if single-end).
+
+    Returns:
+    TODO: Put something here
+    """
+    test_input_file(params.gff_annotation)
+
+    # th_log("Reading in GTF file: " + params.gff_annotation)
+    # transcripts = gtf_to_transcripts(params.gff_annotation)
+
+    gtf_name = getFileBaseName(params.gff_annotation)
+    th_log("Creating multi-FASTA from GTF and genome")
+    m2g_ref_fasta = tmp_dir + gtf_name + ".fa"
+
+    gtf_to_fasta(params, params.gff_annotation, ref_fasta, m2g_ref_fasta)
+
+    # trans_hash = transcripts_to_fasta(transcripts,
+    #                                   ref_fasta,
+    #                                   m2g_ref_fasta)
+    m2g_bwt_idx = build_idx_from_fa(m2g_ref_fasta, tmp_dir)
+
+    mapped_gtf_list = []
+    unmapped_gtf_list = []
+    # do the initial mapping in GTF coordinates
+    for reads in [left_reads, right_reads]:
+        if reads == None or os.path.getsize(reads) < 25 :
+            continue
+        fbasename = getFileBaseName(reads)
+        mapped_gtf_out = tmp_dir + fbasename + ".m2g.bwtout"
+        if use_zpacker:
+            mapped_gtf_out+=".z"
+
+        unmapped_gtf = tmp_dir + fbasename + ".m2g_um.fq"
+        if use_BWT_FIFO:
+            unmapped_gtf += ".z"
+
+        (mapped_gtf_map, unmapped) = bowtie(params,
+                                           m2g_bwt_idx,
+                                           reads,
+                                           "fastq",
+                                           params.segment_mismatches,
+                                           mapped_gtf_out,
+                                           unmapped_gtf)
+        mapped_gtf_list.append(mapped_gtf_map)
+        unmapped_gtf_list.append(unmapped)
+
+    sam_gtf_list = []
+    for reads in mapped_gtf_list:
+        fbasename = getFileBaseName(reads)
+        sam_out_fname = tmp_dir + fbasename + "_converted.bam"
+        m2g_convert_coords(params,
+                           params.gff_annotation,
+                           reads,
+                           sam_out_fname)
+        sam_gtf_list.append(sam_out_fname)
+
+    if len(sam_gtf_list) < 2:
+        sam_gtf_list.append(None)
+        unmapped_gtf_list.append(None)
+
+    return (sam_gtf_list, unmapped_gtf_list)
+# end Map2GTF
 
 # The main aligment routine of TopHat.  This function executes most of the
 # workflow producing a set of candidate alignments for each cDNA fragment in a
@@ -2136,6 +2332,35 @@ def spliced_alignment(params,
     maps = { left_reads : [], right_reads : [] }
     #single_segments = False
 
+    # Before anything, map the reads using Map2GTF (if using annotation)
+    m2g_maps = { left_reads:None, right_reads:None }
+    initial_reads = { left_reads: left_reads, right_reads: right_reads }
+
+    if params.gff_annotation:
+        (mapped_gtf_list, unmapped_gtf_list) = \
+            map2gtf(params, ref_fasta, left_reads, right_reads)
+
+        m2g_left_maps = mapped_gtf_list[0]
+        m2g_right_maps = mapped_gtf_list[1]
+        m2g_maps[left_reads] = m2g_left_maps
+        m2g_maps[right_reads] = m2g_right_maps
+        if params.transcriptome_only or not os.path.exists(unmapped_gtf_list[0]):
+            # The case where the user doesn't want to map to anything other
+            # than the transcriptome OR we have no unmapped reads
+            maps[left_reads] = [m2g_left_maps]
+            if right_reads:
+                maps[right_reads] = [m2g_right_maps]
+            return maps
+        # Feed the unmapped reads into spliced_alignment()
+        initial_reads[unmapped_gtf_list[0]] = left_reads
+        initial_reads[unmapped_gtf_list[1]] = right_reads
+        left_reads = unmapped_gtf_list[0]
+        right_reads = unmapped_gtf_list[1]
+        m2g_maps[left_reads]  = m2g_left_maps
+        m2g_maps[right_reads] = m2g_right_maps
+
+        th_log("Resuming TopHat pipeline with unmapped reads")
+
     max_seg_len = segment_len #this is the ref seq span on either side of the junctions
                               #to be extracted into segment_juncs.fa
 
@@ -2149,7 +2374,7 @@ def spliced_alignment(params,
 
     # daehwan - check this out
     if num_segs <= 1:
-            print >> sys.stderr, "Warning: you have only one segment per read\n\twe strongly recommend that you decrease --segment-length to about half the read length because TopHat will work better with multiple segments"
+         print >> sys.stderr, "Warning: you have only one segment per read\n\twe strongly recommend that you decrease --segment-length to about half the read length because TopHat will work better with multiple segments"
 
     # Using the num_segs value returned by check_reads(),
     # decide which junction discovery strategy to use
@@ -2175,10 +2400,11 @@ def spliced_alignment(params,
     for reads in [left_reads, right_reads]:
         if reads == None or os.path.getsize(reads)<25 :
             continue
+        m2g_map = m2g_maps[reads]
         fbasename=getFileBaseName(reads)
         unspliced_out = tmp_dir + fbasename + ".bwtout"
         if use_zpacker: unspliced_out+=".z"
-        unmapped_unspliced = tmp_dir + fbasename + "_missing.fq"
+        unmapped_unspliced = tmp_dir + fbasename + "_unmapped.fq"
         if use_BWT_FIFO:
             unmapped_unspliced += ".z"
 
@@ -2223,7 +2449,7 @@ def spliced_alignment(params,
                 fbasename=getFileBaseName(seg)
                 seg_out =  tmp_dir + fbasename + ".bwtout"
                 if use_zpacker: seg_out += ".z"
-                unmapped_seg = tmp_dir + fbasename + "_missing.fq"
+                unmapped_seg = tmp_dir + fbasename + "_unmapped.fq"
                 if use_BWT_FIFO:
                     unmapped_seg += ".z"
                 extra_output = "(%d/%d)" % (i+1, len(read_segments))
@@ -2239,30 +2465,39 @@ def spliced_alignment(params,
                 segs.append(seg)
 
             # Collect the segment maps for left and right reads together
-            maps[reads] = Maps(unspliced_map, unspliced_sam, seg_maps, unmapped_segs, segs)
+            maps[initial_reads[reads]] = Maps(unspliced_map, unspliced_sam, m2g_map, seg_maps, unmapped_segs, segs)
         else:
             # if there's only one segment, just collect the initial map as the only
             # map to be used downstream for coverage-based junction discovery
             read_segments = [reads]
-            maps[reads] = Maps(unspliced_map, unspliced_sam, [unspliced_map], [unmapped_unspliced], [unmapped_unspliced])
+            maps[initial_reads[reads]] = Maps(unspliced_map, unspliced_sam, m2g_map, [unspliced_map], [unmapped_unspliced], [unmapped_unspliced])
+
+    # XXX: At this point if using M2G, have three sets of reads:
+    # mapped to transcriptome, mapped to genome, and unmapped (potentially
+    # spliced or poly-A tails) - hp
 
     # Unless the user asked not to discover new junctions, start that process
     # here
 
-    if params.find_novel_juncs or params.find_novel_indels:
-        left_reads_map = maps[left_reads].unspliced_bwt
-        left_seg_maps = maps[left_reads].seg_maps
-        unmapped_reads = maps[left_reads].unmapped_segs
-        if right_reads != None:
-            right_reads_map = maps[right_reads].unspliced_bwt
-            right_seg_maps = maps[right_reads].seg_maps
-            unmapped_reads.extend(maps[right_reads].unmapped_segs)
-        else:
-            right_reads_map = None
-            right_seg_maps = None
+    left_reads_map = maps[initial_reads[left_reads]].unspliced_bwt
+    left_seg_maps = maps[initial_reads[left_reads]].seg_maps
+    unmapped_reads = maps[initial_reads[left_reads]].unmapped_segs
+    if right_reads != None:
+        right_reads_map = maps[initial_reads[right_reads]].unspliced_bwt
+        right_seg_maps = maps[initial_reads[right_reads]].seg_maps
+        unmapped_reads.extend(maps[initial_reads[right_reads]].unmapped_segs)
+    else:
+        right_reads_map = None
+        right_seg_maps = None
+
+    if params.find_novel_juncs: # or params.find_novel_indels:
 
         # Call segment_juncs to infer a list of possible splice junctions from
         # the regions of the genome covered in the initial and segment maps
+        #if params.find_novel_juncs:
+        #TODO: in m2g case, we might want to pass the m2g mappings as well,
+        #      or perhaps the GTF file directly
+        #      -> this could improve alternative junction detection
         juncs = junctions_from_segments(params,
                                         left_reads,
                                         left_reads_map,
@@ -2273,8 +2508,7 @@ def spliced_alignment(params,
                                         unmapped_reads,
                                         "fastq",
                                         ref_fasta)
-        if params.find_novel_juncs:
-                if os.path.getsize(juncs[0]) != 0:
+        if os.path.getsize(juncs[0]) != 0:
                     possible_juncs.append(juncs[0])
         if params.find_novel_indels:
                 if os.path.getsize(juncs[1]) != 0:
@@ -2283,10 +2517,10 @@ def spliced_alignment(params,
                     possible_deletions.append(juncs[2])
         # Optionally, and for paired reads only, use a closure search to
         # discover addtional junctions
-        if params.find_novel_juncs and params.closure_search and left_reads != None and right_reads != None:
+        if params.closure_search and left_reads != None and right_reads != None:
             juncs = junctions_from_closures(params,
-                                            [maps[left_reads].unspliced_bwt, maps[left_reads].seg_maps[-1]],
-                                            [maps[right_reads].unspliced_bwt, maps[right_reads].seg_maps[-1]],
+                                            [maps[initial_reads[left_reads]].unspliced_bwt, maps[initial_reads[left_reads]].seg_maps[-1]],
+                                            [maps[initial_reads[right_reads]].unspliced_bwt, maps[initial_reads[right_reads]].seg_maps[-1]],
                                             ref_fasta)
             if os.path.getsize(juncs[0]) != 0:
                 possible_juncs.extend(juncs)
@@ -2318,18 +2552,38 @@ def spliced_alignment(params,
 
     # Now map read segments (or whole IUM reads, if num_segs == 1) to the splice
     # index with Bowtie
+    # for reads in [left_reads, right_reads]:
+#hp#    for (reads, m2g_reads) in [(left_reads, m2g_left_reads),
+#hp#                               (right_reads, m2g_right_reads)]:
+#hp#        spliced_seg_maps = []
+#hp#        # TODO: Harold: This is where I need to check if m2g reads exist
+#hp#        # If that is the case, then need to simply use m2g reads for final file
+#hp#        if (reads == None or reads not in maps) and m2g_reads:
+#hp#            # change the file name of the m2g_reads to the reg. reads
+#hp#            # move on with life
+#hp#            #th_log("sup dawg")
+#hp#            # XXX: I think this should work... -hp
+#hp#            junc_idx_prefix = None
+#hp#            num_segs = 0
+#hp#            reads = m2g_reads
+#hp#            continue
     for reads in [left_reads, right_reads]:
+
         spliced_seg_maps = []
-        if reads == None or reads not in maps:
+
+        if reads == None or os.path.getsize(reads)<25:
             continue
+
+        m2g_map = m2g_maps[reads]
 
         if junc_idx_prefix != None:
             i = 0
-            for seg in maps[reads].segs:
+            for seg in maps[initial_reads[reads]].segs:
+                #search each segment
                 fsegname = getFileBaseName(seg)
                 seg_out = tmp_dir + fsegname + ".to_spliced.bwtout"
                 if use_zpacker: seg_out += ".z"
-                extra_output = "(%d/%d)" % (i+1, len(maps[reads].segs))
+                extra_output = "(%d/%d)" % (i+1, len(maps[initial_reads[reads]].segs))
                 (seg_map, unmapped) = bowtie_segment(params,
                                                      tmp_dir + junc_idx_prefix,
                                                      seg,
@@ -2340,15 +2594,15 @@ def spliced_alignment(params,
                 spliced_seg_maps.append(seg_map)
                 i += 1
 
-        # Join the contigous and spliced segment hits into full length read
-        # alignments or convert a spliced segment hit into a genomic-coordinate hit
-        rfname = getFileBaseName(reads)
-        rfdir = getFileDir(reads)
+        # Join the contigous and spliced segment hits into full length
+        #   read alignments
+        rfname=getFileBaseName(reads)
+        rfdir=getFileDir(reads)
         mapped_reads = rfdir + rfname + ".candidates.bam"
+        # -- spliced mappings built from all segment mappings vs genome and junc_db
         merged_map =rfdir + rfname + ".candidates_and_unspl.bam"
-        unspl_bwtfile = maps[reads].unspliced_bwt
-        unspl_samfile = maps[reads].unspliced_sam
-
+        unspl_bwtfile = maps[initial_reads[reads]].unspliced_bwt
+        unspl_samfile = maps[initial_reads[reads]].unspliced_sam
         join_mapped_segments(params,
                              sam_header_filename,
                              reads,
@@ -2356,23 +2610,24 @@ def spliced_alignment(params,
                              possible_juncs,
                              possible_insertions,
                              possible_deletions,
-                             maps[reads].seg_maps,
+                             maps[initial_reads[reads]].seg_maps,
                              spliced_seg_maps,
                              mapped_reads)
 
-        if num_segs > 1:
-            # Merge the spliced and unspliced full length alignments into a
-            # single SAM file.
+        if num_segs > 1 or m2g_map:
+            # Merge the spliced and unspliced full length alignments into
+            # a single SAM file.
             # The individual SAM files are all already sorted in
             # increasing read ID order.
             # NOTE: We also should be able to address bug #134 here, by replacing
             # contiguous alignments that poke into an intron by a small amount by
             # the correct spliced alignment.
-
             try:
-                merge_cmd = [ prog_path("bam_merge"), merged_map,
-                                        maps[reads].unspliced_sam,
-                                        mapped_reads ]
+                merge_cmd = [ prog_path("bam_merge"), merged_map, mapped_reads ]
+                if num_segs > 1:
+                    merge_cmd += [ maps[initial_reads[reads]].unspliced_sam ]
+                if m2g_maps[reads]:
+                       merge_cmd += [ m2g_maps[reads] ]
                 print >> run_log, " ".join(merge_cmd)
                 ret = subprocess.call( merge_cmd,
                                    stderr=open(logging_dir + "sam_merge.log", "w") )
@@ -2380,16 +2635,18 @@ def spliced_alignment(params,
                     die(fail_str+"Error executing: "+" ".join(merge_cmd))
             except OSError, o:
                 die(fail_str+"Error: "+str(o))
-            maps[reads] = [merged_map]
+            maps[initial_reads[reads]] = [merged_map]
 
             if not params.system_params.keep_tmp:
                 os.remove(mapped_reads)
                 os.remove(unspl_samfile)
                 os.remove(unspl_bwtfile)
         else:
+            # no segments or transcriptome mappings, so no merge is needed
+            #  because join_mapped_segments() produced the final BAM
             os.rename(mapped_reads, merged_map)
-            maps[reads] = [merged_map]
-            if not params.system_params.keep_tmp:
+            maps[initial_reads[reads]] = [merged_map]
+        if not params.system_params.keep_tmp:
                 os.remove(unspl_samfile)
                 os.remove(unspl_bwtfile)
 
@@ -2502,12 +2759,14 @@ def main(argv=None):
         user_supplied_juncs = []
         user_supplied_insertions = []
         user_supplied_deletions = []
-
+        global gtf_juncs
         if params.gff_annotation and params.find_GFF_juncs:
             test_input_file(params.gff_annotation)
             (found_juncs, gtf_juncs) = get_gtf_juncs(params.gff_annotation)
             if found_juncs:
                 user_supplied_juncs.append(gtf_juncs)
+            else:
+                gtf_juncs = None
         if params.raw_junctions:
             test_input_file(params.raw_junctions)
             user_supplied_juncs.append(params.raw_junctions)
@@ -2551,16 +2810,16 @@ def main(argv=None):
             params.read_params.integer_quals = False
 
         mapping = spliced_alignment(params,
-                                    bwt_idx_prefix,
-                                    sam_header_filename,
-                                    ref_fasta,
-                                    params.read_params.seed_length,
-                                    params.segment_length,
-                                    left_kept_reads,
-                                    right_kept_reads,
-                                    user_supplied_juncs,
-                                    user_supplied_insertions,
-                                    user_supplied_deletions)
+                              bwt_idx_prefix,
+                              sam_header_filename,
+                              ref_fasta,
+                              params.read_params.seed_length,
+                              params.segment_length,
+                              left_kept_reads,
+                              right_kept_reads,
+                              user_supplied_juncs,
+                              user_supplied_insertions,
+                              user_supplied_deletions)
 
         left_maps = mapping[left_kept_reads]
         #left_unmapped_reads = mapping[1]

@@ -468,11 +468,11 @@ void closure_driver(vector<FZPipe>& map1,
       uint32_t curr_right_obs_order = it.observation_order(curr_left_hit_group.insert_id);
       uint32_t curr_left_obs_order = it.observation_order(curr_right_hit_group.insert_id);
       
-      while(curr_left_obs_order != 0xFFFFFFFF && 
-	    curr_right_obs_order != 0xFFFFFFFF)
+      while(curr_left_obs_order != VMAXINT32 &&
+	    curr_right_obs_order != VMAXINT32)
 	{
 	  while (curr_left_obs_order < curr_right_obs_order&&
-		 curr_left_obs_order != 0xFFFFFFFF && curr_right_obs_order != 0xFFFFFFFF)
+		 curr_left_obs_order != VMAXINT32 && curr_right_obs_order != VMAXINT32)
 	    {
 	      // Get hit group
 	      
@@ -481,7 +481,7 @@ void closure_driver(vector<FZPipe>& map1,
 	    }
 	  
 	  while (curr_left_obs_order > curr_right_obs_order &&
-		 curr_left_obs_order != 0xFFFFFFFF && curr_right_obs_order != 0xFFFFFFFF)
+		 curr_left_obs_order != VMAXINT32 && curr_right_obs_order != VMAXINT32)
 	    {
 	      // Get hit group
 	      
@@ -490,7 +490,7 @@ void closure_driver(vector<FZPipe>& map1,
 	    }
 	  
 	  while (curr_left_obs_order == curr_right_obs_order &&
-		 curr_left_obs_order != 0xFFFFFFFF && curr_right_obs_order != 0xFFFFFFFF)
+		 curr_left_obs_order != VMAXINT32 && curr_right_obs_order != VMAXINT32)
 	    {			
 	      if (coverage_attempts++ % 1000 == 0)
 		fprintf (stderr, "Adding covered motifs from pair %d\n", coverage_attempts); 
@@ -532,11 +532,11 @@ void closure_driver(vector<FZPipe>& map1,
       uint32_t curr_right_obs_order = it.observation_order(curr_left_hit_group.insert_id);
       uint32_t curr_left_obs_order = it.observation_order(curr_right_hit_group.insert_id);
       
-      while(curr_left_obs_order != 0xFFFFFFFF && 
-	    curr_right_obs_order != 0xFFFFFFFF)
+      while(curr_left_obs_order != VMAXINT32 &&
+	    curr_right_obs_order != VMAXINT32)
 	{
 	  while (curr_left_obs_order < curr_right_obs_order &&
-		 curr_left_obs_order != 0xFFFFFFFF && curr_right_obs_order != 0xFFFFFFFF)
+		 curr_left_obs_order != VMAXINT32 && curr_right_obs_order != VMAXINT32)
 	    {
 	      // Get hit group
 	      
@@ -545,7 +545,7 @@ void closure_driver(vector<FZPipe>& map1,
 	    }
 	  
 	  while (curr_left_obs_order > curr_right_obs_order &&
-		 curr_left_obs_order != 0xFFFFFFFF && curr_right_obs_order != 0xFFFFFFFF)
+		 curr_left_obs_order != VMAXINT32 && curr_right_obs_order != VMAXINT32)
 	    {
 	      // Get hit group
 	      
@@ -554,7 +554,7 @@ void closure_driver(vector<FZPipe>& map1,
 	    }
 	  
 	  while (curr_left_obs_order == curr_right_obs_order &&
-		 curr_left_obs_order != 0xFFFFFFFF && curr_right_obs_order != 0xFFFFFFFF)
+		 curr_left_obs_order != VMAXINT32 && curr_right_obs_order != VMAXINT32)
 	    {	
 	      if (closure_attempts++ % 1000 == 0)
 		fprintf (stderr, "Trying to close pair %d\n", closure_attempts); 

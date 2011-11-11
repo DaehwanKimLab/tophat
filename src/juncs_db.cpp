@@ -336,7 +336,7 @@ void driver(const vector<FILE*>& splice_coords_files,
 		
 		uint32_t refid = rt.get_id(name, NULL, 0);
 		Junction dummy_left(refid, 0, 0, true);
-		Junction dummy_right(refid, 0xFFFFFFFF, 0xFFFFFFFF, true);
+		Junction dummy_right(refid, VMAXINT32, VMAXINT32, true);
 		
 		pair<JunctionSet::iterator, JunctionSet::iterator> r;
 		r.first = junctions.lower_bound(dummy_left);
@@ -373,7 +373,7 @@ void driver(const vector<FILE*>& splice_coords_files,
 		
 		uint32_t refid = rt.get_id(name, NULL,0);
 		Deletion dummy_left(refid, 0, 0, true);
-		Deletion dummy_right(refid, 0xFFFFFFFF, 0xFFFFFFFF, true);
+		Deletion dummy_right(refid, VMAXINT32, VMAXINT32, true);
 		
 		pair<std::set<Deletion>::iterator, std::set<Deletion>::iterator> r;
 		r.first = deletions.lower_bound(dummy_left);
@@ -410,7 +410,7 @@ void driver(const vector<FILE*>& splice_coords_files,
 		
 		uint32_t refid = rt.get_id(name, NULL,0);
 		Insertion dummy_left(refid, 0, "");
-		Insertion dummy_right(refid, 0xFFFFFFFF, "");
+		Insertion dummy_right(refid, VMAXINT32, "");
 	
 		std::set<Insertion>::iterator itr = insertions.lower_bound(dummy_left);
 		std::set<Insertion>::iterator upper   = insertions.upper_bound(dummy_right);

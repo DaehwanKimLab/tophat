@@ -35,7 +35,7 @@ void get_junctions_from_hitstream(HitStream& hitstream,
 	
 	
 	// While we still have unreported hits...
-	while(curr_obs_order != 0xFFFFFFFF)
+	while(curr_obs_order != VMAXINT32)
 	{		
         for (size_t i = 0; i < curr_hit_group.hits.size(); ++i)
         {
