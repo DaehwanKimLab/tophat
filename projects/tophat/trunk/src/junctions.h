@@ -64,7 +64,7 @@ Junction() : refid(0), left(0), right(0), antisense(false), skip_count(0) {}
 #if !NDEBUG
   bool valid() const
   {
-    return refid != 0xFFFFFFFF && left < right && (left != right);
+    return refid != VMAXINT32 && left < right && (left != right);
   }
 #endif
 };
@@ -81,7 +81,8 @@ struct skip_count_lt
 
 struct JunctionStats
 {
-JunctionStats() : left_extent(0), right_extent(0), left_exon_doc(0), right_exon_doc(0), min_splice_mms(0), supporting_hits(0), accepted(false) {}
+JunctionStats() : left_extent(0), right_extent(0), left_exon_doc(0), right_exon_doc(0),
+    min_splice_mms(0), supporting_hits(0), gtf_match(false), accepted(false) {}
   
   int left_extent;
   int right_extent;
@@ -89,6 +90,7 @@ JunctionStats() : left_extent(0), right_extent(0), left_exon_doc(0), right_exon_
   int right_exon_doc;
   int min_splice_mms;
   int supporting_hits;
+  bool gtf_match;
   bool accepted;
 };
 

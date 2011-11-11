@@ -19,6 +19,8 @@
 #include "bam/sam.h"
 
 
+#define VMAXINT32 0xFFFFFFFF
+
 #ifdef MEM_DEBUG
  void process_mem_usage(double& vm_usage, double& resident_set);
  void print_mem_usage();
@@ -67,7 +69,7 @@ enum ReadFormat {FASTA, FASTQ};
 extern ReadFormat reads_format;
 
 extern bool verbose;
-extern int max_multihits;
+extern unsigned int max_multihits;
 extern bool no_closure_search;
 extern bool no_coverage_search;
 extern bool no_microexon_search;

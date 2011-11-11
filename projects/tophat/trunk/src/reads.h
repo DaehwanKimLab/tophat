@@ -76,7 +76,16 @@ bool get_read_from_stream(uint64_t insert_id,
 			  char read_name [], 
 			  char read_seq  [],
 			  char read_alt_name [],
-			  char read_qual []);
+			  char read_qual [],
+			  FILE* um_out=NULL); //unmapped reads output
+
+bool get_read_from_stream(uint64_t insert_id,
+        FILE* reads_file,
+        ReadFormat reads_format,
+        bool strip_slash,
+        Read& read,
+        FILE* um_out=NULL, //unmapped reads output
+        bool um_write_found=false);
 
 class FLineReader { //simple text line reader class, buffering last line read
   int len;

@@ -1273,7 +1273,7 @@ void add_hit_to_coverage(const BowtieHit& bh, vector<unsigned int>& DoC)
 			case MATCH:
 				for (size_t m = 0; m < cigar[c].length; ++m)
 				{
-					if (DoC[j + m] < 0xFFFFFFFF)
+					if (DoC[j + m] < VMAXINT32)
 						DoC[j + m]++;
 				}
 				//fall through this case to REF_SKIP is intentional

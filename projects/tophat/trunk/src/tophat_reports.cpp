@@ -148,7 +148,7 @@ void add_auxData(vector<string>& auxdata, vector<string>& sam_toks,
         auxdata.push_back(aux);
     } //has next_hit
     // FIXME: this code is still a bit brittle, because it contains no
-    // consistency check that the mates are on opposite strands (a current protocol
+    // consistency check that the mates are on opposite strands - a current protocol
     // requirement, and that the strand indicated by the alignment is consistent
     // with the orientation of the splices (though that should be handled upstream).
     const string xs_f("XS:A:+");
@@ -195,8 +195,7 @@ void add_auxData(vector<string>& auxdata, vector<string>& sam_toks,
 bool rewrite_sam_record(GBamWriter& bam_writer, const RefSequenceTable& rt,
                         const BowtieHit& bh,
                         const char* bwt_buf,
-                        //char* rebuf,
-                        char* read_alt_name,
+                        const char* read_alt_name,
                         const FragmentAlignmentGrade& grade,
                         FragmentType insert_side,
                         int num_hits,
@@ -208,10 +207,10 @@ bool rewrite_sam_record(GBamWriter& bam_writer, const RefSequenceTable& rt,
 	// and setting the pair flag
 	vector<string> sam_toks;
 	tokenize(bwt_buf, "\t", sam_toks);
-	char* slash_pos = strrchr(read_alt_name,'/');
-    
-	if (slash_pos) *slash_pos = 0;
-	//*rebuf = 0;
+  string qname(read_alt_name);
+  size_t slash_pos=qname.rfind('/');
+  if (slash_pos!=string::npos)
+      qname.resize(slash_pos);
 	//read_alt_name as QNAME
 	int flag=atoi(sam_toks[1].c_str()); //FLAG
 	if (insert_side != FRAG_UNPAIRED) {
@@ -240,9 +239,9 @@ bool rewrite_sam_record(GBamWriter& bam_writer, const RefSequenceTable& rt,
 	add_auxData(auxdata, sam_toks, rt, bh, insert_side, num_hits, next_hit, hitIndex);
 	int tlen =atoi(sam_toks[8].c_str()); //TLEN
 	int mate_pos=atoi(sam_toks[7].c_str());
-	GBamRecord* bamrec=bam_writer.new_record(read_alt_name, flag, sam_toks[2].c_str(), gpos, mapQ,
-                                             sam_toks[5].c_str(), sam_toks[6].c_str(), mate_pos,
-                                             tlen, sam_toks[9].c_str(), sam_toks[10].c_str(), &auxdata);
+	GBamRecord* bamrec=bam_writer.new_record(qname.c_str(), flag, sam_toks[2].c_str(), gpos, mapQ,
+                                       sam_toks[5].c_str(), sam_toks[6].c_str(), mate_pos,
+                                       tlen, sam_toks[9].c_str(), sam_toks[10].c_str(), &auxdata);
 	bam_writer.write(bamrec);
 	delete bamrec;
 	return true;
@@ -251,8 +250,7 @@ bool rewrite_sam_record(GBamWriter& bam_writer, const RefSequenceTable& rt,
 bool rewrite_sam_record(GBamWriter& bam_writer, const RefSequenceTable& rt,
                         const BowtieHit& bh,
                         const char* bwt_buf,
-                        //char* rebuf,
-                        char* read_alt_name,
+                        const char* read_alt_name,
                         const InsertAlignmentGrade& grade,
                         FragmentType insert_side,
                         const BowtieHit* partner,
@@ -265,8 +263,10 @@ bool rewrite_sam_record(GBamWriter& bam_writer, const RefSequenceTable& rt,
 	// and setting the pair flag
 	vector<string> sam_toks;
 	tokenize(bwt_buf, "\t", sam_toks);
-	char* slash_pos = strrchr(read_alt_name,'/');
-	if (slash_pos) *slash_pos = 0;
+  string qname(read_alt_name);
+  size_t slash_pos=qname.rfind('/');
+  if (slash_pos!=string::npos)
+      qname.resize(slash_pos);
 	//read_alt_name as QNAME
 	int flag = atoi(sam_toks[1].c_str());
 	// 0x0010 (strand of query) is assumed to be set correctly
@@ -316,7 +316,7 @@ bool rewrite_sam_record(GBamWriter& bam_writer, const RefSequenceTable& rt,
     }
 	vector<string> auxdata;
 	add_auxData(auxdata, sam_toks, rt, bh, insert_side, num_hits, next_hit, hitIndex);
-	GBamRecord* bamrec=bam_writer.new_record(read_alt_name, flag, sam_toks[2].c_str(), gpos, mapQ,
+	GBamRecord* bamrec=bam_writer.new_record(qname.c_str(), flag, sam_toks[2].c_str(), gpos, mapQ,
                                              sam_toks[5].c_str(), sam_toks[6].c_str(), mate_pos,
                                              tlen, sam_toks[9].c_str(), sam_toks[10].c_str(), &auxdata);
 	bam_writer.write(bamrec);
@@ -348,28 +348,31 @@ struct lex_hit_sort
     const HitsForRead& _hits;
 };
 
-void print_sam_for_hits(const RefSequenceTable& rt,
+void print_sam_for_single(const RefSequenceTable& rt,
 						const HitsForRead& hits,
                         const FragmentAlignmentGrade& grade,
                         FragmentType frag_type,
-                        FILE* reads_file,
-                        GBamWriter& bam_writer)
+                        //FILE* reads_file,
+                        Read& read,
+                        GBamWriter& bam_writer,
+                        FILE* um_out//write unmapped reads here
+                        )
 {
-    static const int buf_size = 2048;
+    /*static const int buf_size = 2048;
     char read_name[buf_size];
     char read_seq[buf_size];
     char read_alt_name[buf_size];
     char read_quals[buf_size];
-    
+    */
     //char rebuf[buf_size];
-    
+    assert(!read.alt_name.empty());
     lex_hit_sort s(rt, hits);
     vector<uint32_t> index_vector;
     for (size_t i = 0; i < hits.hits.size(); ++i)
         index_vector.push_back(i);
     
     sort(index_vector.begin(), index_vector.end(), s);
-    
+    /*
     bool got_read = get_read_from_stream(hits.insert_id,
                                          reads_file,
                                          reads_format,
@@ -377,37 +380,40 @@ void print_sam_for_hits(const RefSequenceTable& rt,
                                          read_name,
                                          read_seq,
                                          read_alt_name,
-                                         read_quals);
+                                         read_quals, um_out);
     
     assert (got_read);
-    
+    */
     size_t primaryHit = (hits.hits.empty()? 0: random() % hits.hits.size());
     bool multipleHits = (hits.hits.size() > 1);
     for (size_t i = 0; i < hits.hits.size(); ++i)
-	{
-        bool primary = (i == primaryHit);
-        size_t index = index_vector[i];
-        const BowtieHit& bh = hits.hits[index];
-        rewrite_sam_record(bam_writer, rt,
-                           bh,
-                           bh.hitfile_rec().c_str(),
-                           read_alt_name,
-                           grade,
-                           frag_type,
-                           hits.hits.size(),
-                           (i < hits.hits.size()-1) ? &(hits.hits[index_vector[i+1]]) : NULL,
-                           primary,
-                           (multipleHits? i: -1));
-	}
+    {
+          bool primary = (i == primaryHit);
+          size_t index = index_vector[i];
+          const BowtieHit& bh = hits.hits[index];
+          rewrite_sam_record(bam_writer, rt,
+                             bh,
+                             bh.hitfile_rec().c_str(),
+                             read.alt_name.c_str(),
+                             grade,
+                             frag_type,
+                             hits.hits.size(),
+                             (i < hits.hits.size()-1) ? &(hits.hits[index_vector[i+1]]) : NULL,
+                             primary,
+                             (multipleHits? i: -1));
+    }
 }
 
-void print_sam_for_hits(const RefSequenceTable& rt,
+void print_sam_for_pair(const RefSequenceTable& rt,
 						const HitsForRead& left_hits,
                         const HitsForRead& right_hits,
                         const InsertAlignmentGrade& grade,
                         FILE* left_reads_file,
                         FILE* right_reads_file,
-                        GBamWriter& bam_writer)
+                        GBamWriter& bam_writer,
+                        FILE* left_um_out,
+                        FILE* right_um_out
+                        )
 {
     assert (left_hits.insert_id == right_hits.insert_id);
     
@@ -430,23 +436,23 @@ void print_sam_for_hits(const RefSequenceTable& rt,
     size_t primaryHit = 0;
     vector<uint32_t> index_vector;
     if(right_hits.hits.size() > 0)
-	{
-		lex_hit_sort s(rt, right_hits);
-        for (size_t i = 0; i < right_hits.hits.size(); ++i)
-            index_vector.push_back(i);
-        
-        sort(index_vector.begin(), index_vector.end(), s);
-        primaryHit = random() % right_hits.hits.size();
-    }
+    {
+      lex_hit_sort s(rt, right_hits);
+          for (size_t i = 0; i < right_hits.hits.size(); ++i)
+              index_vector.push_back(i);
+
+          sort(index_vector.begin(), index_vector.end(), s);
+          primaryHit = random() % right_hits.hits.size();
+      }
     else if (left_hits.hits.size() > 0)
-	{
-        lex_hit_sort s(rt, left_hits);
-        for (size_t i = 0; i < left_hits.hits.size(); ++i)
-            index_vector.push_back(i);
-        
-        sort(index_vector.begin(), index_vector.end(), s);
-        primaryHit = random() % left_hits.hits.size();
-    }
+    {
+          lex_hit_sort s(rt, left_hits);
+          for (size_t i = 0; i < left_hits.hits.size(); ++i)
+              index_vector.push_back(i);
+
+          sort(index_vector.begin(), index_vector.end(), s);
+          primaryHit = random() % left_hits.hits.size();
+      }
     
     bool got_left_read = get_read_from_stream(left_hits.insert_id, 
                                               left_reads_file,
@@ -455,7 +461,7 @@ void print_sam_for_hits(const RefSequenceTable& rt,
                                               left_read_name, 
                                               left_read_seq,
                                               left_read_alt_name,
-                                              left_read_quals);
+                                              left_read_quals, left_um_out);
     
     bool got_right_read = get_read_from_stream(right_hits.insert_id, 
                                                right_reads_file,
@@ -464,7 +470,7 @@ void print_sam_for_hits(const RefSequenceTable& rt,
                                                right_read_name, 
                                                right_read_seq,
                                                right_read_alt_name,
-                                               right_read_quals);
+                                               right_read_quals, right_um_out);
     
     
     
@@ -504,7 +510,12 @@ void print_sam_for_hits(const RefSequenceTable& rt,
         }
     }
     else if (left_hits.hits.empty())
-    {
+    { //only right read was mapped properly
+        if (right_um_out) {
+          //write it in the mapped file with the #MAPPED# flag
+          fprintf(right_um_out, "@%s #MAPPED#\n%s\n+\n%s\n", right_read_alt_name, right_read_seq,
+                              right_read_quals);
+          }
         for (size_t i = 0; i < right_hits.hits.size(); ++i)
         {
             bool primary = (i == primaryHit);
@@ -526,7 +537,13 @@ void print_sam_for_hits(const RefSequenceTable& rt,
         }
     }
     else if (right_hits.hits.empty())
-    {
+    { //only left read was mapped properly
+      if (left_um_out) {
+        //write it in the mapped file with the #MAPPED# flag
+        fprintf(left_um_out, "@%s #MAPPED#\n%s\n+\n%s\n", left_read_alt_name, left_read_seq,
+                            left_read_quals);
+        }
+
         for (size_t i = 0; i < left_hits.hits.size(); ++i)
         {
             bool primary = (i == primaryHit);
@@ -639,12 +656,12 @@ void get_junctions_from_best_hits(HitStream& left_hs,
 	uint32_t curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
     
 	// While we still have unreported hits...
-	while(curr_left_obs_order != 0xFFFFFFFF ||
-		  curr_right_obs_order != 0xFFFFFFFF)
+	while(curr_left_obs_order != VMAXINT32 ||
+		  curr_right_obs_order != VMAXINT32)
 	{
 		// Chew up left singletons
 		while (curr_left_obs_order < curr_right_obs_order &&
-			   curr_left_obs_order != 0xFFFFFFFF)
+			   curr_left_obs_order != VMAXINT32)
 		{
 			HitsForRead best_hits;
 			best_hits.insert_id = curr_left_obs_order;
@@ -661,7 +678,7 @@ void get_junctions_from_best_hits(HitStream& left_hs,
         
 		// Chew up right singletons
 		while (curr_left_obs_order > curr_right_obs_order &&
-			   curr_right_obs_order != 0xFFFFFFFF)
+			   curr_right_obs_order != VMAXINT32)
 		{
 			HitsForRead best_hits;
 			best_hits.insert_id = curr_right_obs_order;
@@ -679,7 +696,7 @@ void get_junctions_from_best_hits(HitStream& left_hs,
 		// Since we have both left hits and right hits for this insert,
 		// Find the best pairing and print both
 		while (curr_left_obs_order == curr_right_obs_order &&
-			   curr_left_obs_order != 0xFFFFFFFF && curr_right_obs_order != 0xFFFFFFFF)
+			   curr_left_obs_order != VMAXINT32 && curr_right_obs_order != VMAXINT32)
 		{
 			if (curr_left_hit_group.hits.empty())
 			{
@@ -739,44 +756,49 @@ void driver(GBamWriter& bam_writer,
 	    FILE* right_reads,
 	    FILE* junctions_out,
 	    FILE* insertions_out,
-	    FILE* deletions_out)
+	    FILE* deletions_out,
+	    FILE* left_um_out,
+	    FILE* right_um_out
+	    )
 {
   ReadTable it;
   RefSequenceTable rt(sam_header, true);
     srandom(1);
   JunctionSet gtf_junctions;
-  if (gtf_juncs != "")
+  if (!gtf_juncs.empty())
     {
       char splice_buf[2048];
       FILE* splice_coords = fopen(gtf_juncs.c_str(), "r");
       if (splice_coords)
-	{
-	  while (fgets(splice_buf, sizeof(splice_buf), splice_coords))
-	    {
-	      char* nl = strrchr(splice_buf, '\n');
-	      char* buf = splice_buf;
-	      if (nl) *nl = 0;
-			
-	      char* ref_name = get_token((char**)&buf, "\t");
-	      char* scan_left_coord = get_token((char**)&buf, "\t");
-	      char* scan_right_coord = get_token((char**)&buf, "\t");
-	      char* orientation = get_token((char**)&buf, "\t");
-	  
-	      if (!scan_left_coord || !scan_right_coord || !orientation)
-		{
-		  fprintf(stderr,"Error: malformed splice coordinate record\n");
-		  exit(1);
-		}
-	      
-	      uint32_t ref_id = rt.get_id(ref_name, NULL, 0);
-	      uint32_t left_coord = atoi(scan_left_coord);
-	      uint32_t right_coord = atoi(scan_right_coord);
-	      bool antisense = *orientation == '-';
+        {
+          while (fgets(splice_buf, sizeof(splice_buf), splice_coords))
+            {
+              char* nl = strrchr(splice_buf, '\n');
+              char* buf = splice_buf;
+              if (nl) *nl = 0;
 
-	      // add 1 to left_coord to meet BED format
-	      gtf_junctions.insert(make_pair<Junction, JunctionStats>(Junction(ref_id, left_coord + 1, right_coord, antisense), JunctionStats()));
-	    }
-	}
+              char* ref_name = get_token((char**)&buf, "\t");
+              char* scan_left_coord = get_token((char**)&buf, "\t");
+              char* scan_right_coord = get_token((char**)&buf, "\t");
+              char* orientation = get_token((char**)&buf, "\t");
+
+              if (!scan_left_coord || !scan_right_coord || !orientation)
+                {
+                  fprintf(stderr,"Error: malformed splice coordinate record in %s\n:%s\n",
+                        gtf_juncs.c_str(), buf);
+                  exit(1);
+                }
+
+              uint32_t ref_id = rt.get_id(ref_name, NULL, 0);
+              uint32_t left_coord = atoi(scan_left_coord);
+              uint32_t right_coord = atoi(scan_right_coord);
+              bool antisense = *orientation == '-';
+
+              // add 1 to left_coord to meet BED format
+              gtf_junctions.insert(make_pair<Junction, JunctionStats>(Junction(ref_id, left_coord + 1, right_coord, antisense), JunctionStats()));
+            }
+        }
+      fprintf(stderr, "Loaded %d GFF junctions from %s.\n", (int)(gtf_junctions.size()), gtf_juncs.c_str());
     }
 
   BAMHitFactory hit_factory(it,rt);
@@ -806,8 +828,10 @@ void driver(GBamWriter& bam_writer,
 	// Read hits, extract junctions, and toss the ones that arent strongly enough supported.
 	filter_junctions(junctions, gtf_junctions);
 	//size_t num_juncs_after_filter = junctions.size();
-	//fprintf(stderr, "Filtered %lu junctions\n", num_unfiltered_juncs - num_juncs_after_filter);
+	//fprintf(stderr, "Filtered %lu junctions\n",
+	//     num_unfiltered_juncs - num_juncs_after_filter);
     
+	/*
 	size_t small_overhangs = 0;
 	for (JunctionSet::iterator i = junctions.begin(); i != junctions.end(); ++i)
     {
@@ -820,40 +844,52 @@ void driver(GBamWriter& bam_writer,
     
 	if (small_overhangs >0)
         fprintf(stderr, "Warning: %lu small overhang junctions!\n", (long unsigned int)small_overhangs);
-    
+  */
 	JunctionSet final_junctions; // the junctions formed from best hits
 	InsertionSet final_insertions;
 	DeletionSet final_deletions;
     
 	fprintf (stderr, "Reporting final accepted alignments...");
 	// While we still have unreported hits...
-	while(curr_left_obs_order != 0xFFFFFFFF ||
-	      curr_right_obs_order != 0xFFFFFFFF)
+  Read l_read;
+  Read r_read;
+	while(curr_left_obs_order != VMAXINT32 ||
+	      curr_right_obs_order != VMAXINT32)
     {
-        // Chew up left singletons
+        // Chew up left singletons (pairs with right reads unmapped)
         while (curr_left_obs_order < curr_right_obs_order &&
-               curr_left_obs_order != 0xFFFFFFFF)
+               curr_left_obs_order != VMAXINT32)
         {
             HitsForRead best_hits;
             best_hits.insert_id = curr_left_obs_order;
             FragmentAlignmentGrade grade;
-            
+            bool got_read=get_read_from_stream(curr_left_obs_order,
+                    left_reads,reads_format, false, l_read, left_um_out);
+            assert(got_read);
+            if (right_reads) {
+                fprintf(left_um_out, "@%s #MAPPED#\n%s\n+\n%s\n", l_read.alt_name.c_str(),
+                                l_read.seq.c_str(), l_read.qual.c_str());
+                got_read=get_read_from_stream(curr_left_obs_order,
+                                  right_reads,reads_format, false,
+                                  r_read, right_um_out, true);
+                assert(got_read);
+                }
             exclude_hits_on_filtered_junctions(junctions, curr_left_hit_group);
             
             // Process hits for left singleton, select best alignments
             fragment_best_alignments(curr_left_hit_group, grade, best_hits, gtf_junctions);
-            
             if (best_hits.hits.size() <= max_multihits)
             {
                 update_junctions(best_hits, final_junctions);
                 update_insertions_and_deletions(best_hits, final_insertions, final_deletions);
                 
-                print_sam_for_hits(rt,
+                print_sam_for_single(rt,
                                    best_hits,
                                    grade,
                                    (right_map_fname.empty() ? FRAG_UNPAIRED : FRAG_LEFT),
-                                   left_reads,
-                                   bam_writer);
+                                   l_read,
+                                   bam_writer,
+                                   left_um_out);
             }
             
             // Get next hit group
@@ -863,12 +899,22 @@ void driver(GBamWriter& bam_writer,
         
         // Chew up right singletons
         while (curr_left_obs_order > curr_right_obs_order &&
-               curr_right_obs_order != 0xFFFFFFFF)
+               curr_right_obs_order != VMAXINT32)
         {
             HitsForRead best_hits;
             best_hits.insert_id = curr_right_obs_order;
             FragmentAlignmentGrade grade;
             
+            bool got_read=get_read_from_stream(curr_right_obs_order,
+                    right_reads,reads_format, false, r_read, right_um_out);
+            assert(got_read);
+            fprintf(right_um_out, "@%s #MAPPED#\n%s\n+\n%s\n", r_read.alt_name.c_str(),
+                              r_read.seq.c_str(), r_read.qual.c_str());
+            got_read=get_read_from_stream(curr_right_obs_order,
+                                  left_reads,reads_format, false,
+                                  l_read, left_um_out, true);
+            assert(got_read);
+
             exclude_hits_on_filtered_junctions(junctions, curr_right_hit_group);
             
             // Process hit for right singleton, select best alignments
@@ -879,12 +925,13 @@ void driver(GBamWriter& bam_writer,
                 update_junctions(best_hits, final_junctions);
                 update_insertions_and_deletions(best_hits, final_insertions, final_deletions);
                 
-                print_sam_for_hits(rt,
+                print_sam_for_single(rt,
                                    best_hits,
                                    grade,
                                    FRAG_RIGHT,
-                                   right_reads,
-                                   bam_writer);
+                                   r_read,
+                                   bam_writer,
+                                   right_um_out);
             }
             
             // Get next hit group
@@ -895,13 +942,20 @@ void driver(GBamWriter& bam_writer,
         // Since we have both left hits and right hits for this insert,
         // Find the best pairing and print both
         while (curr_left_obs_order == curr_right_obs_order &&
-               curr_left_obs_order != 0xFFFFFFFF && curr_right_obs_order != 0xFFFFFFFF)
+               curr_left_obs_order != VMAXINT32 && curr_right_obs_order != VMAXINT32)
         {
             exclude_hits_on_filtered_junctions(junctions, curr_left_hit_group);
             exclude_hits_on_filtered_junctions(junctions, curr_right_hit_group);
             
             if (curr_left_hit_group.hits.empty())
-            {
+            {   //only right read mapped
+                //write it in the mapped file with the #MAPPED# flag
+
+                bool got_read=get_read_from_stream(curr_left_obs_order,
+                                  right_reads,reads_format, false, r_read, right_um_out);
+                assert(got_read);
+                fprintf(right_um_out, "@%s #MAPPED#\n%s\n+\n%s\n", r_read.alt_name.c_str(),
+                                  r_read.seq.c_str(), r_read.qual.c_str());
                 HitsForRead right_best_hits;
                 right_best_hits.insert_id = curr_right_obs_order;
                 
@@ -913,19 +967,25 @@ void driver(GBamWriter& bam_writer,
                     update_junctions(right_best_hits, final_junctions);
                     update_insertions_and_deletions(right_best_hits, final_insertions, final_deletions);
                     
-                    print_sam_for_hits(rt,
+                    print_sam_for_single(rt,
                                        right_best_hits,
                                        grade,
                                        FRAG_RIGHT,
-                                       right_reads,
-                                       bam_writer);
+                                       r_read,
+                                       bam_writer,
+                                       right_um_out);
                 }
             }
             else if (curr_right_hit_group.hits.empty())
             {
                 HitsForRead left_best_hits;
                 left_best_hits.insert_id = curr_left_obs_order;
-                
+                //only left read mapped
+                bool got_read=get_read_from_stream(curr_left_obs_order,
+                        left_reads,reads_format, false, l_read, left_um_out);
+                assert(got_read);
+                fprintf(left_um_out, "@%s #MAPPED#\n%s\n+\n%s\n", l_read.alt_name.c_str(),
+                                  l_read.seq.c_str(), l_read.qual.c_str());
                 FragmentAlignmentGrade grade;
                 // Process hits for left singleton, select best alignments
                 fragment_best_alignments(curr_left_hit_group, grade, left_best_hits, gtf_junctions);
@@ -935,16 +995,17 @@ void driver(GBamWriter& bam_writer,
                     update_junctions(left_best_hits, final_junctions);
                     update_insertions_and_deletions(left_best_hits, final_insertions, final_deletions);
                     
-                    print_sam_for_hits(rt,
+                    print_sam_for_single(rt,
                                        left_best_hits,
                                        grade,
                                        FRAG_LEFT,
-                                       left_reads,
-                                       bam_writer);
+                                       l_read,
+                                       bam_writer,
+                                       left_um_out);
                 }
             }
             else
-            {
+            {   //hits for both left and right reads
                 HitsForRead left_best_hits;
                 HitsForRead right_best_hits;
                 left_best_hits.insert_id = curr_left_obs_order;
@@ -964,13 +1025,15 @@ void driver(GBamWriter& bam_writer,
                     update_insertions_and_deletions(left_best_hits, final_insertions, final_deletions);
                     update_insertions_and_deletions(right_best_hits, final_insertions, final_deletions);
                     
-                    print_sam_for_hits(rt,
+                    print_sam_for_pair(rt,
                                        left_best_hits,
                                        right_best_hits,
                                        grade,
                                        left_reads,
                                        right_reads,
-                                       bam_writer);
+                                       bam_writer,
+                                       left_um_out,
+                                       right_um_out);
                 }
             }
             
@@ -982,10 +1045,23 @@ void driver(GBamWriter& bam_writer,
         }
         
     } //while we still have unreported hits..
-    
+  //print the remaining unmapped reads at the end of each reads' stream
+	get_read_from_stream(VMAXINT32,
+                         left_reads,
+                         reads_format,
+                         false,
+                         l_read,
+                         left_um_out);
+	if (right_reads)
+	  get_read_from_stream(VMAXINT32,
+	                         right_reads,
+	                         reads_format,
+	                         false,
+	                         r_read,
+	                         right_um_out);
 	fprintf (stderr, "done.\n");
     
-	small_overhangs = 0;
+	//small_overhangs = 0;
 	for (JunctionSet::iterator i = final_junctions.begin(); i != final_junctions.end();)
 	  {
 	    if (i->second.supporting_hits == 0 || i->second.left_extent < 8 ||	i->second.right_extent < 8)
@@ -1088,7 +1164,9 @@ int main(int argc, char** argv)
     string right_map_filename;
     string right_reads_filename;
     FZPipe right_reads_file;
-    
+    string right_um_filename;
+    FZPipe right_um_file;
+
     if (optind < argc)
 	{
         right_map_filename = argv[optind++];
@@ -1100,6 +1178,11 @@ int main(int argc, char** argv)
         //if (optind<argc) {
         right_reads_filename=argv[optind++];
         right_reads_file.openRead(right_reads_filename,unzcmd);
+        right_um_filename=output_dir+"/unmapped_right.fq";
+        if (!zpacker.empty()) right_um_filename+=".z";
+        if (right_um_file.openWrite(right_um_filename.c_str(), zpacker)==NULL)
+          err_die("Error: cannot open file %s for writing!\n",right_um_filename.c_str());
+
         //  }
 	}
     FILE* junctions_file = fopen(junctions_file_name.c_str(), "w");
@@ -1128,21 +1211,31 @@ int main(int argc, char** argv)
 	}
     bool uncompressed_bam=(accepted_hits_file_name=="-");
     GBamWriter bam_writer(accepted_hits_file_name.c_str(), sam_header.c_str(), uncompressed_bam);
+
     FZPipe left_reads_file(left_reads_filename, unzcmd);
     if (left_reads_file.file==NULL)
-	{
-        fprintf(stderr, "Error: cannot open reads file %s for reading\n",
-                left_reads_filename.c_str());
-		exit(1);
-	}
-    
+      {
+            fprintf(stderr, "Error: cannot open reads file %s for reading\n",
+                    left_reads_filename.c_str());
+        exit(1);
+      }
+    string left_um_filename(output_dir+"/unmapped_left.fq");
+    if (!zpacker.empty()) left_um_filename+=".z";
+    FZPipe left_um_file;
+    if (left_um_file.openWrite(left_um_filename.c_str(), zpacker)==NULL)
+          err_die("Error: cannot open file %s for writing!\n",left_um_filename.c_str());
+
     driver(bam_writer, left_map_filename,
            left_reads_file.file,
            right_map_filename,
            right_reads_file.file,
            junctions_file,
            insertions_file,
-           deletions_file);
+           deletions_file,
+           left_um_file.file,
+           right_um_file.file);
+    left_um_file.close();
+    right_um_file.close();
     return 0;
 }
 

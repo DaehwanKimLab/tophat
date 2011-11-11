@@ -1019,7 +1019,7 @@ void join_segment_hits(GBamWriter& bam_writer, std::set<Junction>& possible_junc
            vector<HitStream>& contig_hits,
            vector<HitStream>& spliced_hits)
 {
-  uint32_t curr_contig_obs_order = 0xFFFFFFFF;
+  uint32_t curr_contig_obs_order = VMAXINT32;
   HitStream* first_seg_contig_stream = NULL;
   uint64_t next_contig_id = 0;
 
@@ -1032,7 +1032,7 @@ void join_segment_hits(GBamWriter& bam_writer, std::set<Junction>& possible_junc
 
   HitsForRead curr_hit_group;
 
-  uint32_t curr_spliced_obs_order = 0xFFFFFFFF;
+  uint32_t curr_spliced_obs_order = VMAXINT32;
   HitStream* first_seg_spliced_stream = NULL;
   uint64_t next_spliced_id = 0;
 
@@ -1043,8 +1043,8 @@ void join_segment_hits(GBamWriter& bam_writer, std::set<Junction>& possible_junc
       curr_spliced_obs_order = unmapped_reads.observation_order(next_spliced_id);
     }
 
-  while(curr_contig_obs_order != 0xFFFFFFFF ||
-  curr_spliced_obs_order != 0xFFFFFFFF)
+  while(curr_contig_obs_order != VMAXINT32 ||
+  curr_spliced_obs_order != VMAXINT32)
     {
       uint32_t read_in_process;
       vector<HitsForRead> seg_hits_for_read;
@@ -1073,8 +1073,8 @@ void join_segment_hits(GBamWriter& bam_writer, std::set<Junction>& possible_junc
     curr_spliced_obs_order = next_order;
   }
       else if (curr_contig_obs_order == curr_spliced_obs_order &&
-         curr_contig_obs_order != 0xFFFFFFFF &&
-         curr_spliced_obs_order != 0xFFFFFFFF)
+         curr_contig_obs_order != VMAXINT32 &&
+         curr_spliced_obs_order != VMAXINT32)
   {
     first_seg_contig_stream->next_read_hits(curr_hit_group);
 
@@ -1414,6 +1414,7 @@ int main(int argc, char** argv)
 
   string unzcmd=getUnpackCmd(reads_file_name, spliced_segment_file_list.empty() &&
                  segment_file_names.size()<4);
+
   FZPipe reads_file(reads_file_name, unzcmd);
   if (reads_file.file==NULL)
      err_die("Error: cannot open %s for reading\n",
@@ -1477,8 +1478,11 @@ int main(int argc, char** argv)
 
     //vector<FILE*> segment_files;
     vector<FZPipe> segment_files;
+    unzcmd.clear();
     for (size_t i = 0; i < segment_file_names.size(); ++i)
     {
+      if (unzcmd.empty())
+          unzcmd=getUnpackCmd(segment_file_names[i],false);
       fprintf(stderr, "Opening %s for reading\n",
         segment_file_names[i].c_str());
       //FILE* seg_file = fopen(segment_file_names[i].c_str(), "r");
@@ -1494,11 +1498,14 @@ int main(int argc, char** argv)
   vector<string> spliced_segment_file_names;
   //vector<FILE*> spliced_segment_files;
   vector<FZPipe> spliced_segment_files;
+  unzcmd.clear();
   tokenize(spliced_segment_file_list, ",",spliced_segment_file_names);
   for (size_t i = 0; i < spliced_segment_file_names.size(); ++i)
     {
       fprintf(stderr, "Opening %s for reading\n",
         spliced_segment_file_names[i].c_str());
+      if (unzcmd.empty())
+          unzcmd=getUnpackCmd(spliced_segment_file_names[i],false);
       //FILE* spliced_seg_file = fopen(spliced_segment_file_names[i].c_str(), "r");
       FZPipe spliced_seg_file(spliced_segment_file_names[i], unzcmd);
       if (spliced_seg_file.file == NULL)

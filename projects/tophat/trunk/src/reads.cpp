@@ -585,42 +585,86 @@ void BWA_decode(const string& color, const string& qual, const string& ref, stri
 }
 
 bool get_read_from_stream(uint64_t insert_id,
+        FILE* reads_file,
+        ReadFormat reads_format,
+        bool strip_slash,
+        Read& read,
+        FILE* um_out,
+        bool um_write_found
+        ) {
+  FLineReader fr(reads_file);
+  bool found=false;
+  while(!found && !fr.isEof())
+    {
+    read.clear();
+      // Get the next read from the file
+    if (!next_fastx_read(fr, read, reads_format))
+        break;
+    if (strip_slash)
+      {
+        string::size_type slash = read.name.rfind("/");
+        if (slash != string::npos)
+          read.name.resize(slash);
+      }
+    if ((uint64_t)atoi(read.name.c_str()) == insert_id)
+      {
+      //return true;
+      found=true;
+      }
+    if (um_out && (um_write_found || !found)) {
+     //write unmapped reads
+      fprintf(um_out, "@%s\n%s\n+\n%s\n", read.alt_name.c_str(),
+                              read.seq.c_str(), read.qual.c_str());
+      }
+    //rt.get_id(read.name, ref_str);
+    } //while reads
+  return found;
+}
+
+
+bool get_read_from_stream(uint64_t insert_id,
 			  FILE* reads_file,
 			  ReadFormat reads_format,
 			  bool strip_slash,
 			  char read_name [], 
 			  char read_seq  [],
 			  char read_alt_name [], 
-			  char read_qual [])
+			  char read_qual [],
+			  FILE* um_out)
 {
   Read read;
   FLineReader fr(reads_file);
   while(!fr.isEof())
-	{
-	read.clear();
-	  
-	  // Get the next read from the file
-	if (!next_fastx_read(fr, read, reads_format))
-	    break;
+    {
+    read.clear();
 
-	if (strip_slash)
-	{
-	  string::size_type slash = read.name.rfind("/");
-	  if (slash != string::npos)
-	    read.name.resize(slash);
-	}
+      // Get the next read from the file
+    if (!next_fastx_read(fr, read, reads_format))
+        break;
+
+    if (strip_slash)
+      {
+        string::size_type slash = read.name.rfind("/");
+        if (slash != string::npos)
+          read.name.resize(slash);
+      }
+
+    if ((uint64_t)atoi(read.name.c_str()) == insert_id)
+      {
+        if (read_name) strcpy(read_name, read.name.c_str());
+        if (read_seq) strcpy(read_seq, read.seq.c_str());
+        if (read_alt_name) strcpy(read_alt_name, read.alt_name.c_str());
+        if (read_qual) strcpy(read_qual, read.qual.c_str());
+        return true;
+      }
+    else if (um_out!=NULL) {
+     //write unmapped reads
+      fprintf(um_out, "@%s\n%s\n+\n%s\n", read.alt_name.c_str(), read.seq.c_str(),
+                          read.qual.c_str());
+      }
       
-	if ((uint64_t)atoi(read.name.c_str()) == insert_id)
-	{
-	  if (read_name) strcpy(read_name, read.name.c_str());
-	  if (read_seq) strcpy(read_seq, read.seq.c_str());
-	  if (read_alt_name) strcpy(read_alt_name, read.alt_name.c_str());
-	  if (read_qual) strcpy(read_qual, read.qual.c_str());
-	  return true;
-	}
-		
-      //rt.get_id(read.name, ref_str);
-    }	
+        //rt.get_id(read.name, ref_str);
+    } //while reads
   
   return false;
 }
