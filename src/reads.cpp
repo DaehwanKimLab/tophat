@@ -584,6 +584,66 @@ void BWA_decode(const string& color, const string& qual, const string& ref, stri
     }
 }
 
+
+bool ReadStream::next_read(Read& r, ReadFormat read_format) {
+  FLineReader fr(fstream.file);
+  while (read_pq.size()<100000 && !r_eof) {
+    //keep the queue topped off
+    Read rf;
+    if (!next_fastx_read(fr, rf, read_format)) {
+        r_eof=true;
+        break;
+        }
+    //Read read=Read(rf);
+    uint64_t id = (uint64_t)atol(rf.name.c_str());
+    read_pq.push(make_pair(id, rf));
+    }
+  if (read_pq.size()==0)
+     return false;
+  const pair<uint64_t, Read>& t = read_pq.top();
+  r=t.second; //copy strings
+  //free(t.second);
+  read_pq.pop();
+  return true;
+}
+
+// reads must ALWAYS requested in increasing order of their ID
+bool ReadStream::getRead(uint64_t r_id,
+            Read& read,
+            ReadFormat read_format,
+            bool strip_slash,
+            FILE* um_out, //unmapped reads output
+            bool um_write_found) {
+  if (!fstream.file)
+       err_die("Error: calling ReadStream::getRead() with no file handle!");
+  if (r_id<last_id)
+      err_die("Error: ReadStream::getRead() called with out-of-order id#!");
+  last_id=r_id;
+  bool found=false;
+  while (!found) {
+    read.clear();
+      // Get the next read from the file
+    if (!next_read(read, read_format))
+        break;
+    if (strip_slash) {
+       string::size_type slash = read.name.rfind("/");
+       if (slash != string::npos)
+          read.name.resize(slash);
+       }
+    if ((uint64_t)atoi(read.name.c_str()) == r_id) {
+       found=true;
+       }
+    if (um_out && (um_write_found || !found)) {
+     //write unmapped reads
+      fprintf(um_out, "@%s\n%s\n+\n%s\n", read.alt_name.c_str(),
+                              read.seq.c_str(), read.qual.c_str());
+      }
+    //rt.get_id(read.name, ref_str);
+    } //while reads
+  return found;
+}
+
+
 bool get_read_from_stream(uint64_t insert_id,
         FILE* reads_file,
         ReadFormat reads_format,
