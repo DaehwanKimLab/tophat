@@ -52,6 +52,7 @@ Options:
                                                 fr-secondstrand)
     -p/--num-threads               <int>       [ default: 1                ]
     -G/--GTF                       <filename>
+    --transcriptome-index          <bwtidx>    [pre-built bowtie index for -G/--GTF file]
     -T/--transcriptome                         [Map only to the transcriptome]
     -j/--raw-juncs                 <filename>
     --insertions                   <filename>
