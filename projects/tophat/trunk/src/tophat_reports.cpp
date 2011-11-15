@@ -358,13 +358,6 @@ void print_sam_for_single(const RefSequenceTable& rt,
                         FILE* um_out//write unmapped reads here
                         )
 {
-    /*static const int buf_size = 2048;
-    char read_name[buf_size];
-    char read_seq[buf_size];
-    char read_alt_name[buf_size];
-    char read_quals[buf_size];
-    */
-    //char rebuf[buf_size];
     assert(!read.alt_name.empty());
     lex_hit_sort s(rt, hits);
     vector<uint32_t> index_vector;
@@ -372,18 +365,6 @@ void print_sam_for_single(const RefSequenceTable& rt,
         index_vector.push_back(i);
     
     sort(index_vector.begin(), index_vector.end(), s);
-    /*
-    bool got_read = get_read_from_stream(hits.insert_id,
-                                         reads_file,
-                                         reads_format,
-                                         false,
-                                         read_name,
-                                         read_seq,
-                                         read_alt_name,
-                                         read_quals, um_out);
-    
-    assert (got_read);
-    */
     size_t primaryHit = (hits.hits.empty()? 0: random() % hits.hits.size());
     bool multipleHits = (hits.hits.size() > 1);
     for (size_t i = 0; i < hits.hits.size(); ++i)
@@ -417,19 +398,8 @@ void print_sam_for_pair(const RefSequenceTable& rt,
 {
     assert (left_hits.insert_id == right_hits.insert_id);
     
-    static const int buf_size = 2048;
-    char left_read_name[buf_size];
-    char left_read_seq[buf_size];
-    char left_read_alt_name[buf_size];
-    char left_read_quals[buf_size];
-    //char left_rebuf[buf_size];
-    
-    char right_read_name[buf_size];
-    char right_read_seq[buf_size];
-    char right_read_alt_name[buf_size];
-    char right_read_quals[buf_size];
-    //char right_rebuf[buf_size];
-    
+    Read left_read;
+    Read right_read;
     assert (left_hits.hits.size() == right_hits.hits.size() ||
             (left_hits.hits.empty() || right_hits.hits.empty()));
     
@@ -458,21 +428,13 @@ void print_sam_for_pair(const RefSequenceTable& rt,
                                               left_reads_file,
                                               reads_format,
                                               false,
-                                              left_read_name, 
-                                              left_read_seq,
-                                              left_read_alt_name,
-                                              left_read_quals, left_um_out);
+                                              left_read, left_um_out);
     
     bool got_right_read = get_read_from_stream(right_hits.insert_id, 
                                                right_reads_file,
                                                reads_format,
                                                false,
-                                               right_read_name, 
-                                               right_read_seq,
-                                               right_read_alt_name,
-                                               right_read_quals, right_um_out);
-    
-    
+                                               right_read, right_um_out);
     
     if (left_hits.hits.size() == right_hits.hits.size())
     {
@@ -488,7 +450,7 @@ void print_sam_for_pair(const RefSequenceTable& rt,
             rewrite_sam_record(bam_writer, rt,
                                right_bh,
                                right_bh.hitfile_rec().c_str(),
-                               right_read_alt_name,
+                               right_read.alt_name.c_str(),
                                grade,
                                FRAG_RIGHT,
                                &left_bh,
@@ -499,7 +461,7 @@ void print_sam_for_pair(const RefSequenceTable& rt,
             rewrite_sam_record(bam_writer, rt,
                                left_bh,
                                left_bh.hitfile_rec().c_str(),
-                               left_read_alt_name,
+                               left_read.alt_name.c_str(),
                                grade,
                                FRAG_LEFT,
                                &right_bh,
@@ -513,8 +475,8 @@ void print_sam_for_pair(const RefSequenceTable& rt,
     { //only right read was mapped properly
         if (right_um_out) {
           //write it in the mapped file with the #MAPPED# flag
-          fprintf(right_um_out, "@%s #MAPPED#\n%s\n+\n%s\n", right_read_alt_name, right_read_seq,
-                              right_read_quals);
+          fprintf(right_um_out, "@%s #MAPPED#\n%s\n+\n%s\n", right_read.alt_name.c_str(),
+                              right_read.seq.c_str(), right_read.qual.c_str());
           }
         for (size_t i = 0; i < right_hits.hits.size(); ++i)
         {
@@ -525,7 +487,7 @@ void print_sam_for_pair(const RefSequenceTable& rt,
             rewrite_sam_record(bam_writer, rt,
                                bh,
                                bh.hitfile_rec().c_str(),
-                               right_read_alt_name,
+                               right_read.alt_name.c_str(),
                                grade,
                                FRAG_RIGHT,
                                NULL,
@@ -540,8 +502,8 @@ void print_sam_for_pair(const RefSequenceTable& rt,
     { //only left read was mapped properly
       if (left_um_out) {
         //write it in the mapped file with the #MAPPED# flag
-        fprintf(left_um_out, "@%s #MAPPED#\n%s\n+\n%s\n", left_read_alt_name, left_read_seq,
-                            left_read_quals);
+        fprintf(left_um_out, "@%s #MAPPED#\n%s\n+\n%s\n", left_read.alt_name.c_str(), left_read.seq.c_str(),
+                            left_read.qual.c_str());
         }
 
         for (size_t i = 0; i < left_hits.hits.size(); ++i)
@@ -552,7 +514,7 @@ void print_sam_for_pair(const RefSequenceTable& rt,
             rewrite_sam_record(bam_writer, rt,
                                bh,
                                bh.hitfile_rec().c_str(),
-                               left_read_alt_name,
+                               left_read.alt_name.c_str(),
                                grade,
                                FRAG_LEFT,
                                NULL,

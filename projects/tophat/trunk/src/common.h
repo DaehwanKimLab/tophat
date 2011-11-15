@@ -139,15 +139,21 @@ class FZPipe {
 	   //this constructor is only to use FZPipe as a READER
        //also accepts/recognizes BAM files
 	   //for which it only stores the filename, other fields/methods are unused
-	   is_bam=false;
-       if (is_mapping && getFext(fname) == "bam") {
+	   openRead(fname, is_mapping);
+	   }
+
+   void openRead(std::string& fname, bool is_mapping) {
+     filename=fname;
+     pipecmd="";
+     is_bam=false;
+     if (is_mapping && getFext(fname) == "bam") {
            file=(FILE*)this;
            is_bam=true;
            return;
            }
-  	   pipecmd=getUnpackCmd(fname); //also bam2fastx
-       this->openRead(fname.c_str(), pipecmd);
-	   }
+     pipecmd=getUnpackCmd(fname); //also bam2fastx
+     this->openRead(fname.c_str(), pipecmd);
+     }
 
 	 FZPipe():filename(),pipecmd() {
 	   is_bam=false;

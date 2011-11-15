@@ -687,7 +687,9 @@ class TopHatParams:
                 custom_out_dir = value + "/"
             if option == "--tmp-dir":
                 custom_tmp_dir = value + "/"
-
+        if self.transcriptome_only:
+           self.find_novel_juncs=False
+           self.find_novel_indels=False
         if custom_out_dir != None:
             output_dir = custom_out_dir
             logging_dir = output_dir + "logs/"
@@ -2075,7 +2077,8 @@ def junctions_from_segments(params,
     deletions_out =out_path+"segment.deletions"
 
     left_maps = ','.join(left_seg_maps)
-    align_log = open(logging_dir + "segment_juncs.log", "w")
+    log_fname = logging_dir + "segment_juncs.log"
+    align_log = open(log_fname, "w")
     align_cmd = [prog_path("segment_juncs")]
 
     align_cmd.extend(params.cmd())
@@ -2099,7 +2102,7 @@ def junctions_from_segments(params,
 
         # spanning_reads returned an error
         if retcode != 0:
-           die(fail_str+"Error: segment-based junction search failed with err ="+str(retcode))
+           die(fail_str+"Error: segment-based junction search failed with err ="+str(retcode)+"\n"+log_tail(log_fname))
     # cvg_islands not found
     except OSError, o:
         if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
@@ -2120,8 +2123,10 @@ def join_mapped_segments(params,
                          contig_seg_maps,
                          spliced_seg_maps,
                          alignments_out_name):
+    rn=""
     if len(contig_seg_maps)>1:
        print >> sys.stderr, "[%s] Joining segment hits" % right_now()
+       rn=".segs"
     else:
        print >> sys.stderr, "[%s] Processing bowtie hits" % right_now()
     contig_seg_maps = ','.join(contig_seg_maps)
@@ -2129,8 +2134,8 @@ def join_mapped_segments(params,
     possible_juncs = ','.join(possible_juncs)
     possible_insertions = ",".join(possible_insertions)
     possible_deletions = ",".join(possible_deletions)
-
-    align_log = open(logging_dir + "long_spanning_reads.log", "w")
+    log_fname=logging_dir + "long_spanning_reads"+rn+".log"
+    align_log = open(log_fname, "w")
     align_cmd = [prog_path("long_spanning_reads")]
 
     align_cmd.extend(params.cmd())
@@ -2153,6 +2158,9 @@ def join_mapped_segments(params,
                           stdout=open(alignments_out_name, "wb"),
                           stderr=align_log)
         join_proc.communicate()
+        retcode=join_proc.poll()
+        if retcode:
+            die(fail_str+"Error at 'long_spanning_reads'\n"+log_tail(log_fname))
     except OSError, o:
         die(fail_str+"Error: "+str(o))
 

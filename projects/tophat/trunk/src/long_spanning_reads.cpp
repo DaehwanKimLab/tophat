@@ -1015,7 +1015,8 @@ void join_segment_hits(GBamWriter& bam_writer, std::set<Junction>& possible_junc
            std::set<Insertion>& possible_insertions,
            ReadTable& unmapped_reads,
            RefSequenceTable& rt,
-           FILE* reads_file,
+           //FILE* reads_file,
+           ReadStream& readstream,
            vector<HitStream>& contig_hits,
            vector<HitStream>& spliced_hits)
 {
@@ -1102,46 +1103,40 @@ void join_segment_hits(GBamWriter& bam_writer, std::set<Junction>& possible_junc
   }
 
       if (contig_hits.size() > 1)
-  {
-    look_right_for_hit_group(unmapped_reads,
-          contig_hits,
-          0,
-          spliced_hits,
-          curr_hit_group,
-          seg_hits_for_read);
-  }
+      {
+        look_right_for_hit_group(unmapped_reads,
+              contig_hits,
+              0,
+              spliced_hits,
+              curr_hit_group,
+              seg_hits_for_read);
+      }
 
       size_t last_non_empty = seg_hits_for_read.size() - 1;
       while(last_non_empty >= 0 && seg_hits_for_read[last_non_empty].hits.empty())
-  {
-    --last_non_empty;
-  }
+      {
+        --last_non_empty;
+      }
 
       seg_hits_for_read.resize(last_non_empty + 1);
       if (!seg_hits_for_read[last_non_empty].hits[0].end())
-  continue;
+         continue;
 
       if (!seg_hits_for_read.empty() && !seg_hits_for_read[0].hits.empty())
   {
     uint64_t insert_id = seg_hits_for_read[0].hits[0].insert_id();
-    char read_name[256];
-    char read_seq[256];
-    char read_alt_name[256];
-    char read_quals[256];
-
-    if (get_read_from_stream(insert_id,
+    Read read;
+    /* if (get_read_from_stream(insert_id,
            reads_file,
            reads_format,
            false,
-           read_name,
-           read_seq,
-           read_alt_name,
-           read_quals))
+           read)) */
+    if (readstream.getRead(insert_id, read))
       {
         vector<BowtieHit> joined_hits;
         join_segments_for_read(rt,
-             read_seq,
-             read_quals,
+             read.seq.c_str(),
+             read.qual.c_str(),
              possible_juncs,
              possible_insertions,
              seg_hits_for_read,
@@ -1152,15 +1147,17 @@ void join_segment_hits(GBamWriter& bam_writer, std::set<Junction>& possible_junc
         joined_hits.erase(new_end, joined_hits.end());
 
         for (size_t i = 0; i < joined_hits.size(); i++)
-    {
-      const char* ref_name = rt.get_name(joined_hits[i].ref_id());
-      if (color && !color_out)
-        //print_hit(stdout, read_name, joined_hits[i], ref_name, joined_hits[i].seq().c_str(), joined_hits[i].qual().c_str(), true);
-        print_bamhit(bam_writer, read_name, joined_hits[i], ref_name, joined_hits[i].seq().c_str(), joined_hits[i].qual().c_str(), true);
-      else
-        print_bamhit(bam_writer, read_name, joined_hits[i], ref_name, read_seq, read_quals, false);
-        //print_hit(stdout, read_name, joined_hits[i], ref_name, read_seq, read_quals, false);
-    }
+        {
+          const char* ref_name = rt.get_name(joined_hits[i].ref_id());
+          if (color && !color_out)
+            //print_hit(stdout, read_name, joined_hits[i], ref_name, joined_hits[i].seq().c_str(), joined_hits[i].qual().c_str(), true);
+            print_bamhit(bam_writer, read.name.c_str(), joined_hits[i], ref_name, joined_hits[i].seq().c_str(),
+                                         joined_hits[i].qual().c_str(), true);
+          else
+            print_bamhit(bam_writer, read.name.c_str(), joined_hits[i], ref_name,
+                                          read.seq.c_str(), read.qual.c_str(), false);
+            //print_hit(stdout, read_name, joined_hits[i], ref_name, read_seq, read_quals, false);
+        }
       }
     else
       {
@@ -1181,7 +1178,7 @@ void driver(GBamWriter& bam_writer, istream& ref_stream,
       vector<FILE*>& possible_deletions_files,
       vector<FZPipe>& spliced_seg_files,
       vector<FZPipe>& seg_files,
-      FZPipe& reads_file)
+      ReadStream& readstream)
 {
   if (seg_files.size() == 0)
   {
@@ -1198,7 +1195,7 @@ void driver(GBamWriter& bam_writer, istream& ref_stream,
   bool need_seq = true;
   bool need_qual = color;
   //rewind(reads_file);
-  reads_file.rewind();
+  readstream.rewind();
 
   //vector<HitTable> seg_hits;
   vector<HitStream> contig_hits;
@@ -1324,14 +1321,14 @@ void driver(GBamWriter& bam_writer, istream& ref_stream,
     }
   }
 
-  join_segment_hits(bam_writer, possible_juncs, possible_insertions, it, rt, reads_file.file, contig_hits, spliced_hits);
+  join_segment_hits(bam_writer, possible_juncs, possible_insertions, it, rt, readstream, contig_hits, spliced_hits);
   //join_segment_hits(possible_juncs, possible_insertions, it, rt, reads_file.file, contig_hits, spliced_hits);
 
   for (size_t i = 0; i < seg_files.size(); ++i)
       seg_files[i].close();
     for (size_t i = 0; i < spliced_seg_files.size(); ++i)
         spliced_seg_files[i].close();
-    reads_file.close();
+    readstream.close();
 
   for (size_t fac = 0; fac < factories.size(); ++fac)
   {
@@ -1408,15 +1405,15 @@ int main(int argc, char** argv)
 
   checkSamHeader();
 
-  //FILE* reads_file = fopen(reads_file_name.c_str(), "r");
   vector<string> segment_file_names;
   tokenize(segment_file_list, ",",segment_file_names);
 
-  string unzcmd=getUnpackCmd(reads_file_name, spliced_segment_file_list.empty() &&
-                 segment_file_names.size()<4);
+  // string unzcmd=getUnpackCmd(reads_file_name, spliced_segment_file_list.empty() &&
+  //              segment_file_names.size()<4);
 
-  FZPipe reads_file(reads_file_name, unzcmd);
-  if (reads_file.file==NULL)
+  //FZPipe reads_file(reads_file_name, unzcmd);
+  ReadStream readstream(reads_file_name);
+  if (readstream.file()==NULL)
      err_die("Error: cannot open %s for reading\n",
         reads_file_name.c_str());
 
@@ -1478,7 +1475,7 @@ int main(int argc, char** argv)
 
     //vector<FILE*> segment_files;
     vector<FZPipe> segment_files;
-    unzcmd.clear();
+    string unzcmd;
     for (size_t i = 0; i < segment_file_names.size(); ++i)
     {
       if (unzcmd.empty())
@@ -1524,7 +1521,7 @@ int main(int argc, char** argv)
         }
     }
   GBamWriter bam_writer("-", sam_header.c_str());
-  driver(bam_writer, ref_stream, juncs_files, insertions_files, deletions_files, spliced_segment_files, segment_files, reads_file);
+  driver(bam_writer, ref_stream, juncs_files, insertions_files, deletions_files, spliced_segment_files, segment_files, readstream);
   //driver(ref_stream, juncs_files, insertions_files, deletions_files, spliced_segment_files, segment_files, reads_file);
   return 0;
 }
