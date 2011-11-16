@@ -58,8 +58,25 @@ private:
     Map2GTF(); // Don't want anyone calling the constructor w/o options
 };
 
-void trans_to_genomic_coords(HitFactory* hitFactory, GffObj* trans,
-        const BowtieHit& in, BowtieHit& out);
+class TranscriptomeHit {
+  public:
+    BowtieHit hit;
+    GffObj* trans;
+  TranscriptomeHit(GffObj* t=NULL):hit() {
+    trans=t;
+    }
+  bool operator==(const TranscriptomeHit& th) const {
+    return (th.hit == hit);
+    }
+  bool operator<(const TranscriptomeHit& th) const {
+    return (th.hit < hit);
+    }
+
+};
+
+
+void trans_to_genomic_coords(const char* read_name, HitFactory* hitFactory,
+        const BowtieHit& in, TranscriptomeHit& out);
 
 bool get_read_start(GList<GffExon>* exon_list, size_t gtf_start,
         size_t& genome_start, int& exon_idx);
