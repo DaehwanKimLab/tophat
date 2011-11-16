@@ -106,15 +106,15 @@ void Map2GTF::convert_coords(std::string out_fname, std::string sam_header)
     // FIXME: come up with a more efficient layout for doing this
     GBamWriter bam_writer(out_fname.c_str(), sam_header.c_str());
 
-    std::vector<BowtieHit> read_list;
-    BowtieHit converted_out;
+    std::vector<TranscriptomeHit> read_list;
+
     GffObj* p_trans = NULL;
 
     HitsForRead hit_group;
     char read_name[MAX_READ_NAME_LEN]; // FIXME: use the macro size
 
-    std::vector<BowtieHit>::iterator bh_it;
-    std::vector<BowtieHit>::iterator bh_unique_it;
+    std::vector<TranscriptomeHit>::iterator bh_it;
+    std::vector<TranscriptomeHit>::iterator bh_unique_it;
     BowtieHit bwt_hit;
     // a hit group is a set of reads with the same name
     while (hitStream_->next_read_hits(hit_group))
@@ -129,8 +129,8 @@ void Map2GTF::convert_coords(std::string out_fname, std::string sam_header)
 
             size_t trans_idx = atoi(refSeqTable_.get_name(bwt_hit.ref_id()));
             p_trans = gtfReader_.gflst.Get(trans_idx);
-
-            trans_to_genomic_coords(hitFactory_, p_trans, bwt_hit,
+            TranscriptomeHit converted_out(p_trans);
+            trans_to_genomic_coords(read_name, hitFactory_, bwt_hit,
                     converted_out);
             read_list.push_back(converted_out);
         }
@@ -142,8 +142,8 @@ void Map2GTF::convert_coords(std::string out_fname, std::string sam_header)
 
         for (bh_it = read_list.begin(); bh_it != bh_unique_it; ++bh_it)
         {
-            print_bamhit(bam_writer, read_name, *bh_it, p_trans->getRefName(),
-                    bh_it->seq().c_str(), bwt_hit.qual().c_str(), true);
+            print_bamhit(bam_writer, read_name, bh_it->hit, bh_it->trans->getRefName(),
+                    bh_it->hit.seq().c_str(), bh_it->hit.qual().c_str(), true);
         }
         read_list.clear();
     }
@@ -151,18 +151,19 @@ void Map2GTF::convert_coords(std::string out_fname, std::string sam_header)
     //    fclose(out_sam);
 }
 
-void trans_to_genomic_coords(HitFactory* hitFactory, GffObj* trans,
-        const BowtieHit& in, BowtieHit& out)
+void trans_to_genomic_coords(const char* read_name, HitFactory* hitFactory,
+        const BowtieHit& in, TranscriptomeHit& out)
+   //out.trans must already have the corresponding GffObj*
 {
-    std::string read_name;
-    std::string ref_name(trans->getRefName());
+    std::string read_id(read_name);
+    std::string ref_name(out.trans->getRefName());
     bool spliced = false;
     std::vector<CigarOp> cig_list;
 
     // read start in genomic coords
     size_t read_start = 0;
 
-    GList<GffExon>& exon_list = trans->exons;
+    GList<GffExon>& exon_list = out.trans->exons;
     GffExon* cur_exon;
     GffExon* next_exon;
     size_t cur_pos;
@@ -210,7 +211,7 @@ void trans_to_genomic_coords(HitFactory* hitFactory, GffObj* trans,
             {
                 std::cerr << "trying to access: " << i + 1 << " when size is: "
                         << exon_list.Count() << std::endl;
-                print_trans(trans, in, remaining_length, match_length, cur_pos,
+                print_trans(out.trans, in, remaining_length, match_length, cur_pos,
                         read_start);
                 exit(1);
             }
@@ -229,12 +230,13 @@ void trans_to_genomic_coords(HitFactory* hitFactory, GffObj* trans,
             assert(cur_pos == next_exon->start);
         }
     }
-    bool antisense_splice = (spliced && trans->strand=='-'); //transcript strand <=> splice strand (if spliced)
+    bool antisense_splice = (spliced && out.trans->strand=='-'); //transcript strand <=> splice strand (if spliced)
     read_start -= 1; // handle the off-by-one problem
-    out = hitFactory->create_hit(read_name, ref_name,
+    out.hit = hitFactory->create_hit(read_id, ref_name,
             static_cast<int> (read_start), cig_list, in.antisense_align(),
             antisense_splice, in.edit_dist(), in.splice_mms(), in.end());
-    out.seq(in.seq());
+    out.hit.seq(in.seq());
+    out.hit.qual(in.qual());
 }
 
 void print_trans(GffObj* trans, const BowtieHit& in, size_t rem_len,

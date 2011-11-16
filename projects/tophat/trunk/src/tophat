@@ -52,7 +52,8 @@ Options:
                                                 fr-secondstrand)
     -p/--num-threads               <int>       [ default: 1                ]
     -G/--GTF                       <filename>
-    --transcriptome-index          <bwtidx>    [pre-built bowtie index for -G/--GTF file]
+    --transcriptome-index          <bwtidx>    [pre-built bowtie index for the
+                                                transcripts in the -G/--GTF file]
     -T/--transcriptome                         [Map only to the transcriptome]
     -j/--raw-juncs                 <filename>
     --insertions                   <filename>
@@ -431,6 +432,7 @@ class TopHatParams:
         self.report_params = self.ReportParams()
         self.gff_annotation = None
         self.transcriptome_only = False
+        self.transcriptome_index = None
         self.raw_junctions = None
         self.find_novel_juncs = True
         self.find_novel_indels = True
@@ -571,6 +573,7 @@ class TopHatParams:
                                          "max-intron-length=",
                                          "GTF=",
                                          "transcriptome",
+                                         "transcriptome-index=",
                                          "raw-juncs=",
                                          "no-novel-juncs",
                                          "no-novel-indels",
@@ -644,6 +647,8 @@ class TopHatParams:
                 self.gff_annotation = value
             if option in ("-T", "--transcriptome"):
                 self.transcriptome_only = True
+            if option in ("--transcriptome-index"):
+                self.transcriptome_index = value
             if option in ("-j", "--raw-juncs"):
                 self.raw_junctions = value
             if option == "--no-novel-juncs":
@@ -2262,16 +2267,18 @@ def map2gtf(params, ref_fasta, left_reads, right_reads):
     # transcripts = gtf_to_transcripts(params.gff_annotation)
 
     gtf_name = getFileBaseName(params.gff_annotation)
-    th_log("Creating multi-FASTA from GTF and genome")
-    m2g_ref_fasta = tmp_dir + gtf_name + ".fa"
-
-    gtf_to_fasta(params, params.gff_annotation, ref_fasta, m2g_ref_fasta)
-
-    # trans_hash = transcripts_to_fasta(transcripts,
-    #                                   ref_fasta,
-    #                                   m2g_ref_fasta)
-    m2g_bwt_idx = build_idx_from_fa(m2g_ref_fasta, tmp_dir)
-
+    m2g_bwt_idx = None
+    if params.transcriptome_index:
+       m2g_bwt_idx = params.transcriptome_index
+       #th_log("Using pre-built transcriptome index..")
+    else:
+       th_log("Creating multi-FASTA from GTF and genome")
+       m2g_ref_fasta = tmp_dir + gtf_name + ".fa"
+       gtf_to_fasta(params, params.gff_annotation, ref_fasta, m2g_ref_fasta)
+       # trans_hash = transcripts_to_fasta(transcripts,
+       #                                   ref_fasta,
+       #                                   m2g_ref_fasta)
+       m2g_bwt_idx = build_idx_from_fa(m2g_ref_fasta, tmp_dir)
     mapped_gtf_list = []
     unmapped_gtf_list = []
     # do the initial mapping in GTF coordinates
