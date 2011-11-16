@@ -437,7 +437,7 @@ class TopHatParams:
         self.find_novel_juncs = True
         self.find_novel_indels = True
         self.find_GFF_juncs = True
-        self.skip_check_reads = False
+        #self.skip_check_reads = False
         self.max_hits = 20
         self.initial_read_mismatches = 2
         self.segment_length = 25
@@ -578,7 +578,7 @@ class TopHatParams:
                                          "no-novel-juncs",
                                          "no-novel-indels",
                                          "no-gtf-juncs",
-                                         "skip-check-reads",
+                                         # "skip-check-reads",
                                          "mate-inner-dist=",
                                          "mate-std-dev=",
                                          "no-closure-search",
@@ -657,8 +657,8 @@ class TopHatParams:
                 self.find_novel_indels = False
             if option == "--no-gtf-juncs":
                 self.find_GFF_juncs = False
-            if option == "--skip-check-reads":
-                self.skip_check_reads = True
+            #if option == "--skip-check-reads":
+            #    self.skip_check_reads = True
             if option == "--no-coverage-search":
                 self.coverage_search = False
             if option == "--coverage-search":
@@ -747,7 +747,7 @@ def th_log(out_str):
 # they are created
 def prepare_output_dir():
 
-    print >> sys.stderr, "[%s] Preparing output location %s" % (right_now(), output_dir)
+    th_log("Preparing output location "+output_dir)
     if os.path.exists(output_dir):
         pass
     else:
@@ -777,7 +777,7 @@ def subprocess_setup():
 # Check that the Bowtie index specified by the user is present and all files
 # are there.
 def check_bowtie_index(idx_prefix):
-    print >> sys.stderr, "[%s] Checking for Bowtie index files" % right_now()
+    th_log("Checking for Bowtie index files")
 
     idx_fwd_1 = idx_prefix + ".1.ebwt"
     idx_fwd_2 = idx_prefix + ".2.ebwt"
@@ -811,7 +811,7 @@ def check_bowtie_index(idx_prefix):
 # it's not already there.
 def bowtie_idx_to_fa(idx_prefix):
     idx_name = idx_prefix.split('/')[-1]
-    print >> sys.stderr, "[%s] Reconstituting reference FASTA file from Bowtie index" % (right_now())
+    th_log("Reconstituting reference FASTA file from Bowtie index")
 
     try:
         tmp_fasta_file_name = tmp_dir + idx_name + ".fa"
@@ -841,7 +841,7 @@ def bowtie_idx_to_fa(idx_prefix):
 # Checks whether the multifasta file for the genome is present alongside the
 # Bowtie index files for it.
 def check_fasta(idx_prefix):
-    print >> sys.stderr, "[%s] Checking for reference FASTA file" % right_now()
+    th_log("Checking for reference FASTA file")
     idx_fasta = idx_prefix + ".fa"
     if os.path.exists(idx_fasta):
         return idx_fasta
@@ -971,7 +971,7 @@ def get_index_sam_header(read_params, idx_prefix):
 
 # Make sure Bowtie is installed and is recent enough to be useful
 def check_bowtie():
-    print >> sys.stderr, "[%s] Checking for Bowtie" % right_now()
+    th_log("Checking for Bowtie")
     global bowtie_path
     bowtie_path=prog_path("bowtie")
     bowtie_version = get_bowtie_version()
@@ -1007,7 +1007,7 @@ def get_samtools_version():
 
 # Make sure the SAM tools are installed and are recent enough to be useful
 def check_samtools():
-    print >> sys.stderr, "[%s] Checking for Samtools" % right_now()
+    th_log("Checking for Samtools")
     global samtools_path
     samtools_path=prog_path("samtools")
     samtools_version_str, samtools_version_arr = get_samtools_version()
@@ -1262,8 +1262,6 @@ class ZWriter:
 # check_reads_format() examines the first few records in the user files
 # to determines the file format
 def check_reads_format(params, reads_files):
-    #print >> sys.stderr, "[%s] Checking reads" % right_now()
-    #
     #seed_len = params.read_params.seed_length
     fileformat = params.read_params.reads_format
 
@@ -1621,7 +1619,7 @@ def bowtie_segment(params,
 
 # Retrieve a .juncs file from a GFF file by calling the gtf_juncs executable
 def get_gtf_juncs(gff_annotation):
-    print >> sys.stderr, "[%s] Reading known junctions from GTF file" % (right_now())
+    th_log("Reading known junctions from GTF file")
     gtf_juncs_log = open(logging_dir + "gtf_juncs.log", "w")
 
     gff_prefix = gff_annotation.split('/')[-1].split('.')[0]
@@ -1651,7 +1649,7 @@ def get_gtf_juncs(gff_annotation):
 
 # Call bowtie-build on the FASTA file of sythetic splice junction sequences
 def build_juncs_bwt_index(external_splice_prefix, color):
-    print >> sys.stderr, "[%s] Indexing splices" % (right_now())
+    th_log("Indexing splices")
     bowtie_build_log = open(logging_dir + "bowtie_build.log", "w")
 
     #user_splices_out_prefix  = output_dir + "user_splices_idx"
@@ -1686,7 +1684,7 @@ def build_juncs_index(min_anchor_length,
                       external_deletions,
                       reference_fasta,
                       color):
-    print >> sys.stderr, "[%s] Retrieving sequences for splices" % (right_now())
+    th_log("Retrieving sequences for splices")
 
     juncs_file_list = ",".join(external_juncs)
     insertions_file_list = ",".join(external_insertions)
@@ -1784,7 +1782,7 @@ def write_sam_header(read_params, sam_file):
 
 # Write final TopHat output, via tophat_reports and wiggles
 def compile_reports(params, sam_header_filename, left_maps, left_reads, right_maps, right_reads, gff_annotation):
-    print >> sys.stderr, "[%s] Reporting output tracks" % right_now()
+    th_log("Reporting output tracks")
 
     left_maps = [x for x in left_maps if (os.path.exists(x) and os.path.getsize(x) > 25)]
     left_maps = ','.join(left_maps)
@@ -2021,8 +2019,7 @@ def junctions_from_closures(params,
                             left_maps,
                             right_maps,
                             ref_fasta):
-    #print >> sys.stderr, "[%s] " % right_now()
-    print >> sys.stderr, "[%s] Searching for junctions via mate-pair closures" % right_now()
+    th_log("Searching for junctions via mate-pair closures")
 
     #maps = [x for x in seg_maps if (os.path.exists(x) and os.path.getsize(x) > 0)]
     #if len(maps) == 0:
@@ -2076,7 +2073,7 @@ def junctions_from_segments(params,
                             reads_format,
                             ref_fasta):
     if left_reads_map != left_seg_maps[0]:
-       print >> sys.stderr, "[%s] Searching for junctions via segment mapping" % right_now()
+       th_log("Searching for junctions via segment mapping")
     out_path=getFileDir(left_seg_maps[0])
     juncs_out=out_path+"segment.juncs"
     insertions_out=out_path+"segment.insertions"
@@ -2131,10 +2128,10 @@ def join_mapped_segments(params,
                          alignments_out_name):
     rn=""
     if len(contig_seg_maps)>1:
-       print >> sys.stderr, "[%s] Joining segment hits" % right_now()
+       th_log("Joining segment hits")
        rn=".segs"
     else:
-       print >> sys.stderr, "[%s] Processing bowtie hits" % right_now()
+       th_log("Processing bowtie hits")
     contig_seg_maps = ','.join(contig_seg_maps)
 
     possible_juncs = ','.join(possible_juncs)
@@ -2744,7 +2741,7 @@ def main(argv=None):
                 left_quals_list = args[2]
 
         print >> sys.stderr
-        print >> sys.stderr, "[%s] Beginning TopHat run (v%s)" % (right_now(), get_version())
+        th_log("Beginning TopHat run (v"+get_version()+")")
         print >> sys.stderr, "-----------------------------------------------"
 
         start_time = datetime.now()
@@ -2762,15 +2759,14 @@ def main(argv=None):
 
         check_bowtie()
         check_samtools()
-        print >> sys.stderr, "[%s] Generating SAM header for %s" % (right_now(), bwt_idx_prefix)
+        th_log("Generating SAM header for "+bwt_idx_prefix)
         sam_header_filename = get_index_sam_header(params.read_params, bwt_idx_prefix)
-        print >> sys.stderr, "[%s] Preparing reads" % (right_now())
 
-        if not params.skip_check_reads:
-            reads_list = left_reads_list
-            if right_reads_list:
+        #if not params.skip_check_reads:
+        reads_list = left_reads_list
+        if right_reads_list:
                 reads_list = reads_list + "," + right_reads_list
-            params.read_params = check_reads_format(params, reads_list)
+        params.read_params = check_reads_format(params, reads_list)
 
         user_supplied_juncs = []
         user_supplied_insertions = []
@@ -2799,6 +2795,7 @@ def main(argv=None):
         unmapped_reads_fifo = tmp_dir + str(os.getpid())+".bwt_unmapped.z.fifo"
 
         # Now start the time consuming stuff
+        th_log("Preparing reads")
         left_kept_reads, left_reads_info = prep_reads(params,
                                      left_reads_list,
                                      left_quals_list,
