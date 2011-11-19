@@ -135,6 +135,9 @@ bool color_out = false;
 
 string gtf_juncs = "";
 
+string flt_reads = "";
+string flt_mappings = "";
+
 eLIBRARY_TYPE library_type = LIBRARY_TYPE_NONE;
 
 extern void print_usage();
@@ -268,7 +271,9 @@ enum
     OPT_ZPACKER,
     OPT_SAMTOOLS,
     OPT_AUX_OUT,
-    OPT_GTF_JUNCS
+    OPT_GTF_JUNCS,
+    OPT_FILTER_READS,
+    OPT_FILTER_HITS
   };
 
 static struct option long_options[] = {
@@ -316,6 +321,8 @@ static struct option long_options[] = {
 {"samtools", required_argument, 0, OPT_SAMTOOLS},
 {"aux-outfile", required_argument, 0, OPT_AUX_OUT},
 {"gtf-juncs", required_argument, 0, OPT_GTF_JUNCS},
+{"flt-reads",required_argument, 0, OPT_FILTER_READS},
+{"flt-hits",required_argument, 0, OPT_FILTER_HITS},
 {0, 0, 0, 0} // terminator
 };
 
@@ -490,6 +497,12 @@ int parse_options(int argc, char** argv, void (*print_usage)())
     case OPT_GTF_JUNCS:
       gtf_juncs = optarg;
       break;
+    case OPT_FILTER_READS:
+      flt_reads = optarg;
+      break;
+    case OPT_FILTER_HITS:
+      flt_mappings = optarg;
+      break;
     default:
       print_usage();
       return 1;
@@ -653,6 +666,8 @@ void err_die(const char* format,...) { // Error exit
 
 string getUnpackCmd(const string& fname, bool use_all_cpus) {
  //prep_reads should use guess_packer() instead
+  //otherwise compressed files MUST have the .z extension,
+  //as they are all internally generated
  string pipecmd("");
  string fext=getFext(fname);
  if (fext=="bam") {
@@ -660,7 +675,7 @@ string getUnpackCmd(const string& fname, bool use_all_cpus) {
     return pipecmd;
     }
  if (zpacker.empty() || fext!="z") { 
-      return pipecmd;
+      return pipecmd; //no packer used
       }
  pipecmd=zpacker;
  if (str_endsWith(pipecmd, "pigz") ||str_endsWith(pipecmd, "pbzip2")) {

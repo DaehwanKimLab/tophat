@@ -144,7 +144,7 @@ public:
 void skip_lines(FLineReader& fr);
 bool next_fasta_record(FLineReader& fr, string& defline, string& seq, ReadFormat reads_format);
 bool next_fastq_record(FLineReader& fr, const string& seq, string& alt_name, string& qual, ReadFormat reads_format);
-bool next_fastx_read(FLineReader& fr, Read& read, ReadFormat reads_format,
+bool next_fastx_read(FLineReader& fr, Read& read, ReadFormat reads_format=FASTQ,
                         FLineReader* frq=NULL);
 
 
