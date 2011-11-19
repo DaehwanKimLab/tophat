@@ -93,8 +93,18 @@ extern bool quals;
 extern bool integer_quals;
 extern bool color;
 extern bool color_out;
-
 extern std::string gtf_juncs;
+
+//prep_reads only: --flt-reads <bowtie-fastq_for--max>
+//  filter out reads if their numeric ID is in this fastq file
+// OR if flt_mappings was given too, filter out reads if their ID
+// is NOT in this fastq file
+extern std::string flt_reads;
+
+//prep_reads special usage: filter out mappings whose read ID
+//is NOT found in the flt_reads file, and write them into
+// aux_outfile; also reverses the flt_reads filter itself
+extern std::string flt_mappings;
 
 enum eLIBRARY_TYPE
   {

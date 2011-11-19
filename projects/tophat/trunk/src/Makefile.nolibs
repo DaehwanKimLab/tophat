@@ -57,8 +57,8 @@ ALL_EXE = fix_map_ordering bam_merge bam2fastx prep_reads extract_reads long_spa
 .PHONY : all
 #all: tophat_reports
 #debug: tophat_reports
-all: map2gtf
-debug: map2gtf
+all: prep_reads
+debug: prep_reads
 
 # all_exe: prep_reads extract_reads segment_juncs long_spanning_reads
 #all: $(ALL_EXE)
