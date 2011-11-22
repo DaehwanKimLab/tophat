@@ -101,7 +101,7 @@ uint32_t min_closure_exon_length = 100;
 int island_extension = 25;
 int segment_length = 25;
 int segment_mismatches = 2;
-
+int max_read_mismatches = 2;
 int max_splice_mismatches = 1;
 
 ReadFormat reads_format = FASTQ;
@@ -224,7 +224,7 @@ char* get_token(char** str, const char* delims)
 }
 
 
-const char *short_options = "QCp:z:";
+const char *short_options = "QCp:z:N:";
 
 enum
   {
@@ -244,6 +244,7 @@ enum
     OPT_NO_COVERAGE_SEARCH,
     OPT_NO_MICROEXON_SEARCH,
     OPT_SEGMENT_LENGTH,
+    OPT_READ_MISMATCHES,
     OPT_SEGMENT_MISMATCHES,
     OPT_MIN_CLOSURE_EXON,
     OPT_MAX_CLOSURE_INTRON,
@@ -295,6 +296,7 @@ static struct option long_options[] = {
 {"no-microexon-search",	no_argument,		0,  OPT_NO_MICROEXON_SEARCH},
 {"segment-length",	required_argument,	0,  OPT_SEGMENT_LENGTH},
 {"segment-mismatches",	required_argument,	0,  OPT_SEGMENT_MISMATCHES},
+{"max-mismatches",  required_argument,  0,  OPT_READ_MISMATCHES},
 {"min-closure-exon",	required_argument,	0,  OPT_MIN_CLOSURE_EXON},
 {"min-closure-intron",	required_argument,	0,  OPT_MIN_CLOSURE_INTRON},
 {"max-closure-intron",	required_argument,	0,  OPT_MAX_CLOSURE_INTRON},
@@ -397,6 +399,10 @@ int parse_options(int argc, char** argv, void (*print_usage)())
       break;
     case OPT_SEGMENT_MISMATCHES:
       segment_mismatches = parseIntOpt(0, "--segment-mismatches arg must be at least 0", print_usage);
+      break;
+    case 'N':
+    case OPT_READ_MISMATCHES:
+      max_read_mismatches = parseIntOpt(0, "--max-mismatches arg must be at least 0", print_usage);
       break;
     case OPT_MIN_CLOSURE_EXON:
       min_closure_exon_length = parseIntOpt(1, "--min-closure-exon arg must be at least 1", print_usage);
