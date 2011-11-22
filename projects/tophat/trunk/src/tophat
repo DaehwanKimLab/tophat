@@ -40,7 +40,9 @@ Options:
     -g/--max-multihits             <int>       [ default: 20               ]
     -x/--transcriptome-max-hits    <int>       [ default: 60               ]
     -n/--transcriptome-mismatches  <int>       [ default: 1                ]
-    -M/--prefilter-multihits
+    -M/--prefilter-multihits                   ( for -G/--GTF option, enable
+                                                 an initial bowtie search
+                                                 against the genome )
     -F/--min-isoform-fraction      <float>     [ default: 0.15             ]
     --max-insertion-length         <int>       [ default: 3                ]
     --max-deletion-length          <int>       [ default: 3                ]
@@ -57,7 +59,7 @@ Options:
     -G/--GTF                       <filename>
     --transcriptome-index          <bwtidx>    [pre-built bowtie index for the
                                                 transcripts in the -G/--GTF file]
-    -T/--transcriptome-only                    [Map only to the transcriptome]
+    -T/--transcriptome-only                    [map only to the transcriptome]
     -j/--raw-juncs                 <filename>
     --insertions                   <filename>
     --deletions                    <filename>
@@ -76,10 +78,11 @@ Options:
     --keep-tmp
     --tmp-dir                      <dirname>   [ default: <output_dir>/tmp ]
     -z/--zpacker                   <program>   [ default: gzip             ]
-    -X/--unmapped-fifo                         [ use mkfifo to compress more temporary files]
+    -X/--unmapped-fifo                         ( use mkfifo to compress
+                                                 more temporary files      )
 
 Advanced Options:
-    --initial-read-mismatches      <int>       [ default: 2                ]
+    -N/--initial-read-mismatches   <int>       [ default: 2                ]
     --segment-mismatches           <int>       [ default: 2                ]
     --segment-length               <int>       [ default: 25               ]
     --bowtie-n                                 [ default: bowtie -v        ]
@@ -526,10 +529,10 @@ class TopHatParams:
                "--max-coverage-intron", str(self.search_params.max_coverage_intron_length),
                "--min-segment-intron", str(self.search_params.min_segment_intron_length),
                "--max-segment-intron", str(self.search_params.max_segment_intron_length),
+               "--max-mismatches", str(self.initial_read_mismatches),
                "--sam-header", sam_header,
                "--max-insertion-length", str(self.max_insertion_length),
                "--max-deletion-length", str(self.max_deletion_length)]
-
         cmd.extend(self.system_params.cmd())
 
         if self.read_params.mate_inner_dist != None:
@@ -570,7 +573,7 @@ class TopHatParams:
     # of options.
     def parse_options(self, argv):
         try:
-            opts, args = getopt.getopt(argv[1:], "hvp:m:n:F:a:i:I:G:Tr:o:j:Xz:s:g:x:MQC",
+            opts, args = getopt.getopt(argv[1:], "hvp:m:n:N:F:a:i:I:G:Tr:o:j:Xz:s:g:x:MQC",
                                         ["version",
                                          "help",
                                          "output-dir=",
@@ -615,6 +618,8 @@ class TopHatParams:
                                          "max-segment-intron=",
                                          "seed-length=",
                                          "initial-read-mismatches=",
+                                         "read-mismatches=",
+                                         "max-mismatches=",
                                          "transcriptome-mismatches=",
                                          "segment-length=",
                                          "segment-mismatches=",
@@ -698,7 +703,7 @@ class TopHatParams:
                 self.butterfly_search = True
             if option == "--no-butterfly-search":
                 self.butterfly_search = False
-            if option == "--initial-read-mismatches":
+            if option in ("-N", "--initial-read-mismatches", "--read-mismatches", "--max-mismatches"):
                 self.initial_read_mismatches = int(value)
             if option in ("-n", "--transcriptome-mismatches"):
                 self.t_mismatches = int(value)
@@ -1563,6 +1568,8 @@ def bowtie(params,
         max_hits = params.max_hits
         if t_mapping:
           max_hits = params.t_max_hits
+        if params.bowtie_alignment_option == "-n" and num_mismatches>3:
+           num_mismatches=3
         bowtie_cmd += [params.bowtie_alignment_option, str(num_mismatches),
                          "-p", str(params.system_params.num_cpus),
                          "-k", str(max_hits),

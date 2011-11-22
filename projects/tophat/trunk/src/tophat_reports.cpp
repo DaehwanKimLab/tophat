@@ -47,7 +47,7 @@ using namespace std;
 using namespace seqan;
 using std::set;
 
-void fragment_best_alignments(const HitsForRead& hits_for_read,
+void read_best_alignments(const HitsForRead& hits_for_read,
 			      FragmentAlignmentGrade& best_grade,
 			      HitsForRead& best_hits,
 			      const JunctionSet& gtf_junctions)
@@ -55,23 +55,24 @@ void fragment_best_alignments(const HitsForRead& hits_for_read,
   const vector<BowtieHit>& hits = hits_for_read.hits;
   for (size_t i = 0; i < hits.size(); ++i)
     {
+      if (hits[i].edit_dist()>max_read_mismatches) continue;
       FragmentAlignmentGrade g(hits[i], gtf_junctions);
       // Is the new status better than the current best one?
       if (best_grade < g)
-	{
-	  best_hits.hits.clear();
-	  best_grade = g;
-	  best_hits.hits.push_back(hits[i]);
-	}
+      {
+        best_hits.hits.clear();
+        best_grade = g;
+        best_hits.hits.push_back(hits[i]);
+      }
       else if (!(g < best_grade)) // is it just as good?
-	{
-	  best_grade.num_alignments++;
-	  best_hits.hits.push_back(hits[i]);
-	}
+      {
+        best_grade.num_alignments++;
+        best_hits.hits.push_back(hits[i]);
+      }
     }
 }
 
-void insert_best_alignments(const HitsForRead& left_hits,
+void pair_best_alignments(const HitsForRead& left_hits,
                             const HitsForRead& right_hits,
                             InsertAlignmentGrade& best_grade,
                             HitsForRead& left_best_hits,
@@ -89,6 +90,8 @@ void insert_best_alignments(const HitsForRead& left_hits,
     
     for (size_t i = 0; i < left.size(); ++i)
 	{
+        if (left[i].edit_dist()>max_read_mismatches) continue;
+
         const BowtieHit& lh = left[i];
         for (size_t j = 0; j < right.size(); ++j)
 		{
@@ -96,7 +99,7 @@ void insert_best_alignments(const HitsForRead& left_hits,
             
             if (lh.ref_id() != rh.ref_id())
                 continue;
-            
+            if (right[j].edit_dist()>max_read_mismatches) continue;
             InsertAlignmentGrade g(lh, rh, min_mate_inner_dist, max_mate_inner_dist);
             
             // Is the new status better than the current best one?
@@ -630,7 +633,7 @@ void get_junctions_from_best_hits(HitStream& left_hs,
 			FragmentAlignmentGrade grade;
             
 			// Process hits for left singleton, select best alignments
-			fragment_best_alignments(curr_left_hit_group, grade, best_hits, gtf_junctions);
+			read_best_alignments(curr_left_hit_group, grade, best_hits, gtf_junctions);
 			update_junctions(best_hits, junctions);
             
 			// Get next hit group
@@ -647,7 +650,7 @@ void get_junctions_from_best_hits(HitStream& left_hs,
 			FragmentAlignmentGrade grade;
             
 			// Process hit for right singleton, select best alignments
-			fragment_best_alignments(curr_right_hit_group,grade, best_hits, gtf_junctions);
+			read_best_alignments(curr_right_hit_group,grade, best_hits, gtf_junctions);
 			update_junctions(best_hits, junctions);
             
 			// Get next hit group
@@ -666,7 +669,7 @@ void get_junctions_from_best_hits(HitStream& left_hs,
 				right_best_hits.insert_id = curr_right_obs_order;
                 
 				FragmentAlignmentGrade grade;
-				fragment_best_alignments(curr_right_hit_group, grade, right_best_hits, gtf_junctions);
+				read_best_alignments(curr_right_hit_group, grade, right_best_hits, gtf_junctions);
 				update_junctions(right_best_hits, junctions);
 			}
 			else if (curr_right_hit_group.hits.empty())
@@ -676,7 +679,7 @@ void get_junctions_from_best_hits(HitStream& left_hs,
                 
 				FragmentAlignmentGrade grade;
 				// Process hits for left singleton, select best alignments
-				fragment_best_alignments(curr_left_hit_group, grade, left_best_hits, gtf_junctions);
+				read_best_alignments(curr_left_hit_group, grade, left_best_hits, gtf_junctions);
 				update_junctions(left_best_hits, junctions);
 			}
 			else
@@ -689,7 +692,7 @@ void get_junctions_from_best_hits(HitStream& left_hs,
 				// daehwan - apply gtf_junctions here, too!
 				
 				InsertAlignmentGrade grade;
-				insert_best_alignments(curr_left_hit_group,
+				pair_best_alignments(curr_left_hit_group,
                                        curr_right_hit_group,
                                        grade,
                                        left_best_hits,
@@ -839,8 +842,8 @@ void driver(GBamWriter& bam_writer,
             exclude_hits_on_filtered_junctions(junctions, curr_left_hit_group);
             
             // Process hits for left singleton, select best alignments
-            fragment_best_alignments(curr_left_hit_group, grade, best_hits, gtf_junctions);
-            if (best_hits.hits.size() <= max_multihits)
+            read_best_alignments(curr_left_hit_group, grade, best_hits, gtf_junctions);
+            if (best_hits.hits.size()>0 && best_hits.hits.size() <= max_multihits)
             {
                 update_junctions(best_hits, final_junctions);
                 update_insertions_and_deletions(best_hits, final_insertions, final_deletions);
@@ -880,9 +883,9 @@ void driver(GBamWriter& bam_writer,
             exclude_hits_on_filtered_junctions(junctions, curr_right_hit_group);
             
             // Process hit for right singleton, select best alignments
-            fragment_best_alignments(curr_right_hit_group, grade, best_hits, gtf_junctions);
+            read_best_alignments(curr_right_hit_group, grade, best_hits, gtf_junctions);
             
-            if (best_hits.hits.size() <= max_multihits)
+            if (best_hits.hits.size()>0 && best_hits.hits.size() <= max_multihits)
             {
                 update_junctions(best_hits, final_junctions);
                 update_insertions_and_deletions(best_hits, final_insertions, final_deletions);
@@ -922,9 +925,9 @@ void driver(GBamWriter& bam_writer,
                 right_best_hits.insert_id = curr_right_obs_order;
                 
                 FragmentAlignmentGrade grade;
-                fragment_best_alignments(curr_right_hit_group, grade, right_best_hits, gtf_junctions);
+                read_best_alignments(curr_right_hit_group, grade, right_best_hits, gtf_junctions);
                 
-                if (right_best_hits.hits.size() <= max_multihits)
+                if (right_best_hits.hits.size()>0 && right_best_hits.hits.size() <= max_multihits)
                 {
                     update_junctions(right_best_hits, final_junctions);
                     update_insertions_and_deletions(right_best_hits, final_insertions, final_deletions);
@@ -950,9 +953,9 @@ void driver(GBamWriter& bam_writer,
                                   l_read.seq.c_str(), l_read.qual.c_str());
                 FragmentAlignmentGrade grade;
                 // Process hits for left singleton, select best alignments
-                fragment_best_alignments(curr_left_hit_group, grade, left_best_hits, gtf_junctions);
+                read_best_alignments(curr_left_hit_group, grade, left_best_hits, gtf_junctions);
                 
-                if (left_best_hits.hits.size() <= max_multihits)
+                if (left_best_hits.hits.size()>0 && left_best_hits.hits.size() <= max_multihits)
                 {
                     update_junctions(left_best_hits, final_junctions);
                     update_insertions_and_deletions(left_best_hits, final_insertions, final_deletions);
@@ -974,13 +977,14 @@ void driver(GBamWriter& bam_writer,
                 right_best_hits.insert_id = curr_right_obs_order;
                 
                 InsertAlignmentGrade grade;
-                insert_best_alignments(curr_left_hit_group,
+                pair_best_alignments(curr_left_hit_group,
                                        curr_right_hit_group,
                                        grade,
                                        left_best_hits,
                                        right_best_hits);
                 
-                if (left_best_hits.hits.size() <= max_multihits && right_best_hits.hits.size() <= max_multihits)
+                if (left_best_hits.hits.size()>0 && left_best_hits.hits.size() <= max_multihits &&
+                    right_best_hits.hits.size()>0 && right_best_hits.hits.size() <= max_multihits)
                 {
                     update_junctions(left_best_hits, final_junctions);
                     update_junctions(right_best_hits, final_junctions);

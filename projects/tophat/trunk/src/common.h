@@ -62,6 +62,7 @@ extern int island_extension;
 extern int num_cpus;
 extern int segment_length; // the read segment length used by the pipeline
 extern int segment_mismatches;
+extern int max_read_mismatches;
 
 extern int max_splice_mismatches;
 
