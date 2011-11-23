@@ -29,6 +29,7 @@ AlignStatus::AlignStatus()
   _aligned = false;
   _indelFreeAlignment = false;
   _unannotatedSpliceFreeAlignment = false;
+  _edit_dist = 0;
 } 
 
 /**
@@ -40,7 +41,7 @@ AlignStatus::AlignStatus(const BowtieHit& bh, const JunctionSet& gtf_junctions)
   _aligned = cigar.size() > 0;
   _indelFreeAlignment = true;
   _unannotatedSpliceFreeAlignment = true;
-
+  _edit_dist = bh.edit_dist();
   int j = bh.left();
   for (size_t c = 0 ; c < cigar.size(); ++c)
     {
@@ -84,7 +85,9 @@ AlignStatus::AlignStatus(const BowtieHit& bh, const JunctionSet& gtf_junctions)
  */
 bool AlignStatus::operator<(const AlignStatus& rhs) const
 {
-	int lhs_value = _aligned ? 1 : 0;
+  if (rhs._edit_dist!=_edit_dist)
+      return rhs._edit_dist < _edit_dist;
+  int lhs_value = _aligned ? 1 : 0;
 	lhs_value += _indelFreeAlignment ? 4 : 0;
 	lhs_value += _unannotatedSpliceFreeAlignment ? 2 : 0;
 
@@ -99,7 +102,7 @@ bool AlignStatus::operator<(const AlignStatus& rhs) const
  */
 bool AlignStatus::operator==(const AlignStatus& rhs) const
 {
-	return ((_aligned == rhs._aligned) &&
+	return ((rhs._edit_dist ==_edit_dist) && (_aligned == rhs._aligned) &&
 		(_indelFreeAlignment == rhs._indelFreeAlignment) &&
 		(_unannotatedSpliceFreeAlignment == rhs._unannotatedSpliceFreeAlignment));
 }

@@ -50,7 +50,7 @@ private:
 	 * Is there an alignment?
 	 */
 	bool _aligned;
-
+  unsigned char _edit_dist;
 public:
   AlignStatus();
   AlignStatus(const BowtieHit& bh, const JunctionSet& gtf_junctions);
