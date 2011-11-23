@@ -31,7 +31,7 @@ void best_fragment_mappings(uint64_t refid,
       FragmentAlignmentGrade s(h1, dummy);
       
       pair<FragmentAlignmentGrade, vector<FragmentAlignment*> >& fragment_best
-	= best_status_for_fragments[obs_order];
+        = best_status_for_fragments[obs_order];
       FragmentAlignmentGrade& current = fragment_best.first;
       // Is the new status better than the current best one?
       if (current < s)
