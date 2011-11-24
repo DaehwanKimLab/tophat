@@ -29,7 +29,7 @@ AlignStatus::AlignStatus()
   _aligned = false;
   _indelFreeAlignment = false;
   _unannotatedSpliceFreeAlignment = false;
-  _edit_dist = 0;
+  _edit_dist = 0xFF;
 } 
 
 /**
@@ -85,14 +85,15 @@ AlignStatus::AlignStatus(const BowtieHit& bh, const JunctionSet& gtf_junctions)
  */
 bool AlignStatus::operator<(const AlignStatus& rhs) const
 {
+  if (rhs._aligned != _aligned) return rhs._aligned;
   if (rhs._edit_dist!=_edit_dist)
       return rhs._edit_dist < _edit_dist;
-  int lhs_value = _aligned ? 1 : 0;
-	lhs_value += _indelFreeAlignment ? 4 : 0;
+  //int lhs_value = _aligned ? 1 : 0;
+	int lhs_value = _indelFreeAlignment ? 4 : 0;
 	lhs_value += _unannotatedSpliceFreeAlignment ? 2 : 0;
 
-	int rhs_value = rhs._aligned ? 1 : 0;
-	rhs_value += rhs._indelFreeAlignment ? 4 : 0;
+	//int rhs_value = rhs._aligned ? 1 : 0;
+	int rhs_value = rhs._indelFreeAlignment ? 4 : 0;
 	rhs_value += rhs._unannotatedSpliceFreeAlignment ? 2 : 0;
 	return lhs_value < rhs_value;
 }
@@ -102,7 +103,7 @@ bool AlignStatus::operator<(const AlignStatus& rhs) const
  */
 bool AlignStatus::operator==(const AlignStatus& rhs) const
 {
-	return ((rhs._edit_dist ==_edit_dist) && (_aligned == rhs._aligned) &&
+	return ((_aligned == rhs._aligned) && (rhs._edit_dist ==_edit_dist) &&
 		(_indelFreeAlignment == rhs._indelFreeAlignment) &&
 		(_unannotatedSpliceFreeAlignment == rhs._unannotatedSpliceFreeAlignment));
 }
