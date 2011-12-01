@@ -2858,8 +2858,10 @@ def main(argv=None):
 
         # Validate all the input files, check all prereqs before committing
         # to the run
+        if params.transcriptome_index:
+           check_bowtie_index(params.transcriptome_index)
         (ref_fasta, ref_seq_dict) = check_index(bwt_idx_prefix)
-
+        
         check_bowtie()
         check_samtools()
         th_log("Generating SAM header for "+bwt_idx_prefix)
