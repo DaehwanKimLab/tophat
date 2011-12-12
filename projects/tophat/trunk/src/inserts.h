@@ -87,11 +87,11 @@ struct InsertAlignmentGrade
 			num_spliced++;
 		if(!h2.contiguous())
 			num_spliced++;
-		
+
 		too_far = (inner_dist > max_inner_distance);
 		
 		too_close = (inner_dist < min_inner_distance);
-		
+
 		opposite_strands = (h1.antisense_align() != h2.antisense_align());
 		
 		consistent_splices = (num_spliced == 2 &&
