@@ -2979,13 +2979,13 @@ void find_gaps(RefSequenceTable& rt,
       for (size_t h = 0; h < curr.hits.size(); ++h)
 	{
 	  bool found_right_seg_partner = s == hits_for_read.size() - 1;
-	  bool found_distant_right_seg_partner = false;
-	  bool found_right_right_seg_partner = false;
 	  BowtieHit& bh = curr.hits[h];
 
 	  // "drs" is distant seg right partner
 	  // "rrs" is right of right seg partner
-	  BowtieHit drs_bh, rrs_bh;
+	  vector<BowtieHit*> drs_bhs;
+	  vector<BowtieHit*> rrs_bhs;
+
 	  if (s < hits_for_read.size() - 1)
 	    {
 	      // Look for a right partner for the current hit
@@ -3011,10 +3011,7 @@ void find_gaps(RefSequenceTable& rt,
 		    dist = rh.left() - bh.right();
 		  
 		  if (dist >= min_segment_intron_length && dist < (int)max_segment_intron_length)
-		    {
-		      found_distant_right_seg_partner = true;
-		      drs_bh = rh;
-		    }
+		    drs_bhs.push_back(&rh);
 		}
 	    }
 
@@ -3036,56 +3033,55 @@ void find_gaps(RefSequenceTable& rt,
 		    dist = rrh.left() - bh.right();
 		  
 		  if (dist >= min_segment_intron_length + segment_length && dist < (int)max_segment_intron_length + segment_length)
-		    {
-		      found_right_right_seg_partner = true;
-		      rrs_bh = rrh;
-		      break;
-		    }
+		    rrs_bhs.push_back(&rrh);
 		}
 	    }
 	  
-	  if (!found_right_seg_partner && (found_distant_right_seg_partner || found_right_right_seg_partner))
+	  if (!found_right_seg_partner && (drs_bhs.size() > 0 || rrs_bhs.size() > 0))
 	    {
 	      const int look_bp = 8;
-	      size_t color_offset = color ? 1 : 0;
-	      
-	      string support_read;
+	      const size_t color_offset = color ? 1 : 0;
 
-	      if (found_distant_right_seg_partner)
-		support_read = seq.substr(color_offset + (s+1) * segment_length - look_bp, look_bp * 2);
-	      else
-		support_read = seq.substr(color_offset + (s+1) * segment_length - look_bp, segment_length + look_bp * 2);
-
-	      BowtieHit& d_bh = found_distant_right_seg_partner ? drs_bh : rrs_bh;
-	      if (!bh.antisense_align())
+	      vector<BowtieHit*> d_bhs = rrs_bhs.size() > 0 ? rrs_bhs : drs_bhs;
+	      for (size_t r = 0; r < d_bhs.size(); ++r)
 		{
-		  RefSeg right_seg(bh.ref_id(), POINT_DIR_BOTH, bh.antisense_align(), read_side, 0, 0, support_read);
-		  right_seg.left = max(0, bh.right() - look_bp);
-		  right_seg.right = d_bh.left() + look_bp;
-		  expected_don_acc_windows.push_back(right_seg);
-		}
-	      else
-		{
-		  if (color)
-		    reverse(support_read.begin(), support_read.end());
+		  string support_read;
+		  if (rrs_bhs.size() <= 0)
+		    support_read = seq.substr(color_offset + (s+1) * segment_length - look_bp, look_bp * 2);
 		  else
-		    reverse_complement(support_read);
+		    support_read = seq.substr(color_offset + (s+1) * segment_length - look_bp, segment_length + look_bp * 2);
 		  
-		  RefSeg left_seg(bh.ref_id(), POINT_DIR_BOTH, bh.antisense_align(), read_side, 0, 0, support_read);
-		  left_seg.left = d_bh.right() - look_bp;
-		  left_seg.right = bh.left() + look_bp;
-		  expected_don_acc_windows.push_back(left_seg);	
-		}
-	      
-	      // daehwan
-      #ifdef B_DEBUG2
+		  BowtieHit& d_bh = *(d_bhs[r]);
+		  if (!bh.antisense_align())
+		    {
+		      RefSeg right_seg(bh.ref_id(), POINT_DIR_BOTH, bh.antisense_align(), read_side, 0, 0, support_read);
+		      right_seg.left = max(0, bh.right() - look_bp);
+		      right_seg.right = d_bh.left() + look_bp;
+		      expected_don_acc_windows.push_back(right_seg);
+		    }
+		  else
+		    {
+		      if (color)
+			reverse(support_read.begin(), support_read.end());
+		      else
+			reverse_complement(support_read);
+		      
+		      RefSeg left_seg(bh.ref_id(), POINT_DIR_BOTH, bh.antisense_align(), read_side, 0, 0, support_read);
+		      left_seg.left = d_bh.right() - look_bp;
+		      left_seg.right = bh.left() + look_bp;
+		      expected_don_acc_windows.push_back(left_seg);	
+		    }
+
+		  // daehwan
+#ifdef B_DEBUG2
 		  cout << "insert id: " << bh.insert_id() << endl
 		       << (bh.antisense_align() ? "-" : "+") << endl
 		       << seq << endl
 		       << "(" << s << ") - " << support_read << endl;
-      #endif
+#endif
 		}
 	    }
+	}
     } //for each hits_for_read
 
   juncs_from_ref_segs<RecordSegmentJuncs>(rt, 
