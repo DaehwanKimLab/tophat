@@ -1397,7 +1397,11 @@ def formatTD(td):
     hours = td.seconds // 3600
     minutes = (td.seconds % 3600) // 60
     seconds = td.seconds % 60
-    return '%d days %02d:%02d:%02d' % (days, hours, minutes, seconds)
+
+    if days > 0:
+        return '%d days %02d:%02d:%02d' % (days, hours, minutes, seconds)
+    else:
+        return '%02d:%02d:%02d' % (hours, minutes, seconds)
 
 class PrepReadsInfo:
     def __init__(self, fname, side):
@@ -1794,7 +1798,7 @@ def build_juncs_index(min_anchor_length,
     external_splices_out_prefix = build_juncs_bwt_index(external_splices_out_prefix, color)
     return external_splices_out_prefix
 
-def build_idx_from_fa(fasta_fname, out_dir):
+def build_idx_from_fa(fasta_fname, out_dir, color):
     """ Build a bowtie index from a FASTA file.
 
     Arguments:
@@ -1805,10 +1809,12 @@ def build_idx_from_fa(fasta_fname, out_dir):
     - The path to the Bowtie index.
     """
     bwt_idx_path = out_dir + os.path.basename(fasta_fname).replace(".fa", "")
-    bowtie_idx_cmd = [prog_path("bowtie-build"),
-                      "-f",
-                      fasta_fname,
-                      bwt_idx_path]
+    bowtie_idx_cmd = [prog_path("bowtie-build")]
+    if color:
+        bowtie_idx_cmd += ["-C"]
+
+    bowtie_idx_cmd += [fasta_fname,
+                       bwt_idx_path]
     try:
         th_log("Building Bowtie index from " + os.path.basename(fasta_fname))
         print >> run_log, " ".join(bowtie_idx_cmd)
@@ -2345,7 +2351,7 @@ def map2gtf(params, ref_fasta, left_reads, right_reads):
        # trans_hash = transcripts_to_fasta(transcripts,
        #                                   ref_fasta,
        #                                   m2g_ref_fasta)
-       m2g_bwt_idx = build_idx_from_fa(m2g_ref_fasta, tmp_dir)
+       m2g_bwt_idx = build_idx_from_fa(m2g_ref_fasta, tmp_dir, params.read_params.color)
     mapped_gtf_list = []
     unmapped_gtf_list = []
     # do the initial mapping in GTF coordinates
@@ -2504,7 +2510,7 @@ def spliced_alignment(params,
 
     # daehwan - check this out
     if num_segs <= 1:
-         print >> sys.stderr, "Warning: you have only one segment per read\n\twe strongly recommend that you decrease --segment-length to about half the read length because TopHat will work better with multiple segments"
+         print >> sys.stderr, "Warning: you have only one segment per read.\n\tIf the read length is greater than or equal to 45bp,\n\twe strongly recommend that you decrease --segment-length to about half the read length because TopHat will work better with multiple segments"
 
     # Using the num_segs value returned by check_reads(),
     # decide which junction discovery strategy to use
