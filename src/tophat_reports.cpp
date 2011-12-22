@@ -389,11 +389,11 @@ void print_sam_for_single(const RefSequenceTable& rt,
 }
 
 void print_sam_for_pair(const RefSequenceTable& rt,
-						const HitsForRead& left_hits,
+			const HitsForRead& left_hits,
                         const HitsForRead& right_hits,
                         const InsertAlignmentGrade& grade,
-                        FILE* left_reads_file,
-                        FILE* right_reads_file,
+                        FLineReader& left_reads_file,
+                        FLineReader& right_reads_file,
                         GBamWriter& bam_writer,
                         FILE* left_um_out,
                         FILE* right_um_out
@@ -716,9 +716,9 @@ void get_junctions_from_best_hits(HitStream& left_hs,
 
 void driver(GBamWriter& bam_writer,
 	    string& left_map_fname,
-	    FILE* left_reads,
+	    FLineReader& left_reads,
 	    string& right_map_fname,
-	    FILE* right_reads,
+	    FLineReader& right_reads,
 	    FILE* junctions_out,
 	    FILE* insertions_out,
 	    FILE* deletions_out,
@@ -831,7 +831,7 @@ void driver(GBamWriter& bam_writer,
             bool got_read=get_read_from_stream(curr_left_obs_order,
                     left_reads,reads_format, false, l_read, left_um_out);
             assert(got_read);
-            if (right_reads) {
+            if (right_reads.fhandle()) {
                 fprintf(left_um_out, "@%s #MAPPED#\n%s\n+\n%s\n", l_read.alt_name.c_str(),
                                 l_read.seq.c_str(), l_read.qual.c_str());
                 got_read=get_read_from_stream(curr_left_obs_order,
@@ -1018,7 +1018,7 @@ void driver(GBamWriter& bam_writer,
                          false,
                          l_read,
                          left_um_out);
-	if (right_reads)
+	if (right_reads.fhandle())
 	  get_read_from_stream(VMAXINT32,
 	                         right_reads,
 	                         reads_format,
@@ -1191,10 +1191,13 @@ int main(int argc, char** argv)
     if (left_um_file.openWrite(left_um_filename.c_str(), zpacker)==NULL)
           err_die("Error: cannot open file %s for writing!\n",left_um_filename.c_str());
 
+    FLineReader fr_left_reads(left_reads_file.file);
+    FLineReader fr_right_reads(right_reads_file.file);
+
     driver(bam_writer, left_map_filename,
-           left_reads_file.file,
+           fr_left_reads,
            right_map_filename,
-           right_reads_file.file,
+           fr_right_reads,
            junctions_file,
            insertions_file,
            deletions_file,
