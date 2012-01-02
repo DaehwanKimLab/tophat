@@ -986,7 +986,7 @@ def get_index_sam_header(read_params, idx_prefix):
 
             print >> sam_header_file, rg_str
 
-        # sq_dict_lines.sort(lambda x,y: cmp(x[0],y[0]))
+        sq_dict_lines.sort(lambda x,y: cmp(x[0],y[0]))
         for [name, line] in sq_dict_lines:
             print >> sam_header_file, line
         print >> sam_header_file, "@PG\tID:TopHat\tVN:%s\tCL:%s" % (get_version(), run_cmd)
