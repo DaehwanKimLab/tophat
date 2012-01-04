@@ -169,7 +169,7 @@ GffLine::GffLine(GffReader* reader, const char* l) {
    GMessage("Warning: invalid end coordinate at line:\n%s\n",l);
    return;
    }
- if (fend<fstart) swap(fend,fstart); //make sure fstart>=fend, always
+ if (fend<fstart) Gswap(fend,fstart); //make sure fstart>=fend, always
  p=t[5];
  if (p[0]=='.' && p[1]==0) {
   score=0;
@@ -531,7 +531,7 @@ int GffObj::addExon(uint segstart, uint segend, double sc, char fr, int qs, int 
      isCDS=false;
      }
   if (qs || qe) {
-    if (qs>qe) swap(qs,qe);
+    if (qs>qe) Gswap(qs,qe);
     if (qs==0) qs=1;
 	}
   int ovlen=0;
