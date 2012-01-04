@@ -22,6 +22,7 @@ import warnings
 import re
 import signal
 from datetime import datetime, date, time
+from shutil import copy
 
 use_message = '''
 TopHat maps short sequences from spliced transcripts to whole genomes.
@@ -55,16 +56,15 @@ Options:
     --color-out
     --library-type                 <string>    (fr-unstranded, fr-firststrand,
                                                 fr-secondstrand)
-    -p/--num-threads               <int>       [ default: 1                ]
-    -G/--GTF                       <filename>
-    --transcriptome-index          <bwtidx>    [pre-built bowtie index for the
-                                                transcripts in the -G/--GTF file]
-    -T/--transcriptome-only                    [map only to the transcriptome]
+    -p/--num-threads               <int>       [ default: 1                   ]
+    -G/--GTF                       <filename>  (GTF/GFF with known transcripts)
+    --transcriptome-data           <bwtidx>    (transcriptome bowtie index)
+    -T/--transcriptome-only                    (map only to the transcriptome)
     -j/--raw-juncs                 <filename>
     --insertions                   <filename>
     --deletions                    <filename>
     -r/--mate-inner-dist           <int>
-    --mate-std-dev                 <int>       [ default: 20               ]
+    --mate-std-dev                 <int>       [ default: 20                  ]
     --no-novel-juncs
     --no-novel-indels
     --no-gtf-juncs
@@ -451,6 +451,7 @@ class TopHatParams:
         self.gff_annotation = None
         self.transcriptome_only = False
         self.transcriptome_index = None
+        self.transcriptome_outdir = None
         self.raw_junctions = None
         self.find_novel_juncs = True
         self.find_novel_indels = True
@@ -2331,8 +2332,6 @@ def map2gtf(params, ref_fasta, left_reads, right_reads):
     - `left_reads`: A list of reads.
     - `right_reads`: A list of reads (empty if single-end).
 
-    Returns:
-    TODO: Put something here
     """
     test_input_file(params.gff_annotation)
 
@@ -2341,17 +2340,20 @@ def map2gtf(params, ref_fasta, left_reads, right_reads):
 
     gtf_name = getFileBaseName(params.gff_annotation)
     m2g_bwt_idx = None
-    if params.transcriptome_index:
+    t_out_dir = tmp_dir
+    if params.transcriptome_index and not params.transcriptome_outdir:
        m2g_bwt_idx = params.transcriptome_index
-       #th_log("Using pre-built transcriptome index..")
+       th_log("Using pre-built transcriptome index..")
     else:
-       th_log("Creating multi-FASTA from GTF and genome")
-       m2g_ref_fasta = tmp_dir + gtf_name + ".fa"
+       th_log("Creating transcriptome data files..")
+       if params.transcriptome_outdir:
+         t_out_dir=params.transcriptome_outdir+"/"
+       m2g_ref_fasta = t_out_dir + gtf_name + ".fa"
        gtf_to_fasta(params, params.gff_annotation, ref_fasta, m2g_ref_fasta)
        # trans_hash = transcripts_to_fasta(transcripts,
        #                                   ref_fasta,
        #                                   m2g_ref_fasta)
-       m2g_bwt_idx = build_idx_from_fa(m2g_ref_fasta, tmp_dir, params.read_params.color)
+       m2g_bwt_idx = build_idx_from_fa(m2g_ref_fasta, t_out_dir, params.read_params.color)
     mapped_gtf_list = []
     unmapped_gtf_list = []
     # do the initial mapping in GTF coordinates
@@ -2815,7 +2817,6 @@ def mlog(msg):
 def test_input_file(filename):
     try:
         test_file = open(filename, "r")
-    # Bowtie not found
     except IOError, o:
         die("Error: Opening file %s" % filename)
     return
@@ -2865,8 +2866,45 @@ def main(argv=None):
 
         # Validate all the input files, check all prereqs before committing
         # to the run
+        if params.gff_annotation:
+           if not os.path.exists(params.gff_annotation):
+             die("Error: cannot find transcript file %s" % params.gff_annotation)
+           if os.path.getsize(params.gff_annotation)<10:
+             die("Error: invalid transcript file %s" % params.gff_annotation)
+
         if params.transcriptome_index:
-           check_bowtie_index(params.transcriptome_index)
+           if params.gff_annotation:
+               #gff file given, so transcriptome data will be written there
+               gff_basename = getFileBaseName(params.gff_annotation)
+               #just in case, check if it's not already there (-G/--GTF given again by mistake)
+               tpath, tname = os.path.split(params.transcriptome_index)
+               new_subdir=False
+               if tpath in (".", "./") or not tpath :
+                  if not os.path.exists(params.transcriptome_index):
+                    os.makedirs(params.transcriptome_index)
+                    new_subdir=True
+               if new_subdir or (os.path.exists(params.transcriptome_index) and os.path.isdir(params.transcriptome_index)):
+                   params.transcriptome_index = os.path.join(params.transcriptome_index, gff_basename)
+               gff_out=params.transcriptome_index+".gff"
+               if not (os.path.exists(gff_out) and os.path.getsize(gff_out)==os.path.getsize(params.gff_annotation)):
+                  #generate the transcriptome data files
+                  tpath, tname = os.path.split(params.transcriptome_index)
+                  params.transcriptome_outdir=tpath
+           t_gff=params.transcriptome_index+".gff"
+           if params.transcriptome_outdir:
+              #will create the transcriptome data files
+              if not os.path.exists(params.transcriptome_outdir):
+                os.makedirs(params.transcriptome_outdir)
+              copy(params.gff_annotation, t_gff)
+           else:
+              #try to use existing transcriptome data files
+
+              if not (os.path.exists(t_gff) and os.path.getsize(t_gff)>10):
+                  die("Error: GFF transcripts file not found or invalid (%s)" % t_gff)
+              check_bowtie_index(params.transcriptome_index)
+           params.gff_annotation=t_gff
+           #end @ transcriptome_index given
+
         (ref_fasta, ref_seq_dict) = check_index(bwt_idx_prefix)
 
         check_bowtie()
