@@ -44,7 +44,6 @@ Options:
     -M/--prefilter-multihits                   ( for -G/--GTF option, enable
                                                  an initial bowtie search
                                                  against the genome )
-    -F/--min-isoform-fraction      <float>     [ default: 0.15             ]
     --max-insertion-length         <int>       [ default: 3                ]
     --max-deletion-length          <int>       [ default: 3                ]
     --solexa-quals
@@ -58,7 +57,7 @@ Options:
                                                 fr-secondstrand)
     -p/--num-threads               <int>       [ default: 1                   ]
     -G/--GTF                       <filename>  (GTF/GFF with known transcripts)
-    --transcriptome-data           <bwtidx>    (transcriptome bowtie index)
+    --transcriptome-index          <bwtidx>    (transcriptome bowtie index)
     -T/--transcriptome-only                    (map only to the transcriptome)
     -j/--raw-juncs                 <filename>
     --insertions                   <filename>
@@ -93,10 +92,10 @@ Advanced Options:
     --max-coverage-intron          <int>       [ default: 20000            ]
     --min-segment-intron           <int>       [ default: 50               ]
     --max-segment-intron           <int>       [ default: 500000           ]
-    --no-sort-bam                              [Output BAM is not coordinate-sorted]
-    --no-convert-bam                           [Do not convert to bam format.
+    --no-sort-bam                              (Output BAM is not coordinate-sorted)
+    --no-convert-bam                           (Do not convert to bam format.
                                                 Output is <output_dir>accepted_hit.sam.
-                                                Implies --no-sort-bam.]
+                                                Implies --no-sort-bam)
 
 SAM Header Options (for embedding sequencing run metadata in output):
     --rg-id                        <string>    (read group ID)
@@ -108,6 +107,9 @@ SAM Header Options (for embedding sequencing run metadata in output):
     --rg-date                      <string>    (ISO 8601 date of the sequencing run)
     --rg-platform                  <string>    (Sequencing platform descriptor)
 '''
+
+#    -F/--min-isoform-fraction      <float>     [ default: 0.15             ]
+#    (obsolete)
 
 class Usage(Exception):
     def __init__(self, msg):

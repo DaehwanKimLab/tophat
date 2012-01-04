@@ -63,15 +63,15 @@
 		    <ul>
 		      <table width="100%"><tr>
 		      <td>
-				<tr><td>version 1.3.3 (BETA)</td> <td align="right">10/16/2011</td></tr>
+				<tr><td>version 1.4.0 (BETA)</td> <td align="right">1/4/2011</td></tr>
 				<tr>
-		      		<td><a href="./downloads/tophat-1.3.3.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
+		      		<td><a href="./downloads/tophat-1.4.0.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
 		      	</tr>
 				<tr>
-					<td><a href="./downloads/tophat-1.3.3.Linux_x86_64.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
+					<td><a href="./downloads/tophat-1.4.0.Linux_x86_64.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
 				</tr>
 				<tr>
-					<td><a href="./downloads/tophat-1.3.3.OSX_x86_64.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
+					<td><a href="./downloads/tophat-1.4.0.OSX_x86_64.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
 				</tr>
 		      </td>
 		      </tr>
@@ -120,8 +120,6 @@
 		        <td>&nbsp;colorspace:
 		          <a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/hg19_c.ebwt.zip">full</a></td>
 		      </tr></table>
-
-
 
 		      <!-- mm9 -->
 
@@ -172,6 +170,7 @@
 		      <li><a href="http://www.cs.umd.edu/~cole/">Cole Trapnell</a></li>
 			  <li><a href="http://www.cs.umd.edu/~infphilo/">Daehwan Kim</a></li>
 			  <li>Geo Pertea</li>
+			  <li><a href="http://cs.berkeley.edu/~pimentel">Harold Pimentel</a></li>
 			  <li>Ryan Kelley</li>
 		      <li><a href="http://www.math.berkeley.edu/~lpachter/">Lior Pachter</a></li>
 		      <li><a href="http://www.cbcb.umd.edu/~salzberg/">Steven Salzberg</a></li>
@@ -467,6 +466,7 @@
 	  Colorspace reads, note that it uses a colorspace bowtie index and requires Bowtie 0.12.6 or higher.<br>
 	  Common usage: tophat --color --quals [other options]* &lt;colorspace_index_base&gt; &lt;reads1_1[,...,readsN_1]&gt; [reads1_2,...readsN_2] &lt;quals1_1[,...,qualsN_1]&gt; [quals1_2,...qualsN_2]
 	  </td></tr>
+      <!--
 	  <tr><td VALIGN=top nowrap>
 	  <tt>-F/--min-isoform-fraction &lt;0.0-1.0&gt;</tt>
 	  </td><td VALIGN=top>
@@ -476,6 +476,7 @@
 	  If S / D is less than the minimum isoform fraction, the junction is 
 	  not reported.  A value of zero disables the filter. The default is 0.15.
 	  </td></tr>
+      -->
 	  <tr><td VALIGN=top nowrap>
 	  <tt>-p/--num-threads &lt;int&gt;</tt>
 	  </td><td VALIGN=top>
@@ -540,8 +541,10 @@
 	    <tr><td VALIGN=top nowrap>fr-firststrand</td><td VALIGN=top nowrap><tt>dUTP, NSR, NNSR</tt></td><td VALIGN=top>Same as above except we enforce the rule that the right-most end of the fragment (in transcript coordinates) is the first sequenced (or only sequenced for single-end reads).  Equivalently, it is assumed that only the strand generated during first strand synthesis is sequenced.</td></tr>
 	    <tr><td VALIGN=top nowrap>fr-secondstrand</td><td VALIGN=top nowrap><tt>Ligation, Standard SOLiD</tt></td><td VALIGN=top>Same as above except we enforce the rule that the left-most end of the fragment (in transcript coordinates) is the first sequenced (or only sequenced for single-end reads).  Equivalently, it is assumed that only the strand generated during second strand synthesis is sequenced.</td></tr>
 	  </table>
+	</table>
+	<table><tr><td cellpadding=7>  
 	  <table CELLSPACING=15>
-	  <tr><td VALIGN=top>
+	  <tr><td VALIGN=top>      
 	  <b>Advanced Options:</b>
 	  </td><td VALIGN=top>
 	  </td></tr>
@@ -638,28 +641,18 @@
 	  </td></tr>
 	</td></tr>
 	 </table><br/>
-	  
-	<b>Supplying your own junctions:</b>
-	  <p>The options below allow you validate your own junctions with your 
-		RNA-Seq data.  Note that the chromosome names in the files provided
+	<b>Supplying your own transcript annotation data:</b>
+	  <p>The options below allow you validate your own list of known transcripts or junctions with your 
+		RNA-Seq data. Note that the chromosome names in the files provided
 		with the options below <strong>must match</strong> the names in the 
 		Bowtie index.  These names are <strong>case-senstitive</strong>.</p>
 	  <table CELLSPACING=15>
 	  <tr><td VALIGN=top>
-	  
 	  </td><td VALIGN=top>
 	  </td></tr>
-	  <tr><td VALIGN=top nowrap>
-	  <tt>-G/--GTF &lt;GTF 2.2 file&gt;</tt>
-	  </td><td VALIGN=top>
-	  <p> Supply TopHat with a list of gene model annotations.  TopHat will 
-	  use the <tt>exon</tt> records in this file to
-	  build a set of known splice junctions for each gene, and will attempt to 
-	  align reads to these junctions even if they would not normally be covered
-	  by the initial mapping. </p> 
-	  </td></tr>
-	 <tr><td VALIGN=top nowrap>
-	  <tt>-j/--raw-juncs &lt;.juncs file&gt;</tt>
+	 <tr>
+	  <td VALIGN=top nowrap>
+	    <tt>-j/--raw-juncs &lt;.juncs file&gt;</tt>
 	  </td><td VALIGN=top>
 	  <p> Supply TopHat with a list of raw junctions.  Junctions are specified 
 		one per line, in a tab-delimited format.  Records look like:
@@ -673,12 +666,90 @@
 		  using <strong>bed_to_juncs < junctions.bed > new_list.juncs</strong>
 		  where bed_to_juncs can be found under the same folder as tophat</p>
 	  </td></tr>
+
 	  <tr><td VALIGN=top nowrap>
 	  <tt>--no-novel-juncs</tt>
 	  </td><td VALIGN=top>
-	  Only look for reads across junctions indicated in the supplied GFF or junctions file.  (ignored without -G/-j)
+	  Only look for reads across junctions indicated in the supplied GFF or junctions file. (ignored without -G/-j)
 	  </td></tr>
-	
+
+	  <tr><td VALIGN=top nowrap>
+	  <tt>-G/--GTF &lt;GTF/GFF3 file&gt;</tt>
+	  </td><td VALIGN=top>
+	  <p> Supply TopHat with a set of gene model annotations and/or known transcripts, as a GTF 2.2 or GFF3 formatted file. 
+	  If this option is provided, TopHat will first extract the transcript sequences and use Bowtie to align reads 
+	  to this virtual transcriptome first. Only the reads that do not fully map to the transcriptome will then be mapped 
+	  on the genome. The reads that did map on the transcriptome will be converted to genomic mappings (spliced as needed) 
+	  and merged with the novel mappings and junctions in the final tophat output.</p>
+	 <p>Please note that the values in the first column of the provided GTF/GFF file (column which 
+		indicates the chromosome or contig on which the feature is located),  <strong>must match</strong> the 
+		name of the reference sequence in the Bowtie index you are using with TopHat.  You can get a list of the sequence names
+		in a Bowtie index by typing:</p>
+		<br/>
+	    	<blockquote>
+				bowtie-inspect --names your_index
+			</blockquote> 
+		<br/>
+	  So before using a known annotation file with this option please make sure that the 1st column in the annotation file
+	  uses the <strong>exact same chromosome/contig names (case sensitive)</strong> as shown by the <tt>bowtie-inspect</tt> command above.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--transcriptome-index &lt;dir/prefix&gt;</tt>
+	  </td><td VALIGN=top>
+	  <p> When providing TopHat with a known transcript file (-G/--GTF option above), a transcriptome sequence file is built 
+	  and a Bowtie index has to be created for it in order to align the reads to the known transcripts. Creating this Bowtie index 
+	  can be time consuming and in many cases the same transcriptome data is being used for aligning multiple samples with TopHat.
+	  A transcriptome index and the associated data files (the original GFF file) can be thus reused for multiple TopHat runs with this option, 
+	  so these files are only created for the first run with a given set of transcripts. If multiple TopHat runs are planned with the same transcriptome data, 
+	  TopHat should be first run with the -G option and with the --transcriptome-index option pointing to a directory and a name prefix which will indicate 
+	  where the transcriptome data files will be stored. Then subsequent TopHat runs using the same --transcriptome-index option value will directly use
+	  the transcriptome data created in the first run (no -G option needed for subsequent runs).</p>
+	  For example the first TopHat run could look like this:
+	  <br>
+	  <tt>tophat -o out_sample1 -G known_genes.gtf \<br>
+      --transcriptome-index=transcriptome_data/known \<br>
+      hg19 sample1_1.fq.z</tt>
+      <br>
+	  In this example the first run will create the transcriptome_data directory if it doesn't exist, and files known.fa, known.gff and known.*ebwt 
+	  (Bowtie index files) will be generated in that directory. Then for subsequent runs with the same genome and known transcripts but different reads 
+	  (e.g. sample2_2.fq.z etc.), TopHat will no longer spend time building the transcriptome index because it can directly use the previously built 
+	  transcriptome index, so the -G option can be even discarded for subsequent runs:
+	  <br>
+	  <tt>tophat -o out_sample2 \<br>
+      --transcriptome-index=transcriptome_data/known \<br>
+      hg19 sample2_1.fq.z</tt>
+      <br>
+	  </td></tr>
+	  <tr><td colspan="2">
+	  (The following options in this section are only used when the transcriptome search was activated with <tt>-G/--GTF</tt> or <tt>--transcriptome-index</tt>)
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>-T/--transcriptome-only</tt>
+	  </td><td VALIGN=top>
+	  Only align the reads to the transcriptome and report only those mappings as genomic mappings.
+	  </td></tr>
+
+	  <tr><td VALIGN=top nowrap>
+	  <tt>-x/--transcriptome-max-hits</tt>
+	  </td><td VALIGN=top>
+	  Maximum number of mappings allowed for a read, when aligned to the transcriptome (any reads found with more then this number of mappings 
+	  will be discarded).
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>-n/--transcriptome-mismatches</tt>
+	  </td><td VALIGN=top>
+	  Maximum number of mismatches allowed when reads are aligned to the transcriptome.
+	  </td></tr>
+
+	  <tr><td VALIGN=top nowrap>
+	  <tt>-M/--prefilter-multihits</tt>
+	  </td><td VALIGN=top>
+	  When mapping reads on the transcriptome, some repetitive or low complexity reads that would be discarded in the context 
+      of the genome may appear to align to the transcript sequences and thus may end up reported as mapped to those genes only. This option directs TopHat to 
+      first align the reads to the whole genome in order to determine and exclude such multi-mapped reads (according to the value of the 
+      <tt>-g/--max-multihits</tt> option).
+	  </td></tr>
+	   
 	  </table>
 	
 	<b>Supplying your own insertions/deletions:</b>
@@ -710,22 +781,6 @@
 
 	  </table>
 	
-	
-	 <b>Providing TopHat with an annotation file</b>
-	 <p>If you choose to supply TopHat with a GTF file of gene annotation, the 
-		program will look for the junctions between exons in the annotated transcripts.  
-	
-		<strong>Most importantly</strong>, the values in the first column, which 
-		indicates the chromosome or contig on which the feature is located, 
-		<strong>must match</strong> a reference sequence record in the Bowtie index
-		you are using with TopHat.  You can get a list of the records in a Bowtie 
-		index by typing:</p>
-		<br/>
-	    	<blockquote>
-				bowtie-inspect --names your_index
-			</blockquote> 
-		<br/>
-	  <br/>
   	  <h2 id="output">TopHat Output</h2><br/>
   	  <p>
   	  The <tt>tophat</tt> script produces a number of files in the directory
