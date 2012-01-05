@@ -500,6 +500,7 @@ noinst_HEADERS = \
 	GHash.hh \
 	GList.hh \
 	GStr.h \
+	GTFToFasta.h \
 	bwt_map.h \
 	wiggles.h \
 	junctions.h \
