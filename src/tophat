@@ -144,7 +144,7 @@ gtf_juncs = None #file name with junctions extracted from given GFF file
 # and option validation via the member function check()
 
 
-class BowtieOutputFiles():
+class BowtieOutputFiles:
     def __init__(self,
           mappings=None,
           unmapped_reads=None,
@@ -1218,7 +1218,11 @@ def fa_write(fhandle, seq_id, seq):
     fhandle.write(">" + seq_id + "\n")
     for i in xrange(len(seq) / line_len + 1):
         start = i * line_len
-        end = (i+1) * line_len if (i+1) * line_len < len(seq) else len(seq)
+        #end = (i+1) * line_len if (i+1) * line_len < len(seq) else len(seq)
+        if (i+1) * line_len < len(seq):
+             end = (i+1) * line_len
+        else:
+             end = len(seq)
         fhandle.write( seq[ start:end ] + "\n")
 
 class ZReader:
