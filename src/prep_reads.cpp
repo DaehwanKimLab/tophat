@@ -228,6 +228,9 @@ void process_reads(vector<FZPipe>& reads_files, vector<FZPipe>& quals_files)
           }
         else
           {
+	    // daehwan - we should not use buf in printf function
+	    // because it may contain some control characters such as "\" from quality values.
+	    // Here, buf is only used for calculating the file offset
 	    char buf[2048] = {0};
             if (reads_format == FASTQ or (reads_format == FASTA && quals))
               {
@@ -237,7 +240,11 @@ void process_reads(vector<FZPipe>& reads_files, vector<FZPipe>& quals_files)
 			read.name.c_str(),
 			read.qual.c_str());
 
-		printf(buf);
+		printf("@%u\n%s\n+%s\n%s\n",
+		       next_id,
+		       read.seq.c_str(),
+		       read.name.c_str(),
+		       read.qual.c_str());
               }
             else if (reads_format == FASTA)
               {
@@ -253,7 +260,11 @@ void process_reads(vector<FZPipe>& reads_files, vector<FZPipe>& quals_files)
 			read.name.c_str(),
 			qual.c_str());
 
-		printf(buf);
+		printf("@%u\n%s\n+%s\n%s\n",
+			next_id,
+			read.seq.c_str(),
+			read.name.c_str(),
+			qual.c_str());
               }
 	    else
 	      {
@@ -263,7 +274,7 @@ void process_reads(vector<FZPipe>& reads_files, vector<FZPipe>& quals_files)
 	    if (findex != NULL)
 	      {
 		if ((next_id - num_reads_chucked) % 1000 == 0)
-		  fprintf(findex, "%d\t%llu\n", next_id, file_offset);
+		  fprintf(findex, "%d\t%lu\n", next_id, file_offset);
 	      }
 
 	    file_offset += strlen(buf);
