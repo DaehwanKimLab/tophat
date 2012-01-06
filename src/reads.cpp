@@ -618,11 +618,13 @@ bool ReadStream::next_read(Read& r, ReadFormat read_format) {
 
 // reads must ALWAYS requested in increasing order of their ID
 bool ReadStream::getRead(uint64_t r_id,
-            Read& read,
-            ReadFormat read_format,
-            bool strip_slash,
-            FILE* um_out, //unmapped reads output
-            bool um_write_found) {
+			 Read& read,
+			 ReadFormat read_format,
+			 bool strip_slash,
+			 FILE* um_out, //unmapped reads output
+			 bool um_write_found,
+			 uint64_t begin_id,
+			 uint64_t end_id) {
   if (!fstream.file)
        err_die("Error: calling ReadStream::getRead() with no file handle!");
   if (r_id<last_id)
@@ -634,12 +636,20 @@ bool ReadStream::getRead(uint64_t r_id,
       // Get the next read from the file
     if (!next_read(read, read_format))
         break;
+
     if (strip_slash) {
        string::size_type slash = read.name.rfind("/");
        if (slash != string::npos)
           read.name.resize(slash);
        }
-    if ((uint64_t)atoi(read.name.c_str()) == r_id) {
+    uint64_t id = (uint64_t)atol(read.name.c_str());
+    if (id >= end_id)
+      return false;
+
+    if (id < begin_id)
+      continue;
+      
+    if (id == r_id) {
        found=true;
        }
     if (um_out && (um_write_found || !found)) {
@@ -647,7 +657,6 @@ bool ReadStream::getRead(uint64_t r_id,
       fprintf(um_out, "@%s\n%s\n+\n%s\n", read.alt_name.c_str(),
                               read.seq.c_str(), read.qual.c_str());
       }
-    //rt.get_id(read.name, ref_str);
     } //while reads
   return found;
 }

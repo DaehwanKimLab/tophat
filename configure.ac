@@ -1,16 +1,20 @@
+m4_include([ax_boost_base.m4])
+m4_include([ax_boost_thread.m4])
 m4_include([ax_bam.m4])
 m4_include([ax_check_zlib.m4])
 
 define([svnversion], esyscmd([sh -c "svnversion|tr -d '\n'"]))dnl
-
-AC_INIT([tophat],[1.4.0],[cole@cs.umd.edu])
+AC_INIT([tophat],[2.0.0],[cole@cs.umd.edu])
 AC_DEFINE(SVN_REVISION, "svnversion", [SVN Revision])
 
 AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_AUX_DIR([build-aux])
-
 AM_INIT_AUTOMAKE
+
+#AM_PATH_CPPUNIT(1.10.2)
+
+AC_ARG_VAR(PYTHON, [python program])
 
  # Make sure CXXFLAGS is defined so that AC_PROG_CXX doesn't set it.
 CXXFLAGS="$CXXFLAGS"
@@ -18,43 +22,32 @@ CFLAGS="$CFLAGS"
 
 AC_LANG(C)
 
-AC_ARG_ENABLE(debug,
-	AC_HELP_STRING([--enable-debug],[build debug library (default=no)]),,enable_debug=no)
-
-# declare some precious variables
-AC_ARG_VAR(PYTHON, [python program])
-AC_ARG_VAR(PERL, [perl program])
-AC_ARG_VAR(TOPHAT_SHELL, [bash program])
-
-CFLAGS="$CFLAGS"
-CXXFLAGS="$CXXFLAGS"
-
-# check the platform
-AC_CANONICAL_HOST
-
 # Checks for programs.
-AC_LANG(C++)
-AC_PROG_CC
-AC_PROG_CXX
 AC_PROG_AWK
-AC_PROG_INSTALL
+AC_PROG_CXX
+AC_PROG_CC
+AC_PROG_MAKE_SET
 AC_PROG_RANLIB
-AC_CHECK_TOOL(AR,ar,false)
-AC_PATH_PROG(PERL, [perl], [:])
-AC_PATH_PROG(TOPHAT_SHELL, bash, no)
+AC_PROG_INSTALL
 AM_PATH_PYTHON([2.4])
+AX_BOOST_BASE([1.38.0])
 AX_BAM
+AX_BOOST_THREAD
 AX_CHECK_ZLIB()
+
 
 # Checks for header files.
 AC_CHECK_HEADERS([stdlib.h string.h unistd.h])
 
 # Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([stdlib.h string.h unistd.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL
+AC_C_INLINE
+AC_TYPE_PID_T
+AC_TYPE_SIZE_T
+AC_CHECK_TYPES([ptrdiff_t])
 AC_C_CONST
 AC_SYS_LARGEFILE
 
@@ -65,15 +58,19 @@ AC_CHECK_LIB([z], [gzread])
 AC_FUNC_MALLOC
 AC_CHECK_FUNCS([memset strdup strrchr strtol strsep])
 
+# check the platform
+AC_CANONICAL_HOST
+
 # ---------------------------------------------------------------------
 # Debug and profile
 # ---------------------------------------------------------------------
 
 # set CFLAGS and CXXFLAGS
-user_CFLAGS="${CXXFLAGS}"
-generic_CFLAGS="-Wall -Wno-strict-aliasing"
+#user_CFLAGS="${CXXFLAGS}"
+user_CFLAGS=${CFLAGS}
+generic_CFLAGS="-Wall -Wno-strict-aliasing -g -gdwarf-2 -Wuninitialized"
 ext_CFLAGS=""
-debug_CFLAGS="-g"
+debug_CFLAGS=""
 #echo "${host_cpu}-${host_os}"
 case "${host_cpu}-${host_os}" in
    i*86-*linux*)
@@ -111,17 +108,13 @@ AC_ARG_ENABLE([optim],
 
 AS_IF([test "x$enable_optim" != xno], [ext_CFLAGS="$ext_CFLAGS -O$enable_optim"])	
 AS_IF([test "x$enable_debug" = xyes],
-      [debug_CFLAGS="-DDEBUG"; ext_CFLAGS="-arch i386"],
+      [debug_CFLAGS="-DDEBUG"],
       [debug_CFLAGS="-DNDEBUG"])
 	  
 CFLAGS="${generic_CFLAGS} ${ext_CFLAGS} ${user_CFLAGS} ${debug_CFLAGS}"
-CXXFLAGS="$CFLAGS $BAM_CPPFLAGS"
-
-AM_CXXFLAGS="$CXXFLAGS -I./SeqAn-1.2"
-
-AC_SUBST(CC)
-AC_SUBST(AM_CXXFLAGS)
-AC_SUBST(AM_CFLAGS)
+CXXFLAGS="$CFLAGS"
+CXXFLAGS="$CXXFLAGS $BOOST_CPPFLAGS $BAM_CPPFLAGS -I./SeqAn-1.2"
+LDFLAGS="$ext_LDFLAGS"
 
 AM_INIT_AUTOMAKE([-Wall foreign tar-pax foreign])
 
@@ -135,8 +128,7 @@ AC_OUTPUT
 echo \
 "
 -- ${PACKAGE_STRING} Configuration Results --
-  C compiler:          ${CC} ${CFLAGS}
-  C++ compiler:        ${CXX} ${CXXFLAGS}"
+  C++ compiler:        ${CXX} ${CXXFLAGS} ${LDFLAGS}"
 
 if test x"${GCC}" = x"yes" ; then
    gcc_version=`${CC} --version | head -n 1`

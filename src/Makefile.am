@@ -517,7 +517,8 @@ noinst_HEADERS = \
 	fragments.h \
 	inserts.h \
 	segments.h \
-	qual.h
+	qual.h \
+	utils.h
 
 
 libtophat_a_SOURCES = \
@@ -532,7 +533,8 @@ libtophat_a_SOURCES = \
 	fragments.cpp \
 	tokenize.cpp \
 	inserts.cpp \
-	qual.cpp
+	qual.cpp \
+	utils.cpp
     
 libgc_a_SOURCES = \
 	GBase.cpp \
@@ -549,12 +551,12 @@ prep_reads_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
 prep_reads_LDFLAGS = $(BAM_LDFLAGS)
 
 segment_juncs_SOURCES = segment_juncs.cpp
-segment_juncs_LDADD = $(top_builddir)/src/libtophat.a  $(BAM_LIB)
-segment_juncs_LDFLAGS = $(BAM_LDFLAGS)
+segment_juncs_LDADD = $(top_builddir)/src/libtophat.a $(BOOST_THREAD_LIB) $(BAM_LIB)
+segment_juncs_LDFLAGS = $(BOOST_LDFLAGS) $(BAM_LDFLAGS)
 
 long_spanning_reads_SOURCES = long_spanning_reads.cpp
-long_spanning_reads_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
-long_spanning_reads_LDFLAGS = $(BAM_LDFLAGS)
+long_spanning_reads_LDADD = $(top_builddir)/src/libtophat.a $(BOOST_THREAD_LIB) $(BAM_LIB)
+long_spanning_reads_LDFLAGS = $(BOOST_LDFLAGS) $(BAM_LDFLAGS)
 
 gtf_juncs_SOURCES = gtf_juncs.cpp
 gtf_juncs_LDADD = $(top_builddir)/src/libtophat.a libgc.a $(BAM_LIB)
@@ -569,8 +571,8 @@ library_stats_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
 library_stats_LDFLAGS = $(BAM_LDFLAGS)
 
 tophat_reports_SOURCES = tophat_reports.cpp
-tophat_reports_LDADD = $(top_builddir)/src/libtophat.a  $(BAM_LIB)
-tophat_reports_LDFLAGS = $(BAM_LDFLAGS)
+tophat_reports_LDADD = $(top_builddir)/src/libtophat.a  $(BOOST_THREAD_LIB) $(BAM_LIB)
+tophat_reports_LDFLAGS = $(BOOST_LDFLAGS) $(BAM_LDFLAGS)
 
 extract_reads_SOURCES = extract_reads.cpp
 extract_reads_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
@@ -585,7 +587,7 @@ bam2fastx_LDADD = $(top_builddir)/src/libgc.a $(BAM_LIB)
 bam2fastx_LDFLAGS = $(BAM_LDFLAGS)
 
 bam_merge_SOURCES = bam_merge.cpp
-bam_merge_LDADD = $(top_builddir)/src/libgc.a $(BAM_LIB)
+bam_merge_LDADD = $(top_builddir)/src/libtophat.a $(top_builddir)/src/libgc.a $(BAM_LIB)
 bam_merge_LDFLAGS = $(BAM_LDFLAGS)
 
 closure_juncs_SOURCES = closures.cpp

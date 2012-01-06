@@ -34,8 +34,8 @@ enum CigarOpCode { MATCH, INS, DEL, REF_SKIP, SOFT_CLIP, HARD_CLIP, PAD };
 struct CigarOp
 {
 	CigarOp(CigarOpCode o, uint32_t l) : opcode(o), length(l) {}
-	CigarOpCode opcode : 3;
-	uint32_t length : 29;
+	CigarOpCode opcode:4;
+	uint32_t length:28;
 	
 	bool operator==(const CigarOp& rhs) const 
 	{ 
@@ -222,6 +222,7 @@ struct BowtieHit
 					pos += op.length;
 					break;
 				case MATCH:
+				case DEL:
 					pos += op.length;
 					break;
 				default:
@@ -443,7 +444,7 @@ public:
 		//_by_name.clear();
 		_by_id.clear();
 	}
-
+	
 	// daehwan
 	// This is FNV-1, see http://en.wikipedia.org/wiki/Fowler_Noll_Vo_hash
 	static inline uint32_t hash_string(const char* __s)
@@ -528,6 +529,7 @@ class HitFactory {
     virtual ~HitFactory() {}
     virtual void openStream(HitStream& hs)=0;
     virtual void rewind(HitStream& hs)=0;
+    virtual void seek(HitStream& hs, int64_t offset)=0;
     virtual void closeStream(HitStream& hs)=0;
     BowtieHit create_hit(const string& insert_name, 
                  const string& ref_name,
@@ -577,6 +579,7 @@ class LineHitFactory  : public HitFactory {
       }
     void openStream(HitStream& hs);
     void rewind(HitStream& hs);
+    void seek(HitStream&hs, int64_t offset);
     void closeStream(HitStream& hs);
     bool next_record(HitStream& hs, const char*& buf, size_t& buf_size);
    protected:
@@ -621,6 +624,28 @@ class SplicedBowtieHitFactory : public LineHitFactory {
 	int _size_buf;
 };
 
+class SplicedSAMHitFactory : public LineHitFactory {
+  public:
+	SplicedSAMHitFactory(ReadTable& insert_table,
+							RefSequenceTable& reference_table,
+							int anchor_length) :
+	LineHitFactory(insert_table, reference_table),
+	_anchor_length(anchor_length){}
+
+	bool get_hit_from_buf(const char* bwt_buf,
+			      BowtieHit& bh,
+			      bool strip_slash,
+			      char* name_out = NULL,
+			      char* name_tags = NULL,
+			      char* seq = NULL,
+			      char* qual = NULL);
+  private:
+	int _anchor_length;
+	int _seg_offset;
+	int _size_buf;
+};
+
+
 class SAMHitFactory : public LineHitFactory {
   public:
 	SAMHitFactory(ReadTable& insert_table, 
@@ -651,6 +676,7 @@ class BAMHitFactory : public HitFactory {
         }
     void openStream(HitStream& hs);
     void rewind(HitStream& hs);
+    void seek(HitStream& hs, int64_t offset);
     void closeStream(HitStream& hs);
 
     bool next_record(HitStream& hs, const char*& buf, size_t& buf_size);
@@ -676,12 +702,36 @@ class BAMHitFactory : public HitFactory {
 			      char* name_tags = NULL,
 			      char* seq = NULL,
 			      char* qual = NULL);
-private:
+protected:
 	//int64_t _curr_pos;
 	//int64_t _beginning;
 	bam1_t _next_hit; 
 	bam_header_t* _sam_header;
     bool inspect_header(HitStream& hs);
+};
+
+class SplicedBAMHitFactory : public BAMHitFactory {
+ public:
+ SplicedBAMHitFactory(ReadTable& insert_table,
+		      RefSequenceTable& reference_table,
+		      int anchor_length) :
+  BAMHitFactory(insert_table, reference_table),
+    _anchor_length(anchor_length)
+    {
+    }
+
+    bool get_hit_from_buf(const char* bwt_buf, 
+			  BowtieHit& bh,
+			  bool strip_slash,
+			  char* name_out = NULL,
+			  char* name_tags = NULL,
+			  char* seq = NULL,
+			  char* qual = NULL);
+    
+ private:
+  int _anchor_length;
+  int _seg_offset;
+  int _size_buf;
 };
 
 
@@ -736,7 +786,7 @@ public:
 		primeStream();
 	}
 
-	HitStream(string& hit_filename,
+	HitStream(const string& hit_filename,
 		  HitFactory* hit_factory,
 		  bool spliced,
 		  bool strip_slash,
@@ -800,6 +850,12 @@ public:
 		buffered_hit = BowtieHit();
 		primeStream();
 	}
+    void seek(int64_t offset) {
+      _factory->seek(*this, offset);
+      _eof = false;
+      buffered_hit = BowtieHit();
+      primeStream();
+    }
 	
 	bool next_read_hits(HitsForRead& hits_for_read)
 	{
@@ -814,7 +870,7 @@ public:
 	  if (this->eof() && buffered_hit.insert_id() == 0) {
 	          return false;
 	          }
-	  
+
 	  //char bwt_buf[2048]; bwt_buf[0] = 0;
 	  char bwt_seq[2048]; bwt_seq[0] = 0;
 	  char bwt_qual[2048]; bwt_qual[0] = 0;
@@ -828,9 +884,11 @@ public:
 	  const char* hit_buf;
       size_t hit_buf_size = 0;
 	  while (true) {
+
 		if (!_factory->next_record(*this, hit_buf, hit_buf_size)) {
 		              buffered_hit = BowtieHit();
 		              break; }
+
 		  //string clean_buf = bwt_buf;
 		  // Get a new record from the tab-delimited Bowtie map
 		BowtieHit bh;
@@ -861,7 +919,7 @@ public:
 		      break;
 		      }
 		  } //hit parsed
-	    } //while reading hits
+	  } //while reading hits
 	  
 	  return (!hits_for_read.hits.empty() && hits_for_read.insert_id != 0);
 	}
@@ -911,6 +969,6 @@ void print_bamhit(GBamWriter& wbam,
 /**
  * Convert a vector of CigarOps to a string representation 
  */
-std::string print_cigar(vector<CigarOp>& bh_cigar);
+std::string print_cigar(const vector<CigarOp>& bh_cigar);
 
 #endif

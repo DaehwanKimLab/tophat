@@ -69,6 +69,9 @@ void flt_reads_and_hits(vector<FZPipe>& reads_files) {
       err_die("Error: filtering reads not enabled, aborting.");
   if (aux_outfile.empty())
        err_die("Error: auxiliary output file not provided.");
+  if (index_outfile.empty())
+    err_die("Error: index output file not provided.");
+  
   // -- filter mappings:
   string fext=getFext(flt_mappings);
   if (fext=="bam") {
@@ -133,15 +136,23 @@ void process_reads(vector<FZPipe>& reads_files, vector<FZPipe>& quals_files)
 {	
    //TODO: add the option to write the garbage reads into separate file(s)
   int num_reads_chucked = 0;
-  int multimap_chucked=0;
+  int multimap_chucked = 0;
   int min_read_len = 20000000;
   int max_read_len = 0;
   uint32_t next_id = 0;
+  uint64_t file_offset = 0;
   FILE* fw=NULL;
   if (!aux_outfile.empty()) {
     fw=fopen(aux_outfile.c_str(), "w");
     if (fw==NULL)
        err_die("Error: cannot create file %s\n",aux_outfile.c_str());
+    }
+
+  FILE* findex = NULL;
+  if (!index_outfile.empty()) {
+    findex = fopen(index_outfile.c_str(), "w");
+    if (findex == NULL)
+       err_die("Error: cannot create file %s\n", index_outfile.c_str());
     }
 
   for (size_t fi = 0; fi < reads_files.size(); ++fi)
@@ -185,7 +196,7 @@ void process_reads(vector<FZPipe>& reads_files, vector<FZPipe>& quals_files)
           ++multimap_chucked;
           continue;
           }
-	      format_qual_string(read.qual);
+	format_qual_string(read.qual);
         std::transform(read.seq.begin(), read.seq.end(), read.seq.begin(), ::toupper);
         char counts[256];
         memset(counts, 0, sizeof(counts));
@@ -217,14 +228,16 @@ void process_reads(vector<FZPipe>& reads_files, vector<FZPipe>& quals_files)
           }
         else
           {
+	    char buf[2048] = {0};
             if (reads_format == FASTQ or (reads_format == FASTA && quals))
               {
+		sprintf(buf, "@%u\n%s\n+%s\n%s\n",
+			next_id,
+			read.seq.c_str(),
+			read.name.c_str(),
+			read.qual.c_str());
 
-              printf("@%u\n%s\n+%s\n%s\n",
-               next_id,
-               read.seq.c_str(),
-               read.name.c_str(),
-               read.qual.c_str());
+		printf(buf);
               }
             else if (reads_format == FASTA)
               {
@@ -234,12 +247,26 @@ void process_reads(vector<FZPipe>& reads_files, vector<FZPipe>& quals_files)
                 else
                   qual = string(read.seq.length(), 'I').c_str();
 
-                printf("@%u\n%s\n+%s\n%s\n",
-                   next_id,
-                   read.seq.c_str(),
-                   read.name.c_str(),
-                   qual.c_str());
+                sprintf(buf, "@%u\n%s\n+%s\n%s\n",
+			next_id,
+			read.seq.c_str(),
+			read.name.c_str(),
+			qual.c_str());
+
+		printf(buf);
               }
+	    else
+	      {
+		assert(0);
+	      }
+
+	    if (findex != NULL)
+	      {
+		if ((next_id - num_reads_chucked) % 1000 == 0)
+		  fprintf(findex, "%d\t%llu\n", next_id, file_offset);
+	      }
+
+	    file_offset += strlen(buf);
           }
       } //while !fr.isEof()
     fr.close();
@@ -257,6 +284,8 @@ void process_reads(vector<FZPipe>& reads_files, vector<FZPipe>& quals_files)
     fprintf(fw, "reads_out=%d\n",next_id-num_reads_chucked);
     fclose(fw);
     }
+  if (findex != NULL)
+    fclose(findex);
 }
 
 void print_usage()

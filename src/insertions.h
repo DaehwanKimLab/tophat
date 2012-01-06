@@ -101,6 +101,7 @@ typedef std::map<Insertion, uint32_t> InsertionSet;
 void insertions_from_alignment(const BowtieHit& bh, InsertionSet& insertions);
 void print_insertions(FILE* insertions_out, const InsertionSet& insertions, RefSequenceTable& ref_sequences);
 void insertions_from_spliced_hit(const BowtieHit& bh, vector<Insertion>& insertions);
+void merge_with(InsertionSet& insertions, const InsertionSet& other);
 
 
 #endif
