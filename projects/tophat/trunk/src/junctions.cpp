@@ -98,10 +98,7 @@ void junctions_from_alignment(const BowtieHit& spliced_alignment,
       if (itr != junctions.end())
 	{
 	  JunctionStats& j = itr->second;
-	  j.left_extent = max(j.left_extent, junc.second.left_extent);
-	  j.right_extent = max(j.right_extent, junc.second.right_extent);
-	  j.min_splice_mms = min(j.min_splice_mms, junc.second.min_splice_mms);
-	  j.supporting_hits++;
+	  j.merge_with(junc.second);
 	}
       else
 	{
@@ -349,4 +346,21 @@ void get_junctions_from_hits(HitStream& hit_stream,
     }
   
   hit_stream.reset();
+}
+
+void merge_with(JunctionSet& juncs, const JunctionSet& other_juncs)
+{
+  for (JunctionSet::const_iterator junc = other_juncs.begin(); junc != other_juncs.end(); ++junc)
+    {
+      JunctionSet::iterator itr = juncs.find(junc->first);
+      if (itr != juncs.end())
+	{
+	  JunctionStats& curr  = itr->second;
+	  curr.merge_with(junc->second);
+	}
+      else
+	{
+	  juncs[junc->first] = junc->second;
+	}
+    }
 }

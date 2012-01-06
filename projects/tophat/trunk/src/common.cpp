@@ -74,6 +74,9 @@ void print_mem_usage() {
   }
 #endif
 
+// daehwan - temporary
+bool parallel = true;
+
 
 unsigned int max_insertion_length = 3;
 unsigned int max_deletion_length = 3;
@@ -113,11 +116,12 @@ bool no_closure_search = false;
 bool no_coverage_search = false;
 bool no_microexon_search = false;
 bool butterfly_search = false;
-int num_cpus = 1;
+int num_threads = 1;
 float min_isoform_fraction = 0.15f;
 
 string output_dir = "tophat_out";
 string aux_outfile = ""; //auxiliary output file name (e.g. prep_reads read stats)
+string index_outfile = "";
 string gene_filter = "";
 string gff_file = "";
 string ium_reads = "";
@@ -268,10 +272,11 @@ enum
     OPT_LIBRARY_TYPE,
     OPT_MAX_DELETION_LENGTH,
     OPT_MAX_INSERTION_LENGTH,
-    OPT_NUM_CPUS,
+    OPT_NUM_THREADS,
     OPT_ZPACKER,
     OPT_SAMTOOLS,
     OPT_AUX_OUT,
+    OPT_INDEX_OUT,
     OPT_GTF_JUNCS,
     OPT_FILTER_READS,
     OPT_FILTER_HITS
@@ -318,10 +323,11 @@ static struct option long_options[] = {
 {"library-type",	required_argument,	0,	OPT_LIBRARY_TYPE},
 {"max-deletion-length", required_argument, 0, OPT_MAX_DELETION_LENGTH},
 {"max-insertion-length", required_argument, 0, OPT_MAX_INSERTION_LENGTH},
-{"num-threads", required_argument, 0, OPT_NUM_CPUS},
+{"num-threads", required_argument, 0, OPT_NUM_THREADS},
 {"zpacker", required_argument, 0, OPT_ZPACKER},
 {"samtools", required_argument, 0, OPT_SAMTOOLS},
 {"aux-outfile", required_argument, 0, OPT_AUX_OUT},
+{"index-outfile", required_argument, 0, OPT_INDEX_OUT},
 {"gtf-juncs", required_argument, 0, OPT_GTF_JUNCS},
 {"flt-reads",required_argument, 0, OPT_FILTER_READS},
 {"flt-hits",required_argument, 0, OPT_FILTER_HITS},
@@ -496,9 +502,12 @@ int parse_options(int argc, char** argv, void (*print_usage)())
     case OPT_AUX_OUT:
       aux_outfile =  optarg;
       break;
+    case OPT_INDEX_OUT:
+      index_outfile =  optarg;
+      break;
     case 'p':
-    case OPT_NUM_CPUS:
-      num_cpus=parseIntOpt(1,"-p/--num-threads must be at least 1",print_usage);
+    case OPT_NUM_THREADS:
+      num_threads=parseIntOpt(1,"-p/--num-threads must be at least 1",print_usage);
       break;
     case OPT_GTF_JUNCS:
       gtf_juncs = optarg;
@@ -626,10 +635,10 @@ string guess_packer(const string& fname, bool use_all_cpus) {
    if (fext=="gz" || fext=="gzip" || fext=="z") {
       if (use_all_cpus && str_endsWith(zpacker,"pigz")) {
            picmd=zpacker;
-           if (num_cpus<2) picmd.append(" -p1");
+           if (num_threads<2) picmd.append(" -p1");
                 else {
                   picmd.append(" -p");
-                  str_appendInt(picmd, num_cpus);
+                  str_appendInt(picmd, num_threads);
                   //picmd.append(" -cd");
                   }
            }
@@ -638,10 +647,10 @@ string guess_packer(const string& fname, bool use_all_cpus) {
      else if (fext=="bz2" || fext=="bzip2" || fext=="bz" || fext=="bzip") {
       if (use_all_cpus && str_endsWith(zpacker,"pbzip2")) {
             picmd=zpacker;
-            if (num_cpus<2) picmd.append(" -p1");
+            if (num_threads<2) picmd.append(" -p1");
                  else {
                    picmd.append(" -p");
-                   str_appendInt(picmd, num_cpus);
+                   str_appendInt(picmd, num_threads);
                    //picmd.append(" -cd");
                    }
             }
@@ -686,9 +695,9 @@ string getUnpackCmd(const string& fname, bool use_all_cpus) {
  pipecmd=zpacker;
  if (str_endsWith(pipecmd, "pigz") ||str_endsWith(pipecmd, "pbzip2")) {
           if (use_all_cpus==false) pipecmd.append(" -p1");
-              else if (num_cpus>1) {
+              else if (num_threads>1) {
                     pipecmd.append(" -p");
-                    str_appendInt(pipecmd,num_cpus);
+                    str_appendInt(pipecmd,num_threads);
                     }
           }
  if (!pipecmd.empty()) pipecmd.append(" -cd");
@@ -879,9 +888,10 @@ GBamRecord::GBamRecord(const char* qname, int32_t flags, int32_t g_tid,
    }
 
  void GBamRecord::add_aux(const char* str) {
+   // daehwan - this is not thread-safe - I made these varaiables as class members
      //requires: being called AFTER add_quals()
-     static char tag[2];
-     static uint8_t abuf[512];
+     // static char tag[2];
+     // static uint8_t abuf[512];
      //requires: being called AFTER add_quals()
      int strl=strlen(str);
      //int doff = b->core.l_qname + b->core.n_cigar*4 + (b->core.l_qseq+1)/2 + b->core.l_qseq + b->l_aux;

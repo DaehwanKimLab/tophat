@@ -30,7 +30,10 @@
 #include <seqan/modifier.h>
 #include <getopt.h>
 
+#include <boost/thread.hpp>
+
 #include "common.h"
+#include "utils.h"
 #include "bwt_map.h"
 #include "tokenize.h"
 #include "segments.h"
@@ -85,7 +88,6 @@ void get_seqs(istream& ref_stream,
 			delete ref_str;
     }	
 }
-
 
 RefSeg seg_from_bowtie_hit(const BowtieHit& T)
 {
@@ -3118,7 +3120,6 @@ void find_gaps(RefSequenceTable& rt,
 				      0);
 }
 
-
 MerTable mer_table;
 
 int seed_alignments = 0;
@@ -3291,9 +3292,9 @@ void align_microexon_segs(RefSequenceTable& rt,
  */
  
 void look_for_hit_group(RefSequenceTable& rt,
-    ReadStream& readstream,
-    ReadStream& readstream_for_segment_search,
-    ReadStream& readstream_for_indel_discovery,
+			ReadStream& readstream,
+			ReadStream& readstream_for_segment_search,
+			ReadStream& readstream_for_indel_discovery,
 			ReadTable& unmapped_reads,
 			vector<HitStream>& seg_files,
 			int curr_file,
@@ -3304,7 +3305,9 @@ void look_for_hit_group(RefSequenceTable& rt,
 			std::set<Junction, skip_count_lt>& juncs,
 			std::set<Deletion>& deletions,
 			std::set<Insertion>& insertions,
-			eREAD read_side)
+			eREAD read_side,
+			uint32_t begin_id,
+			uint32_t end_id)
 
 {
   HitStream& hit_stream = seg_files[curr_file];
@@ -3320,20 +3323,22 @@ void look_for_hit_group(RefSequenceTable& rt,
 		 if (curr_file > 0) {
 		   //look for next (lower) segment mappings for this read
 			 look_for_hit_group(rt,
-			  readstream,
-			  readstream_for_segment_search,
-			  readstream_for_indel_discovery,
-			  unmapped_reads,
-			  seg_files,
-			  curr_file - 1,
-			  insert_id,
-			  hits_for_read,
+					    readstream,
+					    readstream_for_segment_search,
+					    readstream_for_indel_discovery,
+					    unmapped_reads,
+					    seg_files,
+					    curr_file - 1,
+					    insert_id,
+					    hits_for_read,
 					    partner_hit_stream,
 					    seg_partner_hit_stream,
-			  juncs,
-			  deletions,
-			  insertions,
-			  read_side);
+					    juncs,
+					    deletions,
+					    insertions,
+					    read_side,
+					    begin_id,
+					    end_id);
 			  }
 		 else
 		   if (insert_id && !no_microexon_search) {
@@ -3414,20 +3419,22 @@ void look_for_hit_group(RefSequenceTable& rt,
 			  // we need to look left (recursively) for the group we 
 			  // just read for this stream.
 			  look_for_hit_group(rt,
-					 readstream,
-					 readstream_for_segment_search,
-					 readstream_for_indel_discovery,
-					 unmapped_reads,
-					 seg_files,
-					 curr_file - 1,
-					 insert_id,
-					 hits_for_read,
+					     readstream,
+					     readstream_for_segment_search,
+					     readstream_for_indel_discovery,
+					     unmapped_reads,
+					     seg_files,
+					     curr_file - 1,
+					     insert_id,
+					     hits_for_read,
 					     partner_hit_stream,
 					     seg_partner_hit_stream,
-					 juncs,
-					 deletions,
-					 insertions,
-					 read_side);
+					     juncs,
+					     deletions,
+					     insertions,
+					     read_side,
+					     begin_id,
+					     end_id);
 			break;
 			} //same insert_id (group)
 		 else if (curr_file > 0) {
@@ -3436,32 +3443,38 @@ void look_for_hit_group(RefSequenceTable& rt,
 			vector<HitsForRead> hits_for_new_read(seg_files.size());
 			hits_for_new_read[curr_file] = hit_group;
 			look_for_hit_group(rt,
-			   readstream,
-			   readstream_for_segment_search,
-			   readstream_for_indel_discovery,
-			   unmapped_reads,
-			   seg_files,
-			   curr_file - 1,
-			   hit_group.insert_id,
-			   hits_for_new_read,
+					   readstream,
+					   readstream_for_segment_search,
+					   readstream_for_indel_discovery,
+					   unmapped_reads,
+					   seg_files,
+					   curr_file - 1,
+					   hit_group.insert_id,
+					   hits_for_new_read,
 					   partner_hit_stream,
 					   seg_partner_hit_stream,
-			   juncs,
-			   deletions,
-			   insertions,
-			   read_side);
-			find_insertions_and_deletions(rt,
-						      readstream_for_indel_discovery,
-						      hits_for_new_read,
-						      deletions,
-						      insertions);
-			find_gaps(rt,
-				  readstream_for_segment_search,
-				  hits_for_new_read,
-				  partner_hit_stream,
-				  seg_partner_hit_stream,
-				  juncs,
-				  read_side);
+					   juncs,
+					   deletions,
+					   insertions,
+					   read_side,
+					   begin_id,
+					   end_id);
+
+			if (hit_group.insert_id >= begin_id && hit_group.insert_id < end_id)
+			  {
+			    find_insertions_and_deletions(rt,
+							  readstream_for_indel_discovery,
+							  hits_for_new_read,
+							  deletions,
+							  insertions);
+			    find_gaps(rt,
+				      readstream_for_segment_search,
+				      hits_for_new_read,
+				      partner_hit_stream,
+				      seg_partner_hit_stream,
+				      juncs,
+				      read_side);
+			  }
 			} //different group
 		 }//got next group
 	} //while loop
@@ -3469,19 +3482,21 @@ void look_for_hit_group(RefSequenceTable& rt,
 
 
 
-bool process_next_hit_group(RefSequenceTable& rt,
-       ReadStream&  readstream,
-       ReadStream&  readstream_for_segment_search,
-       ReadStream&  readstream_for_indel_discovery,
-			    ReadTable& unmapped_reads,
-			    vector<HitStream>& seg_files, 
-			    size_t last_file_idx,
-			    HitStream& partner_hit_stream,
-			    HitStream& seg_partner_hit_stream,
-			    std::set<Junction, skip_count_lt>& juncs,
-			    std::set<Deletion>& deletions,
-			    std::set<Insertion>& insertions,
-			    eREAD read)
+uint64_t process_next_hit_group(RefSequenceTable& rt,
+				ReadStream&  readstream,
+				ReadStream&  readstream_for_segment_search,
+				ReadStream&  readstream_for_indel_discovery,
+				ReadTable& unmapped_reads,
+				vector<HitStream>& seg_files, 
+				size_t last_file_idx,
+				HitStream& partner_hit_stream,
+				HitStream& seg_partner_hit_stream,
+				std::set<Junction, skip_count_lt>& juncs,
+				std::set<Deletion>& deletions,
+				std::set<Insertion>& insertions,
+				eREAD read,
+				uint32_t begin_id = 0,
+				uint32_t end_id = VMAXINT32)
 {
   HitStream& last_segmap_hitstream = seg_files[last_file_idx];
   HitsForRead hit_group;
@@ -3489,6 +3504,9 @@ bool process_next_hit_group(RefSequenceTable& rt,
   vector<HitsForRead> hits_for_read(seg_files.size());
   hits_for_read.back() = hit_group;
 
+  if (result && hit_group.insert_id >= end_id)
+    return 0;    
+  
   look_for_hit_group(rt,
 		     readstream,
 		     readstream_for_segment_search,
@@ -3503,7 +3521,9 @@ bool process_next_hit_group(RefSequenceTable& rt,
 		     juncs,
 		     deletions,
 		     insertions,
-		     read);
+		     read,
+		     begin_id,
+		     end_id);
   
   if (result) {
     find_insertions_and_deletions(rt,
@@ -3519,8 +3539,10 @@ bool process_next_hit_group(RefSequenceTable& rt,
 	      seg_partner_hit_stream,
 	      juncs,
 	      read);
-    }
-  return result;
+
+    return hit_group.insert_id;
+  }
+  return 0;
 }
 
 static const int UNCOVERED = 0;
@@ -3539,16 +3561,15 @@ uint8_t get_cov(const vector<uint8_t>& cov, uint32_t c)
 }
 
 void build_coverage_map(ReadTable& it, RefSequenceTable& rt,
-    vector<FZPipe*>& seg_files, map<uint32_t, vector<bool> >& coverage_map) {
+    vector<string>& seg_files, map<uint32_t, vector<bool> >& coverage_map) {
  if (!coverage_map.empty()) return;
- BowtieHitFactory hit_factory(it,rt);
+ BAMHitFactory hit_factory(it,rt);
 
  for (size_t f = 0; f < seg_files.size(); ++f)
    {
      //fprintf(stderr, "Adding hits from segment file %d to coverage map\n", (int)f);
-     seg_files[f]->rewind();
-     FILE* fp = seg_files[f]->file;
-     HitStream hs(fp, &hit_factory, false, false, false);
+     //seg_files[f]->rewind();
+     HitStream hs(seg_files[f], &hit_factory, false, false, false);
      HitsForRead hit_group;
      while (hs.next_read_hits(hit_group))
      {
@@ -3579,14 +3600,14 @@ void build_coverage_map(ReadTable& it, RefSequenceTable& rt,
 
 void pair_covered_sites(ReadTable& it,
 			RefSequenceTable& rt,
-			vector<FZPipe*>& seg_files,
+			vector<string>& segmap_fnames,
 			std::set<Junction, skip_count_lt>& cov_juncs,
 			map<uint32_t, vector<bool> >& coverage_map,
 			size_t half_splice_mer_len)
 {
   vector<RefSeg> expected_look_left_windows;
   vector<RefSeg> expected_look_right_windows;
-  build_coverage_map(it,rt, seg_files, coverage_map);
+  build_coverage_map(it,rt, segmap_fnames, coverage_map);
   
   static const int extend = 45;
   int num_islands = 0;
@@ -3670,8 +3691,8 @@ struct ReadInfo
 
 void capture_island_ends(ReadTable& it,
 			 RefSequenceTable& rt,
-			 //vector<FILE*>& seg_files,
-			 vector<FZPipe*>& seg_files,
+			 //vector<FZPipe*>& seg_files,
+			 vector<string>& segmap_fnames,
 			 std::set<Junction, skip_count_lt>& cov_juncs,
 			  map<uint32_t, vector<bool> >& coverage_map,
 			 size_t half_splice_mer_len)
@@ -3685,14 +3706,14 @@ void capture_island_ends(ReadTable& it,
 //#define DEBUG_RANGE_ONLY 1
 
 #ifndef DEBUG_CHECK_EXONS
-  build_coverage_map(it, rt, seg_files, coverage_map);
+  build_coverage_map(it, rt, segmap_fnames, coverage_map);
 #else
   //build coverage map here, so we can debug it
   #ifdef DEBUG_RANGE_ONLY
    static const uint32_t chr14_id = RefSequenceTable::hash_string("chr14");
   #endif
   vector<ReadInfo> hits;
-  BowtieHitFactory hit_factory(it,rt);
+  BAMHitFactory hit_factory(it,rt);
   
   for (size_t f = 0; f < seg_files.size(); ++f)
 	{
@@ -3945,54 +3966,6 @@ void capture_island_ends(ReadTable& it,
   //fprintf(stderr, "Found %ld potential island-end pairing junctions\n", (long int)cov_juncs.size());
 }
 
-
-void process_segment_hits(RefSequenceTable& rt,
-              ReadStream& readstream,
-              ReadStream& readstream_for_segment_search,
-              ReadStream& readstream_for_indel_discovery,
-			  vector<FZPipe>& seg_files,
-			  FZPipe& partner_reads_map_file,
-			  FZPipe& seg_partner_reads_map_file,
-			  BowtieHitFactory& hit_factory,
-			  ReadTable& it,
-			  std::set<Junction, skip_count_lt>& juncs,
-			  std::set<Deletion>& deletions,
-			  std::set<Insertion>& insertions,
-  			  eREAD read = READ_DONTCARE)
-{
-  HitStream partner_hit_stream(partner_reads_map_file, &hit_factory, false, false, false);
-  HitStream seg_partner_hit_stream(seg_partner_reads_map_file, &hit_factory, false, false, false);
-  
-  vector<HitStream> hit_streams;
-  for (size_t i = 0; i < seg_files.size(); ++i)
-    {
-      HitStream hs(seg_files[i].file, &hit_factory, false, false, false);
-      
-      // if the next group id in this stream is zero, it's an empty stream,
-      // and we can simply skip it.
-      //if (hs.next_group_id() != 0)
-      hit_streams.push_back(hs);
-    }
-  
-  int num_group = 0;
-  while (process_next_hit_group(rt,
-				readstream,
-				readstream_for_segment_search,
-				readstream_for_indel_discovery,
-				it, 
-				hit_streams, 
-				hit_streams.size() - 1,
-				partner_hit_stream,
-				seg_partner_hit_stream,
-				juncs, deletions, insertions, read) == true)
-    {
-      num_group++;
-      if (num_group % 500000 == 0)
-	     fprintf(stderr, "\tProcessed %d root segment groups\n", num_group);
-    }
-  fprintf(stderr, "Microaligned %d segments\n", microaligned_segs); 
-}
-
 void print_juncs(RefSequenceTable& rt, std::set<Junction, skip_count_lt>& juncs, const char* str)
 {
   fprintf (stderr, "-- %s --\n", str);
@@ -4011,103 +3984,326 @@ void print_juncs(RefSequenceTable& rt, std::set<Junction, skip_count_lt>& juncs,
   fprintf (stderr, "-- done --\n");
 }
 
+struct SegmentSearchWorker
+{
+  void operator()()
+  {
+    ReadTable it;
+    BAMHitFactory hit_factory(it, *rt);
+
+    ReadStream readstream(reads_fname);
+    ReadStream readstream_for_segment_search(reads_fname);
+    ReadStream readstream_for_indel_discovery(reads_fname);
+
+    if (readstream.file() == NULL ||
+	readstream_for_segment_search.file() == NULL ||
+	readstream_for_indel_discovery.file() == NULL)
+      {
+	fprintf(stderr, "Error: cannot open %s for reading\n",
+		reads_fname.c_str());
+	exit(1);
+      }
+
+    if (read_offset > 0)
+      {
+	readstream.seek(read_offset);
+	readstream_for_segment_search.seek(read_offset);
+	readstream_for_indel_discovery.seek(read_offset);
+      }
+    
+    HitStream partner_hit_stream(partner_reads_map_fname, &hit_factory, false, false, false);
+    HitStream seg_partner_hit_stream(seg_partner_reads_map_fname, &hit_factory, false, false, false);
+    if (partner_hit_offset > 0)
+      partner_hit_stream.seek(partner_hit_offset);
+
+    if (seg_partner_hit_offset > 0)
+      seg_partner_hit_stream.seek(seg_partner_hit_offset);
+    
+    vector<HitStream> hit_streams;
+    for (size_t i = 0; i < segmap_fnames->size(); ++i)
+      {
+	HitStream hs((*segmap_fnames)[i], &hit_factory, false, false, false);
+	if (seg_offsets[i] > 0)
+	  hs.seek(seg_offsets[i]);
+
+	hit_streams.push_back(hs);
+      }
+
+    int num_group = 0;
+    uint64_t read_id = 0, last_read_id = 0;
+    while ((read_id = process_next_hit_group(*rt,
+					     readstream,
+					     readstream_for_segment_search,
+					     readstream_for_indel_discovery,
+					     it, 
+					     hit_streams, 
+					     hit_streams.size() - 1,
+					     partner_hit_stream,
+					     seg_partner_hit_stream,
+					     *juncs, *deletions, *insertions, read,
+					     begin_id,
+					     end_id)) != 0)
+      {
+	num_group++;
+	//if (num_group % 500000 == 0)
+	//  fprintf(stderr, "\tProcessed %d root segment groups\n", num_group);
+
+	// daehwan - remove this
+	if (num_group == 1)
+	  fprintf(stderr, "begin read id: %llu\n", read_id);
+
+	last_read_id = read_id;
+      }
+
+    // daehwan - remove this
+    fprintf(stderr, "end read id: %llu\n", last_read_id);
+
+    // "microaligned_segs" is not protected against multi-threading
+    // fprintf(stderr, "Microaligned %d segments\n", microaligned_segs); 
+  }
+
+  RefSequenceTable* rt;
+  string reads_fname;
+  vector<string>* segmap_fnames;
+  string partner_reads_map_fname;
+  string seg_partner_reads_map_fname;
+  std::set<Junction, skip_count_lt>* juncs;
+  std::set<Deletion>* deletions;
+  std::set<Insertion>* insertions;
+  eREAD read;
+
+  uint64_t begin_id;
+  uint64_t end_id;
+  int64_t read_offset;
+  vector<int64_t> seg_offsets;
+
+  int64_t partner_hit_offset;
+  int64_t seg_partner_hit_offset;
+};
+
 void driver(istream& ref_stream,
 	    FILE* juncs_out,
 	    FILE* insertions_out,
 	    FILE* deletions_out,
-	    ReadStream& left_readstream,
-	    ReadStream& left_readstream_for_segment_search,
-	    ReadStream& left_readstream_for_indel_discovery,
-	    FZPipe& left_reads_map_file,
-	    FZPipe& left_seg_file_for_segment_search,
-	    vector<FZPipe>& left_seg_files,
-	    ReadStream& right_readstream,
-	    ReadStream& right_readstream_for_segment_search,
-	    ReadStream& right_readstream_for_indel_discovery,
-	    FZPipe& right_reads_map_file,
-	    FZPipe& right_seg_file_for_segment_search,
-	    vector<FZPipe>& right_seg_files
+	    string& left_reads_fname,
+	    string& left_reads_map_fname,
+	    vector<string>& left_segmap_fnames,
+	    string& right_reads_fname,
+	    string& right_reads_map_fname,
+	    vector<string>& right_segmap_fnames
 	    )
-{	
-  if (left_seg_files.size() == 0)
+{
+  if (!parallel)
+    num_threads = 1;
+
+  // turn off parallelization in case of the following search methods
+  if (!no_coverage_search || !no_microexon_search || butterfly_search)
+    num_threads = 1;
+
+  assert (num_threads > 0);
+  if (left_segmap_fnames.size() == 0)
     {
       fprintf(stderr, "No hits to process, exiting\n");
       exit(0);
     }
   
-  std::set<Junction, skip_count_lt> seg_juncs;
+  std::set<Junction, skip_count_lt> vseg_juncs[num_threads];
   std::set<Junction, skip_count_lt> cov_juncs;
   std::set<Junction, skip_count_lt> butterfly_juncs;
   
   std::set<Junction> juncs;
   
-  std::set<Deletion> deletions;
-  std::set<Insertion> insertions;
+  std::set<Deletion> vdeletions[num_threads];
+  std::set<Insertion> vinsertions[num_threads];
   
   RefSequenceTable rt(true, true);
   
   fprintf (stderr, "Loading reference sequences...\n");
   get_seqs(ref_stream, rt, true, false);
-	
-  ReadTable it;
-  BowtieHitFactory hit_factory(it,rt);
+
+  string left_seg_fname_for_segment_search = left_segmap_fnames.back();
+  string right_seg_fname_for_segment_search;
+  if (right_segmap_fnames.size() > 0)
+    right_seg_fname_for_segment_search = right_segmap_fnames.back();  
+
   fprintf(stderr, ">> Performing segment-search:\n");
-  
-  if (left_seg_files.size() > 1)
+ 
+  if (left_segmap_fnames.size() > 1)
     {
       fprintf( stderr, "Loading left segment hits...\n");
-      process_segment_hits(rt,
-			   left_readstream,
-			   left_readstream_for_segment_search,
-			   left_readstream_for_indel_discovery,
-			   left_seg_files,
-			   right_reads_map_file,
-			   right_seg_file_for_segment_search,
-			   hit_factory,
-			   it,
-			   seg_juncs,
-			   deletions,
-			   insertions,
-			   READ_LEFT);
+
+      vector<uint64_t> read_ids;
+      vector<vector<int64_t> > offsets;
+      vector<int64_t> partner_offsets;
+      vector<int64_t> seg_partner_offsets;
+      if (num_threads > 1)
+	{
+	  vector<string> fnames;
+	  fnames.push_back(left_reads_fname);
+	  fnames.insert(fnames.end(), left_segmap_fnames.begin(), left_segmap_fnames.end());
+	  bool enough_data = calculate_offsets(fnames, read_ids, offsets);
+	  if (!enough_data)
+	    num_threads = 1;
+
+	  if (enough_data && right_reads_map_fname != "")
+	    calculate_offsets_from_ids(right_reads_map_fname, read_ids, partner_offsets);
+
+	  if (enough_data && right_seg_fname_for_segment_search != "")
+	    calculate_offsets_from_ids(right_seg_fname_for_segment_search, read_ids, seg_partner_offsets);
+	}
+			
+      vector<boost::thread*> threads;
+      for (int i = 0; i < num_threads; ++i)
+	{
+	  SegmentSearchWorker worker;
+	  worker.rt = &rt;
+	  worker.reads_fname = left_reads_fname;
+	  worker.segmap_fnames = &left_segmap_fnames;
+	  worker.partner_reads_map_fname = right_reads_map_fname;
+	  worker.seg_partner_reads_map_fname = right_seg_fname_for_segment_search;
+	  worker.juncs = &vseg_juncs[i];
+	  worker.deletions = &vdeletions[i];
+	  worker.insertions = &vinsertions[i];
+	  worker.read = READ_LEFT;
+	  worker.partner_hit_offset = 0;
+	  worker.seg_partner_hit_offset = 0;
+
+	  if (i == 0)
+	    {
+	      worker.begin_id = 0;
+	      worker.seg_offsets = vector<int64_t>(left_segmap_fnames.size(), 0);
+	      worker.read_offset = 0;
+	    }
+	  else
+	    {
+	      worker.begin_id = read_ids[i-1];
+	      worker.seg_offsets.insert(worker.seg_offsets.end(), offsets[i-1].begin()+1, offsets[i-1].end());
+	      worker.read_offset = offsets[i-1][0];
+	      if (partner_offsets.size() > 0)
+		worker.partner_hit_offset = partner_offsets[i-1];
+	      if (seg_partner_offsets.size() > 0)
+		worker.seg_partner_hit_offset = seg_partner_offsets[i-1];
+	    }
+
+	  worker.end_id = (i+1 < num_threads) ? read_ids[i] : std::numeric_limits<uint64_t>::max();
+
+	  if (num_threads > 0)
+	    threads.push_back(new boost::thread(worker));
+	  else
+	    worker();
+	}
+
+      for (size_t i = 0; i < threads.size(); ++i)
+	{
+	  threads[i]->join();
+	  delete threads[i];
+	  threads[i] = NULL;
+	}
+      threads.clear();
+      
       fprintf( stderr, "done.\n");
     }
   
-  if (right_seg_files.size() > 1)
+  if (right_segmap_fnames.size() > 1)
     {
       fprintf( stderr, "Loading right segment hits...\n");
-      process_segment_hits(rt,
-			   right_readstream,
-			   right_readstream_for_segment_search,
-			   right_readstream_for_indel_discovery,
-			   right_seg_files,
-			   left_reads_map_file,
-			   left_seg_file_for_segment_search,
-			   hit_factory,
-			   it,
-			   seg_juncs,
-			   deletions,
-			   insertions,
-			   READ_RIGHT);
+
+      vector<uint64_t> read_ids;
+      vector<vector<int64_t> > offsets;
+      vector<int64_t> partner_offsets;
+      vector<int64_t> seg_partner_offsets;
+      if (num_threads > 1)
+	{
+	  vector<string> fnames;
+	  fnames.push_back(right_reads_fname);
+	  fnames.insert(fnames.end(), right_segmap_fnames.begin(), right_segmap_fnames.end());
+	  bool enough_data = calculate_offsets(fnames, read_ids, offsets);
+	  if (!enough_data)
+	    num_threads = 1;
+
+	  if (enough_data)
+	    calculate_offsets_from_ids(left_reads_map_fname, read_ids, partner_offsets);
+	  
+	  if (enough_data)
+	    calculate_offsets_from_ids(left_seg_fname_for_segment_search, read_ids, seg_partner_offsets);
+	}
+			
+      vector<boost::thread*> threads;
+      for (int i = 0; i < num_threads; ++i)
+	{
+	  SegmentSearchWorker worker;
+	  worker.rt = &rt;
+	  worker.reads_fname = right_reads_fname;
+	  worker.segmap_fnames = &right_segmap_fnames;
+	  worker.partner_reads_map_fname = left_reads_map_fname;
+	  worker.seg_partner_reads_map_fname = left_seg_fname_for_segment_search;
+	  worker.juncs = &vseg_juncs[0];
+	  worker.deletions = &vdeletions[0];
+	  worker.insertions = &vinsertions[0];
+	  worker.read = READ_RIGHT;
+	  worker.partner_hit_offset = 0;
+	  worker.seg_partner_hit_offset = 0;
+
+	  if (i == 0)
+	    {
+	      worker.begin_id = 0;
+	      worker.seg_offsets = vector<int64_t>(left_segmap_fnames.size(), 0);
+	      worker.read_offset = 0;
+	    }
+	  else
+	    {
+	      worker.begin_id = read_ids[i-1];
+	      worker.seg_offsets.insert(worker.seg_offsets.end(), offsets[i-1].begin() + 1, offsets[i-1].end());
+	      worker.read_offset = offsets[i-1][0];
+	      if (partner_offsets.size() > 0)
+		worker.partner_hit_offset = partner_offsets[i-1];
+	      if (seg_partner_offsets.size() > 0)
+		worker.seg_partner_hit_offset = seg_partner_offsets[i-1];
+	    }
+
+	  worker.end_id = (i+1 < num_threads) ? read_ids[i] : std::numeric_limits<uint64_t>::max();
+
+	  if (num_threads > 1)
+	    threads.push_back(new boost::thread(worker));
+	  else
+	    worker();
+	}
+
+      for (size_t i = 0; i < threads.size(); ++i)
+	{
+	  threads[i]->join();
+	  delete threads[i];
+	  threads[i] = NULL;
+	}
+      threads.clear();
+
       fprintf( stderr, "done.\n");
+    }
+
+  std::set<Junction, skip_count_lt> seg_juncs;
+  std::set<Deletion> deletions;
+  std::set<Insertion> insertions;
+
+  for (int i = 0; i < num_threads; ++i)
+    {
+      seg_juncs.insert(vseg_juncs[i].begin(), vseg_juncs[i].end());
+      deletions.insert(vdeletions[i].begin(), vdeletions[i].end());
+      insertions.insert(vinsertions[i].begin(), vinsertions[i].end());
     }
 
   fprintf(stderr, "\tfound %ld potential split-segment junctions\n", (long int)seg_juncs.size());
   fprintf(stderr, "\tfound %ld potential small deletions\n", (long int)deletions.size());
   fprintf(stderr, "\tfound %ld potential small insertions\n", (long int)insertions.size());
-  
-  //vector<FILE*> all_seg_files;
-	vector<FZPipe*> all_seg_files;
-  for (vector<FZPipe>::size_type i = 0; i != left_seg_files.size();i++)
-    {
-       all_seg_files.push_back( &(left_seg_files[i]) );
-	   }
-  
-  for (vector<FZPipe>::size_type i = 0; i != right_seg_files.size();i++)
-    {
-       all_seg_files.push_back( &(right_seg_files[i]) );
-       }
-	//copy(left_seg_files.begin(), left_seg_files.end(), back_inserter(all_seg_files));
-	//copy(right_seg_files.begin(), right_seg_files.end(), back_inserter(all_seg_files));
+
+    vector<string> all_segmap_fnames;
+    for (vector<string>::size_type i = 0; i != left_segmap_fnames.size();i++) {
+      all_segmap_fnames.push_back( left_segmap_fnames[i] );
+    }
+    for (vector<string>::size_type i = 0; i != right_segmap_fnames.size();i++) {
+      all_segmap_fnames.push_back( right_segmap_fnames[i] );
+    }
+    //copy(left_seg_files.begin(), left_seg_files.end(), back_inserter(all_seg_files));
+    //copy(right_seg_files.begin(), right_seg_files.end(), back_inserter(all_seg_files));
 
 #if 0
   // daehwan - check this out as Cole insists on using segments gives better results.
@@ -4124,6 +4320,8 @@ void driver(istream& ref_stream,
   
   copy(all_seg_files.begin(), all_seg_files.end(), back_inserter(all_map_files));
 #endif
+
+  ReadTable it;
   map<uint32_t, vector<bool> > coverage_map;
   if (!no_coverage_search || butterfly_search)
     {
@@ -4132,7 +4330,7 @@ void driver(istream& ref_stream,
 	    vector<string> ium_read_files;
 	    tokenize(ium_reads,",", ium_read_files);
 	    vector<FZPipe> iums;
-          string unzcmd=getUnpackCmd(ium_read_files[0],false);
+	  string unzcmd=getUnpackCmd(ium_read_files[0],false); //could be BAM file
 	    for (size_t ium = 0; ium < ium_read_files.size(); ++ium)
 	      {
               //fprintf (stderr, "Indexing extensions in %s\n", ium_read_files[ium].c_str());
@@ -4159,7 +4357,7 @@ void driver(istream& ref_stream,
 	    fprintf(stderr, ">> Performing coverage-search:\n");
 	    capture_island_ends(it,
 			      rt,
-			      all_seg_files,
+			      all_segmap_fnames, 
 			      cov_juncs, 
 			      coverage_map,
 			      5);
@@ -4175,7 +4373,7 @@ void driver(istream& ref_stream,
       compact_extension_table();
       pair_covered_sites(it,
 			 rt,
-			 all_seg_files, 
+			 all_segmap_fnames, 
 			 butterfly_juncs,
 			 coverage_map,
 			 5);
@@ -4217,15 +4415,11 @@ void driver(istream& ref_stream,
 	      itr->antisense ? '-' : '+');
     }
 	//close all reading pipes, just to exit cleanly
-
-    for (vector<FZPipe*>::size_type i = 0; i != all_seg_files.size();i++) {
-       all_seg_files[i]->close();
+  /*
+    for (vector<FZPipe*>::size_type i = 0; i != all_segmap_fnames.size();i++) {
+       all_segmap_fnames[i]->close();
        }
-    left_readstream.close();
-    left_readstream_for_indel_discovery.close();
-    right_readstream.close();
-    right_readstream_for_indel_discovery.close();
-  //fprintf (stderr, "done\n");
+   */
   fprintf (stderr, "Reported %d total possible splices\n", (int)juncs.size());
   
   fprintf (stderr, "Reporting potential deletions...\n");
@@ -4324,9 +4518,9 @@ int main(int argc, char** argv)
       return 1;
     }
   
-  string left_segment_file_list = argv[optind++];
+  string left_segment_map_file_list = argv[optind++];
     
-  string right_segment_file_list; 
+  string right_segment_map_file_list; 
   string right_reads_file_name;
   string right_reads_map_file_name;
   if (optind < argc)
@@ -4346,7 +4540,7 @@ int main(int argc, char** argv)
 	  print_usage();
 	  return 1;
 	}
-      right_segment_file_list = argv[optind++];
+      right_segment_map_file_list = argv[optind++];
     }
   
   // Open the approppriate files
@@ -4385,111 +4579,15 @@ int main(int argc, char** argv)
       exit(1);
     }
 	
-  //string unzcmd=getUnpackCmd(left_reads_file_name, false);
-  ReadStream left_reads_file(left_reads_file_name);
-  ReadStream left_reads_file_for_segment_search(left_reads_file_name);
-  ReadStream left_reads_file_for_indel_discovery(left_reads_file_name);
-  if (left_reads_file.file()==NULL || left_reads_file_for_segment_search.file()==NULL ||
-        left_reads_file_for_indel_discovery.file()==NULL)
+  vector<string> left_segment_map_fnames;
+  string left_segment_file_for_segment_search;
+  tokenize(left_segment_map_file_list, ",",left_segment_map_fnames);
+
+  vector<string> right_segment_map_fnames;
+  string right_segment_file_for_segment_search;
+  if (right_segment_map_file_list != "")
     {
-      fprintf(stderr, "Error: cannot open %s for reading\n",
-	      left_reads_file_name.c_str());
-      exit(1);
-    }
-
-  //FILE* left_reads_map_file = fopen(left_reads_map_file_name.c_str(), "r");
-  FZPipe left_reads_map_file(left_reads_map_file_name, true);
-  if (left_reads_map_file.file == NULL)
-    {
-      fprintf(stderr, "Error: cannot open %s for reading\n",
-	      left_reads_map_file_name.c_str());
-      exit(1);
-    }
-
-  vector<string> left_segment_file_names;
-  vector<FZPipe> left_segment_files;
-  tokenize(left_segment_file_list, ",",left_segment_file_names);
-  FZPipe left_segment_file_for_segment_search;
-  string unzcmd;
-  if (left_segment_file_names.size()>0)
-     unzcmd=getUnpackCmd(left_segment_file_names[0], false);
-  for (size_t i = 0; i < left_segment_file_names.size(); ++i)
-    {
-      FZPipe seg_file(left_segment_file_names[i], unzcmd);
-      if (seg_file.file == NULL)
-        {
-        fprintf(stderr, "Error: cannot open segment map file %s for reading\n",
-          left_segment_file_names[i].c_str());
-        exit(1);
-        }
-      left_segment_files.push_back(seg_file);
-
-      if (i == left_segment_file_names.size() - 1)
-      {
-        left_segment_file_for_segment_search = FZPipe(left_segment_file_names[i], unzcmd);
-        if (left_segment_file_for_segment_search.file == NULL)
-          {
-            fprintf(stderr, "Error: cannot open %s for reading\n",
-              left_segment_file_names[i].c_str());
-            exit(1);
-          }
-      }
-    }
-  FZPipe right_reads_map_file;
-  vector<FZPipe> right_segment_files;
-  ReadStream right_reads_file;
-  ReadStream right_reads_file_for_segment_search;
-  ReadStream right_reads_file_for_indel_discovery;
-  FZPipe right_segment_file_for_segment_search;
-
-  if (right_segment_file_list != "")
-    {
-      //unzcmd=getUnpackCmd(right_reads_file_name, false);
-      right_reads_file.init(right_reads_file_name);
-      right_reads_file_for_segment_search.init(right_reads_file_name);
-      right_reads_file_for_indel_discovery.init(right_reads_file_name);
-      if (right_reads_file.file()==NULL || right_reads_file_for_indel_discovery.file()==NULL)
-      {
-        fprintf(stderr, "Error: cannot open %s for reading\n",
-          right_reads_file_name.c_str());
-        exit(1);
-      }
-      
-      right_reads_map_file = FZPipe(right_reads_map_file_name, true);
-      if (right_reads_map_file.file == NULL)
-      {
-        fprintf(stderr, "Error: cannot open %s for reading\n",
-          right_reads_map_file_name.c_str());
-        exit(1);
-      }
-            
-      vector<string> right_segment_file_names;
-      tokenize(right_segment_file_list, ",",right_segment_file_names);
-      if (right_segment_file_names.size()>0)
-         unzcmd=getUnpackCmd(right_segment_file_names[0], false);
-
-      for (size_t i = 0; i < right_segment_file_names.size(); ++i)
-		  {
-      FZPipe seg_file(right_segment_file_names[i],unzcmd);
-      if (seg_file.file == NULL)
-        {
-          fprintf(stderr, "Error: cannot open segment map %s for reading\n",
-            right_segment_file_names[i].c_str());
-          exit(1);
-        }
-      right_segment_files.push_back(seg_file);
-
-	  if (i == right_segment_file_names.size() - 1)
-	    {
-	      right_segment_file_for_segment_search = FZPipe(right_segment_file_names[i], unzcmd);
-	      if (right_segment_file_for_segment_search.file == NULL)
-		{
-		  fprintf(stderr, "Error: cannot open %s for reading\n",
-			  right_segment_file_names[i].c_str());
-		  exit(1);
-	}
-		  }
-	}
+      tokenize(right_segment_map_file_list, ",", right_segment_map_fnames);
     }
   // min_cov_length=20;
   if (min_cov_length>segment_length-2) min_cov_length=segment_length-2;
@@ -4498,18 +4596,12 @@ int main(int argc, char** argv)
 	 juncs_file,
 	 insertions_file,
 	 deletions_file,
-	 left_reads_file,
-	 left_reads_file_for_segment_search,
-	 left_reads_file_for_indel_discovery, 
-	 left_reads_map_file,
-	 left_segment_file_for_segment_search,
-	 left_segment_files, 
-	 right_reads_file,
-	 right_reads_file_for_segment_search,
-	 right_reads_file_for_indel_discovery,
-	 right_reads_map_file,
-	 right_segment_file_for_segment_search,
-	 right_segment_files);
+	 left_reads_file_name,
+	 left_reads_map_file_name,
+	 left_segment_map_fnames, 
+	 right_reads_file_name,
+	 right_reads_map_file_name,
+	 right_segment_map_fnames);
   
   return 0;
 }

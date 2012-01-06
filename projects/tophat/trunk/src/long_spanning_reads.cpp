@@ -31,7 +31,10 @@
 #include <seqan/modifier.h>
 #include <getopt.h>
 
+#include <boost/thread.hpp>
+
 #include "common.h"
+#include "utils.h"
 #include "bwt_map.h"
 #include "tokenize.h"
 #include "segments.h"
@@ -257,6 +260,7 @@ BowtieHit merge_chain(RefSequenceTable& rt,
       int prev_right_end_match_length = prev_hit->cigar().back().length;
       int curr_left_end_match_length = curr_hit->cigar().front().length;
 
+
       if (prev_hit->right() > curr_hit->left())
   {
     std::set<Insertion>::iterator lb, ub;
@@ -279,7 +283,6 @@ BowtieHit merge_chain(RefSequenceTable& rt,
     ub = possible_insertions.upper_bound(Insertion(reference_id, right_boundary, maxInsertedSequence));
 
     int reference_mismatch = 0;
-
     while (lb != ub && lb != possible_insertions.end())
       {
         /*
@@ -425,8 +428,8 @@ BowtieHit merge_chain(RefSequenceTable& rt,
 
       if (found_closure)
         {
-    fprintf(stderr, "Warning: multiple closures found for insertion read # %d\n", (int)insert_id);
-    return BowtieHit();
+	  // fprintf(stderr, "Warning: multiple closures found for insertion read # %d\n", (int)insert_id);
+	  return BowtieHit();
         }
 
       if (insertion_mismatch == 0)
@@ -785,6 +788,7 @@ BowtieHit merge_chain(RefSequenceTable& rt,
   if (new_read_len != old_read_length || !new_hit.check_editdist_consistency(rt))
     {
       fprintf(stderr, "Warning: malformed closure\n");
+      fprintf(stderr, "Warning: %d) %d %s NM:%d\n", new_hit.insert_id(), new_hit.left(), print_cigar(new_hit.cigar()).c_str(), num_mismatches);
       return BowtieHit();
     }
 
@@ -974,6 +978,7 @@ bool dfs_seg_hits(RefSequenceTable& rt,
             possible_insertions,
             seg_hit_stack,
             joined_hits);
+
     return join_success = true;
   }
   return join_success;
@@ -1011,176 +1016,247 @@ bool join_segments_for_read(RefSequenceTable& rt,
   return join_success;
 }
 
-void join_segment_hits(GBamWriter& bam_writer, std::set<Junction>& possible_juncs,
-           std::set<Insertion>& possible_insertions,
-           ReadTable& unmapped_reads,
-           RefSequenceTable& rt,
-           //FILE* reads_file,
-           ReadStream& readstream,
-           vector<HitStream>& contig_hits,
-           vector<HitStream>& spliced_hits)
+struct JoinSegmentsWorker
 {
-  uint32_t curr_contig_obs_order = VMAXINT32;
-  HitStream* first_seg_contig_stream = NULL;
-  uint64_t next_contig_id = 0;
-
-  if (contig_hits.size())
-    {
-      first_seg_contig_stream = &(contig_hits.front());
-      next_contig_id = first_seg_contig_stream->next_group_id();
-      curr_contig_obs_order = unmapped_reads.observation_order(next_contig_id);
-    }
-
-  HitsForRead curr_hit_group;
-
-  uint32_t curr_spliced_obs_order = VMAXINT32;
-  HitStream* first_seg_spliced_stream = NULL;
-  uint64_t next_spliced_id = 0;
-
-  if (spliced_hits.size())
-    {
-      first_seg_spliced_stream = &(spliced_hits.front());
-      next_spliced_id = first_seg_spliced_stream->next_group_id();
-      curr_spliced_obs_order = unmapped_reads.observation_order(next_spliced_id);
-    }
-
-  while(curr_contig_obs_order != VMAXINT32 ||
-  curr_spliced_obs_order != VMAXINT32)
-    {
-      uint32_t read_in_process;
-      vector<HitsForRead> seg_hits_for_read;
-      seg_hits_for_read.resize(contig_hits.size());
-
-      if (curr_contig_obs_order < curr_spliced_obs_order)
+  void operator()()
   {
-    first_seg_contig_stream->next_read_hits(curr_hit_group);
-    seg_hits_for_read.front() = curr_hit_group;
+    ReadTable it;
 
-    next_contig_id = first_seg_contig_stream->next_group_id();
-    uint32_t next_order = unmapped_reads.observation_order(next_contig_id);
+    // daehwan - remove this
+    fprintf(stderr, "daehwan - start\n");
+    
+    GBamWriter bam_writer(bam_output_fname.c_str(), sam_header_fname.c_str());
+    ReadStream readstream(reads_fname);
+    if (readstream.file() == NULL)
+      err_die("Error: cannot open %s for reading\n", reads_fname.c_str());
 
-    read_in_process = curr_contig_obs_order;
-    curr_contig_obs_order = next_order;
-  }
-      else if  (curr_spliced_obs_order < curr_contig_obs_order)
-  {
-    first_seg_spliced_stream->next_read_hits(curr_hit_group);
-    seg_hits_for_read.front() = curr_hit_group;
+    if (read_offset > 0)
+      readstream.seek(read_offset);
 
-    next_spliced_id = first_seg_spliced_stream->next_group_id();
-    uint32_t next_order = unmapped_reads.observation_order(next_spliced_id);
+    bool need_seq = true;
+    bool need_qual = color;
 
-    read_in_process = curr_spliced_obs_order;
-    curr_spliced_obs_order = next_order;
-  }
-      else if (curr_contig_obs_order == curr_spliced_obs_order &&
-         curr_contig_obs_order != VMAXINT32 &&
-         curr_spliced_obs_order != VMAXINT32)
-  {
-    first_seg_contig_stream->next_read_hits(curr_hit_group);
+    vector<HitStream> contig_hits;
+    vector<HitStream> spliced_hits;
 
-    HitsForRead curr_spliced_group;
-    first_seg_spliced_stream->next_read_hits(curr_spliced_group);
-
-    curr_hit_group.hits.insert(curr_hit_group.hits.end(),
-             curr_spliced_group.hits.begin(),
-             curr_spliced_group.hits.end());
-    seg_hits_for_read.front() = curr_hit_group;
-    read_in_process = curr_spliced_obs_order;
-
-    next_contig_id = first_seg_contig_stream->next_group_id();
-    uint32_t next_order = unmapped_reads.observation_order(next_contig_id);
-
-    next_spliced_id = first_seg_spliced_stream->next_group_id();
-    uint32_t next_spliced_order = unmapped_reads.observation_order(next_spliced_id);
-
-    curr_spliced_obs_order = next_spliced_order;
-    curr_contig_obs_order = next_order;
-  }
-      else
-  {
-    break;
-  }
-
-      if (contig_hits.size() > 1)
+    vector<HitFactory*> factories;
+    for (size_t i = 0; i < segmap_fnames.size(); ++i)
       {
-        look_right_for_hit_group(unmapped_reads,
-              contig_hits,
-              0,
-              spliced_hits,
-              curr_hit_group,
-              seg_hits_for_read);
+	HitFactory* fac = new BAMHitFactory(it, *rt);
+	factories.push_back(fac);
+	HitStream hs(segmap_fnames[i], fac, false, false, false, need_seq, need_qual);
+	
+	if (seg_offsets[i] > 0)
+	  hs.seek(seg_offsets[i]);
+
+	contig_hits.push_back(hs);
+      }
+    
+    for (size_t i = 0; i < spliced_segmap_fnames.size(); ++i)
+      {
+	int anchor_length = 0;
+	
+	// we allow read alignments even 1bp overlapping with juctions.
+	// if (i == 0 || i == spliced_seg_files.size() - 1)
+	// anchor_length = min_anchor_len;
+	
+	HitFactory* fac = new SplicedBAMHitFactory(it, *rt, anchor_length);
+	factories.push_back(fac);
+	
+	HitStream hs(spliced_segmap_fnames[i], fac, true, false, false, need_seq, need_qual);
+	if (spliced_seg_offsets[i] > 0)
+	  hs.seek(spliced_seg_offsets[i]);
+
+	spliced_hits.push_back(hs);
       }
 
-      size_t last_non_empty = seg_hits_for_read.size() - 1;
-      while(last_non_empty >= 0 && seg_hits_for_read[last_non_empty].hits.empty())
+    uint32_t curr_contig_obs_order = VMAXINT32;
+    HitStream* first_seg_contig_stream = NULL;
+    uint64_t next_contig_id = 0;
+    
+    if (contig_hits.size() > 0)
       {
-        --last_non_empty;
+	first_seg_contig_stream = &(contig_hits.front());
+	next_contig_id = first_seg_contig_stream->next_group_id();
+	curr_contig_obs_order = it.observation_order(next_contig_id);
       }
 
-      seg_hits_for_read.resize(last_non_empty + 1);
-      if (!seg_hits_for_read[last_non_empty].hits[0].end())
-         continue;
-
-      if (!seg_hits_for_read.empty() && !seg_hits_for_read[0].hits.empty())
-  {
-    uint64_t insert_id = seg_hits_for_read[0].hits[0].insert_id();
-    Read read;
-    /* if (get_read_from_stream(insert_id,
-           reads_file,
-           reads_format,
-           false,
-           read)) */
-    if (readstream.getRead(insert_id, read))
+    HitsForRead curr_hit_group;
+    
+    uint32_t curr_spliced_obs_order = VMAXINT32;
+    HitStream* first_seg_spliced_stream = NULL;
+    uint64_t next_spliced_id = 0;
+    
+    if (spliced_hits.size() > 0)
       {
-        vector<BowtieHit> joined_hits;
-        join_segments_for_read(rt,
-             read.seq.c_str(),
-             read.qual.c_str(),
-             possible_juncs,
-             possible_insertions,
-             seg_hits_for_read,
-             joined_hits);
-
-        sort(joined_hits.begin(), joined_hits.end());
-        vector<BowtieHit>::iterator new_end = unique(joined_hits.begin(), joined_hits.end());
-        joined_hits.erase(new_end, joined_hits.end());
-
-        for (size_t i = 0; i < joined_hits.size(); i++)
-        {
-          const char* ref_name = rt.get_name(joined_hits[i].ref_id());
-          if (color && !color_out)
-            //print_hit(stdout, read_name, joined_hits[i], ref_name, joined_hits[i].seq().c_str(), joined_hits[i].qual().c_str(), true);
-            print_bamhit(bam_writer, read.name.c_str(), joined_hits[i], ref_name, joined_hits[i].seq().c_str(),
-                                         joined_hits[i].qual().c_str(), true);
-          else
-            print_bamhit(bam_writer, read.name.c_str(), joined_hits[i], ref_name,
-                                          read.seq.c_str(), read.qual.c_str(), false);
-            //print_hit(stdout, read_name, joined_hits[i], ref_name, read_seq, read_quals, false);
-        }
+	first_seg_spliced_stream = &(spliced_hits.front());
+	next_spliced_id = first_seg_spliced_stream->next_group_id();
+	curr_spliced_obs_order = it.observation_order(next_spliced_id);
       }
-    else
+
+    while((curr_contig_obs_order != VMAXINT32 || curr_spliced_obs_order != VMAXINT32) &&
+	  (curr_contig_obs_order < end_id || curr_spliced_obs_order < end_id))
       {
-        err_die("Error: could not get read # %d from stream\n",
-               read_in_process);
+	uint32_t read_in_process;
+	vector<HitsForRead> seg_hits_for_read;
+	seg_hits_for_read.resize(contig_hits.size());
+
+	if (curr_contig_obs_order < curr_spliced_obs_order)
+	  {
+	    first_seg_contig_stream->next_read_hits(curr_hit_group);
+	    seg_hits_for_read.front() = curr_hit_group;
+	    
+	    next_contig_id = first_seg_contig_stream->next_group_id();
+	    uint32_t next_order = it.observation_order(next_contig_id);
+	    
+	    read_in_process = curr_contig_obs_order;
+	    curr_contig_obs_order = next_order;
+	  }
+	else if  (curr_spliced_obs_order < curr_contig_obs_order)
+	  {
+	    first_seg_spliced_stream->next_read_hits(curr_hit_group);
+	    seg_hits_for_read.front() = curr_hit_group;
+		
+	    next_spliced_id = first_seg_spliced_stream->next_group_id();
+	    uint32_t next_order = it.observation_order(next_spliced_id);
+
+	    read_in_process = curr_spliced_obs_order;
+	    curr_spliced_obs_order = next_order;
+
+	    if (read_in_process < begin_id)
+	      continue;
+	  }
+	else if (curr_contig_obs_order == curr_spliced_obs_order &&
+		 curr_contig_obs_order != VMAXINT32 &&
+		 curr_spliced_obs_order != VMAXINT32)
+	  {
+	    first_seg_contig_stream->next_read_hits(curr_hit_group);
+	    
+	    HitsForRead curr_spliced_group;
+	    first_seg_spliced_stream->next_read_hits(curr_spliced_group);
+	    
+	    curr_hit_group.hits.insert(curr_hit_group.hits.end(),
+				       curr_spliced_group.hits.begin(),
+				       curr_spliced_group.hits.end());
+	    seg_hits_for_read.front() = curr_hit_group;
+	    read_in_process = curr_spliced_obs_order;
+	    
+	    next_contig_id = first_seg_contig_stream->next_group_id();
+	    uint32_t next_order = it.observation_order(next_contig_id);
+	    
+	    next_spliced_id = first_seg_spliced_stream->next_group_id();
+	    uint32_t next_spliced_order = it.observation_order(next_spliced_id);
+	    
+	    curr_spliced_obs_order = next_spliced_order;
+	    curr_contig_obs_order = next_order;
+	  }
+	else
+	  {
+	    break;
+	  }
+	
+	if (contig_hits.size() > 1)
+	  {
+	    look_right_for_hit_group(it,
+				     contig_hits,
+				     0,
+				     spliced_hits,
+				     curr_hit_group,
+				     seg_hits_for_read);
+	  }
+
+	size_t last_non_empty = seg_hits_for_read.size() - 1;
+	while(last_non_empty >= 0 && seg_hits_for_read[last_non_empty].hits.empty())
+	  {
+	    --last_non_empty;
+	  }
+	
+	seg_hits_for_read.resize(last_non_empty + 1);
+	if (!seg_hits_for_read[last_non_empty].hits[0].end())
+	  continue;
+	
+	if (!seg_hits_for_read.empty() && !seg_hits_for_read[0].hits.empty())
+	  {
+	    uint64_t insert_id = seg_hits_for_read[0].hits[0].insert_id();
+	    if (insert_id >= begin_id && insert_id < end_id)
+	      {
+		Read read;
+		if (readstream.getRead(insert_id, read))
+		  {
+		    vector<BowtieHit> joined_hits;
+		    join_segments_for_read(*rt,
+					   read.seq.c_str(),
+					   read.qual.c_str(),
+					   *possible_juncs,
+					   *possible_insertions,
+					   seg_hits_for_read,
+					   joined_hits);
+		    
+		    sort(joined_hits.begin(), joined_hits.end());
+		    vector<BowtieHit>::iterator new_end = unique(joined_hits.begin(), joined_hits.end());
+		    joined_hits.erase(new_end, joined_hits.end());
+		    for (size_t i = 0; i < joined_hits.size(); i++)
+		      {
+			const char* ref_name = rt->get_name(joined_hits[i].ref_id());
+			if (color && !color_out)
+			  print_bamhit(bam_writer, read.name.c_str(), joined_hits[i], ref_name, joined_hits[i].seq().c_str(),
+				       joined_hits[i].qual().c_str(), true);
+			else
+			  print_bamhit(bam_writer, read.name.c_str(), joined_hits[i], ref_name,
+				       read.seq.c_str(), read.qual.c_str(), false);
+		      }
+		  }
+		else
+		  {
+		    err_die("Error: could not get read # %d from stream\n",
+			    read_in_process);
+		  }
+	      }
+	  }
+	else
+	  {
+	    //fprintf(stderr, "Warning: couldn't join segments for read # %d\n", read_in_process);
+	  }
       }
+
+    for (size_t fac = 0; fac < factories.size(); ++fac)
+      {
+	delete factories[fac];
+      }
+    factories.clear();
   }
-      else
-  {
-    //fprintf(stderr, "Warning: couldn't join segments for read # %d\n", read_in_process);
-  }
- }
-}
 
-void driver(GBamWriter& bam_writer, istream& ref_stream,
-      vector<FILE*>& possible_juncs_files,
-      vector<FILE*>& possible_insertions_files,
-      vector<FILE*>& possible_deletions_files,
-      vector<FZPipe>& spliced_seg_files,
-      vector<FZPipe>& seg_files,
-      ReadStream& readstream)
+  string bam_output_fname;
+  string sam_header_fname;
+  string reads_fname;
+
+  vector<string> segmap_fnames;
+  vector<string> spliced_segmap_fnames;
+  
+  std::set<Junction>* possible_juncs;
+  std::set<Insertion>* possible_insertions;
+  RefSequenceTable* rt;
+
+  uint64_t begin_id;
+  uint64_t end_id;
+  int64_t read_offset;
+  vector<int64_t> seg_offsets;
+  vector<int64_t> spliced_seg_offsets;
+};
+
+void driver(const string& bam_output_fname,
+	    istream& ref_stream,
+	    vector<FILE*>& possible_juncs_files,
+	    vector<FILE*>& possible_insertions_files,
+	    vector<FILE*>& possible_deletions_files,
+	    vector<string>& spliced_segmap_fnames, //.bam files
+	    vector<string>& segmap_fnames, //.bam files
+	    const string& reads_fname)
 {
-  if (seg_files.size() == 0)
+  if (!parallel)
+    num_threads = 1;
+
+  if (segmap_fnames.size() == 0)
   {
     fprintf(stderr, "No hits to process, exiting\n");
     exit(0);
@@ -1190,47 +1266,6 @@ void driver(GBamWriter& bam_writer, istream& ref_stream,
   fprintf (stderr, "Loading reference sequences...\n");
   get_seqs(ref_stream, rt, true, false);
     fprintf (stderr, "        reference sequences loaded.\n");
-  ReadTable it;
-
-  bool need_seq = true;
-  bool need_qual = color;
-  //rewind(reads_file);
-  readstream.rewind();
-
-  //vector<HitTable> seg_hits;
-  vector<HitStream> contig_hits;
-  vector<HitStream> spliced_hits;
-
-  vector<HitFactory*> factories;
-  for (size_t i = 0; i < seg_files.size(); ++i)
-  {
-    HitFactory* fac = new BowtieHitFactory(it, rt);
-    factories.push_back(fac);
-    HitStream hs(seg_files[i].file, fac, false, false, false, need_seq, need_qual);
-    contig_hits.push_back(hs);
-  }
-
-  fprintf(stderr, "Loading spliced hits...");
-
-  //vector<vector<pair<uint32_t, HitsForRead> > > spliced_hits;
-  for (size_t i = 0; i < spliced_seg_files.size(); ++i)
-  {
-    int anchor_length = 0;
-
-    // we allow read alignments even 1bp overlapping with juctions.
-    // if (i == 0 || i == spliced_seg_files.size() - 1)
-    // anchor_length = min_anchor_len;
-
-    HitFactory* fac = new SplicedBowtieHitFactory(it,
-                    rt,
-                    anchor_length);
-    factories.push_back(fac);
-
-    HitStream hs(spliced_seg_files[i].file, fac, true, false, false, need_seq, need_qual);
-    spliced_hits.push_back(hs);
-
-  }
-  fprintf(stderr, "done\n");
 
   fprintf(stderr, "Loading junctions...");
   std::set<Junction> possible_juncs;
@@ -1253,7 +1288,6 @@ void driver(GBamWriter& bam_writer, istream& ref_stream,
     }
   }
   fprintf(stderr, "done\n");
-
 
   fprintf(stderr, "Loading deletions...");
 
@@ -1285,7 +1319,6 @@ void driver(GBamWriter& bam_writer, istream& ref_stream,
     }
   }
   fprintf(stderr, "done\n");
-
 
   /*
    * Read the insertions from the list of insertion
@@ -1321,19 +1354,77 @@ void driver(GBamWriter& bam_writer, istream& ref_stream,
     }
   }
 
-  join_segment_hits(bam_writer, possible_juncs, possible_insertions, it, rt, readstream, contig_hits, spliced_hits);
-  //join_segment_hits(possible_juncs, possible_insertions, it, rt, reads_file.file, contig_hits, spliced_hits);
+  vector<uint64_t> read_ids;
+  vector<vector<int64_t> > offsets;
+  if (num_threads > 1)
+    {
+      vector<string> fnames;
+      fnames.push_back(reads_fname);
+      fnames.insert(fnames.end(), spliced_segmap_fnames.rbegin(), spliced_segmap_fnames.rend());
+      fnames.insert(fnames.end(), segmap_fnames.rbegin(), segmap_fnames.rend());
+      bool enough_data = calculate_offsets(fnames, read_ids, offsets);
+      if (!enough_data)
+	num_threads = 1;
+    }
 
-  for (size_t i = 0; i < seg_files.size(); ++i)
-      seg_files[i].close();
-    for (size_t i = 0; i < spliced_seg_files.size(); ++i)
-        spliced_seg_files[i].close();
-    readstream.close();
+  vector<boost::thread*> threads;
+  for (int i = 0; i < num_threads; ++i)
+    {
+      JoinSegmentsWorker worker;
 
-  for (size_t fac = 0; fac < factories.size(); ++fac)
-  {
-    delete factories[fac];
-  }
+      if (num_threads == 1)
+	worker.bam_output_fname = bam_output_fname;
+      else
+	{
+	  string filename_base = bam_output_fname.substr(0, bam_output_fname.length() - 4);
+	  char filename[1024] = {0};
+	  sprintf(filename, "%s%d.bam", filename_base.c_str(), i);
+	  worker.bam_output_fname = filename;
+	}
+      
+      worker.sam_header_fname = sam_header;
+      worker.reads_fname = reads_fname;
+      worker.segmap_fnames = segmap_fnames;
+      worker.spliced_segmap_fnames = spliced_segmap_fnames;
+      worker.possible_juncs = &possible_juncs;
+      worker.possible_insertions = &possible_insertions;
+      worker.rt = &rt;
+      
+      if (i == 0)
+	{
+	  worker.begin_id = 0;
+	  worker.seg_offsets = vector<int64_t>(segmap_fnames.size(), 0);
+	  worker.spliced_seg_offsets = vector<int64_t>(spliced_segmap_fnames.size(), 0);
+	  worker.read_offset = 0;
+	}
+      else
+	{
+	  worker.begin_id = read_ids[i-1];
+	  worker.seg_offsets.insert(worker.seg_offsets.end(),
+				    offsets[i-1].rbegin(),
+				    offsets[i-1].rbegin() + segmap_fnames.size());
+	  worker.spliced_seg_offsets.insert(worker.spliced_seg_offsets.end(),
+					    offsets[i-1].rbegin() + segmap_fnames.size(),
+					    offsets[i-1].rend() - 1);
+	  worker.read_offset = offsets[i-1][0];
+	}
+      
+      worker.end_id = (i+1 < num_threads) ? read_ids[i] : std::numeric_limits<uint64_t>::max();
+
+      if (num_threads > 1)
+	threads.push_back(new boost::thread(worker));
+      else
+	worker();
+    }
+
+  for (size_t i = 0; i < threads.size(); ++i)
+    {
+      threads[i]->join();
+      delete threads[i];
+      threads[i] = NULL;
+    }
+  threads.clear();
+  
 } //driver
 
 int main(int argc, char** argv)
@@ -1392,11 +1483,19 @@ int main(int argc, char** argv)
       }
 
 
-  string segment_file_list = argv[optind++];
-  string spliced_segment_file_list;
+    string bam_output_fname = argv[optind++];
+    
+    if(optind >= argc)
+      {
+	print_usage();
+	return 1;
+      }
+    
+  string segmap_file_list = argv[optind++];
+  string spliced_segmap_flist;
   if(optind < argc)
     {
-      spliced_segment_file_list = argv[optind++];
+      spliced_segmap_flist = argv[optind++];
     }
 
   ifstream ref_stream(ref_file_name.c_str(), ifstream::in);
@@ -1405,17 +1504,9 @@ int main(int argc, char** argv)
 
   checkSamHeader();
 
-  vector<string> segment_file_names;
-  tokenize(segment_file_list, ",",segment_file_names);
-
-  // string unzcmd=getUnpackCmd(reads_file_name, spliced_segment_file_list.empty() &&
-  //              segment_file_names.size()<4);
-
-  //FZPipe reads_file(reads_file_name, unzcmd);
-  ReadStream readstream(reads_file_name);
-  if (readstream.file()==NULL)
-     err_die("Error: cannot open %s for reading\n",
-        reads_file_name.c_str());
+  //FILE* reads_file = fopen(reads_file_name.c_str(), "r");
+  vector<string> segmap_file_names;
+  tokenize(segmap_file_list, ",",segmap_file_names);
 
   vector<string> juncs_file_names;
   vector<FILE*> juncs_files;
@@ -1473,55 +1564,19 @@ int main(int argc, char** argv)
         insertions_files.push_back(insertions_file);
     }
 
-    //vector<FILE*> segment_files;
-    vector<FZPipe> segment_files;
-    string unzcmd;
-    for (size_t i = 0; i < segment_file_names.size(); ++i)
-    {
-      if (unzcmd.empty())
-          unzcmd=getUnpackCmd(segment_file_names[i],false);
-      fprintf(stderr, "Opening %s for reading\n",
-        segment_file_names[i].c_str());
-      //FILE* seg_file = fopen(segment_file_names[i].c_str(), "r");
-      FZPipe seg_file(segment_file_names[i], unzcmd);
-      if (seg_file.file == NULL)
-        {
-        err_die("Error: cannot open %s for reading\n",
-              segment_file_names[i].c_str());
-        }
-      segment_files.push_back(seg_file);
-    }
-
-  vector<string> spliced_segment_file_names;
-  //vector<FILE*> spliced_segment_files;
-  vector<FZPipe> spliced_segment_files;
-  unzcmd.clear();
-  tokenize(spliced_segment_file_list, ",",spliced_segment_file_names);
-  for (size_t i = 0; i < spliced_segment_file_names.size(); ++i)
-    {
-      fprintf(stderr, "Opening %s for reading\n",
-        spliced_segment_file_names[i].c_str());
-      if (unzcmd.empty())
-          unzcmd=getUnpackCmd(spliced_segment_file_names[i],false);
-      //FILE* spliced_seg_file = fopen(spliced_segment_file_names[i].c_str(), "r");
-      FZPipe spliced_seg_file(spliced_segment_file_names[i], unzcmd);
-      if (spliced_seg_file.file == NULL)
-        {
-        err_die("Error: cannot open %s for reading\n",
-             spliced_segment_file_names[i].c_str());
-        }
-        spliced_segment_files.push_back(spliced_seg_file);
-    }
-
-  if (spliced_segment_files.size())
-    {
-      if (spliced_segment_files.size() != segment_files.size())
-        {
-        err_die("Error: each segment file must have a corresponding spliced segment file\n");
-        }
-    }
-  GBamWriter bam_writer("-", sam_header.c_str());
-  driver(bam_writer, ref_stream, juncs_files, insertions_files, deletions_files, spliced_segment_files, segment_files, readstream);
-  //driver(ref_stream, juncs_files, insertions_files, deletions_files, spliced_segment_files, segment_files, reads_file);
+  vector<string> spliced_segmap_file_names;
+  vector<FZPipe> spliced_segmap_files;
+  string unzcmd;
+  tokenize(spliced_segmap_flist, ",",spliced_segmap_file_names);
+  
+  driver(bam_output_fname,
+	 ref_stream,
+	 juncs_files,
+	 insertions_files,
+	 deletions_files,
+	 spliced_segmap_file_names,
+	 segmap_file_names,
+	 reads_file_name);
+  
   return 0;
 }

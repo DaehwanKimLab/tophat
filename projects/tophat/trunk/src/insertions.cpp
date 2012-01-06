@@ -143,5 +143,18 @@ void insertions_from_spliced_hit(const BowtieHit& bh, vector<Insertion>& inserti
 	return;
 } 
 
-
-
+void merge_with(InsertionSet& insertions, const InsertionSet& other)
+{
+  for (InsertionSet::const_iterator insertion = other.begin(); insertion != other.end(); ++insertion)
+    {
+      InsertionSet::iterator itr = insertions.find(insertion->first);
+      if (itr != insertions.end())
+	{
+	  itr->second += insertion->second;
+	}
+      else
+	{
+	  insertions[insertion->first] = insertion->second;
+	}
+    }
+}

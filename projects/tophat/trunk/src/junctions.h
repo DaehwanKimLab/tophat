@@ -83,6 +83,19 @@ struct JunctionStats
 {
 JunctionStats() : left_extent(0), right_extent(0), left_exon_doc(0), right_exon_doc(0),
     min_splice_mms(0), supporting_hits(0), gtf_match(false), accepted(false) {}
+
+  JunctionStats& merge_with(const JunctionStats& other)
+  {
+    if (this == &other)
+      return * this;
+
+    left_extent = max(left_extent, other.left_extent);
+    right_extent = max(right_extent, other.right_extent);
+    min_splice_mms = min(min_splice_mms, other.min_splice_mms);
+    supporting_hits += other.supporting_hits;
+
+    return *this;
+  }
   
   int left_extent;
   int right_extent;
@@ -128,5 +141,7 @@ void filter_junctions(JunctionSet& junctions, const JunctionSet& gtf_junctions);
 void get_junctions_from_hits(HitStream& hit_stream, 
 			     ReadTable& it, 
 			     JunctionSet& junctions);
+
+void merge_with(JunctionSet& juncs, const JunctionSet& other_juncs);
 
 #endif

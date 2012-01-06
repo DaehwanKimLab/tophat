@@ -110,3 +110,19 @@ void deletions_from_spliced_hit(const BowtieHit& bh, vector<Deletion>& deletions
 	}	
 	return;
 } 
+
+void merge_with(DeletionSet& deletions, const DeletionSet& other)
+{
+  for (DeletionSet::const_iterator deletion = other.begin(); deletion != other.end(); ++deletion)
+    {
+      DeletionSet::iterator itr = deletions.find(deletion->first);
+      if (itr != deletions.end())
+	{
+	  itr->second += deletion->second;
+	}
+      else
+	{
+	  deletions[deletion->first] = deletion->second;
+	}
+    }
+}

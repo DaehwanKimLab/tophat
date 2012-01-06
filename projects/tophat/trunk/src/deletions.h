@@ -33,6 +33,8 @@ void deletions_from_spliced_hit(const BowtieHit& bh, vector<Deletion>& deletions
 
 void print_deletions(FILE* deletions_out, const DeletionSet& deletions, RefSequenceTable& ref_sequences);
 
+void merge_with(DeletionSet& deletions, const DeletionSet& other);
+
 #endif
 
 

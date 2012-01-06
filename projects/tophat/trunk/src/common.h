@@ -26,6 +26,9 @@
  void print_mem_usage();
 #endif
 
+// daehwan - temporary for parallelization
+extern bool parallel;
+
 /*
  * Maximum allowable length of an
  * an insertion. Used mainly in
@@ -59,7 +62,7 @@ extern int max_segment_intron_length;
 
 extern uint32_t min_closure_exon_length;
 extern int island_extension;
-extern int num_cpus;
+extern int num_threads;
 extern int segment_length; // the read segment length used by the pipeline
 extern int segment_mismatches;
 extern int max_read_mismatches;
@@ -88,6 +91,7 @@ extern std::string sam_readgroup_id;
 extern std::string zpacker; //path to program to use for de/compression (gzip, pigz, bzip2, pbzip2)
 extern std::string samtools_path; //path to samtools executable
 extern std::string aux_outfile; //auxiliary output file name
+extern std::string index_outfile; //index output file name
 extern bool solexa_quals;
 extern bool phred64_quals;
 extern bool quals;
@@ -146,14 +150,14 @@ class FZPipe {
 	 std::string filename;
 	 std::string pipecmd;
 	 bool is_bam;
-	 FZPipe(std::string& fname, bool is_mapping):filename(fname),pipecmd() {
+	 FZPipe(const std::string& fname, bool is_mapping):filename(fname),pipecmd() {
 	   //this constructor is only to use FZPipe as a READER
        //also accepts/recognizes BAM files
 	   //for which it only stores the filename, other fields/methods are unused
 	   openRead(fname, is_mapping);
 	   }
 
-   void openRead(std::string& fname, bool is_mapping) {
+   void openRead(const std::string& fname, bool is_mapping) {
      filename=fname;
      pipecmd="";
      is_bam=false;
@@ -195,6 +199,11 @@ class FZPipe {
 	   return this->openRead(fname.c_str());
 	   }
 	 void rewind();
+
+	 void seek(int64_t offset)
+	 {
+	   fseek(this->file, offset, SEEK_SET);
+	 }
 };
 
 void err_die(const char* format,...);
@@ -211,6 +220,9 @@ class GBamRecord {
    //    +qual
    //     +aux
    bool novel;
+
+   char tag[2];
+   uint8_t abuf[512];
  public:
    GBamRecord(bam1_t* from_b=NULL) {
       if (from_b==NULL) {
@@ -380,6 +392,18 @@ class GBamWriter {
    void write(bam1_t* b) {
       samwrite(this->bam_file, b);
       }
+
+   int64_t tell() {
+     return bam_tell(this->bam_file->x.bam);
+   }
+
+   void flush() {
+     bgzf_flush(this->bam_file->x.bam);
+   }
+
+   void seek(int64_t offset) {
+     bam_seek(this->bam_file->x.bam, offset, SEEK_SET);
+   }
 };
 
 

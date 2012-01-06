@@ -30,7 +30,10 @@
 #include <seqan/file.h>
 #include <getopt.h>
 
+#include <boost/thread.hpp>
+
 #include "common.h"
+#include "utils.h"
 #include "bwt_map.h"
 #include "junctions.h"
 #include "insertions.h"
@@ -392,12 +395,13 @@ void print_sam_for_pair(const RefSequenceTable& rt,
 			const HitsForRead& left_hits,
                         const HitsForRead& right_hits,
                         const InsertAlignmentGrade& grade,
-                        FLineReader& left_reads_file,
-                        FLineReader& right_reads_file,
+                        ReadStream& left_reads_file,
+                        ReadStream& right_reads_file,
                         GBamWriter& bam_writer,
                         FILE* left_um_out,
-                        FILE* right_um_out
-                        )
+                        FILE* right_um_out,
+			uint64_t begin_id = 0,
+                        uint64_t end_id = std::numeric_limits<uint64_t>::max())
 {
     assert (left_hits.insert_id == right_hits.insert_id);
     
@@ -427,17 +431,13 @@ void print_sam_for_pair(const RefSequenceTable& rt,
           primaryHit = random() % left_hits.hits.size();
       }
     
-    bool got_left_read = get_read_from_stream(left_hits.insert_id, 
-                                              left_reads_file,
-                                              reads_format,
-                                              false,
-                                              left_read, left_um_out);
+    bool got_left_read = left_reads_file.getRead(left_hits.insert_id, left_read,
+						 reads_format, false, left_um_out,
+						 false, begin_id, end_id);
     
-    bool got_right_read = get_read_from_stream(right_hits.insert_id, 
-                                               right_reads_file,
-                                               reads_format,
-                                               false,
-                                               right_read, right_um_out);
+    bool got_right_read = right_reads_file.getRead(right_hits.insert_id, right_read,
+						   reads_format, false, right_um_out,
+						   false, begin_id, end_id);
     
     if (left_hits.hits.size() == right_hits.hits.size())
     {
@@ -605,130 +605,453 @@ void exclude_hits_on_filtered_junctions(const JunctionSet& junctions,
 	hits = remaining;
 }
 
-void get_junctions_from_best_hits(HitStream& left_hs,
-				  HitStream& right_hs,
-				  ReadTable& it,
-				  JunctionSet& junctions,
-				  const JunctionSet& gtf_junctions)
+// events include splice junction, indels, and fusion points.
+struct ConsensusEventsWorker
 {
-	HitsForRead curr_left_hit_group;
-	HitsForRead curr_right_hit_group;
-    
-	left_hs.next_read_hits(curr_left_hit_group);
-	right_hs.next_read_hits(curr_right_hit_group);
-    
-	uint32_t curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
-	uint32_t curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
-    
-	// While we still have unreported hits...
-	while(curr_left_obs_order != VMAXINT32 ||
-		  curr_right_obs_order != VMAXINT32)
-	{
-		// Chew up left singletons
-		while (curr_left_obs_order < curr_right_obs_order &&
-			   curr_left_obs_order != VMAXINT32)
-		{
-			HitsForRead best_hits;
-			best_hits.insert_id = curr_left_obs_order;
-			FragmentAlignmentGrade grade;
-            
-			// Process hits for left singleton, select best alignments
-			read_best_alignments(curr_left_hit_group, grade, best_hits, gtf_junctions);
-			update_junctions(best_hits, junctions);
-            
-			// Get next hit group
-			left_hs.next_read_hits(curr_left_hit_group);
-			curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
-		}
-        
-		// Chew up right singletons
-		while (curr_left_obs_order > curr_right_obs_order &&
-			   curr_right_obs_order != VMAXINT32)
-		{
-			HitsForRead best_hits;
-			best_hits.insert_id = curr_right_obs_order;
-			FragmentAlignmentGrade grade;
-            
-			// Process hit for right singleton, select best alignments
-			read_best_alignments(curr_right_hit_group,grade, best_hits, gtf_junctions);
-			update_junctions(best_hits, junctions);
-            
-			// Get next hit group
-			right_hs.next_read_hits(curr_right_hit_group);
-			curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
-		}
-        
-		// Since we have both left hits and right hits for this insert,
-		// Find the best pairing and print both
-		while (curr_left_obs_order == curr_right_obs_order &&
-			   curr_left_obs_order != VMAXINT32 && curr_right_obs_order != VMAXINT32)
-		{
-			if (curr_left_hit_group.hits.empty())
-			{
-				HitsForRead right_best_hits;
-				right_best_hits.insert_id = curr_right_obs_order;
-                
-				FragmentAlignmentGrade grade;
-				read_best_alignments(curr_right_hit_group, grade, right_best_hits, gtf_junctions);
-				update_junctions(right_best_hits, junctions);
-			}
-			else if (curr_right_hit_group.hits.empty())
-			{
-				HitsForRead left_best_hits;
-				left_best_hits.insert_id = curr_left_obs_order;
-                
-				FragmentAlignmentGrade grade;
-				// Process hits for left singleton, select best alignments
-				read_best_alignments(curr_left_hit_group, grade, left_best_hits, gtf_junctions);
-				update_junctions(left_best_hits, junctions);
-			}
-			else
-			{
-				HitsForRead left_best_hits;
-				HitsForRead right_best_hits;
-				left_best_hits.insert_id = curr_left_obs_order;
-				right_best_hits.insert_id = curr_right_obs_order;
-                
-				// daehwan - apply gtf_junctions here, too!
-				
-				InsertAlignmentGrade grade;
-				pair_best_alignments(curr_left_hit_group,
-                                       curr_right_hit_group,
-                                       grade,
-                                       left_best_hits,
-                                       right_best_hits);
-                
-				update_junctions(left_best_hits, junctions);
-				update_junctions(right_best_hits, junctions);
-			}
-            
-			left_hs.next_read_hits(curr_left_hit_group);
-			curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
-            
-			right_hs.next_read_hits(curr_right_hit_group);
-			curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
-		}
-	}
-	left_hs.reset();
-	right_hs.reset();
-}
+  void operator()()
+  {
+    ReadTable it;
+    BAMHitFactory hit_factory(it,*rt);
 
+    HitStream l_hs(left_map_fname, &hit_factory, false, true, true, true);
+    if (left_map_offset > 0)
+      l_hs.seek(left_map_offset);
+    
+    HitStream r_hs(right_map_fname, &hit_factory, false, true, true, true);
+    if (right_map_offset > 0)
+      r_hs.seek(right_map_offset);
 
-void driver(GBamWriter& bam_writer,
-	    string& left_map_fname,
-	    FLineReader& left_reads,
-	    string& right_map_fname,
-	    FLineReader& right_reads,
+    HitsForRead curr_left_hit_group;
+    HitsForRead curr_right_hit_group;
+    
+    l_hs.next_read_hits(curr_left_hit_group);
+    r_hs.next_read_hits(curr_right_hit_group);
+    
+    uint32_t curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
+    uint32_t curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
+
+    // While we still have unreported hits...
+    while((curr_left_obs_order != VMAXINT32 || curr_right_obs_order != VMAXINT32) &&
+	  (curr_left_obs_order < end_id || curr_right_obs_order < end_id))
+      {
+	// Chew up left singletons
+	while (curr_left_obs_order < curr_right_obs_order &&
+	       curr_left_obs_order < end_id &&
+	       curr_left_obs_order != VMAXINT32)
+	  {
+	    HitsForRead best_hits;
+	    best_hits.insert_id = curr_left_obs_order;
+	    FragmentAlignmentGrade grade;
+            
+	    // Process hits for left singleton, select best alignments
+	    read_best_alignments(curr_left_hit_group, grade, best_hits, *gtf_junctions);
+	    update_junctions(best_hits, *junctions);
+            
+	    // Get next hit group
+	    l_hs.next_read_hits(curr_left_hit_group);
+	    curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
+	  }
+        
+	// Chew up right singletons
+	while (curr_left_obs_order > curr_right_obs_order &&
+	       curr_right_obs_order < end_id &&
+	       curr_right_obs_order != VMAXINT32)
+	  {
+	    HitsForRead best_hits;
+	    best_hits.insert_id = curr_right_obs_order;
+	    FragmentAlignmentGrade grade;
+
+	    if (curr_right_obs_order >= begin_id)
+	      {
+		// Process hit for right singleton, select best alignments
+		read_best_alignments(curr_right_hit_group,grade, best_hits, *gtf_junctions);
+		update_junctions(best_hits, *junctions);
+	      }
+            
+	    // Get next hit group
+	    r_hs.next_read_hits(curr_right_hit_group);
+	    curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
+	  }
+        
+	// Since we have both left hits and right hits for this insert,
+	// Find the best pairing and print both
+	while (curr_left_obs_order == curr_right_obs_order &&
+	       curr_left_obs_order < end_id &&
+	       curr_left_obs_order != VMAXINT32)
+	  {
+	    if (curr_left_hit_group.hits.empty())
+	      {
+		HitsForRead right_best_hits;
+		right_best_hits.insert_id = curr_right_obs_order;
+                
+		FragmentAlignmentGrade grade;
+		read_best_alignments(curr_right_hit_group, grade, right_best_hits, *gtf_junctions);
+		update_junctions(right_best_hits, *junctions);
+	      }
+	    else if (curr_right_hit_group.hits.empty())
+	      {
+		HitsForRead left_best_hits;
+		left_best_hits.insert_id = curr_left_obs_order;
+                
+		FragmentAlignmentGrade grade;
+		// Process hits for left singleton, select best alignments
+		read_best_alignments(curr_left_hit_group, grade, left_best_hits, *gtf_junctions);
+		update_junctions(left_best_hits, *junctions);
+	      }
+	    else
+	      {
+		HitsForRead left_best_hits;
+		HitsForRead right_best_hits;
+		left_best_hits.insert_id = curr_left_obs_order;
+		right_best_hits.insert_id = curr_right_obs_order;
+		
+		// daehwan - apply gtf_junctions here, too!
+		
+		InsertAlignmentGrade grade;
+		pair_best_alignments(curr_left_hit_group,
+				     curr_right_hit_group,
+				     grade,
+				     left_best_hits,
+				     right_best_hits);
+                
+		update_junctions(left_best_hits, *junctions);
+		update_junctions(right_best_hits, *junctions);
+	      }
+            
+	    l_hs.next_read_hits(curr_left_hit_group);
+	    curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
+            
+	    r_hs.next_read_hits(curr_right_hit_group);
+	    curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
+	  }
+      }
+  }
+
+  string left_map_fname;
+  string right_map_fname;
+
+  JunctionSet* junctions;
+  JunctionSet* gtf_junctions;
+  RefSequenceTable* rt;
+
+  uint64_t begin_id;
+  uint64_t end_id;
+  int64_t left_map_offset;
+  int64_t right_map_offset;
+};
+
+struct ReportWorker
+{
+  void operator()()
+  {
+    ReadTable it;
+    GBamWriter bam_writer(bam_output_fname.c_str(), sam_header.c_str());
+
+    ReadStream left_reads_file(left_reads_fname);
+    if (left_reads_file.file() == NULL)
+      err_die("Error: cannot open %s for reading\n", left_reads_fname.c_str());
+
+    if (left_reads_offset > 0)
+      left_reads_file.seek(left_reads_offset);
+    
+    if (!zpacker.empty()) left_um_fname+=".z";
+    FZPipe left_um_out;
+    if (left_um_out.openWrite(left_um_fname.c_str(), zpacker)==NULL)
+      err_die("Error: cannot open file %s for writing!\n",left_um_fname.c_str());
+    
+    ReadStream right_reads_file(right_reads_fname);
+    if (right_reads_offset > 0)
+      right_reads_file.seek(right_reads_offset);
+    
+    FZPipe right_um_out;
+    if (right_reads_fname != "")
+      {
+	if (!zpacker.empty()) right_um_fname+=".z";
+	if (right_um_out.openWrite(right_um_fname.c_str(), zpacker)==NULL)
+	  err_die("Error: cannot open file %s for writing!\n",right_um_fname.c_str());
+      }
+
+    BAMHitFactory hit_factory(it, *rt);
+    HitStream left_hs(left_map_fname, &hit_factory, false, true, true, true);
+    if (left_map_offset > 0)
+      left_hs.seek(left_map_offset);
+    
+    HitStream right_hs(right_map_fname, &hit_factory, false, true, true, true);
+    if (right_map_offset > 0)
+      right_hs.seek(right_map_offset);
+    
+    HitsForRead curr_left_hit_group;
+    HitsForRead curr_right_hit_group;
+    
+    left_hs.next_read_hits(curr_left_hit_group);
+    right_hs.next_read_hits(curr_right_hit_group);
+    
+    uint64_t curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
+    uint64_t curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
+
+    // While we still have unreported hits...
+    Read l_read;
+    Read r_read;
+    while((curr_left_obs_order != VMAXINT32 || curr_right_obs_order != VMAXINT32) &&
+	  (curr_left_obs_order < end_id || curr_right_obs_order < end_id))
+      {
+	// Chew up left singletons (pairs with right reads unmapped)
+	while (curr_left_obs_order < curr_right_obs_order &&
+	       curr_left_obs_order < end_id &&
+	       curr_left_obs_order != VMAXINT32)
+	  {
+	    HitsForRead best_hits;
+	    best_hits.insert_id = curr_left_obs_order;
+	    FragmentAlignmentGrade grade;
+	    bool got_read=left_reads_file.getRead(curr_left_obs_order, l_read,
+						  reads_format, false, left_um_out.file,
+						  false, begin_id, end_id);
+	    assert(got_read);
+	    if (right_reads_file.file()) {
+	      fprintf(left_um_out.file, "@%s #MAPPED#\n%s\n+\n%s\n", l_read.alt_name.c_str(),
+		      l_read.seq.c_str(), l_read.qual.c_str());
+	      got_read=right_reads_file.getRead(curr_left_obs_order, r_read,
+						reads_format, false, right_um_out.file,
+						true, begin_id, end_id);
+	      assert(got_read);
+	    }
+	    exclude_hits_on_filtered_junctions(*junctions, curr_left_hit_group);
+	    
+	    // Process hits for left singleton, select best alignments
+	    read_best_alignments(curr_left_hit_group, grade, best_hits, *gtf_junctions);
+	    if (best_hits.hits.size()>0 && best_hits.hits.size() <= max_multihits)
+	      {
+		update_junctions(best_hits, *final_junctions);
+		update_insertions_and_deletions(best_hits, *final_insertions, *final_deletions);
+		
+		print_sam_for_single(rt,
+				     best_hits,
+				     grade,
+				     (right_map_fname.empty() ? FRAG_UNPAIRED : FRAG_LEFT),
+				     l_read,
+				     bam_writer,
+				     left_um_out.file);
+	      }
+	    
+	    // Get next hit group
+	    left_hs.next_read_hits(curr_left_hit_group);
+	    curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
+	  } //left singletons 
+	
+	// Chew up right singletons
+	while (curr_left_obs_order > curr_right_obs_order &&
+	       curr_right_obs_order < end_id &&
+	       curr_right_obs_order != VMAXINT32)
+	  {
+	    HitsForRead best_hits;
+	    best_hits.insert_id = curr_right_obs_order;
+	    FragmentAlignmentGrade grade;
+
+	    if (curr_right_obs_order >=  begin_id)
+	      {
+		bool got_read=right_reads_file.getRead(curr_right_obs_order, r_read,
+						       reads_format, false, right_um_out.file,
+						       false, begin_id, end_id);
+		assert(got_read);
+		fprintf(right_um_out.file, "@%s #MAPPED#\n%s\n+\n%s\n", r_read.alt_name.c_str(),
+			r_read.seq.c_str(), r_read.qual.c_str());
+		got_read=left_reads_file.getRead(curr_right_obs_order, l_read,
+						 reads_format, false, left_um_out.file,
+						 true, begin_id, end_id);
+		assert(got_read);
+		
+		exclude_hits_on_filtered_junctions(*junctions, curr_right_hit_group);
+		
+		// Process hit for right singleton, select best alignments
+		read_best_alignments(curr_right_hit_group, grade, best_hits, *gtf_junctions);
+		
+		if (best_hits.hits.size()>0 && best_hits.hits.size() <= max_multihits)
+		  {
+		    update_junctions(best_hits, *final_junctions);
+		    update_insertions_and_deletions(best_hits, *final_insertions, *final_deletions);
+		    
+		    print_sam_for_single(rt,
+					 best_hits,
+					 grade,
+					 FRAG_RIGHT,
+					 r_read,
+					 bam_writer,
+					 right_um_out.file);
+		  }
+	      }
+	    
+	    // Get next hit group
+	    right_hs.next_read_hits(curr_right_hit_group);
+	    curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
+	  }
+	
+	// Since we have both left hits and right hits for this insert,
+	// Find the best pairing and print both
+	while (curr_left_obs_order == curr_right_obs_order &&
+	       curr_left_obs_order < end_id &&
+	       curr_left_obs_order != VMAXINT32)
+	  {
+	    exclude_hits_on_filtered_junctions(*junctions, curr_left_hit_group);
+	    exclude_hits_on_filtered_junctions(*junctions, curr_right_hit_group);
+	    
+	    if (curr_left_hit_group.hits.empty())
+	      {   //only right read mapped
+                //write it in the mapped file with the #MAPPED# flag
+		
+		bool got_read=right_reads_file.getRead(curr_left_obs_order, r_read,
+						       reads_format, false, right_um_out.file,
+						       false, begin_id, end_id);
+		assert(got_read);
+		fprintf(right_um_out.file, "@%s #MAPPED#\n%s\n+\n%s\n", r_read.alt_name.c_str(),
+			r_read.seq.c_str(), r_read.qual.c_str());
+		HitsForRead right_best_hits;
+		right_best_hits.insert_id = curr_right_obs_order;
+		
+		FragmentAlignmentGrade grade;
+		read_best_alignments(curr_right_hit_group, grade, right_best_hits, *gtf_junctions);
+		
+		if (right_best_hits.hits.size()>0 && right_best_hits.hits.size() <= max_multihits)
+		  {
+		    update_junctions(right_best_hits, *final_junctions);
+		    update_insertions_and_deletions(right_best_hits, *final_insertions, *final_deletions);
+		    
+		    print_sam_for_single(rt,
+					 right_best_hits,
+					 grade,
+					 FRAG_RIGHT,
+					 r_read,
+					 bam_writer,
+					 right_um_out.file);
+		  }
+	      }
+	    else if (curr_right_hit_group.hits.empty())
+	      {
+		HitsForRead left_best_hits;
+		left_best_hits.insert_id = curr_left_obs_order;
+		//only left read mapped
+		bool got_read=left_reads_file.getRead(curr_left_obs_order, l_read,
+						      reads_format, false, left_um_out.file,
+						      false, begin_id, end_id);
+		assert(got_read);
+		fprintf(left_um_out.file, "@%s #MAPPED#\n%s\n+\n%s\n", l_read.alt_name.c_str(),
+			l_read.seq.c_str(), l_read.qual.c_str());
+		FragmentAlignmentGrade grade;
+		// Process hits for left singleton, select best alignments
+		read_best_alignments(curr_left_hit_group, grade, left_best_hits, *gtf_junctions);
+		
+		if (left_best_hits.hits.size()>0 && left_best_hits.hits.size() <= max_multihits)
+		  {
+		    update_junctions(left_best_hits, *final_junctions);
+		    update_insertions_and_deletions(left_best_hits, *final_insertions, *final_deletions);
+		    
+		    print_sam_for_single(rt,
+					 left_best_hits,
+					 grade,
+					 FRAG_LEFT,
+					 l_read,
+					 bam_writer,
+					 left_um_out.file);
+		  }
+	      }
+	    else
+	      {   //hits for both left and right reads
+		HitsForRead left_best_hits;
+		HitsForRead right_best_hits;
+		left_best_hits.insert_id = curr_left_obs_order;
+		right_best_hits.insert_id = curr_right_obs_order;
+		
+		InsertAlignmentGrade grade;
+		pair_best_alignments(curr_left_hit_group,
+				     curr_right_hit_group,
+				     grade,
+				     left_best_hits,
+				     right_best_hits);
+		
+		if (left_best_hits.hits.size()>0 && left_best_hits.hits.size() <= max_multihits &&
+		    right_best_hits.hits.size()>0 && right_best_hits.hits.size() <= max_multihits)
+		  {
+		    update_junctions(left_best_hits, *final_junctions);
+		    update_junctions(right_best_hits, *final_junctions);
+		    update_insertions_and_deletions(left_best_hits, *final_insertions, *final_deletions);
+		    update_insertions_and_deletions(right_best_hits, *final_insertions, *final_deletions);
+		    
+		    print_sam_for_pair(rt,
+				       left_best_hits,
+				       right_best_hits,
+				       grade,
+				       left_reads_file,
+				       right_reads_file,
+				       bam_writer,
+				       left_um_out.file,
+				       right_um_out.file,
+				       begin_id,
+				       end_id);
+		  }
+	      }
+	    
+	    left_hs.next_read_hits(curr_left_hit_group);
+	    curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
+	    
+	    right_hs.next_read_hits(curr_right_hit_group);
+	    curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
+	  }
+	
+      } //while we still have unreported hits..
+    //print the remaining unmapped reads at the end of each reads' stream
+    left_reads_file.getRead(VMAXINT32, l_read,
+			    reads_format, false, left_um_out.file,
+			    false, begin_id, end_id);
+    if (right_reads_file.file())
+      right_reads_file.getRead(VMAXINT32, r_read,
+			       reads_format, false, right_um_out.file,
+			       false, begin_id, end_id);
+
+    left_um_out.close();
+    right_um_out.close();
+  }
+
+  string bam_output_fname;
+  string sam_header_fname;
+
+  string left_reads_fname;
+  string left_map_fname;
+  string right_reads_fname;
+  string right_map_fname;
+
+  string left_um_fname;
+  string right_um_fname;
+
+  JunctionSet* gtf_junctions;
+  JunctionSet* junctions;
+  JunctionSet* final_junctions;
+  InsertionSet* final_insertions;
+  DeletionSet* final_deletions;
+
+  RefSequenceTable* rt;
+
+  uint64_t begin_id;
+  uint64_t end_id;
+  int64_t left_reads_offset;
+  int64_t left_map_offset;
+  int64_t right_reads_offset;
+  int64_t right_map_offset;
+};
+
+void driver(const string& bam_output_fname,
+	    const string& left_map_fname,
+	    const string& left_reads_fname,
+	    const string& right_map_fname,
+	    const string& right_reads_fname,
 	    FILE* junctions_out,
 	    FILE* insertions_out,
-	    FILE* deletions_out,
-	    FILE* left_um_out,
-	    FILE* right_um_out
-	    )
+	    FILE* deletions_out)
 {
-  ReadTable it;
+  if (!parallel)
+    num_threads = 1;
+  
   RefSequenceTable rt(sam_header, true);
-    srandom(1);
+  srandom(1);
+  
   JunctionSet gtf_junctions;
   if (!gtf_juncs.empty())
     {
@@ -766,37 +1089,85 @@ void driver(GBamWriter& bam_writer,
       fprintf(stderr, "Loaded %d GFF junctions from %s.\n", (int)(gtf_junctions.size()), gtf_juncs.c_str());
     }
 
-  BAMHitFactory hit_factory(it,rt);
-	JunctionSet junctions;
+  vector<uint64_t> read_ids;
+  vector<vector<int64_t> > offsets;
+  if (num_threads > 1)
+    {
+      vector<string> fnames;
+      if (right_map_fname != "")
 	{
-	  HitStream l_hs(left_map_fname, &hit_factory, false, true, true, true);
-	  HitStream r_hs(right_map_fname, &hit_factory, false, true, true, true);
-	  get_junctions_from_best_hits(l_hs, r_hs, it, junctions, gtf_junctions);
-	  //this resets the streams
-	 }
+	  fnames.push_back(right_reads_fname);
+	  fnames.push_back(right_map_fname);
+	}
+      fnames.push_back(left_reads_fname);
+      fnames.push_back(left_map_fname);
+      bool enough_data = calculate_offsets(fnames, read_ids, offsets);
+      if (!enough_data)
+	num_threads = 1;
+    }
 
-	HitStream left_hs(left_map_fname, &hit_factory, false, true, true, true);
-	HitStream right_hs(right_map_fname, &hit_factory, false, true, true, true);
-    
-	size_t num_unfiltered_juncs = junctions.size();
-	fprintf(stderr, "Loaded %lu junctions\n", (long unsigned int) num_unfiltered_juncs);
-    
-	HitsForRead curr_left_hit_group;
-	HitsForRead curr_right_hit_group;
+  JunctionSet vjunctions[num_threads];
+  vector<boost::thread*> threads;
+  for (int i = 0; i < num_threads; ++i)
+    {
+      ConsensusEventsWorker worker;
 
-	left_hs.next_read_hits(curr_left_hit_group);
-	right_hs.next_read_hits(curr_right_hit_group);
+      worker.left_map_fname = left_map_fname;
+      worker.right_map_fname = right_map_fname;
+      worker.junctions = &vjunctions[i];
+      worker.gtf_junctions = &gtf_junctions;
+      worker.rt = &rt;
 
-	uint32_t curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
-	uint32_t curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
+      worker.right_map_offset = 0;
+      
+      if (i == 0)
+	{
+	  worker.begin_id = 0;
+	  worker.left_map_offset = 0;
+	}
+      else
+	{
+	  size_t offsets_size = offsets[i-1].size();
 
-	// Read hits, extract junctions, and toss the ones that arent strongly enough supported.
-	filter_junctions(junctions, gtf_junctions);
-	//size_t num_juncs_after_filter = junctions.size();
-	//fprintf(stderr, "Filtered %lu junctions\n",
-	//     num_unfiltered_juncs - num_juncs_after_filter);
-    
-	/*
+	  worker.begin_id = read_ids[i-1];
+	  worker.left_map_offset = offsets[i-1].back();
+	  if (offsets_size == 4)
+	    worker.right_map_offset = offsets[i-1][1];
+	}
+      
+      worker.end_id = (i+1 < num_threads) ? read_ids[i] : std::numeric_limits<uint64_t>::max();
+
+      if (num_threads > 1)
+	threads.push_back(new boost::thread(worker));
+      else
+	worker();
+    }
+
+  for (size_t i = 0; i < threads.size(); ++i)
+    {
+      threads[i]->join();
+      delete threads[i];
+      threads[i] = NULL;
+    }
+  threads.clear();
+
+  JunctionSet junctions = vjunctions[0];
+  for (size_t i = 1; i < num_threads; ++i)
+    {
+      merge_with(junctions, vjunctions[i]);
+      vjunctions[i].clear();
+    }
+
+  size_t num_unfiltered_juncs = junctions.size();
+  fprintf(stderr, "Loaded %lu junctions\n", (long unsigned int) num_unfiltered_juncs);
+
+  // Read hits, extract junctions, and toss the ones that arent strongly enough supported.
+  filter_junctions(junctions, gtf_junctions);
+  //size_t num_juncs_after_filter = junctions.size();
+  //fprintf(stderr, "Filtered %lu junctions\n",
+  //     num_unfiltered_juncs - num_juncs_after_filter);
+
+  /*
 	size_t small_overhangs = 0;
 	for (JunctionSet::iterator i = junctions.begin(); i != junctions.end(); ++i)
     {
@@ -810,254 +1181,128 @@ void driver(GBamWriter& bam_writer,
 	if (small_overhangs >0)
         fprintf(stderr, "Warning: %lu small overhang junctions!\n", (long unsigned int)small_overhangs);
   */
-	JunctionSet final_junctions; // the junctions formed from best hits
-	InsertionSet final_insertions;
-	DeletionSet final_deletions;
-    
-	fprintf (stderr, "Reporting final accepted alignments...");
-	// While we still have unreported hits...
-  Read l_read;
-  Read r_read;
-	while(curr_left_obs_order != VMAXINT32 ||
-	      curr_right_obs_order != VMAXINT32)
+
+  JunctionSet vfinal_junctions[num_threads];
+  InsertionSet vfinal_insertions[num_threads];
+  DeletionSet vfinal_deletions[num_threads];
+
+  for (int i = 0; i < num_threads; ++i)
     {
-        // Chew up left singletons (pairs with right reads unmapped)
-        while (curr_left_obs_order < curr_right_obs_order &&
-               curr_left_obs_order != VMAXINT32)
-        {
-            HitsForRead best_hits;
-            best_hits.insert_id = curr_left_obs_order;
-            FragmentAlignmentGrade grade;
-            bool got_read=get_read_from_stream(curr_left_obs_order,
-                    left_reads,reads_format, false, l_read, left_um_out);
-            assert(got_read);
-            if (right_reads.fhandle()) {
-                fprintf(left_um_out, "@%s #MAPPED#\n%s\n+\n%s\n", l_read.alt_name.c_str(),
-                                l_read.seq.c_str(), l_read.qual.c_str());
-                got_read=get_read_from_stream(curr_left_obs_order,
-                                  right_reads,reads_format, false,
-                                  r_read, right_um_out, true);
-                assert(got_read);
-                }
-            exclude_hits_on_filtered_junctions(junctions, curr_left_hit_group);
-            
-            // Process hits for left singleton, select best alignments
-            read_best_alignments(curr_left_hit_group, grade, best_hits, gtf_junctions);
-            if (best_hits.hits.size()>0 && best_hits.hits.size() <= max_multihits)
-            {
-                update_junctions(best_hits, final_junctions);
-                update_insertions_and_deletions(best_hits, final_insertions, final_deletions);
-                
-                print_sam_for_single(rt,
-                                   best_hits,
-                                   grade,
-                                   (right_map_fname.empty() ? FRAG_UNPAIRED : FRAG_LEFT),
-                                   l_read,
-                                   bam_writer,
-                                   left_um_out);
-            }
-            
-            // Get next hit group
-            left_hs.next_read_hits(curr_left_hit_group);
-            curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
-        } //left singletons 
-        
-        // Chew up right singletons
-        while (curr_left_obs_order > curr_right_obs_order &&
-               curr_right_obs_order != VMAXINT32)
-        {
-            HitsForRead best_hits;
-            best_hits.insert_id = curr_right_obs_order;
-            FragmentAlignmentGrade grade;
-            
-            bool got_read=get_read_from_stream(curr_right_obs_order,
-                    right_reads,reads_format, false, r_read, right_um_out);
-            assert(got_read);
-            fprintf(right_um_out, "@%s #MAPPED#\n%s\n+\n%s\n", r_read.alt_name.c_str(),
-                              r_read.seq.c_str(), r_read.qual.c_str());
-            got_read=get_read_from_stream(curr_right_obs_order,
-                                  left_reads,reads_format, false,
-                                  l_read, left_um_out, true);
-            assert(got_read);
+      ReportWorker worker;
 
-            exclude_hits_on_filtered_junctions(junctions, curr_right_hit_group);
-            
-            // Process hit for right singleton, select best alignments
-            read_best_alignments(curr_right_hit_group, grade, best_hits, gtf_junctions);
-            
-            if (best_hits.hits.size()>0 && best_hits.hits.size() <= max_multihits)
-            {
-                update_junctions(best_hits, final_junctions);
-                update_insertions_and_deletions(best_hits, final_insertions, final_deletions);
-                
-                print_sam_for_single(rt,
-                                   best_hits,
-                                   grade,
-                                   FRAG_RIGHT,
-                                   r_read,
-                                   bam_writer,
-                                   right_um_out);
-            }
-            
-            // Get next hit group
-            right_hs.next_read_hits(curr_right_hit_group);
-            curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
-        }
-        
-        // Since we have both left hits and right hits for this insert,
-        // Find the best pairing and print both
-        while (curr_left_obs_order == curr_right_obs_order &&
-               curr_left_obs_order != VMAXINT32 && curr_right_obs_order != VMAXINT32)
-        {
-            exclude_hits_on_filtered_junctions(junctions, curr_left_hit_group);
-            exclude_hits_on_filtered_junctions(junctions, curr_right_hit_group);
-            
-            if (curr_left_hit_group.hits.empty())
-            {   //only right read mapped
-                //write it in the mapped file with the #MAPPED# flag
+      char filename[1024] = {0};
+      sprintf(filename, "%s%d.bam", bam_output_fname.c_str(), i);
+      worker.bam_output_fname = filename;
+      worker.sam_header_fname = sam_header;
+      sprintf(filename, "%s/unmapped_left%d.fq", output_dir.c_str(), i);
+      worker.left_um_fname = filename;
+      
+      if (right_reads_fname != "")
+	{
+	  sprintf(filename, "%s/unmapped_right%d.fq", output_dir.c_str(), i);
+	  worker.right_um_fname = filename;
+	}
+      
+      worker.left_reads_fname = left_reads_fname;
+      worker.left_map_fname = left_map_fname;
+      worker.right_reads_fname = right_reads_fname;
+      worker.right_map_fname = right_map_fname;
 
-                bool got_read=get_read_from_stream(curr_left_obs_order,
-                                  right_reads,reads_format, false, r_read, right_um_out);
-                assert(got_read);
-                fprintf(right_um_out, "@%s #MAPPED#\n%s\n+\n%s\n", r_read.alt_name.c_str(),
-                                  r_read.seq.c_str(), r_read.qual.c_str());
-                HitsForRead right_best_hits;
-                right_best_hits.insert_id = curr_right_obs_order;
-                
-                FragmentAlignmentGrade grade;
-                read_best_alignments(curr_right_hit_group, grade, right_best_hits, gtf_junctions);
-                
-                if (right_best_hits.hits.size()>0 && right_best_hits.hits.size() <= max_multihits)
-                {
-                    update_junctions(right_best_hits, final_junctions);
-                    update_insertions_and_deletions(right_best_hits, final_insertions, final_deletions);
-                    
-                    print_sam_for_single(rt,
-                                       right_best_hits,
-                                       grade,
-                                       FRAG_RIGHT,
-                                       r_read,
-                                       bam_writer,
-                                       right_um_out);
-                }
-            }
-            else if (curr_right_hit_group.hits.empty())
-            {
-                HitsForRead left_best_hits;
-                left_best_hits.insert_id = curr_left_obs_order;
-                //only left read mapped
-                bool got_read=get_read_from_stream(curr_left_obs_order,
-                        left_reads,reads_format, false, l_read, left_um_out);
-                assert(got_read);
-                fprintf(left_um_out, "@%s #MAPPED#\n%s\n+\n%s\n", l_read.alt_name.c_str(),
-                                  l_read.seq.c_str(), l_read.qual.c_str());
-                FragmentAlignmentGrade grade;
-                // Process hits for left singleton, select best alignments
-                read_best_alignments(curr_left_hit_group, grade, left_best_hits, gtf_junctions);
-                
-                if (left_best_hits.hits.size()>0 && left_best_hits.hits.size() <= max_multihits)
-                {
-                    update_junctions(left_best_hits, final_junctions);
-                    update_insertions_and_deletions(left_best_hits, final_insertions, final_deletions);
-                    
-                    print_sam_for_single(rt,
-                                       left_best_hits,
-                                       grade,
-                                       FRAG_LEFT,
-                                       l_read,
-                                       bam_writer,
-                                       left_um_out);
-                }
-            }
-            else
-            {   //hits for both left and right reads
-                HitsForRead left_best_hits;
-                HitsForRead right_best_hits;
-                left_best_hits.insert_id = curr_left_obs_order;
-                right_best_hits.insert_id = curr_right_obs_order;
-                
-                InsertAlignmentGrade grade;
-                pair_best_alignments(curr_left_hit_group,
-                                       curr_right_hit_group,
-                                       grade,
-                                       left_best_hits,
-                                       right_best_hits);
-                
-                if (left_best_hits.hits.size()>0 && left_best_hits.hits.size() <= max_multihits &&
-                    right_best_hits.hits.size()>0 && right_best_hits.hits.size() <= max_multihits)
-                {
-                    update_junctions(left_best_hits, final_junctions);
-                    update_junctions(right_best_hits, final_junctions);
-                    update_insertions_and_deletions(left_best_hits, final_insertions, final_deletions);
-                    update_insertions_and_deletions(right_best_hits, final_insertions, final_deletions);
-                    
-                    print_sam_for_pair(rt,
-                                       left_best_hits,
-                                       right_best_hits,
-                                       grade,
-                                       left_reads,
-                                       right_reads,
-                                       bam_writer,
-                                       left_um_out,
-                                       right_um_out);
-                }
-            }
-            
-            left_hs.next_read_hits(curr_left_hit_group);
-            curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
-            
-            right_hs.next_read_hits(curr_right_hit_group);
-            curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
-        }
-        
-    } //while we still have unreported hits..
-  //print the remaining unmapped reads at the end of each reads' stream
-	get_read_from_stream(VMAXINT32,
-                         left_reads,
-                         reads_format,
-                         false,
-                         l_read,
-                         left_um_out);
-	if (right_reads.fhandle())
-	  get_read_from_stream(VMAXINT32,
-	                         right_reads,
-	                         reads_format,
-	                         false,
-	                         r_read,
-	                         right_um_out);
-	fprintf (stderr, "done.\n");
-    
-	//small_overhangs = 0;
-	for (JunctionSet::iterator i = final_junctions.begin(); i != final_junctions.end();)
-	  {
-	    if (i->second.supporting_hits == 0 || i->second.left_extent < 8 ||	i->second.right_extent < 8)
-	      {
-		final_junctions.erase(i++);
-	      }
-	    else
-	      {
-		++i;
-	      }
-	  }
+      worker.gtf_junctions = &gtf_junctions;
+      worker.junctions = &junctions;
+      worker.final_junctions = &vfinal_junctions[i];
+      worker.final_insertions = &vfinal_insertions[i];
+      worker.final_deletions = &vfinal_deletions[i];
+      worker.rt = &rt;
 
-//	if (small_overhangs > 0)
-//		fprintf(stderr, "Warning: %lu small overhang junctions!\n", small_overhangs);
+      worker.right_reads_offset = 0;
+      worker.right_map_offset = 0;
+      
+      if (i == 0)
+	{
+	  worker.begin_id = 0;
+	  worker.left_reads_offset = 0;
+	  worker.left_map_offset = 0;
+	}
+      else
+	{
+	  size_t offsets_size = offsets[i-1].size();
+	  
+	  worker.begin_id = read_ids[i-1];
+	  worker.left_reads_offset = offsets[i-1][offsets_size - 2];
+	  worker.left_map_offset = offsets[i-1].back();
+	  if (offsets_size == 4)
+	    {
+	      worker.right_reads_offset = offsets[i-1][0];
+	      worker.right_map_offset = offsets[i-1][1];
+	    }
+	}
+      
+      worker.end_id = (i+1 < num_threads) ? read_ids[i] : std::numeric_limits<uint64_t>::max();
 
-	fprintf (stderr, "Printing junction BED track...");
-	print_junctions(junctions_out, final_junctions, rt);
-	fprintf (stderr, "done\n");
-    
-	fprintf (stderr, "Printing insertions...");
-	print_insertions(insertions_out, final_insertions,rt);
-	fclose(insertions_out);
-	fprintf (stderr, "done\n");
-    
-	fprintf (stderr, "Printing deletions...");
-	print_deletions(deletions_out, final_deletions, rt);
-	fclose(deletions_out);
-	fprintf (stderr, "done\n");
-    
-	fprintf(stderr, "Found %lu junctions from happy spliced reads\n", (long unsigned int)final_junctions.size());
+      if (num_threads > 1)
+	threads.push_back(new boost::thread(worker));
+      else
+	worker();
+    }
+
+  for (size_t i = 0; i < threads.size(); ++i)
+    {
+      threads[i]->join();
+      delete threads[i];
+      threads[i] = NULL;
+    }
+  threads.clear();
+
+  JunctionSet final_junctions = vfinal_junctions[0];
+  InsertionSet final_insertions = vfinal_insertions[0];
+  DeletionSet final_deletions = vfinal_deletions[0];
+  for (size_t i = 1; i < num_threads; ++i)
+    {
+      merge_with(final_junctions, vfinal_junctions[i]);
+      vfinal_junctions[i].clear();
+
+      merge_with(final_insertions, vfinal_insertions[i]);
+      vfinal_insertions[i].clear();
+      
+      merge_with(final_deletions, vfinal_deletions[i]);
+      vfinal_deletions[i].clear();
+    }
+
+  fprintf (stderr, "Reporting final accepted alignments...");
+  fprintf (stderr, "done.\n");
+  
+  //small_overhangs = 0;
+  for (JunctionSet::iterator i = final_junctions.begin(); i != final_junctions.end();)
+    {
+      if (i->second.supporting_hits == 0 || i->second.left_extent < 8 || i->second.right_extent < 8)
+	{
+	  final_junctions.erase(i++);
+	}
+      else
+	{
+	  ++i;
+	}
+    }
+  
+  //	if (small_overhangs > 0)
+  //		fprintf(stderr, "Warning: %lu small overhang junctions!\n", small_overhangs);
+
+  fprintf (stderr, "Printing junction BED track...");
+  print_junctions(junctions_out, final_junctions, rt);
+  fprintf (stderr, "done\n");
+  
+  fprintf (stderr, "Printing insertions...");
+  print_insertions(insertions_out, final_insertions,rt);
+  fclose(insertions_out);
+  fprintf (stderr, "done\n");
+  
+  fprintf (stderr, "Printing deletions...");
+  print_deletions(deletions_out, final_deletions, rt);
+  fclose(deletions_out);
+  fprintf (stderr, "done\n");
+  
+  fprintf(stderr, "Found %lu junctions from happy spliced reads\n", (long unsigned int)final_junctions.size());
 }
 
 void print_usage()
@@ -1121,36 +1366,22 @@ int main(int argc, char** argv)
         print_usage();
 		return 1;
 	}
-    //FZPipe left_map_file;
-    //string unbamcmd=getBam2SamCmd(left_map_filename);
-    //left_map_file.openRead(left_map_filename, unbamcmd);
+
     string left_reads_filename = argv[optind++];
     string unzcmd=getUnpackCmd(left_reads_filename, false);
     
     string right_map_filename;
     string right_reads_filename;
-    FZPipe right_reads_file;
-    string right_um_filename;
-    FZPipe right_um_file;
 
     if (optind < argc)
-	{
+      {
         right_map_filename = argv[optind++];
         if(optind >= argc) {
-            print_usage();
-            return 1;
+	  print_usage();
+	  return 1;
         }
-        //right_map_file.openRead(right_map_filename, unbamcmd);
-        //if (optind<argc) {
-        right_reads_filename=argv[optind++];
-        right_reads_file.openRead(right_reads_filename,unzcmd);
-        right_um_filename=output_dir+"/unmapped_right.fq";
-        if (!zpacker.empty()) right_um_filename+=".z";
-        if (right_um_file.openWrite(right_um_filename.c_str(), zpacker)==NULL)
-          err_die("Error: cannot open file %s for writing!\n",right_um_filename.c_str());
-
-        //  }
-	}
+	right_reads_filename=argv[optind++];
+      }
     FILE* junctions_file = fopen(junctions_file_name.c_str(), "w");
     if (junctions_file == NULL)
 	{
@@ -1167,7 +1398,6 @@ int main(int argc, char** argv)
         exit(1);
 	}
     
-    
 	FILE* deletions_file = fopen(deletions_file_name.c_str(), "w");
 	if (deletions_file == NULL)
 	{
@@ -1175,37 +1405,15 @@ int main(int argc, char** argv)
                 deletions_file_name.c_str());
         exit(1);
 	}
-    bool uncompressed_bam=(accepted_hits_file_name=="-");
-    GBamWriter bam_writer(accepted_hits_file_name.c_str(), sam_header.c_str(), uncompressed_bam);
 
-    FZPipe left_reads_file(left_reads_filename, unzcmd);
-    if (left_reads_file.file==NULL)
-      {
-            fprintf(stderr, "Error: cannot open reads file %s for reading\n",
-                    left_reads_filename.c_str());
-        exit(1);
-      }
-    string left_um_filename(output_dir+"/unmapped_left.fq");
-    if (!zpacker.empty()) left_um_filename+=".z";
-    FZPipe left_um_file;
-    if (left_um_file.openWrite(left_um_filename.c_str(), zpacker)==NULL)
-          err_die("Error: cannot open file %s for writing!\n",left_um_filename.c_str());
-
-    FLineReader fr_left_reads(left_reads_file.file);
-    FLineReader fr_right_reads(right_reads_file.file);
-
-    driver(bam_writer, left_map_filename,
-           fr_left_reads,
-           right_map_filename,
-           fr_right_reads,
-           junctions_file,
-           insertions_file,
-           deletions_file,
-           left_um_file.file,
-           right_um_file.file);
-    left_um_file.close();
-    right_um_file.close();
+    driver(accepted_hits_file_name,
+	   left_map_filename,
+	   left_reads_filename,
+	   right_map_filename,
+	   right_reads_filename,
+	   junctions_file,
+	   insertions_file,
+	   deletions_file);
+    
     return 0;
 }
-
-

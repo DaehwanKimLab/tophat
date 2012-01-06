@@ -11,9 +11,11 @@
 
 #include <string>
 #include <sstream>
+#include <queue>
+#include <limits>
 #include <seqan/sequence.h>
 #include "common.h"
-#include <queue>
+
 
 using std::string;
 
@@ -166,7 +168,7 @@ class ReadStream {
   public:
     ReadStream():fstream(), read_pq(), last_id(0), r_eof(false) {   }
 
-    ReadStream(string& fname):fstream(fname, false),
+    ReadStream(const string& fname):fstream(fname, false),
        read_pq(), last_id(0), r_eof(false) {   }
 
     void init(string& fname) {
@@ -177,15 +179,21 @@ class ReadStream {
         }
     //read_ids must ALWAYS be requested in increasing order
     bool getRead(uint64_t read_id, Read& read,
-        ReadFormat read_format=FASTQ,
-        bool strip_slash=false,
-        FILE* um_out=NULL, //unmapped reads output
-        bool um_write_found=false);
+		 ReadFormat read_format=FASTQ,
+		 bool strip_slash=false,
+		 FILE* um_out=NULL, //unmapped reads output
+		 bool um_write_found=false,
+		 uint64_t begin_id = 0,
+		 uint64_t end_id=std::numeric_limits<uint64_t>::max());
 
     void rewind() {
       fstream.rewind();
       clear();
       }
+    void seek(int64_t offset) {
+      clear();
+      fstream.seek(offset);
+    }
     FILE* file() {
       return fstream.file;
       }
