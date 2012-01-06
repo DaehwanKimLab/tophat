@@ -685,7 +685,7 @@ class TopHatParams:
                 self.gff_annotation = value
             if option in ("-T", "--transcriptome"):
                 self.transcriptome_only = True
-            if option in ("--transcriptome-index"):
+            if option == "--transcriptome-index":
                 self.transcriptome_index = value
             if option in("-M", "--prefilter-multihits"):
                 self.prefilter_multi = True
