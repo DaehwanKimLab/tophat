@@ -345,7 +345,7 @@ struct lex_hit_sort
         uint32_t r_id = rhs.ref_id();
         if (l_id != r_id)
         {
-            return (strcmp(_rt.get_name(lhs.ref_id()), _rt.get_name(rhs.ref_id())) < 0);
+	  return (strcmp(_rt.get_name(l_id), _rt.get_name(r_id)) < 0);
         }
         return lhs.left() < rhs.left();
     }
@@ -371,6 +371,7 @@ void print_sam_for_single(const RefSequenceTable& rt,
         index_vector.push_back(i);
     
     sort(index_vector.begin(), index_vector.end(), s);
+
     size_t primaryHit = (hits.hits.empty()? 0: random() % hits.hits.size());
     bool multipleHits = (hits.hits.size() > 1);
     for (size_t i = 0; i < hits.hits.size(); ++i)
@@ -807,6 +808,7 @@ struct ReportWorker
 						  reads_format, false, left_um_out.file,
 						  false, begin_id, end_id);
 	    assert(got_read);
+
 	    if (right_reads_file.file()) {
 	      fprintf(left_um_out.file, "@%s #MAPPED#\n%s\n+\n%s\n", l_read.alt_name.c_str(),
 		      l_read.seq.c_str(), l_read.qual.c_str());
@@ -816,15 +818,15 @@ struct ReportWorker
 	      assert(got_read);
 	    }
 	    exclude_hits_on_filtered_junctions(*junctions, curr_left_hit_group);
-	    
+
 	    // Process hits for left singleton, select best alignments
 	    read_best_alignments(curr_left_hit_group, grade, best_hits, *gtf_junctions);
 	    if (best_hits.hits.size()>0 && best_hits.hits.size() <= max_multihits)
 	      {
 		update_junctions(best_hits, *final_junctions);
 		update_insertions_and_deletions(best_hits, *final_insertions, *final_deletions);
-		
-		print_sam_for_single(rt,
+
+		print_sam_for_single(*rt,
 				     best_hits,
 				     grade,
 				     (right_map_fname.empty() ? FRAG_UNPAIRED : FRAG_LEFT),
@@ -852,25 +854,25 @@ struct ReportWorker
 		bool got_read=right_reads_file.getRead(curr_right_obs_order, r_read,
 						       reads_format, false, right_um_out.file,
 						       false, begin_id, end_id);
+
 		assert(got_read);
+
 		fprintf(right_um_out.file, "@%s #MAPPED#\n%s\n+\n%s\n", r_read.alt_name.c_str(),
 			r_read.seq.c_str(), r_read.qual.c_str());
 		got_read=left_reads_file.getRead(curr_right_obs_order, l_read,
 						 reads_format, false, left_um_out.file,
 						 true, begin_id, end_id);
 		assert(got_read);
-		
 		exclude_hits_on_filtered_junctions(*junctions, curr_right_hit_group);
-		
+
 		// Process hit for right singleton, select best alignments
 		read_best_alignments(curr_right_hit_group, grade, best_hits, *gtf_junctions);
-		
 		if (best_hits.hits.size()>0 && best_hits.hits.size() <= max_multihits)
 		  {
 		    update_junctions(best_hits, *final_junctions);
 		    update_insertions_and_deletions(best_hits, *final_insertions, *final_deletions);
-		    
-		    print_sam_for_single(rt,
+
+		    print_sam_for_single(*rt,
 					 best_hits,
 					 grade,
 					 FRAG_RIGHT,
@@ -915,7 +917,7 @@ struct ReportWorker
 		    update_junctions(right_best_hits, *final_junctions);
 		    update_insertions_and_deletions(right_best_hits, *final_insertions, *final_deletions);
 		    
-		    print_sam_for_single(rt,
+		    print_sam_for_single(*rt,
 					 right_best_hits,
 					 grade,
 					 FRAG_RIGHT,
@@ -944,7 +946,7 @@ struct ReportWorker
 		    update_junctions(left_best_hits, *final_junctions);
 		    update_insertions_and_deletions(left_best_hits, *final_insertions, *final_deletions);
 		    
-		    print_sam_for_single(rt,
+		    print_sam_for_single(*rt,
 					 left_best_hits,
 					 grade,
 					 FRAG_LEFT,
@@ -959,7 +961,7 @@ struct ReportWorker
 		HitsForRead right_best_hits;
 		left_best_hits.insert_id = curr_left_obs_order;
 		right_best_hits.insert_id = curr_right_obs_order;
-		
+
 		InsertAlignmentGrade grade;
 		pair_best_alignments(curr_left_hit_group,
 				     curr_right_hit_group,
@@ -975,7 +977,7 @@ struct ReportWorker
 		    update_insertions_and_deletions(left_best_hits, *final_insertions, *final_deletions);
 		    update_insertions_and_deletions(right_best_hits, *final_insertions, *final_deletions);
 		    
-		    print_sam_for_pair(rt,
+		    print_sam_for_pair(*rt,
 				       left_best_hits,
 				       right_best_hits,
 				       grade,
@@ -1035,6 +1037,9 @@ struct ReportWorker
   int64_t left_map_offset;
   int64_t right_reads_offset;
   int64_t right_map_offset;
+
+  // for debug purposes
+  uint32_t thread_id;
 };
 
 void driver(const string& bam_output_fname,
@@ -1239,6 +1244,8 @@ void driver(const string& bam_output_fname,
 	}
       
       worker.end_id = (i+1 < num_threads) ? read_ids[i] : std::numeric_limits<uint64_t>::max();
+
+      worker.thread_id = (uint32_t)i;
 
       if (num_threads > 1)
 	threads.push_back(new boost::thread(worker));

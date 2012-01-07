@@ -354,7 +354,7 @@ public:
                 const char* name = fh->header->target_name[i];
                 uint32_t len  = fh->header->target_len[i];
                 get_id(name, NULL, len);
-                //fprintf(stderr, "SQ: %s - %d\n", name, len);
+                // fprintf(stderr, "SQ: %s - %u\n", name, len);
             }
         }
     }
@@ -445,7 +445,6 @@ public:
 		_by_id.clear();
 	}
 	
-	// daehwan
 	// This is FNV-1, see http://en.wikipedia.org/wiki/Fowler_Noll_Vo_hash
 	static inline uint32_t hash_string(const char* __s)
 	{
