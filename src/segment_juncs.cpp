@@ -4187,7 +4187,7 @@ void driver(istream& ref_stream,
 
 	  worker.end_id = (i+1 < num_threads) ? read_ids[i] : std::numeric_limits<uint64_t>::max();
 
-	  if (num_threads > 0)
+	  if (num_threads > 1)
 	    threads.push_back(new boost::thread(worker));
 	  else
 	    worker();
