@@ -648,10 +648,17 @@ bool ReadStream::getRead(uint64_t r_id,
 
     if (id < begin_id)
       continue;
-      
-    if (id == r_id) {
-       found=true;
-       }
+
+    if (id == r_id)
+      {
+	found=true;
+      }
+    else if (id > r_id)
+      {
+	read_pq.push(make_pair(id, read));
+	break;
+      }
+
     if (um_out && (um_write_found || !found)) {
      //write unmapped reads
       fprintf(um_out, "@%s\n%s\n+\n%s\n", read.alt_name.c_str(),
