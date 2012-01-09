@@ -933,7 +933,7 @@ def get_bowtie_version():
            errmsg+="Error: bowtie not found on this system"
        die(errmsg)
 
-def get_index_sam_header(read_params, idx_prefix, replace_stub_header = True):
+def get_index_sam_header(read_params, idx_prefix, sort = True):
     try:
         bowtie_sam_header_filename = tmp_dir+idx_prefix.split('/')[-1]+".bwt.samheader.sam"
         bowtie_sam_header_file = open(bowtie_sam_header_filename,"w")
@@ -948,10 +948,10 @@ def get_index_sam_header(read_params, idx_prefix, replace_stub_header = True):
 
         bowtie_sam_header_file.close()
 
-        if not replace_stub_header:
+        if not sort:
             return bowtie_sam_header_filename
         
-        bowtie_sam_header_file = open(bowtie_sam_header_filename,"r")
+        bowtie_sam_header_file = open(bowtie_sam_header_filename, "r")
         sam_header_file = open(sam_header, "w")
 
         preamble = []
@@ -1006,6 +1006,7 @@ def get_index_sam_header(read_params, idx_prefix, replace_stub_header = True):
 
         sam_header_file.close()
 
+        copy(sam_header, bowtie_sam_header_filename);
         return sam_header
 
     except OSError, o:
