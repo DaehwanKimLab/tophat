@@ -4237,9 +4237,9 @@ void driver(istream& ref_stream,
 	  worker.segmap_fnames = &right_segmap_fnames;
 	  worker.partner_reads_map_fname = left_reads_map_fname;
 	  worker.seg_partner_reads_map_fname = left_seg_fname_for_segment_search;
-	  worker.juncs = &vseg_juncs[0];
-	  worker.deletions = &vdeletions[0];
-	  worker.insertions = &vinsertions[0];
+	  worker.juncs = &vseg_juncs[i];
+	  worker.deletions = &vdeletions[i];
+	  worker.insertions = &vinsertions[i];
 	  worker.read = READ_RIGHT;
 	  worker.partner_hit_offset = 0;
 	  worker.seg_partner_hit_offset = 0;
