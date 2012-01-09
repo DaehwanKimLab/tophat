@@ -59,7 +59,9 @@ void read_best_alignments(const HitsForRead& hits_for_read,
   for (size_t i = 0; i < hits.size(); ++i)
     {
       if (hits[i].edit_dist()>max_read_mismatches) continue;
+      
       FragmentAlignmentGrade g(hits[i], gtf_junctions);
+      
       // Is the new status better than the current best one?
       if (best_grade < g)
       {
@@ -93,15 +95,16 @@ void pair_best_alignments(const HitsForRead& left_hits,
     
     for (size_t i = 0; i < left.size(); ++i)
 	{
-        if (left[i].edit_dist()>max_read_mismatches) continue;
+	  if (left[i].edit_dist()>max_read_mismatches) continue;
 
         const BowtieHit& lh = left[i];
         for (size_t j = 0; j < right.size(); ++j)
 		{
             const BowtieHit& rh = right[j];
-            
+
             if (lh.ref_id() != rh.ref_id())
-                continue;
+	      continue;
+	    
             if (right[j].edit_dist()>max_read_mismatches) continue;
             InsertAlignmentGrade g(lh, rh, min_mate_inner_dist, max_mate_inner_dist);
             
@@ -612,7 +615,7 @@ struct ConsensusEventsWorker
   void operator()()
   {
     ReadTable it;
-    BAMHitFactory hit_factory(it,*rt);
+    BAMHitFactory hit_factory(it, *rt);
 
     HitStream l_hs(left_map_fname, &hit_factory, false, true, true, true);
     if (left_map_offset > 0)
@@ -660,10 +663,9 @@ struct ConsensusEventsWorker
 	  {
 	    HitsForRead best_hits;
 	    best_hits.insert_id = curr_right_obs_order;
-	    FragmentAlignmentGrade grade;
-
 	    if (curr_right_obs_order >= begin_id)
 	      {
+		FragmentAlignmentGrade grade;
 		// Process hit for right singleton, select best alignments
 		read_best_alignments(curr_right_hit_group,grade, best_hits, *gtf_junctions);
 		update_junctions(best_hits, *junctions);
@@ -707,14 +709,13 @@ struct ConsensusEventsWorker
 		right_best_hits.insert_id = curr_right_obs_order;
 		
 		// daehwan - apply gtf_junctions here, too!
-		
+
 		InsertAlignmentGrade grade;
 		pair_best_alignments(curr_left_hit_group,
 				     curr_right_hit_group,
 				     grade,
 				     left_best_hits,
 				     right_best_hits);
-                
 		update_junctions(left_best_hits, *junctions);
 		update_junctions(right_best_hits, *junctions);
 	      }
@@ -817,6 +818,7 @@ struct ReportWorker
 						true, begin_id, end_id);
 	      assert(got_read);
 	    }
+
 	    exclude_hits_on_filtered_junctions(*junctions, curr_left_hit_group);
 
 	    // Process hits for left singleton, select best alignments
@@ -863,6 +865,7 @@ struct ReportWorker
 						 reads_format, false, left_um_out.file,
 						 true, begin_id, end_id);
 		assert(got_read);
+
 		exclude_hits_on_filtered_junctions(*junctions, curr_right_hit_group);
 
 		// Process hit for right singleton, select best alignments
@@ -1167,7 +1170,9 @@ void driver(const string& bam_output_fname,
   fprintf(stderr, "Loaded %lu junctions\n", (long unsigned int) num_unfiltered_juncs);
 
   // Read hits, extract junctions, and toss the ones that arent strongly enough supported.
+
   filter_junctions(junctions, gtf_junctions);
+  
   //size_t num_juncs_after_filter = junctions.size();
   //fprintf(stderr, "Filtered %lu junctions\n",
   //     num_unfiltered_juncs - num_juncs_after_filter);
