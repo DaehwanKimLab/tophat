@@ -1021,10 +1021,6 @@ struct JoinSegmentsWorker
   void operator()()
   {
     ReadTable it;
-
-    // daehwan - remove this
-    fprintf(stderr, "daehwan - start\n");
-    
     GBamWriter bam_writer(bam_output_fname.c_str(), sam_header_fname.c_str());
     ReadStream readstream(reads_fname);
     if (readstream.file() == NULL)

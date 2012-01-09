@@ -48,7 +48,6 @@ void junctions_from_spliced_hit(const BowtieHit& h,
 	  stats.min_splice_mms = h.splice_mms();
 	  stats.supporting_hits++;
 	  new_juncs.push_back(make_pair(junc, stats));
-	  //fall through this case to MATCH is intentional
 	  j += cigar[c].length;
 	  break;
 	case MATCH:

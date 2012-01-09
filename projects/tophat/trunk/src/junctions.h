@@ -87,7 +87,7 @@ JunctionStats() : left_extent(0), right_extent(0), left_exon_doc(0), right_exon_
   JunctionStats& merge_with(const JunctionStats& other)
   {
     if (this == &other)
-      return * this;
+      return *this;
 
     left_extent = max(left_extent, other.left_extent);
     right_extent = max(right_extent, other.right_extent);

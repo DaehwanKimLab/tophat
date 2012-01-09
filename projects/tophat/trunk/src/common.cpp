@@ -833,7 +833,7 @@ GBamRecord::GBamRecord(const char* qname, int32_t flags, int32_t g_tid,
            else {
              realloc_bdata(b, doff + b->core.n_cigar * 4);
              }
-        for (i = 0, s = cigar; i != b->core.n_cigar; ++i) {
+        for (i = 0, s = cigar; i != (int)b->core.n_cigar; ++i) {
             x = strtol(s, &t, 10);
             op = toupper(*t);
             if (op == 'M' || op == '=' || op == 'X') op = BAM_CMATCH;
