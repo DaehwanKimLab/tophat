@@ -475,7 +475,7 @@ dist_bin_SCRIPTS = \
 	tophat \
 	bed_to_juncs \
 	sra_to_solid \
-	tophat-fusion-post.py
+	tophat-fusion-post
 
 #SUFFIXES = .py
 #.py:
