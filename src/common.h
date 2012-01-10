@@ -111,6 +111,13 @@ extern std::string flt_reads;
 // aux_outfile; also reverses the flt_reads filter itself
 extern std::string flt_mappings;
 
+extern bool fusion_search;
+extern size_t fusion_anchor_length;
+extern size_t fusion_min_dist;
+extern size_t fusion_read_mismatches;
+extern size_t fusion_multireads;
+extern size_t fusion_multipairs;
+
 enum eLIBRARY_TYPE
   {
     LIBRARY_TYPE_NONE = 0,
@@ -405,6 +412,5 @@ class GBamWriter {
      bam_seek(this->bam_file->x.bam, offset, SEEK_SET);
    }
 };
-
 
 #endif

@@ -18,7 +18,6 @@
 #include <map>
 #include <algorithm>
 #include <set>
-//#include <stdexcept>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -41,6 +40,7 @@
 #include "junctions.h"
 #include "insertions.h"
 #include "deletions.h"
+#include "fusions.h"
 
 using namespace seqan;
 using namespace std;
@@ -56,37 +56,37 @@ void print_usage()
 
 // This is the maximum number of bowtie mismatches allower per segment hit
 static const int num_bowtie_mismatches = 2;
-
 static const int max_cov_juncs = 5000000;
 // static const int max_cov_juncs = std::numeric_limits<int>::max();
 static const int max_seg_juncs = 10000000;
+
 int max_microexon_stretch = 2000;
 int butterfly_overhang = 6;
 int min_cov_length = 20;
 
 void get_seqs(istream& ref_stream,
-			  RefSequenceTable& rt,
-			  bool keep_seqs = true,
-			  bool strip_slash = false)
+	      RefSequenceTable& rt,
+	      bool keep_seqs = true,
+	      bool strip_slash = false)
 {    
-    while(ref_stream.good() &&
-          !ref_stream.eof())
+  while(ref_stream.good() &&
+	!ref_stream.eof())
     {
-		RefSequenceTable::Sequence* ref_str = new RefSequenceTable::Sequence();
-        string name;
-        readMeta(ref_stream, name, Fasta());
-		string::size_type space_pos = name.find_first_of(" \t\r");
-		if (space_pos != string::npos)
-		{
-			name.resize(space_pos);
-		}
-		//fprintf(stderr, "\tLoading %s...", name.c_str());
-		seqan::read(ref_stream, *ref_str, Fasta());
-		//fprintf(stderr, "done\n");
-        rt.get_id(name, keep_seqs ? ref_str : NULL, 0);
-		if (!keep_seqs)
-			delete ref_str;
-    }	
+      RefSequenceTable::Sequence* ref_str = new RefSequenceTable::Sequence();
+      string name;
+      readMeta(ref_stream, name, Fasta());
+      string::size_type space_pos = name.find_first_of(" \t\r");
+      if (space_pos != string::npos)
+	{
+	  name.resize(space_pos);
+	}
+      fprintf(stderr, "\tLoading %s...", name.c_str());
+      seqan::read(ref_stream, *ref_str, Fasta());
+      fprintf(stderr, "done\n");
+      rt.get_id(name, keep_seqs ? ref_str : NULL, 0);
+      if (!keep_seqs)
+	delete ref_str;
+    }
 }
 
 RefSeg seg_from_bowtie_hit(const BowtieHit& T)
@@ -1364,7 +1364,8 @@ void hits_from_seed_extension(uint32_t ref_id,
 			}
 			// daehwan - check this
 			bool end = false;
-			BowtieHit bh(ref_id, 
+			BowtieHit bh(ref_id,
+				     ref_id,
 				     insert_id,
 				     ref_offset + s.l_pos_in_ref - off_adjust + 1,
 				     cigar,
@@ -2382,7 +2383,7 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
 void simpleSplitAlignment(seqan::String<char>& shorterSequence,
 			  seqan::String<char>& leftReference,
 			  seqan::String<char>& rightReference,
-			  int& insertPosition,
+			  vector<int>& insertPositions,
 			  int& mismatchCount)
 {
 			/*
@@ -2412,7 +2413,6 @@ void simpleSplitAlignment(seqan::String<char>& shorterSequence,
 				beforeErrors.at(idx) = prevCount + currentMismatch;
 			}
 
-
 			vector<unsigned short> afterErrors(seqan::length(shorterSequence));
 			for(size_t idx = 0; idx < seqan::length(shorterSequence) ; idx += 1){
 				unsigned short prevCount = 0;
@@ -2426,9 +2426,8 @@ void simpleSplitAlignment(seqan::String<char>& shorterSequence,
 				afterErrors.at(idx) = prevCount + currentMismatch;
 			}
 
-
 			mismatchCount = seqan::length(shorterSequence) + 1;
-			insertPosition = -1;
+			insertPositions.clear();
 
 			/*
 			 * Technically, we could allow the insert position to be at the end or beginning of the sequence,
@@ -2436,9 +2435,14 @@ void simpleSplitAlignment(seqan::String<char>& shorterSequence,
 			 */
 			for(size_t currentInsertPosition = 1; currentInsertPosition < seqan::length(shorterSequence); currentInsertPosition += 1){
 				size_t errorCount = beforeErrors.at(currentInsertPosition) + afterErrors.at(currentInsertPosition - 1);
+
 				if(((int)errorCount) < mismatchCount){
-					mismatchCount = (int)errorCount;
-					insertPosition = currentInsertPosition;
+				  mismatchCount = (int)errorCount;
+				  insertPositions.clear();
+				  insertPositions.push_back(currentInsertPosition);
+				}
+				else if ((int)errorCount == mismatchCount) {
+				  insertPositions.push_back(currentInsertPosition);
 				}
 			}
 			return;
@@ -2496,9 +2500,13 @@ void detect_small_insertion(RefSequenceTable& rt,
 		String<char> left_read_sequence = seqan::infix(read_sequence, 0, 0 + seqan::length(genomic_sequence));
 		String<char> right_read_sequence = seqan::infix(read_sequence, read_length - seqan::length(genomic_sequence), read_length);
 
-		int bestInsertPosition = -1;
+		vector<int> bestInsertPositions;
 		int minErrors = -1;
-		simpleSplitAlignment(genomic_sequence, left_read_sequence, right_read_sequence, bestInsertPosition, minErrors);
+		simpleSplitAlignment(genomic_sequence, left_read_sequence, right_read_sequence, bestInsertPositions, minErrors);
+
+		assert (bestInsertPositions.size() > 0);
+		int bestInsertPosition = bestInsertPositions[0];
+
 
 		/*
 		 * Need to decide if the insertion is suitably improves the alignment
@@ -2582,10 +2590,12 @@ void detect_small_deletion(RefSequenceTable& rt,
 		  rightGenomicSequence = convert_bp_to_color(rightGenomicSequence, true);
 		}
 
-		int bestInsertPosition = -1;
+		vector<int> bestInsertPositions;
 		int minErrors = -1;
+		simpleSplitAlignment(read_sequence, leftGenomicSequence, rightGenomicSequence, bestInsertPositions, minErrors);
 
-		simpleSplitAlignment(read_sequence, leftGenomicSequence, rightGenomicSequence, bestInsertPosition, minErrors);
+		assert (bestInsertPositions.size() > 0);
+		int bestInsertPosition = bestInsertPositions[0];
 
 		/*
 		 * Need to decide if the deletion is suitably improves the alignment
@@ -2610,6 +2620,206 @@ void detect_small_deletion(RefSequenceTable& rt,
 	return;
 }
 
+int difference(const String<char>& first, const String<char>& second)
+{
+  int len = length(first);
+  if (len != length(second))
+    return 0;
+
+  int min_value = 10000;
+  short value1[1024] = {0,};
+  short value2[1024] = {0,};
+
+  short* curr = value1;
+  short* prev = value2;
+  
+  for (int j = 0; j < len; ++j)
+    {
+      for (int i = 0; i < len; ++i)
+	{
+	  int value = 10000;
+	  int match = first[i] == second[j] ? 0 : 1;
+
+	  // right
+	  if (i == 0)
+	    value = j * 2 + match;
+	  else if (j > 0)
+	    value = prev[i] + 2;
+
+	  int temp_value = 10000;
+
+	  // down
+	  if (j == 0)
+	    temp_value = i * 2 + match;
+	  else if (i > 0)
+	    temp_value = curr[i-1] + 2;
+
+	  if (temp_value < value)
+	    value = temp_value;
+
+	  // match
+	  if (i > 0 && j > 0)
+	    temp_value = prev[i-1] + match;
+
+	  if (temp_value < value)
+	    value = temp_value;
+
+	  curr[i] = value;
+
+	  if ((i == len - 1 || j == len - 1) && value < min_value)
+	    min_value = value;
+	}
+
+      short* temp = prev;
+      prev = curr;
+      curr = temp;
+   }
+
+  return min_value;
+}
+
+void detect_fusion(RefSequenceTable& rt,
+		   seqan::String<char>& read_sequence,
+		   BowtieHit& leftHit,
+		   BowtieHit& rightHit,
+		   FusionSimpleSet& fusions,
+		   uint32_t dir)
+{
+  RefSequenceTable::Sequence* left_ref_str = rt.get_seq(leftHit.ref_id());
+  RefSequenceTable::Sequence* right_ref_str = rt.get_seq(rightHit.ref_id());
+
+  size_t read_length = seqan::length(read_sequence);
+
+  Dna5String leftGenomicSequence_temp;
+  Dna5String rightGenomicSequence_temp;
+
+  if (dir == FUSION_FF || dir == FUSION_FR)
+    {
+      if (leftHit.left() + read_length > seqan::length(*left_ref_str))
+	return;
+
+      leftGenomicSequence_temp = seqan::infix(*left_ref_str, leftHit.left(), leftHit.left() + read_length);
+    }
+  else
+    {
+      if (leftHit.right() < read_length)
+	return;
+
+      leftGenomicSequence_temp = seqan::infix(*left_ref_str, leftHit.right() - read_length, leftHit.right());
+      seqan::convertInPlace(leftGenomicSequence_temp, seqan::FunctorComplement<Dna>());
+      seqan::reverseInPlace(leftGenomicSequence_temp);
+    }
+
+  if (dir == FUSION_FF || dir == FUSION_RF)
+    {
+      if (rightHit.right() < read_length)
+	return;
+
+      rightGenomicSequence_temp = seqan::infix(*right_ref_str, rightHit.right() - read_length, rightHit.right());
+    }
+  else
+    {
+      if (rightHit.left() + read_length > seqan::length(*right_ref_str))
+	return;
+
+      rightGenomicSequence_temp = seqan::infix(*right_ref_str, rightHit.left(), rightHit.left() + read_length);
+      seqan::convertInPlace(rightGenomicSequence_temp, seqan::FunctorComplement<Dna>());
+      seqan::reverseInPlace(rightGenomicSequence_temp);
+    }
+
+  String<char> leftGenomicSequence;
+  assign(leftGenomicSequence, leftGenomicSequence_temp);
+  
+  String<char> rightGenomicSequence;
+  assign(rightGenomicSequence, rightGenomicSequence_temp);
+
+  vector<int> bestInsertPositions;
+  int minErrors = -1;
+
+  simpleSplitAlignment(read_sequence, leftGenomicSequence, rightGenomicSequence, bestInsertPositions, minErrors);
+
+  uint32_t total_edit_dist = leftHit.edit_dist() + rightHit.edit_dist();
+  if (minErrors > total_edit_dist)
+    return;
+
+  // daehwan
+  if (read_length <= 60)
+    {
+      /*
+       * check if the two contig from two different chromosome are different enough
+       */
+      int different_count = min(difference(leftGenomicSequence, read_sequence), difference(rightGenomicSequence, read_sequence));
+      // different_count = min(different_count, difference(leftGenomicSequence, rightGenomicSequence));
+      if (different_count < read_length / 6)
+	return;
+    }
+
+  for (size_t i = 0; i < bestInsertPositions.size(); ++i)
+    {
+      int bestInsertPosition = bestInsertPositions[i];
+      
+      uint32_t left, right;
+      if (dir == FUSION_FF || dir == FUSION_FR)
+	left = leftHit.left() + bestInsertPosition - 1;
+      else
+	left = leftHit.right() - bestInsertPosition;
+      
+      if (dir == FUSION_FF || dir == FUSION_RF)
+	right = rightHit.right() - (read_length - bestInsertPosition);
+      else
+	right = rightHit.left() + (read_length - bestInsertPosition) - 1;
+      
+      uint32_t ref_id1 = leftHit.ref_id();
+      uint32_t ref_id2 = rightHit.ref_id();
+
+      uint32_t temp_dir = dir;
+      if ((ref_id2 < ref_id1) ||
+	  (ref_id1 == ref_id2 && left > right))
+	{
+	  uint32_t temp = ref_id1;
+	  ref_id1 = ref_id2;
+	  ref_id2 = temp;
+	  
+	  temp = left;
+	  left = right;
+	  right = temp;
+
+	  if (dir == FUSION_FF)
+	    temp_dir = FUSION_RR;
+	}
+      
+      // daehwan - check
+#if B_DEBUG
+      cout << endl << endl;
+      cout << "sense: " << (leftHit.antisense_align() ? "-" : "+") << endl;
+      // cout << "difference: " << different_count << endl;
+      cout << "left ref_id: " << rt.get_name(leftHit.ref_id()) << "\tright ref_id: " << rt.get_name(rightHit.ref_id()) << endl;
+      cout << read_sequence << endl;
+      cout << leftGenomicSequence << "\t" << rightGenomicSequence << endl;
+      cout << "insertion pos: " << bestInsertPosition << endl;
+      cout << left << ":" << right << endl;
+      cout << "errors: " << minErrors << endl;
+#endif
+      
+      Fusion fusion(ref_id1, ref_id2, left, right, temp_dir);
+      FusionSimpleSet::iterator itr = fusions.find(fusion);
+      if (itr == fusions.end())
+	{
+	  FusionSimpleStat simpleStat;
+	  simpleStat.count = 1;
+	  simpleStat.edit_dist = total_edit_dist;
+	  simpleStat.skip = false;
+	  simpleStat.left_coincide_with_splice_junction = false;
+	  simpleStat.right_coincide_with_splice_junction = false;
+	  fusions[fusion] = simpleStat;
+	}
+      else
+	{
+	  itr->second.count += 1;
+	  itr->second.edit_dist = min(itr->second.edit_dist, total_edit_dist);
+	}
+    }
+}
 
 void find_insertions_and_deletions(RefSequenceTable& rt,
 		ReadStream& reads_file,
@@ -2738,7 +2948,6 @@ int map_read_to_contig(const String<char>& contig, const String<char>& read)
 {
   int contig_len = length(contig);
   int read_len = length(read);
-
   int pos = -1;
   int mismatch = 3;
 
@@ -2762,6 +2971,316 @@ int map_read_to_contig(const String<char>& contig, const String<char>& read)
     }
 
   return pos;
+}
+
+
+void find_fusions(RefSequenceTable& rt,
+		  ReadStream& reads_file,
+		  vector<HitsForRead>& hits_for_read,
+		  HitStream& partner_hit_stream,
+		  HitStream& seg_partner_hit_stream,
+		  FusionSimpleSet& fusions,
+		  eREAD read_side)
+{
+  if (hits_for_read.empty())
+    return;
+
+  size_t last_segment = hits_for_read.size() - 1;
+  while (last_segment > 0)
+    {
+      if (!hits_for_read[last_segment].hits.empty())
+	break;
+
+      --last_segment;
+    }
+
+    // daehwan
+#if 0
+  if (last_segment == 0 || hits_for_read[0].hits.empty())
+    {
+      vector<BowtieHit>& hits = last_segment == 0 ? hits_for_read[0].hits : hits_for_read[1].hits;
+      
+      for (size_t i = 0; i < hits.size(); ++i)
+	{
+	  BowtieHit* hit = &hits[i];
+
+	  static const uint32_t chr_id1 = RefSequenceTable::hash_string("chr2");
+	  static const uint32_t chr_id2 = RefSequenceTable::hash_string("chr3");
+	  
+	  // KPL-4	PPP1R12A	12:80167343-80329235:-1	SEPT10	2:110300380-110371783:-1
+	  // const uint32_t left1 = 80167343, right1 = 80329235, left2 = 110300380, right2 = 110371783;
+
+	  // VCaP	TIA1	2:70436576-70475792:-1	DIRC2	3:122513642-122599986:1
+	  const uint32_t left1 = 70436576, right1 = 70475792, left2 = 122513642, right2 = 122599986;
+
+	  if ((hit->ref_id() == chr_id1 && hit->left() >= left1 && hit->left() <= right1) ||
+	      (hit->ref_id() == chr_id2 && hit->left() >= left2 && hit->left() <= right2))
+	    {
+	      cout << hit->insert_id() << endl;
+	      break;
+#if 0
+	      cout << "insert id: " << hit->insert_id() << "\t num hits: " << hits.size() << endl
+		   << hit->ref_id() << ":" << (hit->antisense_align() ? "-" : "+") << " " << (int)hit->edit_dist() << endl
+		   << hit->left() << "-" << hit->right() << endl
+		   << hit->seq() << endl << endl;
+#endif
+	    }
+	}
+    }
+#endif
+
+
+  size_t first_segment = 0;
+
+  if (last_segment == first_segment &&
+      (hits_for_read[first_segment].hits.empty() || hits_for_read[first_segment].hits[0].end()))
+    return;
+
+  uint32_t insert_id = hits_for_read[last_segment].insert_id;
+  
+  HitsForRead partner_hit_group;
+  uint32_t next_order = partner_hit_stream.next_group_id();
+
+  bool has_partner = false;
+  while (insert_id >= next_order && next_order != 0)
+    {
+      partner_hit_stream.next_read_hits(partner_hit_group);
+      next_order = partner_hit_stream.next_group_id();
+    }
+  
+  has_partner = insert_id == partner_hit_group.insert_id;
+
+  if (!has_partner)
+    {
+      next_order = seg_partner_hit_stream.next_group_id();
+      while (insert_id >= next_order && next_order != 0)
+	{
+	  seg_partner_hit_stream.next_read_hits(partner_hit_group);
+	  next_order = seg_partner_hit_stream.next_group_id();
+	}
+      
+      has_partner = insert_id == partner_hit_group.insert_id;
+    }
+
+  char read_name[1024];
+  char read_seq[1024];
+  char read_alt_name[1024];
+  char read_quals[1024];
+  
+  /*
+   * Need to identify the appropriate insert id for this group of reads
+   */
+
+  Read read;
+  bool got_read = reads_file.getRead(hits_for_read[last_segment].insert_id, read);
+  if (!got_read)
+    return;
+
+  HitsForRead partner_hits_for_read;
+  if (first_segment != last_segment)
+    partner_hits_for_read = hits_for_read[last_segment];
+  
+  HitsForRead& left_segment_hits = hits_for_read[first_segment];
+  HitsForRead& right_segment_hits = partner_hits_for_read;
+
+  seqan::String<char> fullRead, rcRead;
+  fullRead = read_seq;
+  rcRead = read_seq;
+  seqan::convertInPlace(rcRead, seqan::FunctorComplement<Dna>());
+  seqan::reverseInPlace(rcRead);
+
+  size_t read_length = seqan::length(fullRead);
+
+  // daehwan
+  bool check_partner = true;
+  if (first_segment != last_segment)
+    {
+      for (size_t i = 0; i < left_segment_hits.hits.size(); ++i)
+	{
+	  BowtieHit& leftHit = left_segment_hits.hits[i];	  
+	  for (size_t j = 0; j < right_segment_hits.hits.size(); ++j)
+	    {
+	      BowtieHit& rightHit = right_segment_hits.hits[j];
+
+	      if (leftHit.ref_id() == rightHit.ref_id() && leftHit.antisense_align() == rightHit.antisense_align())
+		{
+		  int dist = 0;
+		  if (leftHit.antisense_align())
+		    dist = leftHit.left() - rightHit.right();
+		  else
+		    dist = rightHit.left() - leftHit.right();
+
+		  if (dist > -max_insertion_length && dist <= (int)fusion_min_dist)
+		    {
+		      check_partner = false;
+		      break;
+		    }
+		}
+	    }
+
+	  if (!check_partner)
+	    break;
+	}
+    }
+
+  if (check_partner && has_partner)
+    {
+      for (size_t l = 0; l < left_segment_hits.hits.size(); ++l)
+	{
+	  BowtieHit& leftHit = left_segment_hits.hits[l];
+	  for (size_t r = 0; r < partner_hit_group.hits.size(); ++r)
+	    {
+	      BowtieHit& rightHit = partner_hit_group.hits[r];
+	      
+	      if (leftHit.ref_id() == rightHit.ref_id())
+		{
+		  if (leftHit.antisense_align() != rightHit.antisense_align())
+		    {
+		      int dist = 0;
+		      if (leftHit.antisense_align())
+			dist = leftHit.left() - rightHit.right();
+		      else
+			dist = rightHit.left() - leftHit.right();
+		      
+		      if (dist > (int)inner_dist_mean - (int)inner_dist_std_dev && dist <= (int)fusion_min_dist)
+			continue;
+		    }
+		}
+
+	      RefSequenceTable::Sequence* ref_str = rt.get_seq(rightHit.ref_id());
+
+	      const size_t part_seq_len = inner_dist_std_dev > inner_dist_mean ? inner_dist_std_dev - inner_dist_mean : 0;
+	      const size_t flanking_seq_len = inner_dist_mean + inner_dist_std_dev;
+	      
+	      Dna5String right_flanking_seq;
+	      size_t left = 0;
+	      if (rightHit.antisense_align())
+		{
+		  if (flanking_seq_len <= rightHit.left())
+		    {
+		      left = rightHit.left() - flanking_seq_len;
+		      right_flanking_seq = seqan::infix(*ref_str, left, left + flanking_seq_len + part_seq_len);
+		    }
+		  else
+		    break;
+		}
+	      else
+		{
+		  if (part_seq_len <= rightHit.right())
+		    {
+		      left = rightHit.right() - part_seq_len;
+		      right_flanking_seq = seqan::infix(*ref_str, left, left + flanking_seq_len + part_seq_len);
+		    }
+		  else
+		    break;
+		}
+
+	      const size_t check_read_len = min(15, segment_length - segment_mismatches - 3);
+	      seqan::String<char> fwd_read = infix(fullRead, read_length - check_read_len, read_length);
+	      seqan::String<char> rev_read = infix(rcRead, 0, check_read_len);
+
+	      int fwd_pos = map_read_to_contig(right_flanking_seq, fwd_read);
+
+	      if (fwd_pos >= 0)
+		{
+		  BowtieHit hit(rightHit.ref_id(), rightHit.ref_id(), rightHit.insert_id(),
+				left + fwd_pos, check_read_len, false, 0, true);
+		  
+		  right_segment_hits.hits.push_back(hit);
+		}
+	      
+	      int rev_pos = map_read_to_contig(right_flanking_seq, rev_read);
+
+	      if (rev_pos >= 0)
+		{
+		  BowtieHit hit(rightHit.ref_id(), rightHit.ref_id(), rightHit.insert_id(),
+				left + rev_pos, check_read_len, true, 0, true);
+		  
+		  right_segment_hits.hits.push_back(hit);
+		}
+
+	      // daehwan
+#if 0
+	      if (fwd_pos >= 0 || rev_pos >= 0)
+		{
+		  // if (leftHit.insert_id() == 409048 || leftHit.insert_id() == 4341516)
+		    {
+		      cout << "insert id: " << leftHit.insert_id() << endl
+			   << "fwd: " << fwd_read << " " << fwd_pos << endl
+			   << "rev: " << rev_read << " " << rev_pos << endl
+			   << "ref: " << right_flanking_seq << endl;
+		    }
+		}
+#endif
+	    }
+	}
+    }
+
+  static const uint32_t chrM_id = RefSequenceTable::hash_string("chrM");
+  for (size_t left_segment_index = 0; left_segment_index < left_segment_hits.hits.size(); ++left_segment_index)
+    {
+      for (size_t right_segment_index = 0; right_segment_index < right_segment_hits.hits.size(); ++right_segment_index)
+	{
+	  BowtieHit* leftHit = &left_segment_hits.hits[left_segment_index];
+	  BowtieHit* rightHit = &right_segment_hits.hits[right_segment_index];
+
+	  // daehwan
+	  if (leftHit->ref_id() == chrM_id || rightHit->ref_id() == chrM_id)
+	    continue;
+
+	  // daehwan
+#if 0
+	  if (leftHit->ref_id() == rightHit->ref_id() && leftHit->ref_id() == 1119738090)
+	    {
+	      const uint32_t left1 = 113951556, right1 = 113977987, left2 = 113548692, right2 = 113754053;
+	      if ((leftHit->left() >= left1 && leftHit->left() <= right1 && rightHit->left() >= left2 && rightHit->left() <= right2) ||
+		  (leftHit->left() >= left2 && leftHit->left() <= right2 && rightHit->left() >= left1 && rightHit->left() <= right1))
+		{
+		  cout << "insert id: " << leftHit->insert_id() << "\t num hits: " << left_segment_hits.hits.size() << ":" << right_segment_hits.hits.size() << endl
+		       << leftHit->ref_id() << ":" << (leftHit->antisense_align() ? "-" : "+") << " " << (int)leftHit->edit_dist() <<endl
+		       << leftHit->left() << "-" << leftHit->right() << endl
+		       << rightHit->ref_id() << ":" << (rightHit->antisense_align() ? "-" : "+") << " " << (int)rightHit->edit_dist() << endl
+		       << rightHit->left() << "-" << rightHit->right() << endl << endl;
+		}
+	    }
+#endif
+
+	  if (leftHit->ref_id() == rightHit->ref_id())
+	    {
+	      if (leftHit->antisense_align() == rightHit->antisense_align())
+		{
+		  int dist = 0;
+		  if (leftHit->antisense_align())
+		    dist = leftHit->left() - rightHit->right();
+		  else
+		    dist = rightHit->left() - leftHit->right();
+
+		  if (dist >= 0 && dist <= (int)fusion_min_dist)
+		    continue;
+		}
+	    }
+	  
+	  uint32_t dir = FUSION_FF;
+	  seqan::String<char>* modifiedRead = &fullRead;
+
+	  if (leftHit->antisense_align() == rightHit->antisense_align())
+	    {
+	      if (leftHit->antisense_align())
+		{
+		  BowtieHit * tmp = leftHit;
+		  leftHit = rightHit;
+		  rightHit = tmp;
+		  modifiedRead = &rcRead;
+		}
+	    }
+	  else if (leftHit->antisense_align() == false && rightHit->antisense_align() == true)
+	      dir = FUSION_FR;
+	  else
+	      dir = FUSION_RF;
+
+	  detect_fusion(rt, *modifiedRead, *leftHit, *rightHit, fusions, dir);
+	}
+    }
 }
 
 void find_gaps(RefSequenceTable& rt,
@@ -2936,8 +3455,8 @@ void find_gaps(RefSequenceTable& rt,
             int fwd_pos = map_read_to_contig(right_flanking_seq, fwd_read);
             if (fwd_pos >= 0)
         {
-          BowtieHit hit(rightHit.ref_id(), rightHit.insert_id(),
-              left + fwd_pos, check_read_len, false, 0, true);
+          BowtieHit hit(rightHit.ref_id(), rightHit.ref_id2(), rightHit.insert_id(),
+			left + fwd_pos, check_read_len, false, 0, true);
 
           hits_for_read[last_segment].hits.push_back(hit);
         }
@@ -2946,8 +3465,8 @@ void find_gaps(RefSequenceTable& rt,
 
             if (rev_pos >= 0)
         {
-          BowtieHit hit(rightHit.ref_id(), rightHit.insert_id(),
-              left + rev_pos, check_read_len, true, 0, true);
+          BowtieHit hit(rightHit.ref_id(), rightHit.ref_id2(), rightHit.insert_id(),
+			left + rev_pos, check_read_len, true, 0, true);
 
           hits_for_read[last_segment].hits.push_back(hit);
         }
@@ -3295,205 +3814,241 @@ void look_for_hit_group(RefSequenceTable& rt,
 			ReadStream& readstream,
 			ReadStream& readstream_for_segment_search,
 			ReadStream& readstream_for_indel_discovery,
+			ReadStream& readstream_for_fusion_discovery,
 			ReadTable& unmapped_reads,
 			vector<HitStream>& seg_files,
 			int curr_file,
 			uint64_t insert_id,
 			vector<HitsForRead>& hits_for_read, //<-- collecting segment hits for this read
-			HitStream& partner_hit_stream,
-			HitStream& seg_partner_hit_stream,
+			HitStream& partner_hit_stream_for_segment_search,
+			HitStream& seg_partner_hit_stream_for_segment_search,
+			HitStream& partner_hit_stream_for_fusion_discovery,
+			HitStream& seg_partner_hit_stream_for_fusion_discovery,
 			std::set<Junction, skip_count_lt>& juncs,
 			std::set<Deletion>& deletions,
 			std::set<Insertion>& insertions,
+			FusionSimpleSet& fusions,
 			eREAD read_side,
 			uint32_t begin_id,
 			uint32_t end_id)
-
 {
   HitStream& hit_stream = seg_files[curr_file];
   HitsForRead hit_group;
   uint32_t order = unmapped_reads.observation_order(insert_id);
   int seq_key_len = min((int)min_anchor_len, 6);
   while(true) {
-	uint64_t next_group_id = hit_stream.next_group_id();
-	uint32_t next_order = unmapped_reads.observation_order(next_group_id);
-	  // If we would have seen the hits by now, stop looking in this stream,
-	  // but forward the search to the next (lower) segment if possible.
-	if (order < next_order || next_group_id == 0) {
-		 if (curr_file > 0) {
-		   //look for next (lower) segment mappings for this read
-			 look_for_hit_group(rt,
-					    readstream,
-					    readstream_for_segment_search,
-					    readstream_for_indel_discovery,
-					    unmapped_reads,
-					    seg_files,
-					    curr_file - 1,
-					    insert_id,
-					    hits_for_read,
-					    partner_hit_stream,
-					    seg_partner_hit_stream,
-					    juncs,
-					    deletions,
-					    insertions,
-					    read_side,
-					    begin_id,
-					    end_id);
-			  }
-		 else
-		   if (insert_id && !no_microexon_search) {
-			  //microexon search
-		     Read read;
-			  // The hits are missing for the leftmost segment, which means
-			  // we should try looking for junctions via seed and extend
-			  // using it (helps find junctions to microexons).
-			  /* bool got_read = get_read_from_stream(insert_id,
-					readstream.file,
-					FASTQ,
-					false,
-					read); */
-        bool got_read = readstream.getRead(insert_id, read);
-			  if (!got_read) {
-				  //fprintf(stderr, "Warning: could not get read with insert_id=%d\n", (int)insert_id);
-          //break; //exit loop
-			    err_die("Error: could not get read with insert_id=%d from file %s\n",
-			        (int)insert_id, readstream.filename());
-				  }
-			  string fwd_read = read.seq;
-			  if (color) // remove the primer and the adjacent color
-				 fwd_read.erase(0, 2);
-			  // make sure there are hits for all the other segs, all the
-			  // way to the root (right-most) one.
-			  int empty_seg = 0;
-			  for (size_t h = 1; h < hits_for_read.size(); ++h) {
-					   if (hits_for_read[h].hits.empty())
-						empty_seg = h;
-						}
-			  // if not, no microexon alignment for this segment
-			  if (empty_seg != 0)
-				  break;
-			  fwd_read = fwd_read.substr(0, segment_length);
-			  string rev_read = fwd_read;
-			  //check the reverse
-			  if (color) reverse(rev_read.begin(), rev_read.end());
-					else reverse_complement(rev_read);
-			  for (size_t h = 0; h < hits_for_read[empty_seg + 1].hits.size(); ++h) {
-				  const BowtieHit& bh = hits_for_read[empty_seg + 1].hits[h];
-				  RefSequenceTable::Sequence* ref_str = rt.get_seq(bh.ref_id());
-				  if (ref_str == NULL)
-					 continue;
-				  int ref_len = length(*ref_str);
-				  int left_boundary;
-				  int right_boundary;
-				  bool antisense = bh.antisense_align();
-				  vector<BowtieHit> empty_seg_hits;
-				  seed_alignments++;
-				  if (antisense) {
-					  left_boundary = max(0, bh.right() - (int)min_anchor_len);
-					  right_boundary = min(ref_len - 2,
-						 left_boundary +  max_microexon_stretch);
-					  if (right_boundary - left_boundary < 2 * seq_key_len)
-						  continue;
-					  microaligned_segs++;
-					  add_to_microexon_windows(bh.ref_id(), left_boundary, right_boundary, rev_read, read_side); 
-					  }
-				  else {
-					  right_boundary = min(ref_len - 2,
-						 bh.left() + (int)min_anchor_len);
-					  left_boundary = max(0, right_boundary -  max_microexon_stretch);
-					  if (right_boundary - left_boundary < 2 * seq_key_len)
-						  continue;
-					  microaligned_segs++;
-					  add_to_microexon_windows(bh.ref_id(), left_boundary, right_boundary, fwd_read, read_side);  
-					  }
-				  } //for h
-		   } // !no_microexon_search
-		 break;
-		 }
-	else if (hit_stream.next_read_hits(hit_group)) {
-		 // if we found hits for the target group in the left stream,
-		 // add them to the accumulating vector and continue the search
-		 if (hit_group.insert_id == insert_id) {
-			hits_for_read[curr_file] = hit_group;
-			if (curr_file > 0)
-			  // we need to look left (recursively) for the group we 
-			  // just read for this stream.
-			  look_for_hit_group(rt,
-					     readstream,
-					     readstream_for_segment_search,
-					     readstream_for_indel_discovery,
-					     unmapped_reads,
-					     seg_files,
-					     curr_file - 1,
-					     insert_id,
-					     hits_for_read,
-					     partner_hit_stream,
-					     seg_partner_hit_stream,
-					     juncs,
-					     deletions,
-					     insertions,
-					     read_side,
-					     begin_id,
-					     end_id);
-			break;
-			} //same insert_id (group)
-		 else if (curr_file > 0) {
-			// different group, we need to start a whole new 
-			// search for it, with a whole new vector of hits.
-			vector<HitsForRead> hits_for_new_read(seg_files.size());
-			hits_for_new_read[curr_file] = hit_group;
-			look_for_hit_group(rt,
-					   readstream,
-					   readstream_for_segment_search,
-					   readstream_for_indel_discovery,
-					   unmapped_reads,
-					   seg_files,
-					   curr_file - 1,
-					   hit_group.insert_id,
-					   hits_for_new_read,
-					   partner_hit_stream,
-					   seg_partner_hit_stream,
-					   juncs,
-					   deletions,
-					   insertions,
-					   read_side,
-					   begin_id,
-					   end_id);
+    uint64_t next_group_id = hit_stream.next_group_id();
+    uint32_t next_order = unmapped_reads.observation_order(next_group_id);
+    // If we would have seen the hits by now, stop looking in this stream,
+    // but forward the search to the next (lower) segment if possible.
+    if (order < next_order || next_group_id == 0) {
+      if (curr_file > 0) {
+	//look for next (lower) segment mappings for this read
+	look_for_hit_group(rt,
+			   readstream,
+			   readstream_for_segment_search,
+			   readstream_for_indel_discovery,
+			   readstream_for_fusion_discovery,
+			   unmapped_reads,
+			   seg_files,
+			   curr_file - 1,
+			   insert_id,
+			   hits_for_read,
+			   partner_hit_stream_for_segment_search,
+			   seg_partner_hit_stream_for_segment_search,
+			   partner_hit_stream_for_fusion_discovery,
+			   seg_partner_hit_stream_for_fusion_discovery,
+			   juncs,
+			   deletions,
+			   insertions,
+			   fusions,
+			   read_side,
+			   begin_id,
+			   end_id);
+      }
+      else
+	if (insert_id && !no_microexon_search) {
+	  //microexon search
+	  Read read;
+	  // The hits are missing for the leftmost segment, which means
+	  // we should try looking for junctions via seed and extend
+	  // using it (helps find junctions to microexons).
+	  /* bool got_read = get_read_from_stream(insert_id,
+	     readstream.file,
+	     FASTQ,
+	     false,
+	     read); */
+	  bool got_read = readstream.getRead(insert_id, read);
+	  if (!got_read) {
+	    //fprintf(stderr, "Warning: could not get read with insert_id=%d\n", (int)insert_id);
+	    //break; //exit loop
+	    err_die("Error: could not get read with insert_id=%d from file %s\n",
+		    (int)insert_id, readstream.filename());
+	  }
+	  string fwd_read = read.seq;
+	  if (color) // remove the primer and the adjacent color
+	    fwd_read.erase(0, 2);
+	  // make sure there are hits for all the other segs, all the
+	  // way to the root (right-most) one.
+	  int empty_seg = 0;
+	  for (size_t h = 1; h < hits_for_read.size(); ++h) {
+	    if (hits_for_read[h].hits.empty())
+	      empty_seg = h;
+	  }
+	  // if not, no microexon alignment for this segment
+	  if (empty_seg != 0)
+	    break;
+	  fwd_read = fwd_read.substr(0, segment_length);
+	  string rev_read = fwd_read;
+	  //check the reverse
+	  if (color) reverse(rev_read.begin(), rev_read.end());
+	  else reverse_complement(rev_read);
+	  for (size_t h = 0; h < hits_for_read[empty_seg + 1].hits.size(); ++h) {
+	    const BowtieHit& bh = hits_for_read[empty_seg + 1].hits[h];
+	    RefSequenceTable::Sequence* ref_str = rt.get_seq(bh.ref_id());
+	    if (ref_str == NULL)
+	      continue;
+	    int ref_len = length(*ref_str);
+	    int left_boundary;
+	    int right_boundary;
+	    bool antisense = bh.antisense_align();
+	    vector<BowtieHit> empty_seg_hits;
+	    seed_alignments++;
+	    if (antisense) {
+	      left_boundary = max(0, bh.right() - (int)min_anchor_len);
+	      right_boundary = min(ref_len - 2,
+				   left_boundary +  max_microexon_stretch);
+	      if (right_boundary - left_boundary < 2 * seq_key_len)
+		continue;
+	      microaligned_segs++;
+	      add_to_microexon_windows(bh.ref_id(), left_boundary, right_boundary, rev_read, read_side); 
+	    }
+	    else {
+	      right_boundary = min(ref_len - 2,
+				   bh.left() + (int)min_anchor_len);
+	      left_boundary = max(0, right_boundary -  max_microexon_stretch);
+	      if (right_boundary - left_boundary < 2 * seq_key_len)
+		continue;
+	      microaligned_segs++;
+	      add_to_microexon_windows(bh.ref_id(), left_boundary, right_boundary, fwd_read, read_side);  
+	    }
+	  } //for h
+	} // !no_microexon_search
+      break;
+    }
+    else if (hit_stream.next_read_hits(hit_group)) {
+      // if we found hits for the target group in the left stream,
+      // add them to the accumulating vector and continue the search
+      if (hit_group.insert_id == insert_id) {
+	hits_for_read[curr_file] = hit_group;
+	if (curr_file > 0)
+	  // we need to look left (recursively) for the group we 
+	  // just read for this stream.
+	  look_for_hit_group(rt,
+			     readstream,
+			     readstream_for_segment_search,
+			     readstream_for_indel_discovery,
+			     readstream_for_fusion_discovery,
+			     unmapped_reads,
+			     seg_files,
+			     curr_file - 1,
+			     insert_id,
+			     hits_for_read,
+			     partner_hit_stream_for_segment_search,
+			     seg_partner_hit_stream_for_segment_search,
+			     partner_hit_stream_for_fusion_discovery,
+			     seg_partner_hit_stream_for_fusion_discovery,
+			     juncs,
+			     deletions,
+			     insertions,
+			     fusions,
+			     read_side,
+			     begin_id,
+			     end_id);
+	break;
+      } //same insert_id (group)
+      else if (curr_file >= 0) {
+	// different group, we need to start a whole new 
+	// search for it, with a whole new vector of hits.
+	vector<HitsForRead> hits_for_new_read(seg_files.size());
+	hits_for_new_read[curr_file] = hit_group;
 
-			if (hit_group.insert_id >= begin_id && hit_group.insert_id < end_id)
-			  {
-			    find_insertions_and_deletions(rt,
-							  readstream_for_indel_discovery,
-							  hits_for_new_read,
-							  deletions,
-							  insertions);
-			    find_gaps(rt,
-				      readstream_for_segment_search,
-				      hits_for_new_read,
-				      partner_hit_stream,
-				      seg_partner_hit_stream,
-				      juncs,
-				      read_side);
-			  }
-			} //different group
-		 }//got next group
-	} //while loop
+	if (curr_file > 0)
+	  {
+	    look_for_hit_group(rt,
+			       readstream,
+			       readstream_for_segment_search,
+			       readstream_for_indel_discovery,
+			       readstream_for_fusion_discovery,
+			       unmapped_reads,
+			       seg_files,
+			       curr_file - 1,
+			       hit_group.insert_id,
+			       hits_for_new_read,
+			       partner_hit_stream_for_segment_search,
+			       seg_partner_hit_stream_for_segment_search,
+			       partner_hit_stream_for_fusion_discovery,
+			       seg_partner_hit_stream_for_fusion_discovery,
+			       juncs,
+			       deletions,
+			       insertions,
+			       fusions,
+			       read_side,
+			       begin_id,
+			       end_id);
+
+	    if (hit_group.insert_id >= begin_id && hit_group.insert_id < end_id)
+	      {
+		find_insertions_and_deletions(rt,
+					      readstream_for_indel_discovery,
+					      hits_for_new_read,
+					      deletions,
+					      insertions);
+		find_gaps(rt,
+			  readstream_for_segment_search,
+			  hits_for_new_read,
+			  partner_hit_stream_for_segment_search,
+			  seg_partner_hit_stream_for_segment_search,
+			  juncs,
+			  read_side);
+	      }
+	  }
+
+	if (hit_group.insert_id >= begin_id && hit_group.insert_id < end_id)
+	  {
+	    if (fusion_search)
+	      {
+		find_fusions(rt,
+			     readstream_for_fusion_discovery,
+			     hits_for_new_read,
+			     partner_hit_stream_for_fusion_discovery,
+			     seg_partner_hit_stream_for_fusion_discovery,
+			     fusions,
+			     read_side);
+	      }
+	  }
+      } //different group
+    }//got next group
+  } //while loop
 }
 
 
-
 uint64_t process_next_hit_group(RefSequenceTable& rt,
-				ReadStream&  readstream,
-				ReadStream&  readstream_for_segment_search,
-				ReadStream&  readstream_for_indel_discovery,
+				ReadStream& readstream,
+				ReadStream& readstream_for_segment_search,
+				ReadStream& readstream_for_indel_discovery,
+				ReadStream& readstream_for_fusion_discovery,
 				ReadTable& unmapped_reads,
 				vector<HitStream>& seg_files, 
 				size_t last_file_idx,
-				HitStream& partner_hit_stream,
-				HitStream& seg_partner_hit_stream,
+				HitStream& partner_hit_stream_for_segment_search,
+				HitStream& seg_partner_hit_stream_for_segment_search,
+				HitStream& partner_hit_stream_for_fusion_discovery,
+				HitStream& seg_partner_hit_stream_for_fusion_discovery,
 				std::set<Junction, skip_count_lt>& juncs,
 				std::set<Deletion>& deletions,
 				std::set<Insertion>& insertions,
+				FusionSimpleSet& fusions,
 				eREAD read,
 				uint32_t begin_id = 0,
 				uint32_t end_id = VMAXINT32)
@@ -3511,37 +4066,54 @@ uint64_t process_next_hit_group(RefSequenceTable& rt,
 		     readstream,
 		     readstream_for_segment_search,
 		     readstream_for_indel_discovery,
+		     readstream_for_fusion_discovery,
 		     unmapped_reads, 
 		     seg_files, 
 		     (int)last_file_idx - 1,
 		     hit_group.insert_id,
 		     hits_for_read,
-		     partner_hit_stream,
-		     seg_partner_hit_stream,
+		     partner_hit_stream_for_segment_search,
+		     seg_partner_hit_stream_for_segment_search,
+		     partner_hit_stream_for_fusion_discovery,
+		     seg_partner_hit_stream_for_fusion_discovery,
 		     juncs,
 		     deletions,
 		     insertions,
+		     fusions,
 		     read,
 		     begin_id,
 		     end_id);
   
-  if (result) {
-    find_insertions_and_deletions(rt,
-				  readstream_for_indel_discovery,
-				  hits_for_read,
-				  deletions,
-				  insertions);
+  if (result)
+    {
+      find_insertions_and_deletions(rt,
+				    readstream_for_indel_discovery,
+				    hits_for_read,
+				    deletions,
+				    insertions);
+      
+      if (fusion_search)
+	{
+	  find_fusions(rt,
+		       readstream_for_fusion_discovery,
+		       hits_for_read,
+		       partner_hit_stream_for_fusion_discovery,
+		       seg_partner_hit_stream_for_fusion_discovery,
+		       fusions,
+		       read);
+	}
     
-    find_gaps(rt,
-	      readstream_for_segment_search,
-	      hits_for_read,
-	      partner_hit_stream,
-	      seg_partner_hit_stream,
-	      juncs,
-	      read);
-
-    return hit_group.insert_id;
-  }
+      find_gaps(rt,
+		readstream_for_segment_search,
+		hits_for_read,
+		partner_hit_stream_for_segment_search,
+		seg_partner_hit_stream_for_segment_search,
+		juncs,
+		read);
+      
+      return hit_group.insert_id;
+    }
+  
   return 0;
 }
 
@@ -3608,7 +4180,7 @@ void pair_covered_sites(ReadTable& it,
   vector<RefSeg> expected_look_left_windows;
   vector<RefSeg> expected_look_right_windows;
   build_coverage_map(it,rt, segmap_fnames, coverage_map);
-  
+
   static const int extend = 45;
   int num_islands = 0;
   
@@ -3691,7 +4263,6 @@ struct ReadInfo
 
 void capture_island_ends(ReadTable& it,
 			 RefSequenceTable& rt,
-			 //vector<FZPipe*>& seg_files,
 			 vector<string>& segmap_fnames,
 			 std::set<Junction, skip_count_lt>& cov_juncs,
 			  map<uint32_t, vector<bool> >& coverage_map,
@@ -3716,57 +4287,57 @@ void capture_island_ends(ReadTable& it,
   BAMHitFactory hit_factory(it,rt);
   
   for (size_t f = 0; f < seg_files.size(); ++f)
+    {
+      fprintf(stderr, "Adding hits from segment file %d to coverage map\n", (int)f);
+      seg_files[f]->rewind();
+      FILE* fp = seg_files[f]->file;
+      //rewind(fp);
+      HitStream hs(fp, &hit_factory, false, false, false);
+      
+      HitsForRead hit_group;
+      while (hs.next_read_hits(hit_group))
 	{
-	  fprintf(stderr, "Adding hits from segment file %d to coverage map\n", (int)f);
-	  seg_files[f]->rewind();
-	  FILE* fp = seg_files[f]->file;
-	  //rewind(fp);
-	  HitStream hs(fp, &hit_factory, false, false, false);
-	  
-	  HitsForRead hit_group;
-	  while (hs.next_read_hits(hit_group))
-	  {
 	  for (size_t h = 0; h < hit_group.hits.size(); ++h)
+	    {
+	      BowtieHit& bh = hit_group.hits[h];
+	      // daehwan
+	      //if (check_exons) <-- DEBUG_CHECK_EXONS
+#ifdef DEBUG_RANGE_ONLY
+	      if (bh.ref_id() != chr14_id)
+		continue;
+	      
+	      // if (bh.left() < 66567028 && bh.right() > 66604392)
+	      if (bh.left() < 66400000 || bh.right() > 66700000)
+		continue;
+	      
+	      ReadInfo read_info;
+	      read_info.read_id = bh.insert_id();
+	      read_info.left = bh.left();
+	      read_info.right = bh.right();
+	      hits.push_back(read_info);
+#endif
+	      
+	      pair<map<uint32_t, vector<bool> >::iterator, bool> ret = 
+		coverage_map.insert(make_pair(bh.ref_id(), vector<bool>()));
+	      vector<bool>& ref_cov = ret.first->second;
+	      
+	      size_t right_extent = bh.right();
+	      
+	      if (right_extent >= ref_cov.size())
 		{
-		  BowtieHit& bh = hit_group.hits[h];
-		  // daehwan
-		  //if (check_exons) <-- DEBUG_CHECK_EXONS
-		  #ifdef DEBUG_RANGE_ONLY
-		     if (bh.ref_id() != chr14_id)
-		       continue;
-
-		     // if (bh.left() < 66567028 && bh.right() > 66604392)
-		     if (bh.left() < 66400000 || bh.right() > 66700000)
-		       continue;
-
-		     ReadInfo read_info;
-		     read_info.read_id = bh.insert_id();
-		     read_info.left = bh.left();
-		     read_info.right = bh.right();
-		     hits.push_back(read_info);
-		   #endif
-
-		  pair<map<uint32_t, vector<bool> >::iterator, bool> ret = 
-		     coverage_map.insert(make_pair(bh.ref_id(), vector<bool>()));
-		  vector<bool>& ref_cov = ret.first->second;
-		  
-		  size_t right_extent = bh.right();
-		  
-		  if (right_extent >= ref_cov.size())
-		   {
-		   ref_cov.resize(right_extent + 1, 0);
-		   }
-		  for (uint32_t c = (uint32_t)bh.left(); c < (uint32_t)bh.right(); ++c)
-		   {
-		   ref_cov[c] = true;
-		   }
+		  ref_cov.resize(right_extent + 1, 0);
 		}
-	  }
+	      for (uint32_t c = (uint32_t)bh.left(); c < (uint32_t)bh.right(); ++c)
+		{
+		  ref_cov[c] = true;
+		}
+	    }
 	}
-
+    }
+  
   sort(hits.begin(), hits.end());
 #endif 
-//  static const int min_cov_length = segment_length + 2;
+  //  static const int min_cov_length = segment_length + 2;
   long covered_bases = 0;
   int long_enough_bases = 0;
   int left_looking = 0;
@@ -3994,10 +4565,12 @@ struct SegmentSearchWorker
     ReadStream readstream(reads_fname);
     ReadStream readstream_for_segment_search(reads_fname);
     ReadStream readstream_for_indel_discovery(reads_fname);
+    ReadStream readstream_for_fusion_discovery(reads_fname);
 
     if (readstream.file() == NULL ||
 	readstream_for_segment_search.file() == NULL ||
-	readstream_for_indel_discovery.file() == NULL)
+	readstream_for_indel_discovery.file() == NULL ||
+      	readstream_for_fusion_discovery.file() == NULL)
       {
 	fprintf(stderr, "Error: cannot open %s for reading\n",
 		reads_fname.c_str());
@@ -4009,15 +4582,24 @@ struct SegmentSearchWorker
 	readstream.seek(read_offset);
 	readstream_for_segment_search.seek(read_offset);
 	readstream_for_indel_discovery.seek(read_offset);
+	readstream_for_fusion_discovery.seek(read_offset);
       }
     
-    HitStream partner_hit_stream(partner_reads_map_fname, &hit_factory, false, false, false);
-    HitStream seg_partner_hit_stream(seg_partner_reads_map_fname, &hit_factory, false, false, false);
+    HitStream partner_hit_stream_for_segment_search(partner_reads_map_fname, &hit_factory, false, false, false);
+    HitStream partner_hit_stream_for_fusion_discovery(partner_reads_map_fname, &hit_factory, false, false, false);
     if (partner_hit_offset > 0)
-      partner_hit_stream.seek(partner_hit_offset);
+      {
+	partner_hit_stream_for_segment_search.seek(partner_hit_offset);
+	partner_hit_stream_for_fusion_discovery.seek(partner_hit_offset);
+      }
 
+    HitStream seg_partner_hit_stream_for_segment_search(seg_partner_reads_map_fname, &hit_factory, false, false, false);
+    HitStream seg_partner_hit_stream_for_fusion_discovery(seg_partner_reads_map_fname, &hit_factory, false, false, false);
     if (seg_partner_hit_offset > 0)
-      seg_partner_hit_stream.seek(seg_partner_hit_offset);
+      {
+	seg_partner_hit_stream_for_segment_search.seek(seg_partner_hit_offset);
+	seg_partner_hit_stream_for_fusion_discovery.seek(seg_partner_hit_offset);
+      }
     
     vector<HitStream> hit_streams;
     for (size_t i = 0; i < segmap_fnames->size(); ++i)
@@ -4035,14 +4617,17 @@ struct SegmentSearchWorker
 					     readstream,
 					     readstream_for_segment_search,
 					     readstream_for_indel_discovery,
+					     readstream_for_fusion_discovery,
 					     it, 
 					     hit_streams, 
 					     hit_streams.size() - 1,
-					     partner_hit_stream,
-					     seg_partner_hit_stream,
-					     *juncs, *deletions, *insertions, read,
-					     begin_id,
-					     end_id)) != 0)
+					     partner_hit_stream_for_segment_search,
+					     seg_partner_hit_stream_for_segment_search,
+					     partner_hit_stream_for_fusion_discovery,
+					     seg_partner_hit_stream_for_fusion_discovery,
+					     *juncs, *deletions, *insertions, *fusions,
+					     read,
+					     begin_id, end_id)) != 0)
       {
 	num_group++;
 	//if (num_group % 500000 == 0)
@@ -4070,6 +4655,7 @@ struct SegmentSearchWorker
   std::set<Junction, skip_count_lt>* juncs;
   std::set<Deletion>* deletions;
   std::set<Insertion>* insertions;
+  FusionSimpleSet* fusions;
   eREAD read;
 
   uint64_t begin_id;
@@ -4081,25 +4667,46 @@ struct SegmentSearchWorker
   int64_t seg_partner_hit_offset;
 };
 
+struct SpliceJunctionCoord
+{
+  uint32_t refid;
+  int coord;
+
+  SpliceJunctionCoord(uint32_t r, int c) :
+    refid(r),
+    coord(c)
+  {}
+  
+  bool operator< (const SpliceJunctionCoord& r) const
+  {
+    if (refid < r.refid)
+      return true;
+    else if (refid == r.refid && coord < r.coord)
+      return true;
+    else
+      return false;
+  }
+};
+
 void driver(istream& ref_stream,
 	    FILE* juncs_out,
 	    FILE* insertions_out,
 	    FILE* deletions_out,
+	    FILE* fusions_out,
 	    string& left_reads_fname,
 	    string& left_reads_map_fname,
 	    vector<string>& left_segmap_fnames,
 	    string& right_reads_fname,
 	    string& right_reads_map_fname,
-	    vector<string>& right_segmap_fnames
-	    )
+	    vector<string>& right_segmap_fnames)
 {
   if (!parallel)
     num_threads = 1;
-
+  
   // turn off parallelization in case of the following search methods
   if (!no_coverage_search || !no_microexon_search || butterfly_search)
     num_threads = 1;
-
+  
   assert (num_threads > 0);
   if (left_segmap_fnames.size() == 0)
     {
@@ -4115,23 +4722,24 @@ void driver(istream& ref_stream,
   
   std::set<Deletion> vdeletions[num_threads];
   std::set<Insertion> vinsertions[num_threads];
+  FusionSimpleSet vfusions[num_threads];
   
   RefSequenceTable rt(true, true);
   
   fprintf (stderr, "Loading reference sequences...\n");
   get_seqs(ref_stream, rt, true, false);
-
+  
   string left_seg_fname_for_segment_search = left_segmap_fnames.back();
   string right_seg_fname_for_segment_search;
   if (right_segmap_fnames.size() > 0)
     right_seg_fname_for_segment_search = right_segmap_fnames.back();  
-
+  
   fprintf(stderr, ">> Performing segment-search:\n");
- 
+  
   if (left_segmap_fnames.size() > 1)
     {
       fprintf( stderr, "Loading left segment hits...\n");
-
+      
       vector<uint64_t> read_ids;
       vector<vector<int64_t> > offsets;
       vector<int64_t> partner_offsets;
@@ -4144,14 +4752,14 @@ void driver(istream& ref_stream,
 	  bool enough_data = calculate_offsets(fnames, read_ids, offsets);
 	  if (!enough_data)
 	    num_threads = 1;
-
+	  
 	  if (enough_data && right_reads_map_fname != "")
 	    calculate_offsets_from_ids(right_reads_map_fname, read_ids, partner_offsets);
-
+	  
 	  if (enough_data && right_seg_fname_for_segment_search != "")
 	    calculate_offsets_from_ids(right_seg_fname_for_segment_search, read_ids, seg_partner_offsets);
 	}
-			
+      
       vector<boost::thread*> threads;
       for (int i = 0; i < num_threads; ++i)
 	{
@@ -4164,10 +4772,11 @@ void driver(istream& ref_stream,
 	  worker.juncs = &vseg_juncs[i];
 	  worker.deletions = &vdeletions[i];
 	  worker.insertions = &vinsertions[i];
+	  worker.fusions = &vfusions[i];
 	  worker.read = READ_LEFT;
 	  worker.partner_hit_offset = 0;
 	  worker.seg_partner_hit_offset = 0;
-
+	  
 	  if (i == 0)
 	    {
 	      worker.begin_id = 0;
@@ -4184,9 +4793,9 @@ void driver(istream& ref_stream,
 	      if (seg_partner_offsets.size() > 0)
 		worker.seg_partner_hit_offset = seg_partner_offsets[i-1];
 	    }
-
+	  
 	  worker.end_id = (i+1 < num_threads) ? read_ids[i] : std::numeric_limits<uint64_t>::max();
-
+	  
 	  if (num_threads > 1)
 	    threads.push_back(new boost::thread(worker));
 	  else
@@ -4240,6 +4849,7 @@ void driver(istream& ref_stream,
 	  worker.juncs = &vseg_juncs[i];
 	  worker.deletions = &vdeletions[i];
 	  worker.insertions = &vinsertions[i];
+	  worker.fusions = &vfusions[i];
 	  worker.read = READ_RIGHT;
 	  worker.partner_hit_offset = 0;
 	  worker.seg_partner_hit_offset = 0;
@@ -4276,7 +4886,6 @@ void driver(istream& ref_stream,
 	  threads[i] = NULL;
 	}
       threads.clear();
-
       fprintf( stderr, "done.\n");
     }
 
@@ -4290,6 +4899,10 @@ void driver(istream& ref_stream,
       deletions.insert(vdeletions[i].begin(), vdeletions[i].end());
       insertions.insert(vinsertions[i].begin(), vinsertions[i].end());
     }
+
+  FusionSimpleSet fusions = vfusions[0];
+  for (int i = 1; i < num_threads; ++i)
+    merge_with(fusions, vfusions[i]);
 
   fprintf(stderr, "\tfound %ld potential split-segment junctions\n", (long int)seg_juncs.size());
   fprintf(stderr, "\tfound %ld potential small deletions\n", (long int)deletions.size());
@@ -4401,6 +5014,7 @@ void driver(istream& ref_stream,
   juncs.insert(butterfly_juncs.begin(), butterfly_juncs.end());
   
   //fprintf(stderr, "Reporting potential splice junctions...");
+  vector<SpliceJunctionCoord> splice_junction_coords;  
   for(std::set<Junction>::iterator itr = juncs.begin();
       itr != juncs.end();
       ++itr)
@@ -4413,6 +5027,9 @@ void driver(istream& ref_stream,
 	      itr->left,
 	      itr->right,
 	      itr->antisense ? '-' : '+');
+
+            splice_junction_coords.push_back(SpliceJunctionCoord(itr->refid, itr->left));
+	    splice_junction_coords.push_back(SpliceJunctionCoord(itr->refid, itr->right));
     }
 	//close all reading pipes, just to exit cleanly
   /*
@@ -4421,39 +5038,129 @@ void driver(istream& ref_stream,
        }
    */
   fprintf (stderr, "Reported %d total possible splices\n", (int)juncs.size());
+
+  sort(splice_junction_coords.begin(), splice_junction_coords.end());
   
   fprintf (stderr, "Reporting potential deletions...\n");
-	if(deletions_out){
-      for(std::set<Deletion>::iterator itr = deletions.begin(); itr != deletions.end(); ++itr){
-	const char* ref_name = rt.get_name(itr->refid);
-	/*
-	 * We fix up the left co-ordinate to reference the first deleted base
-	 */
-	fprintf(deletions_out,
-		"%s\t%d\t%d\n",
-		ref_name,
-		itr->left + 1,
-		itr->right);
-      }
-      fclose(deletions_out);
-	}else{
-      fprintf(stderr, "Failed to open deletions file for writing, no deletions reported\n");
+  if(deletions_out){
+    for(std::set<Deletion>::iterator itr = deletions.begin(); itr != deletions.end(); ++itr){
+      const char* ref_name = rt.get_name(itr->refid);
+      /*
+       * We fix up the left co-ordinate to reference the first deleted base
+       */
+      fprintf(deletions_out,
+	      "%s\t%d\t%d\n",
+	      ref_name,
+	      itr->left + 1,
+	      itr->right);
     }
+    fclose(deletions_out);
+  }else{
+    fprintf(stderr, "Failed to open deletions file for writing, no deletions reported\n");
+  }
   
   fprintf (stderr, "Reporting potential insertions...\n");
-	if(insertions_out){
-      for(std::set<Insertion>::iterator itr = insertions.begin(); itr != insertions.end(); ++itr){
-	const char* ref_name = rt.get_name(itr->refid);
-	fprintf(insertions_out,
-		"%s\t%d\t%d\t%s\n",
-		ref_name,
-		itr->left,
-		itr->left,
-		itr->sequence.c_str());
-      }
-      fclose(insertions_out);
-	}else{
-      fprintf(stderr, "Failed to open insertions file for writing, no insertions reported\n");
+  if(insertions_out){
+    for(std::set<Insertion>::iterator itr = insertions.begin(); itr != insertions.end(); ++itr){
+      const char* ref_name = rt.get_name(itr->refid);
+      fprintf(insertions_out,
+	      "%s\t%d\t%d\t%s\n",
+	      ref_name,
+	      itr->left,
+	      itr->left,
+	      itr->sequence.c_str());
+    }
+    fclose(insertions_out);
+  }else{
+    fprintf(stderr, "Failed to open insertions file for writing, no insertions reported\n");
+  }
+  fprintf (stderr, "Reporting potential fusions...\n");
+  if (fusions_out)
+    {
+      // check if a fusion point coincides with splice junctions.
+      for(FusionSimpleSet::iterator itr = fusions.begin(); itr != fusions.end(); ++itr)
+	{
+	  const Fusion& fusion = itr->first;
+	  FusionSimpleStat& fusion_stat = itr->second;
+	  
+	  bool found = binary_search(splice_junction_coords.begin(),
+				     splice_junction_coords.end(),
+				     SpliceJunctionCoord(fusion.refid1, fusion.left));
+	  if (found)
+	    fusion_stat.left_coincide_with_splice_junction = true;
+	  
+	  found = binary_search(splice_junction_coords.begin(),
+				splice_junction_coords.end(),
+				SpliceJunctionCoord(fusion.refid2, fusion.right));
+	  
+	  if (found)
+	    fusion_stat.right_coincide_with_splice_junction = true;
+	}
+      
+      for(FusionSimpleSet::iterator itr = fusions.begin(); itr != fusions.end(); ++itr)
+	{
+	  const Fusion& fusion = itr->first;
+	  const FusionSimpleStat& fusion_stat = itr->second;
+	  
+	  // compare the current fusion with the next fusion, pick up the better one.
+	  FusionSimpleSet::iterator next_itr = itr; ++next_itr;
+	  while (next_itr != fusions.end())
+	    {
+	      const Fusion& next_fusion = next_itr->first;
+	      const FusionSimpleStat& next_fusion_stat = next_itr->second;
+	      
+	      uint32_t left_diff = abs((int)fusion.left - (int)next_fusion.left);
+	      if (fusion.refid1 == next_fusion.refid1 && fusion.refid2 == next_fusion.refid2 && left_diff < 10)
+		{
+		  if (fusion.dir == next_fusion.dir && left_diff == abs((int)fusion.right - (int)next_fusion.right))
+		    {
+		      if (next_fusion_stat.count > fusion_stat.count)
+			itr->second.skip = true;
+		      else if (next_fusion_stat.count == fusion_stat.count)
+			{
+			  int curr_count = (int)fusion_stat.left_coincide_with_splice_junction + (int)fusion_stat.right_coincide_with_splice_junction;
+			  int next_count = (int)next_fusion_stat.left_coincide_with_splice_junction + (int)next_fusion_stat.right_coincide_with_splice_junction;
+			  
+			  if (curr_count < next_count)
+			    itr->second.skip = true;
+			  else
+			    next_itr->second.skip = true;
+			}
+		      else
+			next_itr->second.skip = true;
+		    }
+		  
+		  ++next_itr;
+		}
+	      else
+		break;
+	    }
+	  
+	  if (itr->second.skip)
+	    continue;
+	  
+	  const char* ref_name1 = rt.get_name(fusion.refid1);
+	  const char* ref_name2 = rt.get_name(fusion.refid2);
+	  
+	  const char* dir = "";
+	  if (fusion.dir == FUSION_FR)
+	    dir = "fr";
+	  else if(fusion.dir == FUSION_RF)
+	    dir = "rf";
+	  else if(fusion.dir == FUSION_RR)
+	    dir = "rr";
+	  else
+	    dir = "ff";
+	  
+	  fprintf(fusions_out,
+		  "%s\t%d\t%s\t%d\t%s\n",
+		  ref_name1,
+		  fusion.left,
+		  ref_name2,
+		  fusion.right,
+		  dir);
+	}
+      fclose(fusions_out);
     }
 }
 
@@ -4496,6 +5203,13 @@ int main(int argc, char** argv)
     }
 
   string deletions_file_name = argv[optind++];
+  if(optind >= argc)
+    {
+      print_usage();
+      return 1;
+    }
+
+  string fusions_file_name = argv[optind++];
   if(optind >= argc)
     {
       print_usage();
@@ -4582,6 +5296,29 @@ int main(int argc, char** argv)
   vector<string> left_segment_map_fnames;
   string left_segment_file_for_segment_search;
   tokenize(left_segment_map_file_list, ",",left_segment_map_fnames);
+  
+  FILE* fusions_file = fopen(fusions_file_name.c_str(), "w");
+  if (!fusions_file)
+    {
+      fprintf(stderr, "Error: cannot open %s for writing\n",
+              fusions_file_name.c_str());
+      exit(1);
+    }
+
+  //FILE* left_reads_file = fopen(left_reads_file_name.c_str(), "r");
+  //FILE* left_reads_file_for_indel_discovery = fopen(left_reads_file_name.c_str(),"r");
+  string unzcmd=getUnpackCmd(left_reads_file_name, false);
+  FZPipe left_reads_file(left_reads_file_name, unzcmd);
+  FZPipe left_reads_file_for_segment_search(left_reads_file_name, unzcmd);
+  FZPipe left_reads_file_for_indel_discovery(left_reads_file_name, unzcmd);
+  FILE* left_reads_file_for_fusion_discovery = fopen(left_reads_file_name.c_str(),"r");
+  if (left_reads_file.file==NULL || left_reads_file_for_segment_search.file==NULL ||
+        left_reads_file_for_indel_discovery.file==NULL || left_reads_file_for_fusion_discovery==NULL)
+    {
+      fprintf(stderr, "Error: cannot open %s for reading\n",
+	      left_reads_file_name.c_str());
+      exit(1);
+    }
 
   vector<string> right_segment_map_fnames;
   string right_segment_file_for_segment_search;
@@ -4589,13 +5326,14 @@ int main(int argc, char** argv)
     {
       tokenize(right_segment_map_file_list, ",", right_segment_map_fnames);
     }
+
   // min_cov_length=20;
   if (min_cov_length>segment_length-2) min_cov_length=segment_length-2;
-  
   driver(ref_stream, 
 	 juncs_file,
 	 insertions_file,
 	 deletions_file,
+	 fusions_file,
 	 left_reads_file_name,
 	 left_reads_map_file_name,
 	 left_segment_map_fnames, 

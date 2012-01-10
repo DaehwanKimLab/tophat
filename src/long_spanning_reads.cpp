@@ -43,9 +43,13 @@
 #include "junctions.h"
 #include "insertions.h"
 #include "deletions.h"
+#include "fusions.h"
 
 using namespace seqan;
 using namespace std;
+
+// daehwan
+bool bDebug = false;
 
 void print_usage()
 {
@@ -121,7 +125,7 @@ void look_right_for_hit_group(ReadTable& unmapped_reads,
   HitsForRead& curr_seg_hits = seg_hits_for_read[right_file];
 
   if (right_file < (int)spliced_hits.size() && right_file >= 0)
-    {
+    {    
       // Scan forward in the spliced hits file for this hit group
       HitsForRead spliced_group;
       HitsForRead curr_spliced_group;
@@ -160,21 +164,22 @@ void look_right_for_hit_group(ReadTable& unmapped_reads,
 }
 
 BowtieHit merge_chain(RefSequenceTable& rt,
-          const string& read_seq,
-          const string& read_quals,
-          std::set<Junction>& possible_juncs,
-          std::set<Insertion>& possible_insertions,
-          list<BowtieHit>& hit_chain)
+		      const string& read_seq,
+		      const string& read_quals,
+		      std::set<Junction>& possible_juncs,
+		      std::set<Insertion>& possible_insertions,
+		      std::set<Fusion>& possible_fusions,
+		      list<BowtieHit>& hit_chain,
+		      int fusion_dir = FUSION_NOTHING)
 {
   bool antisense = hit_chain.front().antisense_align();
-  uint32_t reference_id = hit_chain.front().ref_id();
   uint64_t insert_id = hit_chain.front().insert_id();
-
-  int left = hit_chain.front().left();
-
+  
+  int left = hit_chain.front().left();	
+  
   list<BowtieHit>::iterator prev_hit = hit_chain.begin();
   list<BowtieHit>::iterator curr_hit = ++(hit_chain.begin());
-
+  
   string seq;
   string qual;
   int old_read_length = 0;
@@ -191,58 +196,118 @@ BowtieHit merge_chain(RefSequenceTable& rt,
     {
       rev_read_seq = read_seq;
       reverse(rev_read_seq.begin() + 1, rev_read_seq.end());
-
+      
       rev_read_quals = read_quals;
       reverse(rev_read_quals.begin(), rev_read_quals.end());
     }
 
+  size_t num_fusions = prev_hit->fusion_opcode() == FUSION_NOTHING ? 0 : 1;
+  bool fusion_passed = false;
   while (curr_hit != hit_chain.end() && prev_hit != hit_chain.end())
     {
-      /*
-       * Note that the gap size may be negative, since left() and right() return
-       * signed integers, this will be OK.
-       */
-      int gap  = curr_hit->left() - prev_hit->right();
-      if (gap < -(int)max_insertion_length ||
-    (gap > (int)max_deletion_length &&
-     (gap < min_report_intron_length || gap > max_report_intron_length)))
-  {
-    return BowtieHit();
-  }
+      if (prev_hit->ref_id() != prev_hit->ref_id2() || prev_hit->ref_id2() != curr_hit->ref_id())
+	  fusion_passed = true;
 
+      if (prev_hit->ref_id2() != curr_hit->ref_id())
+	++num_fusions;
+      
+      if (curr_hit->fusion_opcode() != FUSION_NOTHING)
+	++num_fusions;
+
+      if (prev_hit->ref_id2() == curr_hit->ref_id())
+	{
+	  bool reversed = false;
+	  if ((fusion_dir == FUSION_FR && fusion_passed) || (fusion_dir == FUSION_RF && !fusion_passed))
+	    reversed = true;
+	  
+	  /*
+	   * Note that the gap size may be negative, since left() and right() return
+	   * signed integers, this will be OK.
+	   */
+	  int gap;
+	  if (reversed)
+	    gap = prev_hit->right() - curr_hit->left();
+	  else
+	    gap = curr_hit->left() - prev_hit->right();
+
+	  // daehwan
+	  if (bDebug)
+	    {
+	      cout << "curr left: " << curr_hit->left() << endl
+		   << "prev right: " << prev_hit->right() << endl
+		   << "gap: " << gap << endl;
+	    }
+	  
+	  if (gap < -(int)max_insertion_length ||
+	      (gap > (int)max_deletion_length && 
+	       (gap < min_report_intron_length || gap > min(max_report_intron_length, (int)fusion_min_dist))))
+	    {
+	      fusion_passed = true;
+	      ++num_fusions;
+	    }
+	}
+
+      if (num_fusions >= 2)
+	  return BowtieHit();
+      
       ++prev_hit;
       ++curr_hit;
     }
-
+  
   prev_hit = hit_chain.begin();
   curr_hit = ++(hit_chain.begin());
 
-  RefSequenceTable::Sequence* ref_str = rt.get_seq(prev_hit->ref_id());
-  if (!ref_str)
-    return BowtieHit();
-
+  // daehwan
+  if (bDebug)
+    {
+      cout << "daehwan - test" << endl;
+    }
+  
   int curr_seg_index = 1;
+  fusion_passed = false;
   while (curr_hit != hit_chain.end() && prev_hit != hit_chain.end())
     {
+      // daehwan
+      if (bDebug)
+	{
+	  cout << "daehwan - start - stitch" << endl;
+	  cout << "prev right: " << prev_hit->right() << endl;
+	  cout << "curr left: " << curr_hit->left() << endl;
+	  cout << "prev back: " << prev_hit->cigar().back().opcode << endl;
+	  cout << "curr front: " << curr_hit->cigar().front().opcode << endl;
+	  cout << "prev refs: " << prev_hit->ref_id() << "-" << prev_hit->ref_id2() << endl;
+	  cout << "curr refs: " << curr_hit->ref_id() << "-" << curr_hit->ref_id2() << endl;
+	}
+
+      if (prev_hit->fusion_opcode() != FUSION_NOTHING || prev_hit->ref_id2() != curr_hit->ref_id())
+	fusion_passed = true;
+      
       /*
        * This code is assuming that the cigar strings end and start with a match
        * While segment alignments can actually end with a junction, insertion or deletion, the hope
        * is that in those cases, the right and left ends of the alignments will correctly
        * line up, so we won't get to this bit of code
        */
-      if (prev_hit->cigar().back().opcode != MATCH || curr_hit->cigar().front().opcode != MATCH)
-  {
-    return BowtieHit();
-  }
+      if (!(prev_hit->cigar().back().opcode == MATCH || curr_hit->cigar().front().opcode == MATCH ||
+	    prev_hit->cigar().back().opcode == mATCH || curr_hit->cigar().front().opcode == mATCH))
+	{
+	  return BowtieHit();
+	}
 
+      // daehwan
+      if (bDebug)
+	{
+	  cout << "daehwan - pass - enough matched bases" << endl;
+	}
+      
       if (prev_hit->is_spliced() && curr_hit->is_spliced() && prev_hit->antisense_splice() != curr_hit->antisense_splice())
-  {
-    /*
-     * There is no way that we can splice these together into a valid
-     * alignment
-     */
-    return BowtieHit();
-  }
+	{
+	  /*
+	   * There is no way that we can splice these together into a valid
+	   * alignment
+	   */
+	  return BowtieHit();
+	}
 
       bool found_closure = false;
       /*
@@ -252,7 +317,7 @@ BowtieHit merge_chain(RefSequenceTable& rt,
       vector<CigarOp> new_cigar;
       int new_left = -1;
       int mismatch = 0;
-
+      
       /*
        * Take the length of matched bases in each segment into consideration for closures,
        * this can be a problem for reads of variable lengths.
@@ -260,458 +325,929 @@ BowtieHit merge_chain(RefSequenceTable& rt,
       int prev_right_end_match_length = prev_hit->cigar().back().length;
       int curr_left_end_match_length = curr_hit->cigar().front().length;
 
+      bool check_fusion = prev_hit->ref_id2() != curr_hit->ref_id();
 
-      if (prev_hit->right() > curr_hit->left())
-  {
-    std::set<Insertion>::iterator lb, ub;
-    /*
-     * Note, this offset is determined by the min-anchor length supplied to
-     * juncs_db, which is currently hard-coded at 3 in tophat.py
-     * as this value determines what sort of read segments
-     * should be able to align directly to the splice sequences
-     */
-    int left_boundary = prev_hit->right() - 4;
-    int right_boundary = curr_hit->left() + 4;
+      if (prev_hit->ref_id2() == curr_hit->ref_id())
+	{
+	  // daehwan
+	  if (bDebug)
+	    {
+	      cout << "daehwan - start - junction or insertion" << endl;
+	      cout << "prev right: " << prev_hit->right() << endl;
+	      cout << "curr left: " << curr_hit->left() << endl;
+	      cout << "prev refs: " << prev_hit->ref_id() << "-" << prev_hit->ref_id2() << endl;
+	      cout << "curr refs: " << curr_hit->ref_id() << "-" << curr_hit->ref_id2() << endl;
+	    }
 
-    /*
-     * Create a dummy sequence to represent the maximum possible insertion
-     */
-    std::string maxInsertedSequence = "";
-    maxInsertedSequence.resize(max_insertion_length,'A');
+	  bool reversed = false;
+	  if ((fusion_dir == FUSION_FR && fusion_passed) || (fusion_dir == FUSION_RF && !fusion_passed))
+	    reversed = true;
 
-    lb = possible_insertions.upper_bound(Insertion(reference_id, left_boundary, ""));
-    ub = possible_insertions.upper_bound(Insertion(reference_id, right_boundary, maxInsertedSequence));
+	  uint32_t reference_id = prev_hit->ref_id2();
+	  RefSequenceTable::Sequence* ref_str = rt.get_seq(reference_id);
+	  
+	  int left_boundary, right_boundary;
+	  if (reversed)
+	    {
+	      left_boundary = curr_hit->left() - 4;
+	      right_boundary = prev_hit->right() + 4;
+	    }
+	  else
+	    {
+	      left_boundary = prev_hit->right() - 4;
+	      right_boundary = curr_hit->left() + 4;
+	    }
 
-    int reference_mismatch = 0;
-    while (lb != ub && lb != possible_insertions.end())
-      {
-        /*
-         * In the following code, we will check to make sure that the segments have the proper
-         * separation and sequence for the insertions, and generate the appropriate merged bowtie hit
-         * In general, reads with insertions must match the inserted sequence exactly.
-         */
-        if (((int)lb->sequence.size()) == (prev_hit->right() - curr_hit->left()))
-    {
-      /*
-       * Check we have enough matched bases on prev or curr segment.
-       */
-      int insert_to_prev_right = prev_hit->right() - lb->left - 1;
-      int curr_left_to_insert = lb->left - curr_hit->left() + 1;
-      if (insert_to_prev_right > prev_right_end_match_length || curr_left_to_insert > curr_left_end_match_length)
-        {
-          ++lb;
-          continue;
-        }
+	  int dist_btw_two;
+	  if (reversed)
+	    dist_btw_two = prev_hit->right() - curr_hit->left();
+	  else
+	    dist_btw_two = curr_hit->left() - prev_hit->right();
 
-      /*
-       * Keep track of how many mismatches were made to the genome in the region
-       * where we should actually be matching against the insertion
-       */
-      int this_reference_mismatch = 0;
-      int insertion_mismatch = 0;
-      int insertion_len = lb->sequence.length();
-      const seqan::Dna5String insertionSequence = seqan::Dna5String(lb->sequence);
+	  if (dist_btw_two < 0 && dist_btw_two >= -max_insertion_length && prev_hit->antisense_align2() == curr_hit->antisense_align())
+	    {
+	      std::set<Insertion>::iterator lb, ub;
+	      
+	      /*
+	       * Create a dummy sequence to represent the maximum possible insertion
+	       */
+	      std::string maxInsertedSequence = "";
+	      maxInsertedSequence.resize(max_insertion_length,'A');
 
-      /*
-       * First check to see if we need to adjust number of observed errors for the left (prev)
-       * hit. This is only the case if this segment runs into the insertion. To be consistent
-       * with bwt_map.cpp, we will not allow a segment to have errors in the insertion region
-       */
-      string colorSegmentSequence_prev;
-      if (insert_to_prev_right > 0)
-        {
-          const seqan::Dna5String referenceSequence = seqan::infix(*ref_str, lb->left + 1, prev_hit->right());
-          const seqan::Dna5String oldSegmentSequence = seqan::Dna5String(prev_hit->seq().substr(prev_hit->seq().length() - insert_to_prev_right));
+	      lb = possible_insertions.upper_bound(Insertion(reference_id, left_boundary, ""));
+	      ub = possible_insertions.upper_bound(Insertion(reference_id, right_boundary, maxInsertedSequence));	
+	      
+	      int reference_mismatch = 0;
+	      
+	      while (lb != ub && lb != possible_insertions.end())
+		{
+		  /*
+		   * In the following code, we will check to make sure that the segments have the proper
+		   * separation and sequence for the insertions, and generate the appropriate merged bowtie hit
+		   * In general, reads with insertions must match the inserted sequence exactly.
+		   */
+		  if (((int)lb->sequence.size()) == (reversed ? curr_hit->left() - prev_hit->right() : prev_hit->right() - curr_hit->left()))
+		    {
+		      /*
+		       * Check we have enough matched bases on prev or curr segment.
+		       */
+		      int insert_to_prev_right, curr_left_to_insert;
+		      if (reversed)
+			{
+			  insert_to_prev_right = lb->left - prev_hit->right();
+			  curr_left_to_insert = curr_hit->left() - lb->left;
+			}
+		      else
+			{
+			  insert_to_prev_right = prev_hit->right() - lb->left - 1;
+			  curr_left_to_insert = lb->left - curr_hit->left() + 1;
+			}
 
-          if (color)
-      {
-        string color;
+		      if (insert_to_prev_right > prev_right_end_match_length || curr_left_to_insert > curr_left_end_match_length)
+			{
+			  ++lb;
+			  continue;
+			}
 
-        if (antisense)
-            color = rev_read_seq.substr(rev_read_seq.length() - (curr_seg_index * segment_length) - insert_to_prev_right - 2, insert_to_prev_right + 1);
-        else
-            color = read_seq.substr(curr_seg_index * segment_length - insert_to_prev_right, insert_to_prev_right + 1);
+		      // daehwan
+		      if (bDebug)
+			{
+			  cout << "insert_to_prev_right: " << insert_to_prev_right << endl;
+			  cout << "curr_left_to_insert: " << curr_left_to_insert << endl;
+			  cout << "curr_seg_index: " << curr_seg_index << endl;
+			}
+		      
+		      /*
+		       * Keep track of how many mismatches were made to the genome in the region
+		       * where we should actually be matching against the insertion
+		       */
+		      int this_reference_mismatch = 0;
+		      int insertion_mismatch = 0;
+		      int insertion_len = lb->sequence.length();
+		      seqan::Dna5String insertionSequence = seqan::Dna5String(lb->sequence);
+		      if (reversed)
+			{
+			  seqan::convertInPlace(insertionSequence, seqan::FunctorComplement<seqan::Dna>());
+			  seqan::reverseInPlace(insertionSequence);
+			}
+		      
+		      /*
+		       * First check to see if we need to adjust number of observed errors for the left (prev)
+		       * hit. This is only the case if this segment runs into the insertion. To be consistent
+		       * with bwt_map.cpp, we will not allow a segment to have errors in the insertion region
+		       */
+		      string colorSegmentSequence_prev;
+		      if (insert_to_prev_right > 0)
+			{
+			  seqan::Dna5String referenceSequence, oldSegmentSequence;
 
-        color[0] = prev_hit->seq()[segment_length - insert_to_prev_right - 1];
-        colorSegmentSequence_prev = convert_color_to_bp(color);
-      }
+			  if (reversed)
+			    {
+			      referenceSequence = seqan::infix(*ref_str, prev_hit->right() + 1, lb->left + 1);
+			      seqan::convertInPlace(referenceSequence, seqan::FunctorComplement<seqan::Dna>());
+			      seqan::reverseInPlace(referenceSequence);
 
-          const seqan::Dna5String newSegmentSequence = color ? colorSegmentSequence_prev : oldSegmentSequence;
+			      string temp;
 
-          /*
-           * Scan right in the read until we run out of read
-           */
-          for (int read_index = 0; read_index < insert_to_prev_right; ++read_index)
-      {
-        /*
-         * Any mismatch to the insertion is a failure
-         */
-        if (referenceSequence[read_index] == 'N' || referenceSequence[read_index] != oldSegmentSequence[read_index])
-          {
-            ++this_reference_mismatch;
-          }
+			      // daehwan
+			      if (bDebug)
+				{
+				  cout << "reversed: " << read_seq.length() << " " << read_seq << endl;
+				}
+			      
+			      temp = read_seq.substr(curr_seg_index * segment_length - insert_to_prev_right, insert_to_prev_right);
+			      oldSegmentSequence = seqan::Dna5String(temp);
+			    }
+			  else
+			    {
+			      referenceSequence = seqan::infix(*ref_str, lb->left + 1, prev_hit->right());
 
-        if (read_index < insertion_len)
-          {
-            if (insertionSequence[read_index] == 'N' || insertionSequence[read_index] != newSegmentSequence[read_index])
-        {
-          ++insertion_mismatch;
-          break;
-        }
-          }
-        else
-          {
-            if (referenceSequence[read_index - insertion_len] == 'N' ||
-          referenceSequence[read_index - insertion_len] != newSegmentSequence[read_index])
-        {
-          --this_reference_mismatch;
-        }
-          }
-      }
-        }
+			      // daehwan
+			      if (bDebug)
+				{
+				  cout << "non-reversed: " << prev_hit->seq() << endl;
+				}
 
-      string colorSegmentSequence_curr;
-      if (curr_left_to_insert > 0)
-        {
-          const seqan::Dna5String referenceSequence = seqan::infix(*ref_str, curr_hit->left(), lb->left + 1);
-          const seqan::Dna5String oldSegmentSequence = seqan::Dna5String(curr_hit->seq().substr(0, curr_left_to_insert));
+			      oldSegmentSequence = seqan::Dna5String(prev_hit->seq().substr(prev_hit->seq().length() - insert_to_prev_right));
+			    }
+			  
+			  if (color)
+			    {
+			      string color;
+			      
+			      if (antisense)
+				color = rev_read_seq.substr(rev_read_seq.length() - (curr_seg_index * segment_length) - insert_to_prev_right - 2, insert_to_prev_right + 1);
+			      else
+				color = read_seq.substr(curr_seg_index * segment_length - insert_to_prev_right, insert_to_prev_right + 1);
+			      
+			      color[0] = prev_hit->seq()[segment_length - insert_to_prev_right - 1];
+			      colorSegmentSequence_prev = convert_color_to_bp(color);
+			    }
+			  
+			  const seqan::Dna5String newSegmentSequence = color ? colorSegmentSequence_prev : oldSegmentSequence;
 
-          if (color)
-      {
-        string color;
-        if (antisense)
-            color = rev_read_seq.substr(rev_read_seq.length() - (curr_seg_index * segment_length), curr_left_to_insert);
-        else
-            color = read_seq.substr(curr_seg_index * segment_length + 2, curr_left_to_insert);
+			  // daehwan
+			  if (bDebug)
+			    {
+			      cout << "ref: " << referenceSequence << endl;
+			      cout << "old: " << oldSegmentSequence << endl;
+			      cout << "ins: " << insertionSequence << endl;
+			    }
+			  
+			  /*
+			   * Scan right in the read until we run out of read
+			   */
+			  for (int read_index = 0; read_index < insert_to_prev_right; ++read_index)
+			    { 
+			      /*  
+			       * Any mismatch to the insertion is a failure
+			       */
+			      if (referenceSequence[read_index] == 'N' || referenceSequence[read_index] != oldSegmentSequence[read_index])
+				{
+				  ++this_reference_mismatch;
+				}
+			      
+			      if (read_index < insertion_len)
+				{
+				  if (insertionSequence[read_index] == 'N' || insertionSequence[read_index] != newSegmentSequence[read_index])
+				    {
+				      ++insertion_mismatch;
+				      break;
+				    }
+				}
+			      else
+				{
+				  if (referenceSequence[read_index - insertion_len] == 'N' ||
+				      referenceSequence[read_index - insertion_len] != newSegmentSequence[read_index])
+				    {
+				      --this_reference_mismatch;
+				    }
+				}
+			    }
+			}
+		      
+		      string colorSegmentSequence_curr;
+		      if (curr_left_to_insert > 0)
+			{
+			  seqan::Dna5String referenceSequence, oldSegmentSequence;
+			  if (reversed)
+			    {
+			      referenceSequence = seqan::infix(*ref_str, lb->left + 1, curr_hit->left() + 1);
+			      seqan::convertInPlace(referenceSequence, seqan::FunctorComplement<seqan::Dna>());
+			      seqan::reverseInPlace(referenceSequence);
 
-        color.push_back(curr_hit->seq()[curr_left_to_insert]);
-        reverse(color.begin(), color.end());
-        string bp = convert_color_to_bp(color);
-        reverse(bp.begin(), bp.end());
-        colorSegmentSequence_curr = bp;
-      }
+			      string temp = read_seq.substr(curr_seg_index * segment_length, curr_left_to_insert);
+			      oldSegmentSequence = seqan::Dna5String(temp);
+			    }
+			  else
+			    {
+			      referenceSequence = seqan::infix(*ref_str, curr_hit->left(), lb->left + 1);
+			      oldSegmentSequence = seqan::Dna5String(curr_hit->seq().substr(0, curr_left_to_insert));
+			    }
+			  
+			  if (color)
+			    {
+			      string color;
+			      if (antisense)
+				color = rev_read_seq.substr(rev_read_seq.length() - (curr_seg_index * segment_length), curr_left_to_insert);
+			      else
+				color = read_seq.substr(curr_seg_index * segment_length + 2, curr_left_to_insert);
+			      
+			      color.push_back(curr_hit->seq()[curr_left_to_insert]);
+			      reverse(color.begin(), color.end());
+			      string bp = convert_color_to_bp(color);
+			      reverse(bp.begin(), bp.end());
+			      colorSegmentSequence_curr = bp;
+			    }
+			  
+			  const seqan::Dna5String newSegmentSequence = color ? colorSegmentSequence_curr : oldSegmentSequence;
 
-          const seqan::Dna5String newSegmentSequence = color ? colorSegmentSequence_curr : oldSegmentSequence;
+			  // daehwan
+			  if (bDebug)
+			    {
+			      cout << "ref: " << referenceSequence << endl;
+			      cout << "old: " << oldSegmentSequence << endl;
+			      cout << "ins: " << insertionSequence << endl;
+			    }
+		      
+			  /*
+			   * Scan left in the read until
+			   * We ran out of read sequence (insertion extends past segment)
+			   */
+			  for (int read_index = 0; read_index < curr_left_to_insert; ++read_index)
+			    {
+			      int segmentPosition = curr_left_to_insert - read_index - 1;
+			      int insertionPosition = insertion_len - read_index - 1;
+			      
+			      if (referenceSequence[segmentPosition] == 'N' || (referenceSequence[segmentPosition] != oldSegmentSequence[segmentPosition]))
+				{
+				  ++this_reference_mismatch;
+				}
+			      
+			      if (read_index < insertion_len)
+				{
+				  if (insertionSequence[insertionPosition] == 'N' || (insertionSequence[insertionPosition] != newSegmentSequence[segmentPosition]))
+				    {
+				      ++insertion_mismatch;
+				      break;
+				    }
+				}
+			      else
+				{
+				  if (referenceSequence[segmentPosition + insertion_len] == 'N' ||
+				      (referenceSequence[segmentPosition + insertion_len] != newSegmentSequence[segmentPosition]))
+				    {
+				      --this_reference_mismatch;
+				    }
+				}
+			    }
+			}
+		      
+		      if (found_closure)
+			{
+			  // fprintf(stderr, "Warning: multiple closures found for insertion read # %d\n", (int)insert_id);
+			  return BowtieHit();
+			}
 
-          /*
-           * Scan left in the read until
-           * We ran out of read sequence (insertion extends past segment)
-           */
-          for (int read_index = 0; read_index < curr_left_to_insert; ++read_index)
-      {
-        int segmentPosition = curr_left_to_insert - read_index - 1;
-        int insertionPosition = insertion_len - read_index - 1;
+		      if (insertion_mismatch == 0)
+			{
+			  reference_mismatch = this_reference_mismatch;
+			  mismatch = -reference_mismatch;
+			  found_closure = true;
+			  new_left = prev_hit->left();
+			  new_cigar = prev_hit->cigar();
+			  
+			  /*
+			   * Need to make a new insert operation between the two match character that begin
+			   * and end the intersection of these two junction. Note that we necessarily assume
+			   * that this insertion can't span beyond the boundaries of these reads. That should
+			   * probably be better enforced somewhere
+			   */
 
-        if (referenceSequence[segmentPosition] == 'N' || (referenceSequence[segmentPosition] != oldSegmentSequence[segmentPosition]))
-          {
-            ++this_reference_mismatch;
-          }
+			  new_cigar.back().length -= insert_to_prev_right;
+			  
+			  if (new_cigar.back().length <= 0)
+			    new_cigar.pop_back();
 
-        if (read_index < insertion_len)
-          {
-            if (insertionSequence[insertionPosition] == 'N' || (insertionSequence[insertionPosition] != newSegmentSequence[segmentPosition]))
-        {
-          ++insertion_mismatch;
-          break;
-        }
-          }
-        else
-          {
-            if (referenceSequence[segmentPosition + insertion_len] == 'N' ||
-          (referenceSequence[segmentPosition + insertion_len] != newSegmentSequence[segmentPosition]))
-        {
-          --this_reference_mismatch;
-        }
-          }
-      }
-        }
+			  if (reversed)
+			    new_cigar.push_back(CigarOp(iNS, lb->sequence.size()));
+			  else
+			    new_cigar.push_back(CigarOp(INS, lb->sequence.size()));
+			  
+			  vector<CigarOp> new_right_cigar = curr_hit->cigar();
+			  new_right_cigar.front().length += (insert_to_prev_right - lb->sequence.size());
+			  
+			  /*
+			   * Finish stitching together the new cigar string
+			   */
+			  size_t c = new_right_cigar.front().length > 0 ? 0 : 1;
+			  for (; c < new_right_cigar.size(); ++c)
+			    {
+			      new_cigar.push_back(new_right_cigar[c]);
+			    }
+			  
+			  if (color)
+			    {
+			      if (insert_to_prev_right > 0)
+				seq.replace(first_seg_length + (curr_seg_index - 1) * segment_length - insert_to_prev_right, insert_to_prev_right, colorSegmentSequence_prev);
+			      
+			      if (curr_left_to_insert > 0)
+				seq.replace(first_seg_length + (curr_seg_index - 1) * segment_length, curr_left_to_insert, colorSegmentSequence_curr);
+			    }
+			}
+		    }
+		  ++lb;
+		}
+	      
+	      if (!found_closure)
+		{
+		  return BowtieHit();
+		}
+	    }
+
+	  /*
+	   * Stitch segments together using juctions or deletions if necessary.
+	   */
+	  else if (dist_btw_two > 0 && dist_btw_two <= max_report_intron_length && prev_hit->antisense_align2() == curr_hit->antisense_align())
+	    {
+	      std::set<Junction>::iterator lb, ub;
+
+	      // daehwan
+	      if (bDebug)
+		{
+		  cout << "junction" << endl;
+		  cout << "min: " << left_boundary << "-" << right_boundary - 8 << endl;
+		  cout << "max: " << left_boundary + 8 << "-" << right_boundary << endl;
+		}
+
+	      lb = possible_juncs.upper_bound(Junction(reference_id, left_boundary, right_boundary - 8, true));
+	      ub = possible_juncs.lower_bound(Junction(reference_id, left_boundary + 8, right_boundary, false));
+	      
+	      int new_diff_mismatches = 0xff;
+	      while (lb != ub && lb != possible_juncs.end())
+		{
+		  int dist_to_left, dist_to_right;
+		  if (reversed)
+		    {
+		      dist_to_left = lb->left - curr_hit->left();
+		      dist_to_right = lb->right - prev_hit->right() - 1;
+		    }
+		  else
+		    {
+		      dist_to_left = lb->left - prev_hit->right() + 1;
+		      dist_to_right = lb->right - curr_hit->left();
+		    }
+		  
+		  if (abs(dist_to_left) <= 4 && abs(dist_to_right) <= 4 && dist_to_left == dist_to_right)
+		    {
+		      /*
+		       * Check we have enough matched bases on prev or curr segment.
+		       */
+		      if ((reversed && (dist_to_left > prev_right_end_match_length || -dist_to_left > curr_left_end_match_length)) ||
+			  (!reversed && (dist_to_left > curr_left_end_match_length || -dist_to_left > prev_right_end_match_length)))
+			{
+			  ++lb;
+			  continue;
+			}
+
+		      // daehwan
+		      if (bDebug)
+			{
+			  cout << "candidate junction: " << endl;
+			  cout << "coords: " << lb->left << "-" << lb->right << endl;
+			  cout << "dist to left: " << dist_to_left << endl;
+			}
+		      
+		      Dna5String new_cmp_str, old_cmp_str;
+		      int new_mismatch = 0, old_mismatch = 0;
+		      string new_patch_str; // this is for colorspace reads
+		      if (dist_to_left > 0)
+			{
+			  if (reversed)
+			    {
+			      new_cmp_str = seqan::infix(*ref_str, curr_hit->left() + 1, lb->left + 1);
+			      seqan::convertInPlace(new_cmp_str, seqan::FunctorComplement<seqan::Dna>());
+			      seqan::reverseInPlace(new_cmp_str);
+			      
+			      old_cmp_str = seqan::infix(*ref_str, prev_hit->right() + 1, lb->right);
+			      seqan::convertInPlace(old_cmp_str, seqan::FunctorComplement<seqan::Dna>());
+			      seqan::reverseInPlace(old_cmp_str);
+			    }
+			  else
+			    {
+			      new_cmp_str = seqan::infix(*ref_str, prev_hit->right(), lb->left + 1);
+			      old_cmp_str = seqan::infix(*ref_str, curr_hit->left(), lb->right);
+			    }
+			  
+			  string new_seq;
+			  if (color)
+			    {
+			      string ref = DnaString_to_string(seqan::infix(*ref_str, prev_hit->right() - 1, lb->left + 1));
+			      
+			      string color, qual;
+			      if (antisense)
+				{
+				  color = rev_read_seq.substr(rev_read_seq.length() - (curr_seg_index * segment_length) - 1, dist_to_left);
+				  qual = rev_read_quals.substr(rev_read_quals.length() - (curr_seg_index * segment_length) - 1, dist_to_left);
+				}
+			      else
+				{
+				  color = read_seq.substr(1 + curr_seg_index * segment_length, dist_to_left);
+				  qual = read_quals.substr(curr_seg_index * segment_length, dist_to_left);
+				}
+			      
+			      BWA_decode(color, qual, ref, new_seq);
+			      new_seq = new_seq.substr(1);
+			    }
+
+			  string curr_hit_seq;
+			  if (reversed)
+			    curr_hit_seq = read_seq.substr(curr_seg_index * segment_length - dist_to_left, dist_to_left);
+			  else
+			    curr_hit_seq = curr_hit->seq();
+			  
+			  const string& curr_old_seq = curr_hit_seq;
+			  const string& curr_seq = color ? new_seq : curr_hit_seq;
+			  for (int i = 0; i < dist_to_left; ++i)
+			    {
+			      if (curr_seq[i] != new_cmp_str[i])
+				++new_mismatch;
+			      
+			      if (curr_old_seq[i] != old_cmp_str[i])
+				++old_mismatch;
+			    }
+			  
+			  if (color)
+			    new_patch_str = curr_seq.substr(0, dist_to_left);
+			}
+		      else if (dist_to_left < 0)
+			{
+			  if (reversed)
+			    {
+			      new_cmp_str = seqan::infix(*ref_str, lb->right, prev_hit->right() + 1);
+			      seqan::convertInPlace(new_cmp_str, seqan::FunctorComplement<seqan::Dna>());
+			      seqan::reverseInPlace(new_cmp_str);
+
+			      old_cmp_str = seqan::infix(*ref_str, lb->left + 1, curr_hit->left() + 1);
+			      seqan::convertInPlace(old_cmp_str, seqan::FunctorComplement<seqan::Dna>());
+			      seqan::reverseInPlace(old_cmp_str);
+			    }
+			  else
+			    {
+			      new_cmp_str = seqan::infix(*ref_str, lb->right, curr_hit->left());
+			      old_cmp_str = seqan::infix(*ref_str, lb->left + 1, prev_hit->right());
+			    }
+
+			  size_t abs_dist = -dist_to_left;
+			  string new_seq;
+			  if (color)
+			    {
+			      string ref = DnaString_to_string(seqan::infix(*ref_str, lb->left, lb->left + 1));
+			      ref += DnaString_to_string(seqan::infix(*ref_str, lb->right, curr_hit->left()));
+			      
+			      string color, qual;
+			      if (antisense)
+				{
+				  color = rev_read_seq.substr(rev_read_seq.length() - (curr_seg_index * segment_length) - 1 - abs_dist, abs_dist);
+				  qual = rev_read_quals.substr(rev_read_quals.length() - (curr_seg_index * segment_length) - 1 - abs_dist, abs_dist);
+				}
+			      else
+				{
+				  color = read_seq.substr(1 + curr_seg_index * segment_length - abs_dist, abs_dist);
+				  qual = read_quals.substr(curr_seg_index * segment_length - abs_dist, abs_dist);
+				}
+			      
+			      BWA_decode(color, qual, ref, new_seq);
+			      new_seq = new_seq.substr(1);
+			    }
+
+			  string prev_hit_seq;
+			  if (reversed)
+			    prev_hit_seq = read_seq.substr(curr_seg_index * segment_length, abs_dist);
+			  else
+			    prev_hit_seq = prev_hit->seq();
+
+			  // daehwan
+			  if (bDebug)
+			    {
+			      cout << "reverse: " << (int)reversed << endl;
+			      cout << "new cmp str: " << new_cmp_str << endl;
+			      cout << "old cmp str: " << old_cmp_str << endl;
+			      cout << "hit seq: " << prev_hit_seq << endl;
+			      cout << "curr seq: " << curr_hit->seq() << endl;
+
+			      cout << read_seq
+				   << endl;
+			      cout << read_seq.substr(first_seg_length + (curr_seg_index - 1) * segment_length, segment_length)
+				   << endl;
+			    }
+			  
+			  const string& prev_old_seq = prev_hit_seq;
+			  size_t prev_old_seq_len = prev_old_seq.length();
+			  const string& prev_seq = color ? new_seq : prev_hit_seq;
+			  size_t prev_seq_len = prev_seq.length();
+			  for (size_t i = 0; i < abs_dist; ++i)
+			    {
+			      if (prev_seq[prev_seq_len - (abs_dist - i)] != new_cmp_str[i])
+				++new_mismatch;
+			      if (prev_old_seq[prev_old_seq_len - (abs_dist - i)] != old_cmp_str[i])
+				++old_mismatch;
+			    }
+
+			  if (color)
+			    new_patch_str = prev_seq.substr(prev_seq_len - abs_dist, abs_dist);
+			}
+		      
+		      int temp_diff_mismatches = new_mismatch - old_mismatch;
+
+		      // daehwan
+		      if (bDebug)
+			{
+			  cout << "new mismatch: " << new_mismatch << endl;
+			  cout << "old mismatch: " << old_mismatch << endl;
+			  cout << "new_diff_mismatch: " << new_diff_mismatches << endl;
+			  cout << "temp mismatch: " << temp_diff_mismatches << endl;
+			}
+		      
+		      if (temp_diff_mismatches >= new_diff_mismatches || new_mismatch >= 2)
+			{
+			  ++lb;
+			  continue;
+			}
+
+		      if (color)
+			{
+			  /*
+			   * We need to recover the origianl sequence.
+			   */
+			  if (found_closure)
+			    {
+			      seq.replace(first_seg_length + (curr_seg_index - 1) * segment_length - 4, 8,
+					  prev_hit->seq().substr(prev_hit->seq().length() - 4) + curr_hit->seq().substr(0, 4));
+			    }
+			  
+			  if (dist_to_left > 0)
+			    seq.replace(first_seg_length + (curr_seg_index - 1) * segment_length, dist_to_left, new_patch_str);
+			  else if (dist_to_left < 0)
+			    seq.replace(first_seg_length + (curr_seg_index - 1) * segment_length + dist_to_left, -dist_to_left, new_patch_str);
+			}
+		      
+		      new_diff_mismatches = temp_diff_mismatches;
+		      
+		      new_left = prev_hit->left();
+		      new_cigar = prev_hit->cigar();
+		      
+		      int new_left_back_len = new_cigar.back().length;
+		      if (reversed)
+			new_left_back_len -= dist_to_left;
+		      else
+			new_left_back_len += dist_to_left;
+		      
+		      vector<CigarOp> new_right_cig = curr_hit->cigar();
+		      int new_right_front_len = new_right_cig.front().length;
+		      if (reversed)
+			new_right_front_len += dist_to_right;
+		      else
+			new_right_front_len -= dist_to_right;
+		      if (new_left_back_len > 0)
+			new_cigar.back().length = new_left_back_len;					  
+		      else
+			new_cigar.pop_back();
+		      
+		      /*
+		       * FIXME, currently just differentiating between a deletion and a 
+		       * reference skip based on length. However, would probably be better
+		       * to denote the difference explicitly, this would allow the user
+		       * to supply their own (very large) deletions
+		       */
+		      if ((lb->right - lb->left - 1) <= max_deletion_length)
+			{
+			  if (reversed)
+			    new_cigar.push_back(CigarOp(dEL, lb->right - lb->left - 1));
+			  else
+			    new_cigar.push_back(CigarOp(DEL, lb->right - lb->left - 1));
+			  antisense_closure = prev_hit->is_spliced() ? prev_hit->antisense_splice() : curr_hit->antisense_splice();
+			}
+		      else
+			{
+			  if (reversed)
+			    new_cigar.push_back(CigarOp(rEF_SKIP, lb->right - lb->left - 1));
+			  else
+			    new_cigar.push_back(CigarOp(REF_SKIP, lb->right - lb->left - 1));
+			  antisense_closure = lb->antisense;
+			}
+		      
+		      new_right_cig.front().length = new_right_front_len;
+		      size_t c = new_right_front_len > 0 ? 0 : 1;
+		      for (; c < new_right_cig.size(); ++c)
+			new_cigar.push_back(new_right_cig[c]);
+		      
+		      mismatch = new_diff_mismatches;
+		      found_closure = true;
+		    }
+		  ++lb;
+		}
+
+	      if (!found_closure)
+		{
+		  return BowtieHit();
+		}
+	    }
+	  else if (!(dist_btw_two == 0 && prev_hit->antisense_align2() == curr_hit->antisense_align()))
+	     check_fusion = true;
+	}
+
+      if (check_fusion)
+	{
+	  std::set<Fusion>::iterator lb, ub;
+
+	  uint32_t ref_id1 = prev_hit->ref_id2();
+	  uint32_t ref_id2 = curr_hit->ref_id();
+	  uint32_t left = prev_hit->right() - 4;
+	  uint32_t right = curr_hit->left() - 4;
+
+	  // daehwan
+	  if (bDebug)
+	    {
+	      cout << "daehwan - start - fusion" << endl
+		   << "ref_id1: " << ref_id1 << endl
+		   << "ref_id2: " << ref_id2 << endl
+		   << "left: " << left << endl
+		   << "right: " << right << endl
+		   << "dir: " << fusion_dir << endl;
+	    }
+
+	  bool reversed = false;
+	  if (fusion_dir != FUSION_FF &&
+	      (ref_id2 < ref_id1 || (ref_id1 == ref_id2 && left > right)))
+	    {
+	      reversed = true;
+	      
+	      uint32_t temp = ref_id1;
+	      ref_id1 = ref_id2;
+	      ref_id2 = temp;
+	      
+	      temp = left;
+	      left = right;
+	      right = temp;
+	    }
+	      
+	  lb = possible_fusions.upper_bound(Fusion(ref_id1, ref_id2, left, right));
+	  ub = possible_fusions.lower_bound(Fusion(ref_id1, ref_id2, left + 8, right + 8));
+
+	  RefSequenceTable::Sequence* ref_str = rt.get_seq(prev_hit->ref_id2());
+	  RefSequenceTable::Sequence* ref_str2 = rt.get_seq(curr_hit->ref_id());
+	  
+	  int new_diff_mismatches = 0xff;
+	  while (lb != ub && lb != possible_fusions.end())
+	    {
+	      int lb_left = lb->left;
+	      int lb_right = lb->right;
+	      
+	      if (reversed)
+		{
+		  lb_left = lb->right;
+		  lb_right = lb->left;
+		}
+
+	      int dist_to_left, dist_to_right;
+	      if (fusion_dir == FUSION_RF)
+		dist_to_left = prev_hit->right() - lb_left + 1;
+	      else
+		dist_to_left = lb_left - prev_hit->right() + 1;
+	      
+	      if (fusion_dir == FUSION_FR)
+		dist_to_right = curr_hit->left() - lb_right;
+	      else
+		dist_to_right = lb_right - curr_hit->left();
+
+	      // daehwan
+	      if (bDebug)
+		{
+		  cout << "daehwan - fusion gap" << endl;
+		  cout << "dist left: " << dist_to_left << endl;
+		  cout << "dist right: " << dist_to_right << endl;
+		}
+	      
+	      if (abs(dist_to_left) <= 4 && abs(dist_to_right) <= 4 && dist_to_left == dist_to_right)
+		{
+		  /*
+		   * Check we have enough matched bases on prev or curr segment.
+		   */
+		  if (dist_to_left > curr_left_end_match_length || -dist_to_left > prev_right_end_match_length)
+		    {
+		      ++lb;
+		      continue;
+		    }
+
+		  Dna5String new_cmp_str, old_cmp_str;
+		  int new_mismatch = 0, old_mismatch = 0;
+		  string new_patch_str; // this is for colorspace reads
+		  if (dist_to_left > 0)
+		    {
+		      if (fusion_dir == FUSION_RF)
+			{
+			  new_cmp_str = seqan::infix(*ref_str, lb_left, prev_hit->right() + 1);
+			  seqan::convertInPlace(new_cmp_str, seqan::FunctorComplement<seqan::Dna>());
+			  seqan::reverseInPlace(new_cmp_str);
+			}
+		      else
+			new_cmp_str = seqan::infix(*ref_str, prev_hit->right(), lb_left + 1);
+
+		      if (fusion_dir == FUSION_FR)
+			{
+			  old_cmp_str = seqan::infix(*ref_str2, lb_right + 1, curr_hit->left() + 1);
+			  seqan::convertInPlace(old_cmp_str, seqan::FunctorComplement<seqan::Dna>());
+			  seqan::reverseInPlace(old_cmp_str);
+			}
+		      else
+			old_cmp_str = seqan::infix(*ref_str2, curr_hit->left(), lb_right);
+
+		      // daehwan
+		      if (bDebug)
+			{
+			  cout << "new str: " << new_cmp_str << endl;
+			  cout << "old str: " << old_cmp_str << endl;
+			  cout << "curr seq: " << curr_hit->seq() << endl;
+			}
+
+		      string curr_hit_seq;
+		      if (fusion_dir == FUSION_FF || fusion_dir == FUSION_RR)
+			curr_hit_seq = curr_hit->seq();
+		      else
+			curr_hit_seq = read_seq.substr(curr_seg_index * segment_length, segment_length);
+		      
+		      string new_seq;
+		      const string& curr_old_seq = curr_hit_seq;
+		      const string& curr_seq = color ? new_seq : curr_hit_seq;
+		      for (int i = 0; i < dist_to_left; ++i)
+			{
+			  if (curr_seq[i] != new_cmp_str[i])
+			    ++new_mismatch;
+			  
+			  if (curr_old_seq[i] != old_cmp_str[i])
+			    ++old_mismatch;
+			}
+		    }
+		  else if (dist_to_left < 0)
+		    {
+		      if (fusion_dir == FUSION_FR)
+			{
+			  new_cmp_str = seqan::infix(*ref_str2, curr_hit->left() + 1, lb_right + 1);
+			  seqan::convertInPlace(new_cmp_str, seqan::FunctorComplement<seqan::Dna>());
+			  seqan::reverseInPlace(new_cmp_str);
+			}
+		      else
+			new_cmp_str = seqan::infix(*ref_str2, lb_right, curr_hit->left());
+
+		      if (fusion_dir == FUSION_RF)
+			{
+			  old_cmp_str = seqan::infix(*ref_str, prev_hit->right() + 1, lb_left);
+			  seqan::convertInPlace(old_cmp_str, seqan::FunctorComplement<seqan::Dna>());
+			  seqan::reverseInPlace(old_cmp_str);
+			}
+		      else
+			old_cmp_str = seqan::infix(*ref_str, lb_left + 1, prev_hit->right());
+
+		      string prev_hit_seq;
+		      if (fusion_dir == FUSION_FF || fusion_dir == FUSION_RR)
+			prev_hit_seq = prev_hit->seq();
+		      else
+			prev_hit_seq = read_seq.substr((curr_seg_index - 1) * segment_length, segment_length);
+
+		      size_t abs_dist = -dist_to_left;
+		      string new_seq;
+			  
+		      const string& prev_old_seq = prev_hit_seq;
+		      size_t prev_old_seq_len = prev_old_seq.length();
+		      const string& prev_seq = color ? new_seq : prev_hit_seq;
+		      size_t prev_seq_len = prev_seq.length();
+		      for (size_t i = 0; i < abs_dist; ++i)
+			{
+			  if (prev_seq[prev_seq_len - (abs_dist - i)] != new_cmp_str[i])
+			    ++new_mismatch;
+			  if (prev_old_seq[prev_old_seq_len - (abs_dist - i)] != old_cmp_str[i])
+			    ++old_mismatch;
+			}
+		    }
+
+		  int temp_diff_mismatches = new_mismatch - old_mismatch;
+		  if (temp_diff_mismatches >= new_diff_mismatches || new_mismatch >= 2)
+		    {
+		      ++lb;
+		      continue;
+		    }
+		  new_diff_mismatches = temp_diff_mismatches;
+
+		  new_left = prev_hit->left();
+		  new_cigar = prev_hit->cigar();
+		      
+		  int new_left_back_len = new_cigar.back().length;
+		  new_left_back_len += dist_to_left;
+		  
+		  vector<CigarOp> new_right_cig = curr_hit->cigar();
+		  int new_right_front_len = new_right_cig.front().length;
+		  new_right_front_len -= dist_to_right;
+		  if (new_left_back_len > 0)
+		    new_cigar.back().length = new_left_back_len;					  
+		  else
+		    new_cigar.pop_back();
+
+		  new_cigar.push_back(CigarOp((CigarOpCode)fusion_dir, lb_right));
+		  antisense_closure = prev_hit->is_spliced() ? prev_hit->antisense_splice() : curr_hit->antisense_splice();
+		  
+		  new_right_cig.front().length = new_right_front_len;
+		  size_t c = new_right_front_len > 0 ? 0 : 1;
+		  for (; c < new_right_cig.size(); ++c)
+		    new_cigar.push_back(new_right_cig[c]);
+		  
+		  mismatch = new_diff_mismatches;
+		  found_closure = true;
+		  ++num_fusions;
+
+		  // daehwan
+		  if (bDebug)
+		    {
+		      cout << "daehwan - fusion gap - found" << endl;
+		    }
+
+		}
+	      ++lb;
+	    }
+
+	  // daehwan
+	  if (bDebug)
+	    {
+	      cout << "daehwan2 - end - fusion: " << (found_closure ? "found" : "not found") << endl;
+	    }
+	  
+	  if (!found_closure)
+	    {
+	      return BowtieHit();
+	    }
+	}
 
       if (found_closure)
-        {
-	  // fprintf(stderr, "Warning: multiple closures found for insertion read # %d\n", (int)insert_id);
-	  return BowtieHit();
-        }
+	{
+	  bool end = false;
+	  BowtieHit merged_hit(prev_hit->ref_id(),
+			       curr_hit->ref_id2(),
+			       insert_id,
+			       new_left,
+			       new_cigar,
+			       antisense,
+			       antisense_closure,
+			       prev_hit->edit_dist() + curr_hit->edit_dist() + mismatch,
+			       prev_hit->splice_mms() + curr_hit->splice_mms(),
+			       end);
 
-      if (insertion_mismatch == 0)
-        {
-    reference_mismatch = this_reference_mismatch;
-    mismatch = -reference_mismatch;
-    found_closure = true;
-    new_left = prev_hit->left();
-    new_cigar = prev_hit->cigar();
+	  // daehwan - should fix this for SOLiD dataset
+	  merged_hit.seq(prev_hit->seq() + curr_hit->seq());
 
-    /*
-     * Need to make a new insert operation between the two match character that begin
-     * and end the intersection of these two junction. Note that we necessarily assume
-     * that this insertion can't span beyond the boundaries of these reads. That should
-     * probably be better enforced somewhere
-     */
+	  // daehwan
+	  if (bDebug)
+	    {
+	      cout << "fusing of " << merged_hit.left() << " and " << merged_hit.right() << endl;
+	      cout << print_cigar(merged_hit.cigar()) << endl;
+	      if (!merged_hit.check_editdist_consistency(rt))
+		{
+		  cout << "btw " << print_cigar(prev_hit->cigar()) << " and " << print_cigar(curr_hit->cigar()) << endl;
+		  cout << "this is malformed hit" << endl;
+		}
+	    }
 
-    new_cigar.back().length -= insert_to_prev_right;
-    if (new_cigar.back().length <= 0)
-      new_cigar.pop_back();
+	  prev_hit = hit_chain.erase(prev_hit, ++curr_hit);
+	  /*
+	   * prev_hit now points PAST the last element removed
+	   */
+	  prev_hit = hit_chain.insert(prev_hit, merged_hit);
+	  /*
+	   * merged_hit has been inserted before the old position of
+	   * prev_hit. New location of prev_hit is merged_hit
+	   */
+	  curr_hit = prev_hit;
+	  ++curr_hit;
+	  ++curr_seg_index;
+	  continue;
+	}
 
-    new_cigar.push_back(CigarOp(INS, lb->sequence.size()));
-    vector<CigarOp> new_right_cigar = curr_hit->cigar();
-    new_right_cigar.front().length += (insert_to_prev_right - lb->sequence.size());
-
-    /*
-     * Finish stitching together the new cigar string
-     */
-    size_t c = new_right_cigar.front().length > 0 ? 0 : 1;
-    for (; c < new_right_cigar.size(); ++c)
-      {
-        new_cigar.push_back(new_right_cigar[c]);
-      }
-
-    if (color)
-      {
-        if (insert_to_prev_right > 0)
-          seq.replace(first_seg_length + (curr_seg_index - 1) * segment_length - insert_to_prev_right, insert_to_prev_right, colorSegmentSequence_prev);
-
-        if (curr_left_to_insert > 0)
-          seq.replace(first_seg_length + (curr_seg_index - 1) * segment_length, curr_left_to_insert, colorSegmentSequence_curr);
-      }
-        }
-    }
-        ++lb;
-  }
-
-  if (!found_closure)
-  {
-    return BowtieHit();
-  }
-      }
-
-      /*
-       * Stitch segments together using juctions or deletions if necessary.
-       */
-      else if (prev_hit->right() < curr_hit->left())
-  {
-    std::set<Junction>::iterator lb, ub;
-
-    int left_boundary = prev_hit->right() - 4;
-    int right_boundary = curr_hit->left() + 4;
-
-    lb = possible_juncs.upper_bound(Junction(reference_id, left_boundary, right_boundary - 8, true));
-    ub = possible_juncs.lower_bound(Junction(reference_id, left_boundary + 8, right_boundary, false));
-
-    int new_diff_mismatches = 0xff;
-    while (lb != ub && lb != possible_juncs.end())
-      {
-        int dist_to_left = lb->left - prev_hit->right() + 1;
-        int dist_to_right = lb->right - curr_hit->left();
-
-        if (abs(dist_to_left) <= 4 && abs(dist_to_right) <= 4 && dist_to_left == dist_to_right)
-    {
-      /*
-       * Check we have enough matched bases on prev or curr segment.
-       */
-      if (dist_to_left > curr_left_end_match_length || -dist_to_left > prev_right_end_match_length )
-        {
-          ++lb;
-          continue;
-        }
-
-      Dna5String new_cmp_str, old_cmp_str;
-      int new_mismatch = 0, old_mismatch = 0;
-      string new_patch_str; // this is for colorspace reads
-      if (dist_to_left > 0)
-        {
-          new_cmp_str = seqan::infix(*ref_str, prev_hit->right(), lb->left + 1);
-          old_cmp_str = seqan::infix(*ref_str, curr_hit->left(), lb->right);
-
-          string new_seq;
-          if (color)
-      {
-        string ref = DnaString_to_string(seqan::infix(*ref_str, prev_hit->right() - 1, lb->left + 1));
-
-        string color, qual;
-        if (antisense)
-          {
-            color = rev_read_seq.substr(rev_read_seq.length() - (curr_seg_index * segment_length) - 1, dist_to_left);
-            qual = rev_read_quals.substr(rev_read_quals.length() - (curr_seg_index * segment_length) - 1, dist_to_left);
-          }
-          else
-          {
-            color = read_seq.substr(1 + curr_seg_index * segment_length, dist_to_left);
-            qual = read_quals.substr(curr_seg_index * segment_length, dist_to_left);
-          }
-
-        BWA_decode(color, qual, ref, new_seq);
-        new_seq = new_seq.substr(1);
-      }
-
-          const string& curr_old_seq = curr_hit->seq();
-          const string& curr_seq = color ? new_seq : curr_hit->seq();
-          for (int i = 0; i < dist_to_left; ++i)
-      {
-        if (curr_seq[i] != new_cmp_str[i])
-          ++new_mismatch;
-
-        if (curr_old_seq[i] != old_cmp_str[i])
-          ++old_mismatch;
-      }
-
-          if (color)
-      new_patch_str = curr_seq.substr(0, dist_to_left);
-        }
-      else if (dist_to_left < 0)
-        {
-          new_cmp_str = seqan::infix(*ref_str, lb->right, curr_hit->left());
-          old_cmp_str = seqan::infix(*ref_str, lb->left + 1, prev_hit->right());
-
-          size_t abs_dist = -dist_to_left;
-          string new_seq;
-          if (color)
-      {
-        string ref = DnaString_to_string(seqan::infix(*ref_str, lb->left, lb->left + 1));
-        ref += DnaString_to_string(seqan::infix(*ref_str, lb->right, curr_hit->left()));
-
-        string color, qual;
-        if (antisense)
-          {
-            color = rev_read_seq.substr(rev_read_seq.length() - (curr_seg_index * segment_length) - 1 - abs_dist, abs_dist);
-            qual = rev_read_quals.substr(rev_read_quals.length() - (curr_seg_index * segment_length) - 1 - abs_dist, abs_dist);
-          }
-          else
-          {
-            color = read_seq.substr(1 + curr_seg_index * segment_length - abs_dist, abs_dist);
-            qual = read_quals.substr(curr_seg_index * segment_length - abs_dist, abs_dist);
-          }
-
-        BWA_decode(color, qual, ref, new_seq);
-        new_seq = new_seq.substr(1);
-      }
-
-          const string& prev_old_seq = prev_hit->seq();
-          size_t prev_old_seq_len = prev_old_seq.length();
-          const string& prev_seq = color ? new_seq : prev_hit->seq();
-          size_t prev_seq_len = prev_seq.length();
-          for (size_t i = 0; i < abs_dist; ++i)
-      {
-        if (prev_seq[prev_seq_len - (abs_dist - i)] != new_cmp_str[i])
-          ++new_mismatch;
-        if (prev_old_seq[prev_old_seq_len - (abs_dist - i)] != old_cmp_str[i])
-          ++old_mismatch;
-      }
-
-          if (color)
-      new_patch_str = prev_seq.substr(prev_seq_len - abs_dist, abs_dist);
-        }
-
-      int temp_diff_mismatches = new_mismatch - old_mismatch;
-      if (temp_diff_mismatches >= new_diff_mismatches || new_mismatch >= 2)
-        {
-          ++lb;
-          continue;
-        }
-
-      if (color)
-        {
-          /*
-           * We need to recover the origianl sequence.
-           */
-          if (found_closure)
-      {
-        seq.replace(first_seg_length + (curr_seg_index - 1) * segment_length - 4, 8,
-              prev_hit->seq().substr(prev_hit->seq().length() - 4) + curr_hit->seq().substr(0, 4));
-      }
-
-          if (dist_to_left > 0)
-      seq.replace(first_seg_length + (curr_seg_index - 1) * segment_length, dist_to_left, new_patch_str);
-          else if (dist_to_left < 0)
-      seq.replace(first_seg_length + (curr_seg_index - 1) * segment_length + dist_to_left, -dist_to_left, new_patch_str);
-        }
-
-      new_diff_mismatches = temp_diff_mismatches;
-
-      new_left = prev_hit->left();
-      new_cigar = prev_hit->cigar();
-
-      int new_left_back_len = new_cigar.back().length;
-      new_left_back_len += dist_to_left;
-
-      vector<CigarOp> new_right_cig = curr_hit->cigar();
-      int new_right_front_len = new_right_cig.front().length;
-      new_right_front_len -= dist_to_right;
-      if (new_left_back_len > 0)
-        new_cigar.back().length = new_left_back_len;
-      else
-        new_cigar.pop_back();
-
-      /*
-       * FIXME, currently just differentiating between a deletion and a
-       * reference skip based on length. However, would probably be better
-       * to denote the difference explicitly, this would allow the user
-       * to supply their own (very large) deletions
-       */
-      if ((lb->right - lb->left - 1) <= max_deletion_length)
-        {
-          new_cigar.push_back(CigarOp(DEL, lb->right - lb->left - 1));
-          antisense_closure = prev_hit->is_spliced() ? prev_hit->antisense_splice() : curr_hit->antisense_splice();
-        }
-      else
-        {
-          new_cigar.push_back(CigarOp(REF_SKIP, lb->right - lb->left - 1));
-          antisense_closure = lb->antisense;
-        }
-
-      new_right_cig.front().length = new_right_front_len;
-      size_t c = new_right_front_len > 0 ? 0 : 1;
-      for (; c < new_right_cig.size(); ++c)
-        new_cigar.push_back(new_right_cig[c]);
-
-      mismatch = new_diff_mismatches;
-      found_closure = true;
-    }
-        ++lb;
-      }
-
-    if (!found_closure)
-      {
-        return BowtieHit();
-      }
-  }
-
-      if (found_closure)
-  {
-    bool end = false;
-    BowtieHit merged_hit(reference_id,
-             insert_id,
-             new_left,
-             new_cigar,
-             antisense,
-             antisense_closure,
-             prev_hit->edit_dist() + curr_hit->edit_dist() + mismatch,
-             prev_hit->splice_mms() + curr_hit->splice_mms(),
-             end);
-
-    if (curr_seg_index > 1)
-      merged_hit.seq(seq.substr(first_seg_length + (curr_seg_index - 1) * segment_length, 2 * segment_length));
-    else
-      merged_hit.seq(seq.substr(0, first_seg_length + segment_length));
-
-    prev_hit = hit_chain.erase(prev_hit, ++curr_hit);
-    /*
-     * prev_hit now points PAST the last element removed
-     */
-    prev_hit = hit_chain.insert(prev_hit, merged_hit);
-    /*
-     * merged_hit has been inserted before the old position of
-     * prev_hit. New location of prev_hit is merged_hit
-     */
-    curr_hit = prev_hit;
-    ++curr_hit;
-    ++curr_seg_index;
-    continue;
-  }
-
+      // daehwan
+      if (bDebug)
+	{
+	  cout << "daehwan - test 0.3" << endl;
+	}
+      
       ++prev_hit;
       ++curr_hit;
       ++curr_seg_index;
     }
 
+  // daehwan
+  if (bDebug)
+    {
+      cout << "daehwan - test2" << endl;
+    }
+  
   bool saw_antisense_splice = false;
   bool saw_sense_splice = false;
   vector<CigarOp> long_cigar;
@@ -729,71 +1265,117 @@ BowtieHit merge_chain(RefSequenceTable& rt,
        */
       bool containsSplice = s->is_spliced();
       if (containsSplice)
-  {
-    if (s->antisense_splice())
-      {
-        if (saw_sense_splice)
-    return BowtieHit();
-        saw_antisense_splice = true;
-      }
-    else
-      {
-        if (saw_antisense_splice)
-    return BowtieHit();
-        saw_sense_splice = true;
-      }
-  }
+	{
+	  if (s->antisense_splice())
+	    {
+	      if (saw_sense_splice)
+		return BowtieHit();
+	      saw_antisense_splice = true;
+	    }
+	  else
+	    {
+	      if (saw_antisense_splice)
+		return BowtieHit();
+	      saw_sense_splice = true;
+	    }
+	}
       const vector<CigarOp>& cigar = s->cigar();
       if (long_cigar.empty())
-  {
-    long_cigar = cigar;
-  }
+	{
+	  long_cigar = cigar;
+	}
       else
-  {
-    CigarOp& last = long_cigar.back();
-    /*
-     * If necessary, merge the back and front
-     * cigar operations
-     */
-    if(last.opcode == cigar[0].opcode){
-      last.length += cigar[0].length;
-      for (size_t b = 1; b < cigar.size(); ++b)
-        {
-    long_cigar.push_back(cigar[b]);
-        }
-    }else{
-      for(size_t b = 0; b < cigar.size(); ++b)
-        {
-    long_cigar.push_back(cigar[b]);
-        }
-    }
-  }
+	{
+	  CigarOp& last = long_cigar.back();
+	  /*
+	   * If necessary, merge the back and front
+	   * cigar operations
+	   */
+	  if(last.opcode == cigar[0].opcode){
+	    last.length += cigar[0].length;
+	    for (size_t b = 1; b < cigar.size(); ++b)
+	      {
+		long_cigar.push_back(cigar[b]);
+	      }
+	  }else{
+	    for(size_t b = 0; b < cigar.size(); ++b)
+	      {
+		long_cigar.push_back(cigar[b]);
+	      }
+	  }
+	}
     }
 
   bool end = false;
-  BowtieHit new_hit(reference_id,
-        insert_id,
-        left,
-        long_cigar,
-        antisense,
-        saw_antisense_splice,
-        num_mismatches,
-        num_splice_mms,
-        end);
+  BowtieHit new_hit(hit_chain.front().ref_id(),
+		    hit_chain.back().ref_id2(),
+		    insert_id, 
+		    left, 
+		    long_cigar, 
+		    antisense,
+		    saw_antisense_splice,
+		    num_mismatches,
+		    num_splice_mms,
+		    end);
 
-  new_hit.seq(seq);
-  new_hit.qual(qual);
+  if (fusion_dir == FUSION_NOTHING || fusion_dir == FUSION_FF || fusion_dir == FUSION_RR)
+    {
+      new_hit.seq(seq);
+      new_hit.qual(qual);
+    }
+  else
+    {
+      new_hit.seq(read_seq);
+      new_hit.qual(read_quals);
+    }
+
+  bool do_reverse = new_hit.ref_id() > new_hit.ref_id2();
+  if (new_hit.ref_id() == new_hit.ref_id2())
+    {
+      vector<Fusion> fusions;
+      bool auto_sort = false;
+      fusions_from_spliced_hit(new_hit, fusions, auto_sort);
+      if (fusions.size() > 0)
+	{
+	  const Fusion& fusion = fusions[0];
+	  do_reverse = fusion.left > fusion.right;
+	}
+    }
+
+  if (do_reverse)
+    {
+      new_hit = new_hit.reverse();
+    }
+
+  if (fusion_dir == FUSION_RF || fusion_dir == FUSION_RR)
+    {
+      new_hit.antisense_align(!new_hit.antisense_align());
+    }
+
+  // daehwan
+  if (bDebug)
+    {
+      cout << "daehwan - test3" << endl;
+      cout << print_cigar(new_hit.cigar()) << endl;
+    }
 
   int new_read_len = new_hit.read_len();
   if (new_read_len != old_read_length || !new_hit.check_editdist_consistency(rt))
     {
-      fprintf(stderr, "Warning: malformed closure\n");
-      fprintf(stderr, "Warning: %d) %d %s NM:%d\n", new_hit.insert_id(), new_hit.left(), print_cigar(new_hit.cigar()).c_str(), num_mismatches);
+      // daehwan
+      if (bDebug)
+	{
+	  cout << "Warning: " << new_hit.insert_id() << " malformed closure: " << print_cigar(new_hit.cigar()) << endl;
+	  exit(1);
+	}
+      
+      fprintf(stderr, "Warning: %d malformed closure\n", new_hit.insert_id());
       return BowtieHit();
     }
 
   return new_hit;
 }
+
 
 int multi_closure = 0;
 int anchor_too_short = 0;
@@ -802,65 +1384,68 @@ int gap_too_short = 0;
 bool valid_hit(const BowtieHit& bh)
 {
   if (bh.insert_id())
-  {
-    /*
-     * validate the cigar chain - no gaps shorter than an intron, etc.
-     * also,
-     *   -Don't start or end with an indel or refskip
-     *  -Only a match operation is allowed is allowed
-     *   adjacent to an indel or refskip
-     *      -Indels should confrom to length restrictions
-     */
-    const CigarOp* prevCig = &(bh.cigar()[0]);
-    const CigarOp* currCig = &(bh.cigar()[1]);
-    for (size_t i = 1; i < bh.cigar().size(); ++i){
-      currCig = &(bh.cigar()[i]);
-      if(currCig->opcode != MATCH && prevCig->opcode != MATCH){
-        return false;
+    {	
+      /*	
+       * validate the cigar chain - no gaps shorter than an intron, etc.
+       * also,
+       * 	-Don't start or end with an indel or refskip
+       *	-Only a match operation is allowed is allowed
+       *	 adjacent to an indel or refskip
+       *      -Indels should confrom to length restrictions
+       */
+      const CigarOp* prevCig = &(bh.cigar()[0]); 
+      const CigarOp* currCig = &(bh.cigar()[1]);
+      for (size_t i = 1; i < bh.cigar().size(); ++i){
+	currCig = &(bh.cigar()[i]);
+	if(!(currCig->opcode == MATCH || currCig->opcode == mATCH) &&
+	   !(prevCig->opcode == MATCH || prevCig->opcode == mATCH)){
+	  return false;
+	}
+	if(currCig->opcode == INS || currCig->opcode == iNS){
+	  if(currCig->length > max_insertion_length){
+	    return false;
+	  }
+	}
+	if(currCig->opcode == DEL || currCig->opcode == dEL){
+	  if(currCig->length > max_deletion_length){
+	    return false;
+	  }
+	}
+	if(currCig->opcode == REF_SKIP || currCig->opcode == rEF_SKIP){
+	  if(currCig->length < (uint64_t)min_report_intron_length){
+	    gap_too_short++;
+	    return false;
+	  }
+	}
+	prevCig = currCig;
       }
-      if(currCig->opcode == INS){
-        if(currCig->length > max_insertion_length){
-          return false;
-        }
-      }
-      if(currCig->opcode == DEL){
-        if(currCig->length > max_deletion_length){
-          return false;
-        }
-      }
-      if(currCig->opcode == REF_SKIP){
-        if(currCig->length < (uint64_t)min_report_intron_length){
-          gap_too_short++;
-          return false;
-        }
-      }
-      prevCig = currCig;
+      if (!(bh.cigar().front().opcode == MATCH || bh.cigar().front().opcode == mATCH) || 
+	  !(bh.cigar().back().opcode == MATCH || bh.cigar().back().opcode == mATCH)/* ||
+										      (int)bh.cigar().front().length < min_anchor_len||
+										      (int)bh.cigar().back().length < min_anchor_len*/ )
+	{
+	  anchor_too_short++;
+	  return false;
+	}	
     }
-    if (bh.cigar().front().opcode != MATCH ||
-      bh.cigar().back().opcode != MATCH /* ||
-      (int)bh.cigar().front().length < min_anchor_len||
-      (int)bh.cigar().back().length < min_anchor_len*/ )
+  else
     {
-      anchor_too_short++;
+      multi_closure++;
       return false;
     }
-  }
-  else
-  {
-    multi_closure++;
-    return false;
-  }
-
+  
   return true;
 }
 
 void merge_segment_chain(RefSequenceTable& rt,
-       const string& read_seq,
-       const string& read_quals,
-       std::set<Junction>& possible_juncs,
-       std::set<Insertion>& possible_insertions,
-       vector<BowtieHit>& hits,
-       vector<BowtieHit>& merged_hits)
+			 const string& read_seq,
+			 const string& read_quals,
+			 std::set<Junction>& possible_juncs,
+			 std::set<Insertion>& possible_insertions,
+			 std::set<Fusion>& possible_fusions,
+			 vector<BowtieHit>& hits,
+			 vector<BowtieHit>& merged_hits,
+			 int fusion_dir = FUSION_NOTHING)
 {
   if (hits.size() == 0)
     return;
@@ -869,13 +1454,76 @@ void merge_segment_chain(RefSequenceTable& rt,
   if (hits.size() > 1)
     {
       list<BowtieHit> hit_chain;
-
-      if (hits.front().antisense_align())
-  copy(hits.rbegin(), hits.rend(), back_inserter(hit_chain));
+      if (fusion_dir == FUSION_NOTHING || fusion_dir == FUSION_FF || fusion_dir == FUSION_RR)
+	{
+	  if (hits.front().antisense_align())
+	    copy(hits.rbegin(), hits.rend(), back_inserter(hit_chain));
+	  else
+	    copy(hits.begin(), hits.end(), back_inserter(hit_chain));
+	}
       else
-  copy(hits.begin(), hits.end(), back_inserter(hit_chain));
+	{
+	  bool bSawFusion = false;
+	  for (size_t i = 0; i < hits.size(); ++i)
+	    {
+	      bool pushed = false;
+	      if (!bSawFusion)
+		{
+		  if (i > 0)
+		    {
+		      if (hits[i-1].ref_id() != hits[i].ref_id())
+			bSawFusion = true;
+		      else if(hits[i-1].antisense_align() != hits[i].antisense_align())
+			bSawFusion = true;
+		      else
+			{
+			  int dist = 0;
+			  if (hits[i].antisense_align())
+			    dist = hits[i-1].left() - hits[i].right();
+			  else
+			    dist = hits[i].left() - hits[i-1].right();
 
-      bh = merge_chain(rt, read_seq, read_quals, possible_juncs, possible_insertions, hit_chain);
+			  if (dist >= max_report_intron_length || dist < -(int)max_insertion_length)
+			    bSawFusion = true;
+			}
+		    }
+		}
+	      
+	      if (hits[i].fusion_opcode() == FUSION_NOTHING &&
+		  ((fusion_dir == FUSION_FR && bSawFusion) || (fusion_dir == FUSION_RF && !bSawFusion)) &&
+		  hits[i].left() < hits[i].right())
+		{
+		  hit_chain.push_back(hits[i].reverse());
+		  pushed = true;
+		}
+
+	      if (i > 0 &&
+		  hits[i].fusion_opcode() != FUSION_NOTHING &&
+		  hits[i].ref_id() != hits[i-1].ref_id())
+		{
+		  hit_chain.push_back(hits[i].reverse());
+		  pushed = true;
+		}
+
+	      if (!bSawFusion)
+		{
+		  if (hits[i].fusion_opcode() != FUSION_NOTHING)
+		    bSawFusion = true;
+		}
+
+	      if (!pushed)
+		hit_chain.push_back(hits[i]);
+	    }
+	}
+
+      bh = merge_chain(rt,
+		       read_seq,
+		       read_quals,
+		       possible_juncs,
+		       possible_insertions,
+		       possible_fusions,
+		       hit_chain,
+		       fusion_dir);
     }
   else
     {
@@ -887,127 +1535,406 @@ void merge_segment_chain(RefSequenceTable& rt,
 }
 
 bool dfs_seg_hits(RefSequenceTable& rt,
-      const string& read_seq,
-      const string& read_quals,
-      std::set<Junction>& possible_juncs,
-      std::set<Insertion>& possible_insertions,
-      vector<HitsForRead>& seg_hits_for_read,
-      size_t curr,
-      vector<BowtieHit>& seg_hit_stack,
-      vector<BowtieHit>& joined_hits)
+		  const string& read_seq,
+		  const string& read_quals,
+		  std::set<Junction>& possible_juncs,
+		  std::set<Insertion>& possible_insertions,
+		  std::set<Fusion>& possible_fusions, 
+		  vector<HitsForRead>& seg_hits_for_read,
+		  size_t curr,
+		  vector<BowtieHit>& seg_hit_stack,
+		  vector<BowtieHit>& joined_hits,
+		  int fusion_dir = FUSION_NOTHING)
 {
   assert (!seg_hit_stack.empty());
   bool join_success = false;
 
   if (curr < seg_hits_for_read.size())
-  {
-    for (size_t i = 0; i < seg_hits_for_read[curr].hits.size(); ++i)
     {
-      BowtieHit& bh = seg_hits_for_read[curr].hits[i];
-      BowtieHit& back = seg_hit_stack.back();
+      for (size_t i = 0; i < seg_hits_for_read[curr].hits.size(); ++i)
+	{
+	  /*
+	   * As we reverse segments depending on directions like FR or RF,
+	   * it's necessary to recover the original segments.
+	   */
+	  BowtieHit bh = seg_hits_for_read[curr].hits[i];
+	  BowtieHit bh_prev = seg_hit_stack.back();
+	  
+	  BowtieHit* prevHit = &bh_prev;
+	  BowtieHit* currHit = &bh;
 
-      bool consistent_sense = bh.antisense_align() == back.antisense_align();
-      bool same_contig = bh.ref_id() == back.ref_id();
+	  // daehwan
+	  // if (bh.insert_id() == 11921733)
+	  //  bDebug = true;
 
-      // FIXME: when we have stranded reads, we need to fix this condition
-      //bool consistent_strand = (bh.contiguous() || back.contiguous() ||
-      //              (bh.antisense_splice() == back.antisense_splice()));
-      if (consistent_sense && same_contig /*&& consistent_strand*/)
-      {
-        if (bh.antisense_align())
-        {
-          unsigned int bh_r = bh.right();
-          unsigned int back_left = seg_hit_stack.back().left();
-          if ((bh_r + max_report_intron_length >= back_left &&
-            back_left >= bh_r) || (back_left + max_insertion_length >= bh_r && back_left < bh_r))
-          {
-            // these hits are compatible, so push bh onto the
-            // stack, recurse, and pop it when done.
-            seg_hit_stack.push_back(bh);
-            bool success = dfs_seg_hits(rt,
-                      read_seq,
-                      read_quals,
-                      possible_juncs,
-                      possible_insertions,
-                      seg_hits_for_read,
-                      curr + 1,
-                      seg_hit_stack,
-                      joined_hits);
-            if (success)
-              join_success = true;
+	  /*
+	   * Each segment has at most one fusion by assumption,
+	   */
+	  bool prevHit_fused = prevHit->fusion_opcode() != FUSION_NOTHING;
+	  bool currHit_fused = currHit->fusion_opcode() != FUSION_NOTHING;
 
-            seg_hit_stack.pop_back();
-          }
-        }
-        else
-        {
-          unsigned int bh_l = bh.left();
+	  /*
+	   * Count the number of fusions on prev and curr segments,
+	   * but this doesn't take into account the gap (if exists) between the two segments.
+	   */
+	  size_t num_fusions = prevHit_fused ? 1 : 0;
+	  num_fusions += currHit_fused ? 1 : 0;
 
-          unsigned int back_right = seg_hit_stack.back().right();
-          if ((back_right + max_report_intron_length >= bh_l  &&
-            bh_l >= back_right) || (bh_l + max_insertion_length >= back_right && bh_l < back_right))
-          {
-            // these hits are compatible, so push bh onto the
-            // stack, recurse, and pop it when done.
-            seg_hit_stack.push_back(bh);
-            bool success = dfs_seg_hits(rt,
-                      read_seq,
-                      read_quals,
-                      possible_juncs,
-                      possible_insertions,
-                      seg_hits_for_read,
-                      curr + 1,
-                      seg_hit_stack,
-                      joined_hits);
+	  int dir = prevHit_fused ? prevHit->fusion_opcode() : currHit->fusion_opcode();
 
-            if (success)
-              join_success = true;
+	  /*
+	   * We don't allow reads that span more than two fusion points.
+	   */
+	  if (num_fusions >= 2)
+	    continue;
 
-            seg_hit_stack.pop_back();
-          }
-        }
-      }
+	  if (fusion_dir != FUSION_NOTHING && currHit_fused)
+	    continue;
+
+	  if (fusion_dir == FUSION_FF || fusion_dir == FUSION_RR)
+	    {
+	      if ((currHit->antisense_align() && currHit->ref_id() != prevHit->ref_id()) ||
+		  (!currHit->antisense_align() && currHit->ref_id() != prevHit->ref_id2()))
+		continue;
+	    }
+
+	  if (bDebug)
+	    {
+	      cout << "daehwan - prev ref: " << prevHit->ref_id() << "-" << prevHit->ref_id2() << ": "
+		   << print_cigar(prevHit->cigar()) << endl;
+	      cout << "daehwan - prev sense: "
+		   << (prevHit->antisense_align() ? "-" : "+")
+		   << "\t"
+		   << (prevHit->antisense_align2() ? "-" : "+")
+		   << endl;
+	      cout << "daehwan - prev coords: "
+		   << prevHit->left()
+		   << "\t"
+		   << prevHit->right()
+		   << endl;
+	      
+	      cout << "daehwan - curr ref: " << currHit->ref_id() << "-" << currHit->ref_id2() << ": "
+		   << print_cigar(currHit->cigar()) << endl;
+	      cout << "daehwan - curr sense: "
+		   << (currHit->antisense_align() ? "-" : "+")
+		   << "\t"
+		   << (currHit->antisense_align2() ? "-" : "+")
+		   << endl;
+	      cout << "daehwan - curr corrds: "
+		   << currHit->left()
+		   << "\t"
+		   << currHit->right()
+		   << endl;
+	    }
+
+	  if ((fusion_dir == FUSION_FR || fusion_dir == FUSION_RF) &&
+	      prevHit->ref_id2() != currHit->ref_id())
+	    continue;
+
+	  if ((fusion_dir == FUSION_FR && !currHit->antisense_align()) ||
+	      (fusion_dir == FUSION_RF && currHit->antisense_align()))
+	    continue;
+
+	  if (currHit_fused && dir == FUSION_RR)
+	    *currHit = currHit->reverse();
+
+	  if (fusion_dir == FUSION_FR || fusion_dir == FUSION_RF ||
+	      (currHit_fused && currHit->ref_id() == currHit->ref_id2() && (dir == FUSION_FR || dir == FUSION_RF)))
+	    {
+	      if (currHit_fused)
+		{
+		  if ((dir == FUSION_FR && currHit->antisense_align()) ||
+		      (dir == FUSION_RF && !currHit->antisense_align()))
+		    *currHit = currHit->reverse();
+		}
+	      else
+		{
+		  if (fusion_dir == FUSION_FR && currHit->antisense_align())
+		    *currHit = currHit->reverse();
+		}
+	    }
+	  /*
+	   * Switch prevHit and currHit in FUSION_NOTHING and FUSION_FF cases
+	   * to make it easier to check the distance in the gap between the two segments.
+	   */
+	  else if ((num_fusions == 0 && prevHit->antisense_align() && currHit->antisense_align() && prevHit->ref_id() == currHit->ref_id() && prevHit->left() <= currHit->right() + max_report_intron_length && prevHit->left() + max_insertion_length >= currHit->right()) ||
+		   (num_fusions == 1 && (dir == FUSION_FF || dir == FUSION_RR)&&
+		    ((!prevHit_fused && prevHit->antisense_align()) || (!currHit_fused && currHit->antisense_align())))
+		   )
+	    {
+	      BowtieHit* tempHit = prevHit;
+	      prevHit = currHit;
+	      currHit = tempHit;
+	    }
+	  else if (num_fusions == 0)
+	    {
+	      if (prevHit->ref_id2() == currHit->ref_id() && prevHit->antisense_align() == currHit->antisense_align())
+		{
+		  int dist = 0;
+		  if (prevHit->antisense_align())
+		    dist = prevHit->left() - currHit->right();
+		  else
+		    dist = currHit->left() - prevHit->right();
+		  
+		  if (dist > max_report_intron_length || dist < -(int)max_insertion_length)
+		    {
+		      if ((prevHit->antisense_align() && prevHit->left() > currHit->left()) ||
+			  (!prevHit->antisense_align() && prevHit->left() < currHit->left()))
+			dir = FUSION_FF;
+		      else
+			dir = FUSION_RR;
+		    }
+		}
+	      else
+		{
+		  if (prevHit->antisense_align() == currHit->antisense_align())
+		    {
+		      if ((prevHit->antisense_align() && prevHit->ref_id() > currHit->ref_id()) ||
+			  (!prevHit->antisense_align() && prevHit->ref_id() < currHit->ref_id()))
+			dir = FUSION_FF;
+		      else
+			dir = FUSION_RR;
+		    }
+		  else if (!prevHit->antisense_align())
+		    dir = FUSION_FR;
+		  else
+		    dir = FUSION_RF;
+
+		  if (dir == FUSION_FR)
+		    *currHit = currHit->reverse();
+		  else if(dir == FUSION_RF)
+		    *prevHit = prevHit->reverse();
+		}
+	    }
+
+	  // daehwan - test
+	  if (bDebug)
+	    {
+	      cout << "insert id: " << prevHit->insert_id() << endl;
+	      cout << "(" << curr - 1 << ") prev: " << prevHit->seq() << " : " << (prevHit->fusion_opcode() != FUSION_NOTHING ? "fused" : "no") << endl;
+	      cout << "(" << curr << ") curr: " << currHit->seq() << " : " << (currHit->fusion_opcode() != FUSION_NOTHING ? "fused" : "no") << endl;
+	      cout << "prev ref: " << prevHit->ref_id() << "-" << prevHit->ref_id2() << ": " << print_cigar(prevHit->cigar()) << endl;
+	      cout << "curr ref: " << currHit->ref_id() << "-" << currHit->ref_id2() << ": " << print_cigar(currHit->cigar()) << endl;
+	      cout << "prev coords: "
+		   << prevHit->left()
+		   << "\t"
+		   << prevHit->right()
+		   << endl;
+	      cout << "curr corrds: "
+		   << currHit->left()
+		   << "\t"
+		   << currHit->right()
+		   << endl;
+	      cout << "prev sense: "
+		   << (prevHit->antisense_align() ? "-" : "+")
+		   << "\t"
+		   << (prevHit->antisense_align2() ? "-" : "+")
+		   << endl;
+	      cout << "curr sense: "
+		   << (currHit->antisense_align() ? "-" : "+")
+		   << "\t"
+		   << (currHit->antisense_align2() ? "-" : "+")
+		   << endl;
+	    }
+
+	  if (num_fusions == 1)
+	    {
+	      // daehwan
+	      if (bDebug)
+		{
+		  cout << "direction: " << (int)dir << endl;
+		}
+
+	      /*
+	       * orient the fused segment, which depends on a fusion direction.
+	       */
+	      if (dir != FUSION_FF && dir != FUSION_RR)
+		{
+		  bool prevHit_rep = false;
+		  bool currHit_rep = false;
+
+		  if (prevHit_fused)
+		    {
+		      if ((dir == FUSION_FR && !currHit->antisense_align()) ||
+			  (dir == FUSION_RF && currHit->antisense_align()))
+			continue;
+
+		      if (prevHit->ref_id2() != currHit->ref_id())
+			prevHit_rep = true;
+		      else if ((dir == FUSION_FR && prevHit->antisense_align()) ||
+			       (dir == FUSION_RF && !prevHit->antisense_align()))
+			prevHit_rep = true;
+		    }
+		  
+		  if (currHit_fused)
+		    {
+		      if ((dir == FUSION_FR && prevHit->antisense_align()) ||
+			  (dir == FUSION_RF && !prevHit->antisense_align()))
+			continue;
+		      
+		      if (currHit->ref_id() != prevHit->ref_id2())
+			currHit_rep = true;
+		    }
+		  
+		  if (bDebug)
+		    {
+		      if (prevHit_rep) cout << "1. reversed in prev" << endl;
+		      if (currHit_rep) cout << "1. reversed in curr" << endl;
+		    }
+
+		  if (prevHit_rep)
+		    *prevHit = prevHit->reverse();
+		  if (currHit_rep)
+		    *currHit = currHit->reverse();
+
+		  prevHit_rep = false;
+		  currHit_rep = false;
+
+		  if (prevHit_fused)
+		    {
+		      if (prevHit->is_forwarding_right() != currHit->is_forwarding_left())
+			currHit_rep = true;
+		    }
+		  else
+		    {
+		      if (prevHit->is_forwarding_right() != currHit->is_forwarding_left())
+			prevHit_rep = true;
+		    }
+
+		  if (prevHit_rep)
+		    *prevHit = prevHit->reverse();
+		  if (currHit_rep)
+		    *currHit = currHit->reverse();
+
+		  // daehwan
+		  if (bDebug)
+		    {
+		      if (prevHit_rep) cout << "2. reversed in prev" << endl;
+		      if (currHit_rep) cout << "2. reversed in curr" << endl;
+		    }
+		}	      
+	    }
+
+	  bool same_contig = prevHit->ref_id2() == currHit->ref_id();
+	  if (!same_contig && num_fusions > 0)
+	    continue;
+
+	  if (same_contig && num_fusions >= 1)
+	    {
+	      if (prevHit->antisense_align2() != currHit->antisense_align())
+		continue;
+	    }
+
+	  int bh_l = 0, back_right = 0, dist = 0;
+	  if (same_contig)
+	    {
+	      if ((fusion_dir == FUSION_FR || fusion_dir == FUSION_RF || dir == FUSION_FR || dir == FUSION_RF) &&
+		  prevHit->antisense_align2())
+		{
+		  bh_l = prevHit->right() + 1;
+		  back_right = currHit->left() + 1;
+		}
+	      else
+		{
+		  bh_l = currHit->left();
+		  back_right = prevHit->right();
+		}
+
+	      dist = bh_l - back_right;
+	    }
+
+	  // daehwan - pass
+	  if (bDebug)
+	    {
+	      cout << "daehwan - pass" << endl;
+	      cout << "prev coords: " << prevHit->left() << "\t" << prevHit->right() << endl;
+	      cout << "curr coords: " << currHit->left() << "\t" << currHit->right() << endl;
+	    }
+
+	  if (!same_contig ||
+	      (same_contig && num_fusions == 0 && dir != FUSION_NOTHING && fusion_dir == FUSION_NOTHING) ||
+	      (same_contig && dist <= max_report_intron_length && dist >= -(int)max_insertion_length && prevHit->is_forwarding_right() == currHit->is_forwarding_left()))
+	    {
+	      // daehwan
+	      if (bDebug)
+		{
+		  cout << "daehwan - really passed!!" << endl;
+		}
+
+	      BowtieHit tempHit = seg_hit_stack.back();
+	      seg_hit_stack.back() = bh_prev;
+	      
+	      // these hits are compatible, so push bh onto the 
+	      // stack, recurse, and pop it when done.
+	      seg_hit_stack.push_back(bh);
+	      bool success = dfs_seg_hits(rt,
+					  read_seq,
+					  read_quals,
+					  possible_juncs,
+					  possible_insertions,
+					  possible_fusions,
+					  seg_hits_for_read, 
+					  curr + 1,
+					  seg_hit_stack,
+					  joined_hits,
+					  dir == FUSION_NOTHING ? fusion_dir : dir);
+	      
+	      if (success)
+		join_success = true;
+	      
+	      seg_hit_stack.pop_back();
+	      seg_hit_stack.back() = tempHit;
+	    }
+	}
     }
-  }
   else
-  {
-    merge_segment_chain(rt,
-            read_seq,
-            read_quals,
-            possible_juncs,
-            possible_insertions,
-            seg_hit_stack,
-            joined_hits);
+    {
+      merge_segment_chain(rt,
+			  read_seq,
+			  read_quals,
+			  possible_juncs,
+			  possible_insertions,
+			  possible_fusions,
+			  seg_hit_stack,
+			  joined_hits,
+			  fusion_dir);
 
-    return join_success = true;
-  }
+      return join_success = true;
+    }
   return join_success;
 }
 
 bool join_segments_for_read(RefSequenceTable& rt,
-          const string& read_seq,
-          const string& read_quals,
-          std::set<Junction>& possible_juncs,
-          std::set<Insertion>& possible_insertions,
-          vector<HitsForRead>& seg_hits_for_read,
-          vector<BowtieHit>& joined_hits)
-{
+			    const string& read_seq,
+			    const string& read_quals,
+			    std::set<Junction>& possible_juncs,
+			    std::set<Insertion>& possible_insertions,
+			    std::set<Fusion>& possible_fusions,
+			    vector<HitsForRead>& seg_hits_for_read,
+			    vector<BowtieHit>& joined_hits)
+{	
   vector<BowtieHit> seg_hit_stack;
   bool join_success = false;
 
   for (size_t i = 0; i < seg_hits_for_read[0].hits.size(); ++i)
     {
       BowtieHit& bh = seg_hits_for_read[0].hits[i];
-      seg_hit_stack.push_back(bh);
+
+      if (bh.fusion_opcode() == FUSION_RR)
+	seg_hit_stack.push_back(bh.reverse());
+      else
+	seg_hit_stack.push_back(bh);
+      
       bool success = dfs_seg_hits(rt,
-          read_seq,
-          read_quals,
-          possible_juncs,
-          possible_insertions,
-          seg_hits_for_read,
-          1,
-          seg_hit_stack,
-          joined_hits);
+				  read_seq,
+				  read_quals,
+				  possible_juncs,
+				  possible_insertions,
+				  possible_fusions,
+				  seg_hits_for_read, 
+				  1, 
+				  seg_hit_stack,
+				  joined_hits);
       if (success)
   join_success = true;
       seg_hit_stack.pop_back();
@@ -1034,7 +1961,7 @@ struct JoinSegmentsWorker
 
     vector<HitStream> contig_hits;
     vector<HitStream> spliced_hits;
-
+    fprintf (stderr, "        reference sequences loaded.\n");
     vector<HitFactory*> factories;
     for (size_t i = 0; i < segmap_fnames.size(); ++i)
       {
@@ -1185,6 +2112,7 @@ struct JoinSegmentsWorker
 					   read.qual.c_str(),
 					   *possible_juncs,
 					   *possible_insertions,
+					   *possible_fusions,
 					   seg_hits_for_read,
 					   joined_hits);
 		    
@@ -1231,6 +2159,8 @@ struct JoinSegmentsWorker
   
   std::set<Junction>* possible_juncs;
   std::set<Insertion>* possible_insertions;
+  std::set<Fusion>* possible_fusions;
+  
   RefSequenceTable* rt;
 
   uint64_t begin_id;
@@ -1245,6 +2175,7 @@ void driver(const string& bam_output_fname,
 	    vector<FILE*>& possible_juncs_files,
 	    vector<FILE*>& possible_insertions_files,
 	    vector<FILE*>& possible_deletions_files,
+	    vector<FILE*>& possible_fusions_files,
 	    vector<string>& spliced_segmap_fnames, //.bam files
 	    vector<string>& segmap_fnames, //.bam files
 	    const string& reads_fname)
@@ -1363,6 +2294,47 @@ void driver(const string& bam_output_fname,
 	num_threads = 1;
     }
 
+  std::set<Fusion> possible_fusions;
+  for (size_t i=0; i < possible_fusions_files.size(); ++i)
+    {
+      char splice_buf[2048];	
+      FILE* fusions_file = possible_fusions_files[i];
+      if(!fusions_file){
+	continue;
+      } 
+      while(fgets(splice_buf, 2048, fusions_file)){
+	char* nl = strrchr(splice_buf, '\n');
+	char* buf = splice_buf;
+	if (nl) *nl = 0;
+	
+	char* ref_name1 = strsep((char**)&buf, "\t");
+	char* scan_left_coord = strsep((char**)&buf, "\t");
+	char* ref_name2 = strsep((char**)&buf, "\t");
+	char* scan_right_coord = strsep((char**)&buf, "\t");
+	char* scan_dir = strsep((char**)&buf, "\t");
+	
+	if (!ref_name1 || !scan_left_coord || !ref_name2 || !scan_right_coord || !scan_dir)
+	  {
+	    fprintf(stderr,"Error: malformed insertion coordinate record\n");
+	    exit(1);
+	  }
+	
+	uint32_t ref_id1 = rt.get_id(ref_name1,NULL,0);
+	uint32_t ref_id2 = rt.get_id(ref_name2,NULL,0);
+	uint32_t left_coord = atoi(scan_left_coord);
+	uint32_t right_coord = atoi(scan_right_coord);
+	uint32_t dir = FUSION_FF;
+	if (strcmp(scan_dir, "fr") == 0)
+	  dir = FUSION_FR;
+	else if(strcmp(scan_dir, "rf") == 0)
+	  dir = FUSION_RF;
+	else if (strcmp(scan_dir, "rr") == 0)
+	  dir = FUSION_RR;
+	
+	possible_fusions.insert(Fusion(ref_id1, ref_id2, left_coord, right_coord, dir));
+      }
+    }
+
   vector<boost::thread*> threads;
   for (int i = 0; i < num_threads; ++i)
     {
@@ -1384,6 +2356,7 @@ void driver(const string& bam_output_fname,
       worker.spliced_segmap_fnames = spliced_segmap_fnames;
       worker.possible_juncs = &possible_juncs;
       worker.possible_insertions = &possible_insertions;
+      worker.possible_fusions = &possible_fusions;
       worker.rt = &rt;
       
       if (i == 0)
@@ -1466,27 +2439,34 @@ int main(int argc, char** argv)
   string insertions_file_list = argv[optind++];
   if(optind >= argc)
       {
-  print_usage();
-  return 1;
-      }
-
-    string deletions_file_list = argv[optind++];
-
-    if(optind >= argc)
-      {
-  print_usage();
-  return 1;
-      }
-
-
-    string bam_output_fname = argv[optind++];
-    
-    if(optind >= argc)
-      {
 	print_usage();
 	return 1;
       }
-    
+  
+  string deletions_file_list = argv[optind++];
+  
+  if(optind >= argc)
+    {
+      print_usage();
+      return 1;
+    }
+
+  string fusions_file_list = argv[optind++];
+  
+  if(optind >= argc)
+    {
+      print_usage();
+      return 1;
+    }
+  
+  string bam_output_fname = argv[optind++];
+  
+  if(optind >= argc)
+    {
+      print_usage();
+      return 1;
+    }
+  
   string segmap_file_list = argv[optind++];
   string spliced_segmap_flist;
   if(optind < argc)
@@ -1564,15 +2544,34 @@ int main(int argc, char** argv)
   vector<FZPipe> spliced_segmap_files;
   string unzcmd;
   tokenize(spliced_segmap_flist, ",",spliced_segmap_file_names);
+
+  vector<string> fusions_file_names;
+  vector<FILE*> fusions_files;
+  tokenize(fusions_file_list, ",",fusions_file_names);
+  for (size_t i = 0; i < fusions_file_names.size(); ++i)
+    {
+      fprintf(stderr, "Opening %s for reading\n",
+	      fusions_file_names[i].c_str());
+      FILE* fusions_file = fopen(fusions_file_names[i].c_str(), "r");
+      if (fusions_file == NULL)
+        {
+	  fprintf(stderr, "Warning: cannot open %s for reading\n",
+		  fusions_file_names[i].c_str());
+	  continue;
+        }
+      fusions_files.push_back(fusions_file);
+    }
+  
   
   driver(bam_output_fname,
 	 ref_stream,
 	 juncs_files,
 	 insertions_files,
 	 deletions_files,
+	 fusions_files,
 	 spliced_segmap_file_names,
 	 segmap_file_names,
 	 reads_file_name);
-  
+
   return 0;
 }

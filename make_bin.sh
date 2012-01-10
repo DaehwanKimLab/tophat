@@ -13,6 +13,7 @@ cp $1/bin/* $1
 cp README $1
 cp COPYING $1
 cp AUTHORS $1
+cp -r annotation $1
 
 rm -r $1/bin
 

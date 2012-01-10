@@ -80,35 +80,64 @@ void deletions_from_alignment(const BowtieHit& bh, DeletionSet& deletions){
  * @param insertions Used to store the resultant vector of deletions.
  */
 void deletions_from_spliced_hit(const BowtieHit& bh, vector<Deletion>& deletions){
-	const vector<CigarOp>& cigar = bh.cigar();
-	unsigned int positionInGenome = bh.left();
-	unsigned int positionInRead = 0;
+  const vector<CigarOp>& cigar = bh.cigar();
+  unsigned int positionInGenome = bh.left();
+  unsigned int positionInRead = 0;
 
-	for(size_t c = 0; c < cigar.size(); ++c){
-		Junction deletion;
-		switch(cigar[c].opcode){
-			case REF_SKIP:
-				positionInGenome += cigar[c].length;
-				break;
-			case MATCH:
-				positionInGenome += cigar[c].length;
-				positionInRead += cigar[c].length;
-				break;
-			case DEL:
-				deletion.refid = bh.ref_id();
-				deletion.left = positionInGenome - 1;
-				deletion.right = positionInGenome + cigar[c].length;
-				deletions.push_back(deletion);
-				positionInGenome += cigar[c].length;
-				break;
-			case INS:
-				positionInRead += cigar[c].length;
-				break;
-			default:
-				break;
-		}	
-	}	
-	return;
+  bool bSawFusion = false;
+  for(size_t c = 0; c < cigar.size(); ++c){
+    Junction deletion;
+    switch(cigar[c].opcode){
+    case REF_SKIP:
+      positionInGenome += cigar[c].length;
+      break;
+    case rEF_SKIP:
+      positionInGenome -= cigar[c].length;
+      break;
+    case MATCH:
+    case mATCH:
+      if (cigar[c].opcode == MATCH)
+	positionInGenome += cigar[c].length;
+      else
+	positionInGenome -= cigar[c].length;
+      positionInRead += cigar[c].length;
+      break;
+    case DEL:
+    case dEL:
+      if (bSawFusion)
+	deletion.refid = bh.ref_id2();
+      else
+	deletion.refid = bh.ref_id();
+
+      if (cigar[c].opcode == DEL)
+	{
+	  deletion.left = positionInGenome - 1;
+	  deletion.right = positionInGenome + cigar[c].length;
+	}
+      else
+	{
+	  deletion.left = positionInGenome - cigar[c].length;
+	  deletion.right = positionInGenome + 1;
+	}
+      
+      deletions.push_back(deletion);
+      positionInGenome += cigar[c].length;
+      break;
+    case INS:
+    case iNS:
+      positionInRead += cigar[c].length;
+      break;
+    case FUSION_FF:
+    case FUSION_FR:
+    case FUSION_RF:
+      bSawFusion = true;
+      positionInGenome = cigar[c].length;
+      break;
+    default:
+      break;
+    }	
+  }	
+  return;
 } 
 
 void merge_with(DeletionSet& deletions, const DeletionSet& other)

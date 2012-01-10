@@ -30,16 +30,17 @@ AlignStatus::AlignStatus()
   _indelFreeAlignment = false;
   _unannotatedSpliceFreeAlignment = false;
   _edit_dist = 0xFF;
+  _fusionFreeAlignment = 0;
 } 
 
 /**
  * Parse the cigar string of a BowtieHit in order to determine the alignment status.
  */
-AlignStatus::AlignStatus(const BowtieHit& bh, const JunctionSet& gtf_junctions)
-{
+AlignStatus::AlignStatus(const BowtieHit& bh, const JunctionSet& gtf_junctions){
   const vector<CigarOp>& cigar = bh.cigar();
   _aligned = cigar.size() > 0;
   _indelFreeAlignment = true;
+  _fusionFreeAlignment = true;
   _unannotatedSpliceFreeAlignment = true;
   _edit_dist = bh.edit_dist();
   int j = bh.left();
@@ -68,6 +69,12 @@ AlignStatus::AlignStatus(const BowtieHit& bh, const JunctionSet& gtf_junctions)
 	case INS:
 	  _indelFreeAlignment = false;
 	  break;
+	case FUSION_FF:
+	case FUSION_FR:
+	case FUSION_RF:
+	case FUSION_RR:
+	  _fusionFreeAlignment = false;
+	  break;
 	default:
 	  break;
 	}
@@ -88,14 +95,18 @@ bool AlignStatus::operator<(const AlignStatus& rhs) const
   if (rhs._aligned != _aligned) return rhs._aligned;
   if (rhs._edit_dist!=_edit_dist)
       return rhs._edit_dist < _edit_dist;
-  //int lhs_value = _aligned ? 1 : 0;
-	int lhs_value = _indelFreeAlignment ? 4 : 0;
-	lhs_value += _unannotatedSpliceFreeAlignment ? 2 : 0;
+  
+  // int lhs_value = _aligned ? 1 : 0;
+  int lhs_value = _fusionFreeAlignment ? 4 : 0;
+  lhs_value += _indelFreeAlignment ? 4 : 0;
+  lhs_value += _unannotatedSpliceFreeAlignment ? 2 : 0;
 
-	//int rhs_value = rhs._aligned ? 1 : 0;
-	int rhs_value = rhs._indelFreeAlignment ? 4 : 0;
-	rhs_value += rhs._unannotatedSpliceFreeAlignment ? 2 : 0;
-	return lhs_value < rhs_value;
+  // int rhs_value = rhs._aligned ? 1 : 0;
+  int rhs_value = rhs._fusionFreeAlignment ? 4 : 0;
+  rhs_value += rhs._indelFreeAlignment ? 4 : 0;
+  rhs_value += rhs._unannotatedSpliceFreeAlignment ? 2 : 0;
+  
+  return lhs_value < rhs_value;
 }
 
 /**
@@ -105,13 +116,11 @@ bool AlignStatus::operator==(const AlignStatus& rhs) const
 {
 	return ((_aligned == rhs._aligned) && (rhs._edit_dist ==_edit_dist) &&
 		(_indelFreeAlignment == rhs._indelFreeAlignment) &&
-		(_unannotatedSpliceFreeAlignment == rhs._unannotatedSpliceFreeAlignment));
+		(_unannotatedSpliceFreeAlignment == rhs._unannotatedSpliceFreeAlignment) &&
+		(_fusionFreeAlignment == rhs._fusionFreeAlignment));
 }
 
 bool AlignStatus::operator!=(const AlignStatus& rhs) const
 {
 	return !((*this) == rhs);
 }
-
-
-

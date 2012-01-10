@@ -40,7 +40,6 @@ void read_transcripts(FILE* f, GffReader& gffr) {
   //now all parsed GffObjs are in gffr.gflst, grouped by genomic sequence
   }
 
-
 uint32_t get_junctions_from_gff(FILE* ref_mRNA_file,
                                 RefSequenceTable& rt)
 {

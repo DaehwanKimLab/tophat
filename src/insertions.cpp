@@ -110,34 +110,60 @@ void insertions_from_spliced_hit(const BowtieHit& bh, vector<Insertion>& inserti
 	unsigned int positionInGenome = bh.left();
 	unsigned int positionInRead = 0;
 
+	bool bSawFusion = false;
 	for(size_t c = 0; c < cigar.size(); ++c){
-		Insertion insertion;
-		switch(cigar[c].opcode){
-			case REF_SKIP:
-				positionInGenome += cigar[c].length;
-				break;
-			case MATCH:
-				positionInGenome += cigar[c].length;
-				positionInRead += cigar[c].length;
-				break;
-			case DEL:
-				positionInGenome += cigar[c].length;
-				break;
-			case INS:
-				/*
-				 * Note that the reported position in the genome from the SAM
-				 * alignment is 1-based, since the insertion object is expecting
-				 * a 0-based co-ordinate, we need to subtract 1
-				 */
-				insertion.refid = bh.ref_id();
-				insertion.left = positionInGenome-1;
-				insertion.sequence = bh.seq().substr(positionInRead, cigar[c].length);
+	  Insertion insertion;
+	  switch(cigar[c].opcode){
+	  case REF_SKIP:
+	    positionInGenome += cigar[c].length;
+	    break;
+	  case rEF_SKIP:
+	    positionInGenome -= cigar[c].length;
+	    break;
+	  case MATCH:
+	  case mATCH:
+	    if (cigar[c].opcode == MATCH)
+	      positionInGenome += cigar[c].length;
+	    else
+	      positionInGenome -= cigar[c].length;
+	    positionInRead += cigar[c].length;
+	    break;
+	  case DEL:
+	    positionInGenome += cigar[c].length;
+	    break;
+	  case dEL:
+	    positionInGenome -= cigar[c].length;
+	    break;
+	  case INS:
+	  case iNS:
+	    /*
+	     * Note that the reported position in the genome from the SAM
+	     * alignment is 1-based, since the insertion object is expecting
+	     * a 0-based co-ordinate, we need to subtract 1
+	     */
+	    if (bSawFusion)
+	      insertion.refid = bh.ref_id2();
+	    else
+	      insertion.refid = bh.ref_id();
 
-				insertions.push_back(insertion);
-				positionInRead += cigar[c].length;
-				break;
-			default:
-				break;
+	    if (cigar[c].opcode == INS)
+	      insertion.left = positionInGenome - 1;
+	    else
+	      insertion.left = positionInGenome + 1;
+	      
+	    insertion.sequence = bh.seq().substr(positionInRead, cigar[c].length);
+	    
+	    insertions.push_back(insertion);
+	    positionInRead += cigar[c].length;
+	    break;
+	  case FUSION_FF:
+	  case FUSION_FR:
+	  case FUSION_RF:
+	    bSawFusion = true;
+	    positionInGenome = cigar[c].length;
+	    break;
+	  default:
+	    break;
 		}	
 	}	
 	return;

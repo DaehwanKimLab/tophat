@@ -117,6 +117,7 @@ bool no_coverage_search = false;
 bool no_microexon_search = false;
 bool butterfly_search = false;
 int num_threads = 1;
+
 float min_isoform_fraction = 0.15f;
 
 string output_dir = "tophat_out";
@@ -141,6 +142,13 @@ string gtf_juncs = "";
 
 string flt_reads = "";
 string flt_mappings = "";
+
+bool fusion_search = false;
+size_t fusion_anchor_length = 20;
+size_t fusion_min_dist = 10000000;
+size_t fusion_read_mismatches = 2;
+size_t fusion_multireads = 2;
+size_t fusion_multipairs = 2;
 
 eLIBRARY_TYPE library_type = LIBRARY_TYPE_NONE;
 
@@ -227,7 +235,6 @@ char* get_token(char** str, const char* delims)
   return token;
 }
 
-
 const char *short_options = "QCp:z:N:";
 
 enum
@@ -279,7 +286,13 @@ enum
     OPT_INDEX_OUT,
     OPT_GTF_JUNCS,
     OPT_FILTER_READS,
-    OPT_FILTER_HITS
+    OPT_FILTER_HITS,
+    OPT_FUSION_SEARCH,
+    OPT_FUSION_ANCHOR_LENGTH,
+    OPT_FUSION_MIN_DIST,
+    OPT_FUSION_READ_MISMATCHES,
+    OPT_FUSION_MULTIREADS,
+    OPT_FUSION_MULTIPAIRS,
   };
 
 static struct option long_options[] = {
@@ -331,6 +344,12 @@ static struct option long_options[] = {
 {"gtf-juncs", required_argument, 0, OPT_GTF_JUNCS},
 {"flt-reads",required_argument, 0, OPT_FILTER_READS},
 {"flt-hits",required_argument, 0, OPT_FILTER_HITS},
+{"fusion-search", no_argument, 0, OPT_FUSION_SEARCH},
+{"fusion-anchor-length", required_argument, 0, OPT_FUSION_ANCHOR_LENGTH},
+{"fusion-min-dist", required_argument, 0, OPT_FUSION_MIN_DIST},
+{"fusion-read-mismatches", required_argument, 0, OPT_FUSION_READ_MISMATCHES},
+{"fusion-multireads", required_argument, 0, OPT_FUSION_MULTIREADS},
+{"fusion-multipairs", required_argument, 0, OPT_FUSION_MULTIPAIRS},
 {0, 0, 0, 0} // terminator
 };
 
@@ -517,6 +536,24 @@ int parse_options(int argc, char** argv, void (*print_usage)())
       break;
     case OPT_FILTER_HITS:
       flt_mappings = optarg;
+      break;
+    case OPT_FUSION_SEARCH:
+      fusion_search = true;
+      break;
+    case OPT_FUSION_ANCHOR_LENGTH:
+      fusion_anchor_length = parseIntOpt(10, "--fusion-anchor-length must be at least 10", print_usage);
+      break;
+    case OPT_FUSION_MIN_DIST:
+      fusion_min_dist = parseIntOpt(0, "--fusion-min-dist must be at least 0", print_usage);
+      break;
+    case OPT_FUSION_READ_MISMATCHES:
+      fusion_read_mismatches = parseIntOpt(0, "--fusion-read-mismatches must be at least 0", print_usage);
+      break;
+    case OPT_FUSION_MULTIREADS:
+      fusion_multireads = parseIntOpt(1, "--fusion-multireads must be at least 1", print_usage);
+      break;
+    case OPT_FUSION_MULTIPAIRS:
+      fusion_multipairs = parseIntOpt(1, "--fusion-multipars must be at least 11", print_usage);
       break;
     default:
       print_usage();

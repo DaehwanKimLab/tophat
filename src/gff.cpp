@@ -988,6 +988,7 @@ bool GffReader::addExonFeature(GfoHolder* prevgfo, GffLine* gffline, GHash<CNonE
        return true; //FIXME: split trans-spliced mRNAs by strand
        }
    }
+
   int gdist=(gffline->fstart>prevgfo->gffobj->end) ? gffline->fstart-prevgfo->gffobj->end :
                       ((gffline->fend<prevgfo->gffobj->start)? prevgfo->gffobj->start-gffline->fend :
                          0 );
