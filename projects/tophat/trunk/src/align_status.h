@@ -26,7 +26,7 @@ using namespace std;
  * The main purpose of this struct is to provide a
  * (fairly primitive) method for ranking competing alignments
  * for a read. In general,
- * continguous > spliced > in/dels
+ * continguous > spliced > in/dels = fusions
  * Ties are broken with the number of mismatches
  */
 struct AlignStatus
@@ -34,22 +34,24 @@ struct AlignStatus
 
 
 private:
-	/**
-	 * Is this alignment free of indels. Note, if there is no alignment
-	 * this should still be false.
-	 */
-	bool _indelFreeAlignment;
-
-	/**
-	 * Is this alignment free of unannotated splices? Note, if there is no alignment
-	 * this should still be false
-	 */
-	bool _unannotatedSpliceFreeAlignment;
-
-	/**
-	 * Is there an alignment?
-	 */
-	bool _aligned;
+  /**
+   * Is this alignment free of indels. Note, if there is no alignment
+   * this should still be false.
+   */
+  bool _indelFreeAlignment;
+  
+  /**
+   * Is this alignment free of unannotated splices? Note, if there is no alignment
+   * this should still be false
+   */
+  bool _unannotatedSpliceFreeAlignment;
+  
+  bool _fusionFreeAlignment;
+  
+  /**
+   * Is there an alignment?
+   */
+  bool _aligned;
   unsigned char _edit_dist;
 public:
   AlignStatus();

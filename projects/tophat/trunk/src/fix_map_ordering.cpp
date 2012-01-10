@@ -73,7 +73,6 @@ struct MapOrdering {
 	}
 };
 
-
 struct BamMapOrdering {
 	bool operator()(pair<uint64_t, bam1_t*>& lhs, pair<uint64_t, bam1_t*>& rhs)
 	{
@@ -334,7 +333,6 @@ int main(int argc, char** argv)
 		driver_bam(map_file_name, bam_writer, unmapped_bam_writer);
 		delete unmapped_bam_writer;
 	    }
-
 
     return 0;
 }

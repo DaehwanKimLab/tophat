@@ -14,13 +14,15 @@
 #include <iostream>
 #include <fstream>
 #include <getopt.h>
+#include <seqan/sequence.h>
+#include <seqan/file.h>
+
 #include "bwt_map.h"
 #include "inserts.h"
 #include "closures.h"
 #include "reads.h"
 #include "tokenize.h"
-#include <seqan/sequence.h>
-#include <seqan/file.h>
+#include "fusions.h"
 
 using namespace seqan;
 using namespace std;
@@ -82,6 +84,104 @@ void check_mates(const HitList& hits1_in_ref,
 	  map2_singletons.push_back(i);
 	}
     }	
+}
+
+void find_fusion_closure(HitsForRead& left_hits,
+			 HitsForRead& right_hits,
+			 std::set<Fusion>& fusions)
+{
+  if (left_hits.hits.size() > 3 || right_hits.hits.size() > 3)
+    return;
+
+  for (size_t left_index = 0; left_index < left_hits.hits.size(); ++left_index)
+    {
+      for (size_t right_index = 0; right_index < right_hits.hits.size(); ++right_index)
+	{
+	  BowtieHit* leftHit = &left_hits.hits[left_index];
+	  BowtieHit* rightHit = &right_hits.hits[right_index];
+
+	  uint32_t dir = FUSION_FF;
+	  if (leftHit->antisense_align() != rightHit->antisense_align())
+	    dir = FUSION_FF;
+	  else if (!leftHit->antisense_align())
+	    dir = FUSION_FR;
+	  else
+	    dir = FUSION_RF;
+
+	  if (dir == FUSION_FF && leftHit->antisense_align())
+	    {
+	      BowtieHit * tmp = leftHit;
+	      leftHit = rightHit;
+	      rightHit = tmp;
+	    }
+	  
+	  uint32_t left, right;
+	  if (dir == FUSION_FF || dir == FUSION_FR)
+	    left = leftHit->right() - 4;
+	  else
+	    left = leftHit->left() + 4;
+	  
+	  if (dir == FUSION_FF || dir == FUSION_RF)
+	    right = rightHit->left() + 4;
+	  else
+	    right = rightHit->right() - 4;
+
+	  if (leftHit->ref_id() == rightHit->ref_id() && dir == FUSION_FF)
+	    {
+	      int dist = 0;
+	      dist = rightHit->left() - leftHit->right();
+	      
+	      if (dist >= 0 && dist <= (int)fusion_min_dist)
+		continue;
+	    }
+	  
+	  uint32_t ref_id1 = leftHit->ref_id();
+	  uint32_t ref_id2 = rightHit->ref_id();
+	  
+	  if (dir == FUSION_FR || dir == FUSION_RF)
+	    {
+	      if ((ref_id2 < ref_id1) || (ref_id1 == ref_id2 && left > right))
+		{
+		  uint32_t temp = ref_id1;
+		  ref_id1 = ref_id2;
+		  ref_id2 = temp;
+		  
+		  temp = left;
+		  left = right;
+		  right = temp;
+		}
+	    }
+
+	  // daehwan
+#if 0
+	  static const uint32_t chr_id1 = RefSequenceTable::hash_string("chr5");
+	  static const uint32_t chr_id2 = RefSequenceTable::hash_string("chr5");
+
+	  // VCaP TIA1 2:70436576-70475792:-1 DIRC2 3:122513642-122599986:1
+	  // const uint32_t left1 = 70436576, right1 = 70475792, left2 = 122513642, right2 = 122599986;
+
+	  // VCaP SPOCK1 5:136310987-136934068:-1 TBC1D9B 5:179289066-179334859:-1
+	  const uint32_t left1 = 136310987, right1 = 136934068, left2 = 179289066, right2 = 179334859;
+
+	  BowtieHit* lHit = leftHit;
+	  BowtieHit* rHit = rightHit;
+
+	  if (lHit->ref_id() != chr_id1)
+	    {
+	      lHit = rightHit;
+	      rHit = leftHit;
+	    }
+
+	  if ((lHit->ref_id() == chr_id1 && lHit->left() >= left1 && lHit->left() <= right1) &&
+	      (rHit->ref_id() == chr_id2 && rHit->left() >= left2 && rHit->left() <= right2))
+	    {
+	      cout << lHit->insert_id() << endl;
+	    }
+#endif
+
+	  fusions.insert(Fusion(ref_id1, ref_id2, left, right, dir));
+	}
+    }
 }
 
 bool prefer_shorter_pairs = true;
@@ -440,14 +540,17 @@ public:
 void closure_driver(vector<FZPipe>& map1, 
 		    vector<FZPipe>& map2, 
 		    ifstream& ref_stream, 
-		    FILE* juncs_file)
+		    FILE* juncs_file,
+		    FILE* fusions_out)
 {
   typedef RefSequenceTable::Sequence Reference;
   
   ReadTable it;
   RefSequenceTable rt(true);
-  
-  BowtieHitFactory hit_factory(it,rt);
+
+  BowtieHitFactory hit_factory(it, rt);
+
+  std::set<Fusion> fusions;
   
   fprintf (stderr, "Finding near-covered motifs...");
   CoverageMapVisitor cov_map_visitor(ref_stream, rt);
@@ -491,9 +594,13 @@ void closure_driver(vector<FZPipe>& map1,
 	  
 	  while (curr_left_obs_order == curr_right_obs_order &&
 		 curr_left_obs_order != VMAXINT32 && curr_right_obs_order != VMAXINT32)
-	    {			
-	      if (coverage_attempts++ % 1000 == 0)
-		fprintf (stderr, "Adding covered motifs from pair %d\n", coverage_attempts); 
+	    {
+	      if (num == 0)
+		find_fusion_closure(curr_left_hit_group, curr_right_hit_group, fusions);
+	      
+	      if (coverage_attempts++ % 10000 == 0)
+		fprintf (stderr, "Adding covered motifs from pair %d\n", coverage_attempts);
+
 	      visit_best_pairing(curr_left_hit_group, curr_right_hit_group, cov_map_visitor);
 	      
 	      left_hs.next_read_hits(curr_left_hit_group);
@@ -556,8 +663,9 @@ void closure_driver(vector<FZPipe>& map1,
 	  while (curr_left_obs_order == curr_right_obs_order &&
 		 curr_left_obs_order != VMAXINT32 && curr_right_obs_order != VMAXINT32)
 	    {	
-	      if (closure_attempts++ % 1000 == 0)
-		fprintf (stderr, "Trying to close pair %d\n", closure_attempts); 
+	      if (closure_attempts++ % 10000 == 0)
+		fprintf (stderr, "Trying to close pair %d\n", closure_attempts);
+
 	      visit_best_pairing(curr_left_hit_group, curr_right_hit_group, junc_map_visitor);
 	      left_hs.next_read_hits(curr_left_hit_group);
 	      curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
@@ -610,6 +718,36 @@ void closure_driver(vector<FZPipe>& map1,
   fprintf(stderr, "Successfully closed %d pairs\n", closed);
   
   fprintf(stderr, "Found %d total possible splices\n", num_potential_splices);
+
+  // daehwan
+#if 0
+  fprintf (stderr, "Reporting potential fusions...\n");
+  if(fusions_out){
+    for(std::set<Fusion>::iterator itr = fusions.begin(); itr != fusions.end(); ++itr){
+      const char* ref_name1 = rt.get_name(itr->refid1);
+      const char* ref_name2 = rt.get_name(itr->refid2);
+      
+      const char* dir = "";
+      if (itr->dir == FUSION_FR)
+	dir = "fr";
+      else if(itr->dir == FUSION_RF)
+	dir = "rf";
+      else
+	dir = "ff";
+      
+      fprintf(fusions_out,
+	      "%s\t%d\t%s\t%d\t%s\n",
+	      ref_name1,
+	      itr->left,
+	      ref_name2,
+	      itr->right,
+	      dir);
+    }
+    fclose(fusions_out);
+  }else{
+    fprintf(stderr, "Failed to open fusions file for writing\n");
+  }
+#endif
 }
 
 void print_usage()
@@ -639,9 +777,17 @@ int main(int argc, char** argv)
       print_usage();
       return 1;
     }
+
+  string fusions_file_name = argv[optind++];
   
+  if(optind >= argc)
+    {
+      print_usage();
+      return 1;
+    }
+
   string ref_fasta = argv[optind++];
-  
+
   if(optind >= argc)
     {
       print_usage();
@@ -697,11 +843,20 @@ int main(int argc, char** argv)
 	      junctions_file_name.c_str());
       exit(1);
     }
-  
+
+  FILE* fusion_db = fopen(fusions_file_name.c_str(), "w");
+  if (splice_db == NULL)
+    {
+      fprintf(stderr, "Error: cannot open fusions file %s for writing\n",
+	      fusions_file_name.c_str());
+      exit(1);
+    }
+
   closure_driver(left_files,
 		 right_files,
 		 ref_stream,
-		 splice_db);
+		 splice_db,
+		 fusion_db);
   
   return 0;
 }

@@ -456,30 +456,26 @@ SeqAn-1.2/seqan/system.h
 #-- progs to be installed in $prefix/bin
 bin_PROGRAMS = \
 	prep_reads \
-	tophat_reports \
-	juncs_db \
-	gtf_juncs \
-	extract_reads \
+	gtf_to_fasta \
+	fix_map_ordering \
+	bam2fastx \
 	segment_juncs \
 	closure_juncs \
+	gtf_juncs \
+	juncs_db \
 	long_spanning_reads \
-	fix_map_ordering \
 	bam_merge \
-	bam2fastx \
-	gtf_to_fasta \
 	map2gtf \
-	library_stats \
-	mask_sam \
-	wiggles \
+	tophat_reports \
 	sam_juncs
-
 
 #-- scripts to be installed in $prefix/bin
 dist_bin_SCRIPTS = \
 	contig_to_chr_coords \
 	tophat \
 	bed_to_juncs \
-	sra_to_solid
+	sra_to_solid \
+	tophat-fusion-post.py
 
 #SUFFIXES = .py
 #.py:
@@ -504,11 +500,11 @@ noinst_HEADERS = \
 	GTFToFasta.h \
 	map2gtf.h \
 	bwt_map.h \
-	wiggles.h \
 	junctions.h \
 	assert_helpers.h \
 	insertions.h \
 	deletions.h \
+	fusions.h \
 	align_status.h \
 	alphabet.h \
 	timer.h \
@@ -529,6 +525,7 @@ libtophat_a_SOURCES = \
 	junctions.cpp \
 	insertions.cpp \
 	deletions.cpp \
+	fusions.cpp \
 	align_status.cpp \
 	fragments.cpp \
 	tokenize.cpp \
@@ -566,17 +563,9 @@ juncs_db_SOURCES = juncs_db.cpp
 juncs_db_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
 juncs_db_LDFLAGS = $(BAM_LDFLAGS)
 
-library_stats_SOURCES = library_stats.cpp
-library_stats_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
-library_stats_LDFLAGS = $(BAM_LDFLAGS)
-
 tophat_reports_SOURCES = tophat_reports.cpp
 tophat_reports_LDADD = $(top_builddir)/src/libtophat.a  $(BOOST_THREAD_LIB) $(BAM_LIB)
 tophat_reports_LDFLAGS = $(BOOST_LDFLAGS) $(BAM_LDFLAGS)
-
-extract_reads_SOURCES = extract_reads.cpp
-extract_reads_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
-extract_reads_LDFLAGS = $(BAM_LDFLAGS)
 
 fix_map_ordering_SOURCES = fix_map_ordering.cpp
 fix_map_ordering_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
@@ -593,14 +582,6 @@ bam_merge_LDFLAGS = $(BAM_LDFLAGS)
 closure_juncs_SOURCES = closures.cpp
 closure_juncs_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
 closure_juncs_LDFLAGS = $(BAM_LDFLAGS)
-
-mask_sam_SOURCES = mask_sam.cpp
-mask_sam_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
-mask_sam_LDFLAGS = $(BAM_LDFLAGS)
-
-wiggles_SOURCES = wiggles.cpp
-wiggles_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
-wiggles_LDFLAGS = $(BAM_LDFLAGS)
 
 sam_juncs_SOURCES = sam_juncs.cpp
 sam_juncs_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)

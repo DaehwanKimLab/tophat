@@ -232,7 +232,7 @@ void trans_to_genomic_coords(const char* read_name, HitFactory* hitFactory,
     }
     bool antisense_splice = (spliced && out.trans->strand=='-'); //transcript strand <=> splice strand (if spliced)
     read_start -= 1; // handle the off-by-one problem
-    out.hit = hitFactory->create_hit(read_id, ref_name,
+    out.hit = hitFactory->create_hit(read_id, ref_name, "",
             static_cast<int> (read_start), cig_list, in.antisense_align(),
             antisense_splice, in.edit_dist(), in.splice_mms(), in.end());
     out.hit.seq(in.seq());

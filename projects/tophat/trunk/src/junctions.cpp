@@ -20,7 +20,8 @@ void junctions_from_spliced_hit(const BowtieHit& h,
 {
   const vector<CigarOp>& cigar = h.cigar();
   int j = h.left();
-  
+
+  bool bSawFusion = false;
   for (size_t c = 0 ; c < cigar.size(); ++c)
     {
       Junction junc;
@@ -28,16 +29,29 @@ void junctions_from_spliced_hit(const BowtieHit& h,
       switch(cigar[c].opcode)
 	{
 	case REF_SKIP:
+	case rEF_SKIP:
+	  if (bSawFusion)
+	    junc.refid = h.ref_id2();
+	  else
+	    junc.refid = h.ref_id();
+
+	  if (cigar[c].opcode == REF_SKIP)
+	    {
+	      junc.left = j;
+	      junc.right = junc.left + cigar[c].length;
+	    }
+	  else
+	    {
+	      junc.right = j + 1;
+	      junc.left = junc.right - cigar[c].length;
+	    }
 	  
-	  junc.refid = h.ref_id();
-	  junc.left = j;
-	  junc.right = junc.left + cigar[c].length;
 	  junc.antisense = h.antisense_splice();
 	  
 	  assert (c > 0 && c < cigar.size() - 1); 
 	  assert (cigar[c - 1].length);
 	  assert (cigar[c + 1].length);
-	  
+
 	  /*
 	   * Note that in valid_hit() in tophat_report.cpp
 	   * we have tried to ensure that the REF_SKIP operator
@@ -51,10 +65,18 @@ void junctions_from_spliced_hit(const BowtieHit& h,
 	  j += cigar[c].length;
 	  break;
 	case MATCH:
-	  j += cigar[c].length;
-	  break;
 	case DEL:
 	  j += cigar[c].length;
+	  break;
+	case mATCH:
+	case dEL:
+	  j -= cigar[c].length;
+	  break;
+	case FUSION_FF:
+	case FUSION_FR:
+	case FUSION_RF:
+	  j = cigar[c].length;
+	  bSawFusion = true;
 	  break;
 	default:
 	  break;
@@ -88,7 +110,7 @@ void junctions_from_alignment(const BowtieHit& spliced_alignment,
 {
   vector<pair<Junction, JunctionStats> > juncs;
   junctions_from_spliced_hit(spliced_alignment, juncs);
-  
+
   for (size_t i = 0; i < juncs.size(); ++i)
     {
       pair<Junction, JunctionStats>& junc = juncs[i];

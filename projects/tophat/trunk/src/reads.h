@@ -110,7 +110,6 @@ public:
     pushed=false;
     pushed_read=false;
     }
-
   FLineReader(FZPipe& fzpipe) {
     len=0;
     isEOF=false;
@@ -128,6 +127,7 @@ public:
     if (is_pipe) pclose(file);
             else fclose(file);
     }
+
   ~FLineReader() {
     free(buf); //does not call close() -- we might reuse the file handle
     }
@@ -146,7 +146,6 @@ bool next_fasta_record(FLineReader& fr, string& defline, string& seq, ReadFormat
 bool next_fastq_record(FLineReader& fr, const string& seq, string& alt_name, string& qual, ReadFormat reads_format);
 bool next_fastx_read(FLineReader& fr, Read& read, ReadFormat reads_format=FASTQ,
                         FLineReader* frq=NULL);
-
 
 class ReadStream {
   protected:

@@ -39,7 +39,6 @@ void format_qual_string(string& qual_str)
 bool readmap_loaded=false;
 vector<bool> readmap; //for filter_multihits
 
-
 void load_readmap() {
   readmap_loaded=false;
   if (flt_reads.empty()) return;
@@ -162,7 +161,8 @@ void process_reads(vector<FZPipe>& reads_files, vector<FZPipe>& quals_files)
       skip_lines(fr);
       FZPipe fq;
       if (quals)
-	      fq = quals_files[fi];
+	fq = quals_files[fi];
+
       FLineReader frq(fq);
       skip_lines(frq);
       
@@ -295,6 +295,7 @@ void process_reads(vector<FZPipe>& reads_files, vector<FZPipe>& quals_files)
     fprintf(fw, "reads_out=%d\n",next_id-num_reads_chucked);
     fclose(fw);
     }
+
   if (findex != NULL)
     fclose(findex);
 }

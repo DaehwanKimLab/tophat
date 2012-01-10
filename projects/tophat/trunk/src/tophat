@@ -67,11 +67,17 @@ Options:
     --mate-std-dev                 <int>       [ default: 20                  ]
     --no-novel-juncs
     --no-novel-indels
-    --no-gtf-juncs
+    --fusion-search
+    --fusion-anchor-length         <int>       [ default: 20               ]
+    --fusion-min-dist              <int>       [ default: 10000000         ]
+    --fusion-read-mismatches       <int>       [ default: 2                ]
+    --fusion-multireads            <int>       [ default: 2                ]
+    --fusion-multipairs            <int>       [ default: 2                ]
+    --no-gtf-juncs                             
     --no-coverage-search
     --coverage-search
     --no-closure-search
-    --closure-search
+    --closure-search      
     --microexon-search
     --butterfly-search
     --no-butterfly-search
@@ -339,6 +345,7 @@ class TopHatParams:
         def check(self):
             if self.seed_length and self.seed_length < 20:
                 die("Error: arg to --seed-length must be at least 20")
+
             if self.mate_inner_dist_std_dev != None and self.mate_inner_dist_std_dev < 0:
                 die("Error: arg to --mate-std-dev must at least 0")
             if (not self.read_group_id and self.sample_id) or (self.read_group_id and not self.sample_id):
@@ -440,7 +447,7 @@ class TopHatParams:
                                            None,                # sequencing center
                                            None,                # run date
                                            None)                # sequencing platform
-
+        
         self.system_params = self.SystemParams(1,               # bowtie_threads (num_threads)
                                                False)           # keep_tmp
 
@@ -453,6 +460,7 @@ class TopHatParams:
                                                500000)          # max_segment_intron_length
 
         self.report_params = self.ReportParams()
+
         self.gff_annotation = None
         self.transcriptome_only = False
         self.transcriptome_index = None
@@ -460,6 +468,7 @@ class TopHatParams:
         self.raw_junctions = None
         self.find_novel_juncs = True
         self.find_novel_indels = True
+        self.find_novel_fusions = True
         self.find_GFF_juncs = True
         #self.skip_check_reads = False
         self.max_hits = 20
@@ -478,12 +487,17 @@ class TopHatParams:
         self.closure_search = False
         self.microexon_search = False
         self.butterfly_search = None
-
+        self.fusion_search = False
+        self.fusion_anchor_length = 20
+        self.fusion_min_dist = 10000000
+        self.fusion_read_mismatches = 2
+        self.fusion_multireads = 2
+        self.fusion_multipairs = 2
+        
     def check(self):
         self.splice_constraints.check()
         self.read_params.check()
         self.system_params.check()
-
         if self.segment_length < 10:
             die("Error: arg to --segment-length must at least 10")
         if self.segment_mismatches < 0 or self.segment_mismatches > 3:
@@ -539,6 +553,14 @@ class TopHatParams:
                "--sam-header", sam_header,
                "--max-insertion-length", str(self.max_insertion_length),
                "--max-deletion-length", str(self.max_deletion_length)]
+
+        if self.fusion_search:
+            cmd.extend(["--fusion-anchor-length", str(self.fusion_anchor_length),
+                        "--fusion-min-dist", str(self.fusion_min_dist),
+                        "--fusion-read-mismatches", str(self.fusion_read_mismatches),
+                        "--fusion-multireads", str(self.fusion_multireads),
+                        "--fusion-multipairs", str(self.fusion_multipairs)])
+            
         cmd.extend(self.system_params.cmd())
 
         if self.read_params.mate_inner_dist != None:
@@ -550,9 +572,9 @@ class TopHatParams:
                cmd.extend(["--gtf-juncs", gtf_juncs])
         if self.closure_search == False:
             cmd.append("--no-closure-search")
-        if self.coverage_search == False:
+        if not self.coverage_search:
             cmd.append("--no-coverage-search")
-        if self.microexon_search == False:
+        if not self.microexon_search:
             cmd.append("--no-microexon-search")
         if self.butterfly_search:
             cmd.append("--butterfly-search")
@@ -604,9 +626,15 @@ class TopHatParams:
                                          "transcriptome-index=",
                                          "raw-juncs=",
                                          "no-novel-juncs",
+                                         "allow-fusions",
+                                         "fusion-search",
+                                         "fusion-anchor-length=",
+                                         "fusion-min-dist=",
+                                         "fusion-read-mismatches=",
+                                         "fusion-multireads=",
+                                         "fusion-multipairs=",
                                          "no-novel-indels",
                                          "no-gtf-juncs",
-                                         # "skip-check-reads",
                                          "mate-inner-dist=",
                                          "mate-std-dev=",
                                          "no-closure-search",
@@ -695,6 +723,18 @@ class TopHatParams:
                 self.find_novel_juncs = False
             if option == "--no-novel-indels":
                 self.find_novel_indels = False
+            if option == "--fusion-search":
+                self.fusion_search = True
+            if option == "--fusion-anchor-length":
+                self.fusion_anchor_length = int(value)
+            if option == "--fusion-min-dist":
+                self.fusion_min_dist = int(value)
+            if option == "--fusion-read-mismatches":
+                self.fusion_read_mismatches = int(value)
+            if option == "--fusion-multireads":
+                self.fusion_multireads = int(value)
+            if option == "--fusion-multipairs":
+                self.fusion_multipairs = int(value)
             if option == "--no-gtf-juncs":
                 self.find_GFF_juncs = False
             #if option == "--skip-check-reads":
@@ -749,7 +789,6 @@ class TopHatParams:
         if len(args) < 2:
             raise Usage(use_message)
         return args
-
 
 def getFileDir(filepath):
    #if fullpath, returns path including the ending /
@@ -836,6 +875,7 @@ def check_bowtie_index(idx_prefix):
         if bowtie_idx_env_var == None:
             die("Error: Could not find Bowtie index files " + idx_prefix + ".*")
         idx_prefix = bowtie_idx_env_var + idx_prefix
+
         idx_fwd_1 = idx_prefix + ".1.ebwt"
         idx_fwd_2 = idx_prefix + ".2.ebwt"
         idx_rev_1 = idx_prefix + ".rev.1.ebwt"
@@ -912,6 +952,7 @@ def get_bowtie_version():
         # Launch Bowtie to capture its version info
         proc = subprocess.Popen([bowtie_path, "--version"],
                           stdout=subprocess.PIPE)
+
         stdout_value = proc.communicate()[0]
         bowtie_version = None
         bowtie_out = repr(stdout_value)
@@ -941,6 +982,7 @@ def get_index_sam_header(read_params, idx_prefix, sort = True):
         bowtie_header_cmd = [bowtie_path, "--sam"]
         if read_params.color:
             bowtie_header_cmd.append('-C')
+
         bowtie_header_cmd.extend([idx_prefix, '/dev/null'])
         subprocess.call(bowtie_header_cmd,
                    stdout=bowtie_sam_header_file,
@@ -978,7 +1020,6 @@ def get_index_sam_header(read_params, idx_prefix, sort = True):
         #for line in preamble:
         #    print >> sam_header_file, line
         print >> sam_header_file, "@HD\tVN:1.0\tSO:coordinate"
-
         if read_params.read_group_id and read_params.sample_id:
             rg_str = "@RG\tID:%s\tSM:%s" % (read_params.read_group_id,
                                             read_params.sample_id)
@@ -1020,6 +1061,8 @@ def check_bowtie():
     th_log("Checking for Bowtie")
     global bowtie_path
     bowtie_path=prog_path("bowtie")
+    global bowtie_path
+    bowtie_path=prog_path("bowtie")
     bowtie_version = get_bowtie_version()
     if bowtie_version == None:
         die("Error: Bowtie not found on this system")
@@ -1056,13 +1099,14 @@ def check_samtools():
     th_log("Checking for Samtools")
     global samtools_path
     samtools_path=prog_path("samtools")
+    global samtools_path
+    samtools_path=prog_path("samtools")
     samtools_version_str, samtools_version_arr = get_samtools_version()
     if samtools_version_str == None:
         die("Error: Samtools not found on this system")
     elif  samtools_version_arr[1] < 1 or samtools_version_arr[2] < 7:
         die("Error: TopHat requires Samtools 0.1.7 or later")
     print >> sys.stderr, "\tSamtools %s" % samtools_version_str
-
 
 
 class FastxReader:
@@ -1109,6 +1153,7 @@ class FastxReader:
     try:
       if line[0] != "@":
           raise ValueError("Records in Fastq files should start with '@' character")
+
       seqid = line[1:].rstrip()
       seqstr = fline().rstrip()
 
@@ -1138,6 +1183,7 @@ class FastxReader:
           if qstrlen + self.isColor >= seq_len :
                break # qv string has reached the length of seq string
           #loop until qv has the same length as seq
+
       if self.isColor:
            # and qstrlen==seq_len :
            if qstrlen==seq_len:
@@ -1527,8 +1573,8 @@ def prep_reads(params, reads_list, quals_list, side="left", prefilter_reads=None
     except OSError, o:
         errmsg=fail_str+str(o)
         die(errmsg+"\n"+log_tail(log_fname))
-    kept_reads.close()
 
+    kept_reads.close()
     return kept_reads_filename, PrepReadsInfo(info_file, side)
 
 
@@ -1705,8 +1751,8 @@ def bowtie(params,
         if samzip_cmd:
            shellcmd += "|"+ ' '.join(samzip_cmd)+" > " + mapped_reads
            fix_order_proc = subprocess.Popen(fix_map_cmd,
-                                          stdin=bowtie_proc.stdout,
-                                          stdout=subprocess.PIPE)
+                                             stdin=bowtie_proc.stdout,
+                                             stdout=subprocess.PIPE)
            bowtie_proc.stdout.close() # needed?
            samzip_proc = subprocess.Popen(samzip_cmd,
                                  preexec_fn=subprocess_setup,
@@ -1732,6 +1778,7 @@ def bowtie(params,
                   os.kill(fifo_pid, signal.SIGTERM)
                 except:
                   pass
+
     except OSError, o:
         die(fail_str+"Error: "+str(o))
 
@@ -1748,6 +1795,7 @@ def bowtie(params,
         open(multihits_out, "w").close()
     return (mapped_reads, unmapped_reads_out)
 
+
 def bowtie_segment(params,
            bwt_idx_prefix,
            reads_file,
@@ -1755,7 +1803,6 @@ def bowtie_segment(params,
            mapped_reads,
            unmapped_reads = None,
            extra_output = ""):
-
     backup_bowtie_alignment_option = params.bowtie_alignment_option
     params.bowtie_alignment_option = "-v"
     params.max_hits *= 2
@@ -1795,6 +1842,7 @@ def get_gtf_juncs(gff_annotation):
             return (False, gtf_juncs_out_name)
         elif retcode != 0:
             die(fail_str+"Error: GTF junction extraction failed with err ="+str(retcode))
+
     # cvg_islands not found
     except OSError, o:
        errmsg=fail_str+str(o)+"\n"
@@ -1809,7 +1857,6 @@ def build_juncs_bwt_index(external_splice_prefix, color):
     bowtie_build_log = open(logging_dir + "bowtie_build.log", "w")
 
     #user_splices_out_prefix  = output_dir + "user_splices_idx"
-
     bowtie_build_cmd = [prog_path("bowtie-build")]
     if color:
         bowtie_build_cmd += ["-C"]
@@ -1838,6 +1885,7 @@ def build_juncs_index(min_anchor_length,
                       external_juncs,
                       external_insertions,
                       external_deletions,
+                      external_fusions,
                       reference_fasta,
                       color):
     th_log("Retrieving sequences for splices")
@@ -1845,6 +1893,7 @@ def build_juncs_index(min_anchor_length,
     juncs_file_list = ",".join(external_juncs)
     insertions_file_list = ",".join(external_insertions)
     deletions_file_list = ",".join(external_deletions)
+    fusions_file_list = ",".join(external_fusions)
 
 
     juncs_db_log = open(logging_dir + "juncs_db.log", "w")
@@ -1860,8 +1909,9 @@ def build_juncs_index(min_anchor_length,
                     juncs_file_list,
                     insertions_file_list,
                     deletions_file_list,
-                    reference_fasta]
-    try:
+                    fusions_file_list,
+                    reference_fasta]            
+    try:    
         print >> run_log, " ".join(juncs_db_cmd)
         retcode = subprocess.call(juncs_db_cmd,
                                  stderr=juncs_db_log,
@@ -1939,7 +1989,7 @@ def write_sam_header(read_params, sam_file):
     print >> sam_file, "@PG\tID:TopHat\tVN:%s\tCL:%s" % (get_version(), run_cmd)
 
 # Write final TopHat output, via tophat_reports and wiggles
-def compile_reports(params, sam_header_filename, mappings, readfiles, gff_annotation):
+def compile_reports(params, sam_header_filename, ref_fasta, mappings, readfiles, gff_annotation):
     th_log("Reporting output tracks")
     left_maps, right_maps = mappings
     left_reads, right_reads = readfiles
@@ -1956,15 +2006,18 @@ def compile_reports(params, sam_header_filename, mappings, readfiles, gff_annota
     deletions = output_dir + "deletions.bed"
     accepted_hits = output_dir + "accepted_hits"
     report_cmdpath = prog_path("tophat_reports")
+    fusions = output_dir + "fusions.out"
     report_cmd = [report_cmdpath]
 
     alignments_output_filename = tmp_dir + "accepted_hits"
     
     report_cmd.extend(params.cmd())
     report_cmd.extend(["--samtools="+samtools_path])
-    report_cmd.extend([junctions,
+    report_cmd.extend([ref_fasta,
+                       junctions,
                        insertions,
                        deletions,
+                       fusions,
                        alignments_output_filename,
                        left_maps,
                        left_reads])
@@ -1972,6 +2025,7 @@ def compile_reports(params, sam_header_filename, mappings, readfiles, gff_annota
     if len(right_maps) > 0 and right_reads:
         report_cmd.append(right_maps)
         report_cmd.append(right_reads)
+
     # -- tophat_reports now produces (uncompressed) BAM stream,
     try:
         if params.report_params.convert_bam:
@@ -2069,7 +2123,6 @@ def compile_reports(params, sam_header_filename, mappings, readfiles, gff_annota
 # Split up each read in a FASTQ file into multiple segments. Creates a FASTQ file
 # for each segment  This function needs to be fixed to support mixed read length
 # inputs
-
 def open_output_files(prefix, num_files_prev, num_files, out_segf, extension, params):
        i = num_files_prev + 1
        while i <= num_files:
@@ -2173,9 +2226,10 @@ def split_reads(reads_filename,
             tmp_num_segments = read_length / segment_length
             offsets = [segment_length * i for i in range(0, tmp_num_segments + 1)]
 
+            # daehwan
             # Bowtie's minimum read length here is 20bp, so if the last segment
             # is between 20 and segment_length bp long, go ahead and write it out
-            if read_length % segment_length >= 20:
+            if read_length % segment_length >= min(segment_length - 2, 20):
                 offsets.append(read_length)
                 tmp_num_segments += 1
             else:
@@ -2218,6 +2272,7 @@ def junctions_from_closures(params,
                             ref_fasta):
     th_log("Searching for junctions via mate-pair closures")
 
+    
     #maps = [x for x in seg_maps if (os.path.exists(x) and os.path.getsize(x) > 0)]
     #if len(maps) == 0:
     #    return None
@@ -2226,7 +2281,10 @@ def junctions_from_closures(params,
     juncs_out = ""
     if slash != -1:
         juncs_out += left_maps[0][:slash+1]
+    fusions_out = juncs_out
+    
     juncs_out += "closure.juncs"
+    fusions_out += "closure.fusions"
 
     juncs_log = open(logging_dir + "closure.log", "w")
     juncs_cmdpath=prog_path("closure_juncs")
@@ -2237,6 +2295,7 @@ def junctions_from_closures(params,
 
     juncs_cmd.extend(params.cmd())
     juncs_cmd.extend([juncs_out,
+                      fusions_out,
                       ref_fasta,
                       left_maps,
                       right_maps])
@@ -2275,6 +2334,7 @@ def junctions_from_segments(params,
     juncs_out=out_path+"segment.juncs"
     insertions_out=out_path+"segment.insertions"
     deletions_out =out_path+"segment.deletions"
+    fusions_out = out_path+"segment.fusions"
 
     left_maps = ','.join(left_seg_maps)
     log_fname = logging_dir + "segment_juncs.log"
@@ -2287,6 +2347,7 @@ def junctions_from_segments(params,
                       juncs_out,
                       insertions_out,
                       deletions_out,
+                      fusions_out,
                       left_reads,
                       left_reads_map,
                       left_maps])
@@ -2302,13 +2363,14 @@ def junctions_from_segments(params,
         # spanning_reads returned an error
         if retcode != 0:
            die(fail_str+"Error: segment-based junction search failed with err ="+str(retcode)+"\n"+log_tail(log_fname))
+
     # cvg_islands not found
     except OSError, o:
         if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
            print >> sys.stderr, fail_str, "Error: segment_juncs not found on this system"
         die(str(o))
 
-    return [juncs_out, insertions_out, deletions_out]
+    return [juncs_out, insertions_out, deletions_out, fusions_out]
 
 # Joins mapped segments into full-length read alignments via the executable
 # long_spanning_reads
@@ -2319,6 +2381,7 @@ def join_mapped_segments(params,
                          possible_juncs,
                          possible_insertions,
                          possible_deletions,
+                         possible_fusions,
                          contig_seg_maps,
                          spliced_seg_maps,
                          alignments_out_name):
@@ -2333,6 +2396,8 @@ def join_mapped_segments(params,
     possible_juncs = ','.join(possible_juncs)
     possible_insertions = ",".join(possible_insertions)
     possible_deletions = ",".join(possible_deletions)
+    possible_fusions = ",".join(possible_fusions)
+
     log_fname=logging_dir + "long_spanning_reads"+rn+".log"
     align_log = open(log_fname, "w")
     align_cmd = [prog_path("long_spanning_reads")]
@@ -2344,6 +2409,7 @@ def join_mapped_segments(params,
                       possible_juncs,
                       possible_insertions,
                       possible_deletions,
+                      possible_fusions,
                       alignments_out_name,
                       contig_seg_maps])
 
@@ -2355,9 +2421,9 @@ def join_mapped_segments(params,
         print >> run_log, " ".join(align_cmd)
         join_proc=subprocess.call(align_cmd,
                                   stderr=align_log)
+
     except OSError, o:
         die(fail_str+"Error: "+str(o))
-
 
 # This class collects spliced and unspliced alignments for each of the
 # left and right read files provided by the user.
@@ -2581,10 +2647,12 @@ def spliced_alignment(params,
     possible_insertions.extend(user_supplied_insertions)
     possible_deletions = []
     possible_deletions.extend(user_supplied_deletions)
+    possible_fusions = []
 
     left_reads, right_reads = prepared_reads
 
     maps = [[], []] # maps[0] = left_reads mapping data, maps[1] = right_reads_mapping_data
+
     #single_segments = False
 
     # Before anything, map the reads using Map2GTF (if using annotation)
@@ -2606,7 +2674,6 @@ def spliced_alignment(params,
             return maps
         # Feed the unmapped reads into spliced_alignment()
         initial_reads = unmapped_gtf_list[:]
-
         th_log("Resuming TopHat pipeline with unmapped reads")
 
     max_seg_len = segment_len #this is the ref seq span on either side of the junctions
@@ -2643,6 +2710,7 @@ def spliced_alignment(params,
                params.coverage_search = False
         if params.butterfly_search != True:
                 params.butterfly_search = False
+
     # Perform the first part of the TopHat work flow on the left and right
     # reads of paired ends separately - we'll use the pairing information later
     for ri in (0,1):
@@ -2726,7 +2794,6 @@ def spliced_alignment(params,
 
     # Unless the user asked not to discover new junctions, start that process
     # here
-
     left_reads_map = maps[0].unspliced_sam
     left_seg_maps = maps[0].seg_maps
     unmapped_reads = maps[0].unmapped_segs
@@ -2739,7 +2806,6 @@ def spliced_alignment(params,
         right_seg_maps = None
 
     if params.find_novel_juncs: # or params.find_novel_indels:
-
         # Call segment_juncs to infer a list of possible splice junctions from
         # the regions of the genome covered in the initial and segment maps
         #if params.find_novel_juncs:
@@ -2759,10 +2825,13 @@ def spliced_alignment(params,
         if os.path.getsize(juncs[0]) != 0:
                     possible_juncs.append(juncs[0])
         if params.find_novel_indels:
-                if os.path.getsize(juncs[1]) != 0:
-                    possible_insertions.append(juncs[1])
-                if os.path.getsize(juncs[2]) != 0:
-                    possible_deletions.append(juncs[2])
+            if os.path.getsize(juncs[1]) != 0:
+                possible_insertions.append(juncs[1])
+            if os.path.getsize(juncs[2]) != 0:
+                possible_deletions.append(juncs[2])
+        if params.find_novel_fusions:
+            if os.path.getsize(juncs[3]) != 0:
+                possible_fusions.append(juncs[3])
         # Optionally, and for paired reads only, use a closure search to
         # discover addtional junctions
         if params.closure_search and left_reads and right_reads:
@@ -2773,7 +2842,7 @@ def spliced_alignment(params,
             if os.path.getsize(juncs[0]) != 0:
                 possible_juncs.extend(juncs)
 
-    if len(possible_insertions) == 0 and len(possible_deletions) == 0 and len(possible_juncs) == 0:
+    if len(possible_insertions) == 0 and len(possible_deletions) == 0 and len(possible_juncs) == 0 and len(possible_fusions) == 0:
         spliced_seg_maps = None
         junc_idx_prefix = None
     else:
@@ -2787,6 +2856,8 @@ def spliced_alignment(params,
     if len(possible_juncs) == 0:
         possible_juncs.append(os.devnull)
         print >> sys.stderr, "Warning: junction database is empty!"
+    if len(possible_fusions) == 0:
+        possible_fusions.append(os.devnull)
     if junc_idx_prefix:
         juncs_bwt_idx = build_juncs_index(3,
                                           max_seg_len,
@@ -2794,6 +2865,7 @@ def spliced_alignment(params,
                                           possible_juncs,
                                           possible_insertions,
                                           possible_deletions,
+                                          possible_fusions,
                                           ref_fasta,
                                           params.read_params.color)
 
@@ -2845,6 +2917,7 @@ def spliced_alignment(params,
                              possible_juncs,
                              possible_insertions,
                              possible_deletions,
+                             possible_fusions,
                              maps[ri].seg_maps,
                              spliced_seg_maps,
                              mapped_reads)
@@ -2857,6 +2930,7 @@ def spliced_alignment(params,
             # NOTE: We also should be able to address bug #134 here, by replacing
             # contiguous alignments that poke into an intron by a small amount by
             # the correct spliced alignment.
+
             try:
                 merge_cmd = [ prog_path("bam_merge"), "--index-outfile", merged_map + ".index",
                               merged_map ]
@@ -2894,7 +2968,7 @@ def spliced_alignment(params,
             maps[ri] = [merged_map]
         if not params.system_params.keep_tmp:
                 os.remove(unspl_samfile)
-        #for ri
+
     return maps
 
 def die(msg=None):
@@ -2921,6 +2995,11 @@ def which(program):
               return progpath
     return None
 
+def die(msg=None):
+ if msg is not None: 
+    print >> sys.stderr, msg
+    sys.exit(1)
+
 def prog_path(program):
     progpath=which(program)
     if progpath == None:
@@ -2940,14 +3019,12 @@ def test_input_file(filename):
     except IOError, o:
         die("Error: Opening file %s" % filename)
     return
-
-
+    
 def main(argv=None):
     warnings.filterwarnings("ignore", "tmpnam is a potential security risk")
 
     # Initialize default parameter values
     params = TopHatParams()
-
     try:
         if argv is None:
             argv = sys.argv
@@ -3031,16 +3108,16 @@ def main(argv=None):
         check_samtools()
         th_log("Generating SAM header for "+bwt_idx_prefix)
         sam_header_filename = get_index_sam_header(params.read_params, bwt_idx_prefix)
-
         #if not params.skip_check_reads:
         reads_list = left_reads_list
         if right_reads_list:
                 reads_list = reads_list + "," + right_reads_list
         params.read_params = check_reads_format(params, reads_list)
-
+            
         user_supplied_juncs = []
         user_supplied_insertions = []
         user_supplied_deletions = []
+        user_supplied_fusions = []
         global gtf_juncs
         if params.gff_annotation and params.find_GFF_juncs:
             test_input_file(params.gff_annotation)
@@ -3119,6 +3196,7 @@ def main(argv=None):
         # turn off integer-quals
         if params.read_params.integer_quals:
             params.read_params.integer_quals = False
+
         input_reads = [left_kept_reads, right_kept_reads]
         mappings = spliced_alignment(params,
                               bwt_idx_prefix,
@@ -3133,6 +3211,7 @@ def main(argv=None):
 
         compile_reports(params,
                         sam_header_filename,
+                        ref_fasta,
                         mappings,
                         input_reads,
                         params.gff_annotation)
