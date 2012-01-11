@@ -555,7 +555,8 @@ class TopHatParams:
                "--max-deletion-length", str(self.max_deletion_length)]
 
         if self.fusion_search:
-            cmd.extend(["--fusion-anchor-length", str(self.fusion_anchor_length),
+            cmd.extend(["--fusion-search",
+                        "--fusion-anchor-length", str(self.fusion_anchor_length),
                         "--fusion-min-dist", str(self.fusion_min_dist),
                         "--fusion-read-mismatches", str(self.fusion_read_mismatches),
                         "--fusion-multireads", str(self.fusion_multireads),

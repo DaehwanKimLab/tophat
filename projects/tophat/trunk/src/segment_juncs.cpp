@@ -3004,8 +3004,8 @@ void find_fusions(RefSequenceTable& rt,
 	{
 	  BowtieHit* hit = &hits[i];
 
-	  static const uint32_t chr_id1 = RefSequenceTable::hash_string("chr2");
-	  static const uint32_t chr_id2 = RefSequenceTable::hash_string("chr3");
+	  static const uint32_t chr_id1 = rt.get_id("chr2");
+	  static const uint32_t chr_id2 = rt.get_id("chr3");
 	  
 	  // KPL-4	PPP1R12A	12:80167343-80329235:-1	SEPT10	2:110300380-110371783:-1
 	  // const uint32_t left1 = 80167343, right1 = 80329235, left2 = 110300380, right2 = 110371783;
@@ -3216,7 +3216,9 @@ void find_fusions(RefSequenceTable& rt,
 	}
     }
 
-  static const uint32_t chrM_id = RefSequenceTable::hash_string("chrM");
+  // daehwan - should check this out
+  static const string chrM = "chrM";
+  static const uint32_t chrM_id = rt.get_id(chrM);
   for (size_t left_segment_index = 0; left_segment_index < left_segment_hits.hits.size(); ++left_segment_index)
     {
       for (size_t right_segment_index = 0; right_segment_index < right_segment_hits.hits.size(); ++right_segment_index)
@@ -3277,7 +3279,7 @@ void find_fusions(RefSequenceTable& rt,
 	      dir = FUSION_FR;
 	  else
 	      dir = FUSION_RF;
-
+	  
 	  detect_fusion(rt, *modifiedRead, *leftHit, *rightHit, fusions, dir);
 	}
     }
@@ -3560,7 +3562,7 @@ void find_gaps(RefSequenceTable& rt,
 	  
 	  if (!found_right_seg_partner && (drs_bhs.size() > 0 || rrs_bhs.size() > 0))
 	    {
-	      const int look_bp = 8;
+	      const int look_bp = 5;
 	      const size_t color_offset = color ? 1 : 0;
 
 	      vector<BowtieHit*> d_bhs = rrs_bhs.size() > 0 ? rrs_bhs : drs_bhs;
@@ -4281,7 +4283,7 @@ void capture_island_ends(ReadTable& it,
 #else
   //build coverage map here, so we can debug it
   #ifdef DEBUG_RANGE_ONLY
-   static const uint32_t chr14_id = RefSequenceTable::hash_string("chr14");
+   static const uint32_t chr14_id = rt.get_id("chr14");
   #endif
   vector<ReadInfo> hits;
   BAMHitFactory hit_factory(it,rt);
@@ -4724,7 +4726,7 @@ void driver(istream& ref_stream,
   std::set<Insertion> vinsertions[num_threads];
   FusionSimpleSet vfusions[num_threads];
   
-  RefSequenceTable rt(true, true);
+  RefSequenceTable rt(sam_header, true, true);
   
   fprintf (stderr, "Loading reference sequences...\n");
   get_seqs(ref_stream, rt, true, false);
@@ -4915,8 +4917,6 @@ void driver(istream& ref_stream,
     for (vector<string>::size_type i = 0; i != right_segmap_fnames.size();i++) {
       all_segmap_fnames.push_back( right_segmap_fnames[i] );
     }
-    //copy(left_seg_files.begin(), left_seg_files.end(), back_inserter(all_seg_files));
-    //copy(right_seg_files.begin(), right_seg_files.end(), back_inserter(all_seg_files));
 
 #if 0
   // daehwan - check this out as Cole insists on using segments gives better results.
@@ -5037,11 +5037,10 @@ void driver(istream& ref_stream,
        all_segmap_fnames[i]->close();
        }
    */
-  fprintf (stderr, "Reported %d total possible splices\n", (int)juncs.size());
-
+  fprintf(stderr, "Reported %d total potential splices\n", (int)juncs.size());
   sort(splice_junction_coords.begin(), splice_junction_coords.end());
   
-  fprintf (stderr, "Reporting potential deletions...\n");
+  fprintf(stderr, "Reporting %u potential deletions...\n", deletions.size());
   if(deletions_out){
     for(std::set<Deletion>::iterator itr = deletions.begin(); itr != deletions.end(); ++itr){
       const char* ref_name = rt.get_name(itr->refid);
@@ -5059,7 +5058,7 @@ void driver(istream& ref_stream,
     fprintf(stderr, "Failed to open deletions file for writing, no deletions reported\n");
   }
   
-  fprintf (stderr, "Reporting potential insertions...\n");
+  fprintf(stderr, "Reporting %u potential insertions...\n", insertions.size());
   if(insertions_out){
     for(std::set<Insertion>::iterator itr = insertions.begin(); itr != insertions.end(); ++itr){
       const char* ref_name = rt.get_name(itr->refid);
@@ -5074,7 +5073,6 @@ void driver(istream& ref_stream,
   }else{
     fprintf(stderr, "Failed to open insertions file for writing, no insertions reported\n");
   }
-  fprintf (stderr, "Reporting potential fusions...\n");
   if (fusions_out)
     {
       // check if a fusion point coincides with splice junctions.
@@ -5162,6 +5160,7 @@ void driver(istream& ref_stream,
 	}
       fclose(fusions_out);
     }
+  fprintf(stderr, "Reporting %u potential fusions...\n", fusions.size());
 }
 
 int main(int argc, char** argv)

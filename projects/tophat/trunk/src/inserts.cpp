@@ -281,7 +281,7 @@ void insert_best_pairings(RefSequenceTable& rt,
       vector<size_t> map2_singletons;
       vector<pair<size_t, size_t> > happy_mates;
       
-      uint64_t ref_id = ci->first;
+      uint64_t ref_id = ci->second.observation_order;
       HitList* hits1_in_ref = hits1.get_hits(ref_id);
       HitList* hits2_in_ref = hits2.get_hits(ref_id);
       

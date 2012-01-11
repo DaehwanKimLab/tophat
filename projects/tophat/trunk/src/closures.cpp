@@ -152,33 +152,6 @@ void find_fusion_closure(HitsForRead& left_hits,
 		}
 	    }
 
-	  // daehwan
-#if 0
-	  static const uint32_t chr_id1 = RefSequenceTable::hash_string("chr5");
-	  static const uint32_t chr_id2 = RefSequenceTable::hash_string("chr5");
-
-	  // VCaP TIA1 2:70436576-70475792:-1 DIRC2 3:122513642-122599986:1
-	  // const uint32_t left1 = 70436576, right1 = 70475792, left2 = 122513642, right2 = 122599986;
-
-	  // VCaP SPOCK1 5:136310987-136934068:-1 TBC1D9B 5:179289066-179334859:-1
-	  const uint32_t left1 = 136310987, right1 = 136934068, left2 = 179289066, right2 = 179334859;
-
-	  BowtieHit* lHit = leftHit;
-	  BowtieHit* rHit = rightHit;
-
-	  if (lHit->ref_id() != chr_id1)
-	    {
-	      lHit = rightHit;
-	      rHit = leftHit;
-	    }
-
-	  if ((lHit->ref_id() == chr_id1 && lHit->left() >= left1 && lHit->left() <= right1) &&
-	      (rHit->ref_id() == chr_id2 && rHit->left() >= left2 && rHit->left() <= right2))
-	    {
-	      cout << lHit->insert_id() << endl;
-	    }
-#endif
-
 	  fusions.insert(Fusion(ref_id1, ref_id2, left, right, dir));
 	}
     }
