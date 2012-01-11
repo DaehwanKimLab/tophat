@@ -875,13 +875,11 @@ struct lex_hit_sort
         const BowtieHit& lhs = _hits.hits[l];
         const BowtieHit& rhs = _hits.hits[r];
 
-	// daehwan - we can directly compare ref_ids!
         uint32_t l_id = lhs.ref_id();
         uint32_t r_id = rhs.ref_id();
         if (l_id != r_id)
-        {
-	  return (strcmp(_rt.get_name(l_id), _rt.get_name(r_id)) < 0);
-        }
+	  return l_id < r_id;
+
         return lhs.left() < rhs.left();
     }
     
@@ -1642,12 +1640,8 @@ void driver(const string& bam_output_fname,
   if (!parallel)
     num_threads = 1;
 
-  // daehwan - merge
-#if 0
-  RefSequenceTable rt(true, true);
-#endif
-
-  RefSequenceTable rt(sam_header, true);
+  // if fusion_search is on, keep the sequences
+  RefSequenceTable rt(sam_header, true, fusion_search);
   srandom(1);
   
   JunctionSet gtf_junctions;

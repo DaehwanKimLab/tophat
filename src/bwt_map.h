@@ -582,10 +582,9 @@ class RefSequenceTable
     uint32_t len;
   };
   
-  typedef map<string, uint64_t> IDTable;
-  typedef map<uint32_t, SequenceInfo> InvertedIDTable;
-  typedef InvertedIDTable::iterator iterator;
-  typedef InvertedIDTable::const_iterator const_iterator;
+  typedef map<string, SequenceInfo> IDTable;
+  typedef IDTable::iterator iterator;
+  typedef IDTable::const_iterator const_iterator;
   
  RefSequenceTable(bool keep_names, bool keep_seqs = false) : 
   _next_id(1), 
@@ -619,13 +618,11 @@ class RefSequenceTable
   
   // This function should NEVER return zero
   uint32_t get_id(const string& name,
-		  Sequence* seq,
-		  uint32_t len)
+		  Sequence* seq = NULL,
+		  uint32_t len = 0)
   {
-    uint32_t _id = hash_string(name.c_str());
-    
-    pair<InvertedIDTable::iterator, bool> ret = 
-      _by_id.insert(make_pair(_id, SequenceInfo(_next_id, NULL, NULL, 0)));
+    pair<IDTable::iterator, bool> ret = 
+      _by_name.insert(make_pair(name, SequenceInfo(_next_id, NULL, NULL, 0)));
     if (ret.second == true)
       {			
 	char* _name = NULL;
@@ -637,21 +634,28 @@ class RefSequenceTable
 	ret.first->second.len = len;
 	ret.first->second.observation_order = _next_id;
 	assert (_refid_to_hash.size() + 1 == _next_id);
-	_refid_to_hash.push_back (_id);
+	_refid_to_name.push_back (name);
 			
 	++_next_id;
       }
-    assert (_id);
-    // return _id;
+    else
+      {
+	if (seq)
+	  {
+	    ret.first->second.seq = seq;
+	    ret.first->second.len = len;
+	  }
+      }
+
     return ret.first->second.observation_order;
   }
   
   const char* get_name(uint32_t ID) const
   {
     assert (ID > 0 && ID <= _refid_to_hash.size());
-    uint32_t hash = _refid_to_hash[ID-1];
-    InvertedIDTable::const_iterator itr = _by_id.find(hash);
-    if (itr != _by_id.end())
+    const string& name = _refid_to_name[ID-1];
+    IDTable::const_iterator itr = _by_name.find(name);
+    if (itr != _by_name.end())
       return itr->second.name;
     else
       return NULL;
@@ -659,10 +663,10 @@ class RefSequenceTable
   
   uint32_t get_len(uint32_t ID) const
   {
-    assert (ID > 0 && ID <= _refid_to_hash.size());
-    uint32_t hash = _refid_to_hash[ID-1];
-    InvertedIDTable::const_iterator itr = _by_id.find(hash);
-    if (itr != _by_id.end())
+    assert (ID > 0 && ID <= _refid_to_name.size());
+    const string& name = _refid_to_name[ID-1];
+    IDTable::const_iterator itr = _by_name.find(name);
+    if (itr != _by_name.end())
       return itr->second.len;
     else
       return 0;
@@ -670,10 +674,10 @@ class RefSequenceTable
   
   Sequence* get_seq(uint32_t ID) const
   {
-    assert (ID > 0 && ID <= _refid_to_hash.size());
-    uint32_t hash = _refid_to_hash[ID-1];
-    InvertedIDTable::const_iterator itr = _by_id.find(hash);
-    if (itr != _by_id.end())
+    assert (ID > 0 && ID <= _refid_to_name.size());
+    const string& name = _refid_to_name[ID-1];
+    IDTable::const_iterator itr = _by_name.find(name);
+    if (itr != _by_name.end())
       return itr->second.seq;
     else
       return NULL;
@@ -681,10 +685,10 @@ class RefSequenceTable
   
   const SequenceInfo* get_info(uint32_t ID) const
   {
-    assert (ID > 0 && ID <= _refid_to_hash.size());
-    uint32_t hash = _refid_to_hash[ID-1];
-    InvertedIDTable::const_iterator itr = _by_id.find(hash);
-    if (itr != _by_id.end())
+    assert (ID > 0 && ID <= _refid_to_name.size());
+    const string& name = _refid_to_name[ID-1];
+    IDTable::const_iterator itr = _by_name.find(name);
+    if (itr != _by_name.end())
       {
 	return &(itr->second);
       }
@@ -694,45 +698,22 @@ class RefSequenceTable
   
   uint32_t observation_order(uint32_t ID) const
   {
-    /*
-    InvertedIDTable::const_iterator itr = _by_id.find(ID);
-    if (itr != _by_id.end())
-      {
-	return itr->second.observation_order;
-      }
-    else
-      return -1;
-    */
-
     return ID;
   }
   
-  iterator begin() { return _by_id.begin(); }
-  iterator end() { return _by_id.end(); }
+  iterator begin() { return _by_name.begin(); }
+  iterator end() { return _by_name.end(); }
   
-  const_iterator begin() const { return _by_id.begin(); }
-  const_iterator end() const { return _by_id.end(); }
+  const_iterator begin() const { return _by_name.begin(); }
+  const_iterator end() const { return _by_name.end(); }
   
-  size_t size() const { return _by_id.size(); }
+  size_t size() const { return _by_name.size(); }
 	
   void clear()
   {
-    //_by_name.clear();
-    _by_id.clear();
+    _by_name.clear();
   }
 
-    // This is FNV-1, see http://en.wikipedia.org/wiki/Fowler_Noll_Vo_hash
-  static inline uint32_t hash_string(const char* __s)
-  {
-    uint32_t hash = 0x811c9dc5;
-    for ( ; *__s; ++__s)
-      {
-	hash *= 16777619;
-	hash ^= *__s;
-      }
-    return hash;
-  }
-  
   // strnum_cmp is taken from samtools.
   static inline int strnum_cmp(const string &a, const string &b)
   {
@@ -762,28 +743,27 @@ class RefSequenceTable
   void order_recs_lexicographically()
   {
     vector<string> vStr;
-    for (InvertedIDTable::iterator i = _by_id.begin(); i != _by_id.end(); ++i)
+    for (IDTable::iterator i = _by_name.begin(); i != _by_name.end(); ++i)
       {
-	vStr.push_back(i->second.name);
+	vStr.push_back(i->first);
       }
 
     ::sort(vStr.begin(), vStr.end(), RefSequenceTable::strnum_cmp);
     
-    _refid_to_hash.clear();
+    _refid_to_name.clear();
     size_t new_order = 1;
     for (vector<string>::iterator i = vStr.begin(); i != vStr.end(); ++i, ++new_order)
       {
-	uint32_t hash = hash_string((*i).c_str());
-	_by_id.find(hash)->second.observation_order = new_order;
-	_refid_to_hash.push_back(hash);
+	_by_name.find(*i)->second.observation_order = new_order;
+	_refid_to_name.push_back(*i);
       }
   }
   
 private:
   uint32_t _next_id;
   bool _keep_names;
-  InvertedIDTable _by_id;
-  vector<uint32_t> _refid_to_hash;
+  IDTable _by_name;
+  vector<string> _refid_to_name;
 };
 
 

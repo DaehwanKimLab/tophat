@@ -288,7 +288,7 @@ void driver(const vector<FILE*>& splice_coords_files,
 	    ifstream& ref_stream)
 {	
 	char splice_buf[2048];
-	RefSequenceTable rt(true, true);
+	RefSequenceTable rt(sam_header, true, true);
 	get_seqs(ref_stream, rt, true, false);
 
 	JunctionSet junctions;
