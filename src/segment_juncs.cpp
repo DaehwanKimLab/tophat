@@ -2791,6 +2791,7 @@ void detect_fusion(RefSequenceTable& rt,
       // daehwan - check
 #if B_DEBUG
       cout << endl << endl;
+      cout << "read id: " << leftHit.insert_id() << endl;
       cout << "sense: " << (leftHit.antisense_align() ? "-" : "+") << endl;
       // cout << "difference: " << different_count << endl;
       cout << "left ref_id: " << rt.get_name(leftHit.ref_id()) << "\tright ref_id: " << rt.get_name(rightHit.ref_id()) << endl;
@@ -3062,14 +3063,10 @@ void find_fusions(RefSequenceTable& rt,
       has_partner = insert_id == partner_hit_group.insert_id;
     }
 
-  char read_name[1024];
-  char read_seq[1024];
-  char read_alt_name[1024];
-  char read_quals[1024];
-  
   /*
    * Need to identify the appropriate insert id for this group of reads
    */
+
 
   Read read;
   bool got_read = reads_file.getRead(hits_for_read[last_segment].insert_id, read);
@@ -3084,8 +3081,8 @@ void find_fusions(RefSequenceTable& rt,
   HitsForRead& right_segment_hits = partner_hits_for_read;
 
   seqan::String<char> fullRead, rcRead;
-  fullRead = read_seq;
-  rcRead = read_seq;
+  fullRead = read.seq;
+  rcRead = read.seq;
   seqan::convertInPlace(rcRead, seqan::FunctorComplement<Dna>());
   seqan::reverseInPlace(rcRead);
 
@@ -4562,7 +4559,6 @@ struct SegmentSearchWorker
   void operator()()
   {
     ReadTable it;
-    BAMHitFactory hit_factory(it, *rt);
 
     ReadStream readstream(reads_fname);
     ReadStream readstream_for_segment_search(reads_fname);
@@ -4586,27 +4582,33 @@ struct SegmentSearchWorker
 	readstream_for_indel_discovery.seek(read_offset);
 	readstream_for_fusion_discovery.seek(read_offset);
       }
-    
-    HitStream partner_hit_stream_for_segment_search(partner_reads_map_fname, &hit_factory, false, false, false);
-    HitStream partner_hit_stream_for_fusion_discovery(partner_reads_map_fname, &hit_factory, false, false, false);
+
+    vector<BAMHitFactory*> hit_factories;
+    hit_factories.push_back(new BAMHitFactory(it, *rt));
+    HitStream partner_hit_stream_for_segment_search(partner_reads_map_fname, hit_factories.back(), false, false, false);
+    hit_factories.push_back(new BAMHitFactory(it, *rt));
+    HitStream partner_hit_stream_for_fusion_discovery(partner_reads_map_fname, hit_factories.back(), false, false, false);
     if (partner_hit_offset > 0)
       {
 	partner_hit_stream_for_segment_search.seek(partner_hit_offset);
 	partner_hit_stream_for_fusion_discovery.seek(partner_hit_offset);
       }
 
-    HitStream seg_partner_hit_stream_for_segment_search(seg_partner_reads_map_fname, &hit_factory, false, false, false);
-    HitStream seg_partner_hit_stream_for_fusion_discovery(seg_partner_reads_map_fname, &hit_factory, false, false, false);
+    hit_factories.push_back(new BAMHitFactory(it, *rt));
+    HitStream seg_partner_hit_stream_for_segment_search(seg_partner_reads_map_fname, hit_factories.back(), false, false, false);
+    hit_factories.push_back(new BAMHitFactory(it, *rt));
+    HitStream seg_partner_hit_stream_for_fusion_discovery(seg_partner_reads_map_fname, hit_factories.back(), false, false, false);
     if (seg_partner_hit_offset > 0)
       {
 	seg_partner_hit_stream_for_segment_search.seek(seg_partner_hit_offset);
 	seg_partner_hit_stream_for_fusion_discovery.seek(seg_partner_hit_offset);
       }
-    
+
     vector<HitStream> hit_streams;
     for (size_t i = 0; i < segmap_fnames->size(); ++i)
       {
-	HitStream hs((*segmap_fnames)[i], &hit_factory, false, false, false);
+	hit_factories.push_back(new BAMHitFactory(it, *rt));
+	HitStream hs((*segmap_fnames)[i], hit_factories.back(), false, false, false);
 	if (seg_offsets[i] > 0)
 	  hs.seek(seg_offsets[i]);
 
@@ -4635,18 +4637,16 @@ struct SegmentSearchWorker
 	//if (num_group % 500000 == 0)
 	//  fprintf(stderr, "\tProcessed %d root segment groups\n", num_group);
 
-	// daehwan - remove this
-	if (num_group == 1)
-	  fprintf(stderr, "begin read id: %llu\n", read_id);
-
 	last_read_id = read_id;
       }
 
-    // daehwan - remove this
-    fprintf(stderr, "end read id: %llu\n", last_read_id);
-
     // "microaligned_segs" is not protected against multi-threading
-    // fprintf(stderr, "Microaligned %d segments\n", microaligned_segs); 
+    // fprintf(stderr, "Microaligned %d segments\n", microaligned_segs);
+
+    for (size_t i = 0; i < hit_factories.size(); ++i)
+      delete hit_factories[i];
+
+    hit_factories.clear();
   }
 
   RefSequenceTable* rt;
@@ -4904,7 +4904,10 @@ void driver(istream& ref_stream,
 
   FusionSimpleSet fusions = vfusions[0];
   for (int i = 1; i < num_threads; ++i)
-    merge_with(fusions, vfusions[i]);
+    {
+      merge_with(fusions, vfusions[i]);
+    }
+
 
   fprintf(stderr, "\tfound %ld potential split-segment junctions\n", (long int)seg_juncs.size());
   fprintf(stderr, "\tfound %ld potential small deletions\n", (long int)deletions.size());
@@ -5160,7 +5163,7 @@ void driver(istream& ref_stream,
 	}
       fclose(fusions_out);
     }
-  fprintf(stderr, "Reporting %u potential fusions...\n", fusions.size());
+  fprintf(stderr, "Reporting potential fusions...\n");
 }
 
 int main(int argc, char** argv)

@@ -88,7 +88,8 @@ Options:
                                                  files for color space reads]
 
 Advanced Options:
-    -N/--initial-read-mismatches   <int>       [ default: 2                ]
+    --genome-read-mismatches       <int>       [ default: 2                ]
+    -N/--read-mismatches           <int>       [ default: 2                ]
     --segment-mismatches           <int>       [ default: 2                ]
     --segment-length               <int>       [ default: 25               ]
     --bowtie-n                                 [ default: bowtie -v        ]
@@ -474,7 +475,8 @@ class TopHatParams:
         self.max_hits = 20
         self.t_max_hits = 60
         self.prefilter_multi = False
-        self.initial_read_mismatches = 2
+        self.genome_read_mismatches = 2
+        self.max_read_mismatches = 2
         self.t_mismatches = 1
         self.segment_length = 25
         self.segment_mismatches = 2
@@ -549,7 +551,7 @@ class TopHatParams:
                "--max-coverage-intron", str(self.search_params.max_coverage_intron_length),
                "--min-segment-intron", str(self.search_params.min_segment_intron_length),
                "--max-segment-intron", str(self.search_params.max_segment_intron_length),
-               "--max-mismatches", str(self.initial_read_mismatches),
+               "--max-mismatches", str(self.max_read_mismatches),
                "--sam-header", sam_header,
                "--max-insertion-length", str(self.max_insertion_length),
                "--max-deletion-length", str(self.max_deletion_length)]
@@ -652,9 +654,9 @@ class TopHatParams:
                                          "min-segment-intron=",
                                          "max-segment-intron=",
                                          "seed-length=",
-                                         "initial-read-mismatches=",
+                                         "genome-read-mismatches=",
                                          "read-mismatches=",
-                                         "max-mismatches=",
+                                         "max-read-mismatches=",
                                          "transcriptome-mismatches=",
                                          "segment-length=",
                                          "segment-mismatches=",
@@ -754,8 +756,10 @@ class TopHatParams:
                 self.butterfly_search = True
             if option == "--no-butterfly-search":
                 self.butterfly_search = False
-            if option in ("-N", "--initial-read-mismatches", "--read-mismatches", "--max-mismatches"):
-                self.initial_read_mismatches = int(value)
+            if option == "--genome-read-mismatches":
+                self.genome_read_mismatches = int(value)
+            if option in ("-N", "--read-mismatches", "--max-read-mismatches"):
+                self.max_read_mismatches = int(value)
             if option in ("-n", "--transcriptome-mismatches"):
                 self.t_mismatches = int(value)
             if option == "--segment-length":
@@ -1062,8 +1066,6 @@ def check_bowtie():
     th_log("Checking for Bowtie")
     global bowtie_path
     bowtie_path=prog_path("bowtie")
-    global bowtie_path
-    bowtie_path=prog_path("bowtie")
     bowtie_version = get_bowtie_version()
     if bowtie_version == None:
         die("Error: Bowtie not found on this system")
@@ -1098,8 +1100,6 @@ def get_samtools_version():
 # Make sure the SAM tools are installed and are recent enough to be useful
 def check_samtools():
     th_log("Checking for Samtools")
-    global samtools_path
-    samtools_path=prog_path("samtools")
     global samtools_path
     samtools_path=prog_path("samtools")
     samtools_version_str, samtools_version_arr = get_samtools_version()
@@ -2031,10 +2031,10 @@ def compile_reports(params, sam_header_filename, ref_fasta, mappings, readfiles,
     try:
         if params.report_params.convert_bam:
             if params.report_params.sort_bam:
+                print >> run_log, " ".join(report_cmd)
                 report_proc=subprocess.call(report_cmd,
                                             preexec_fn=subprocess_setup,
                                             stderr=report_log)
-                print >> run_log, " ".join(report_cmd)
 
                 bam_parts = []
                 for i in range(params.system_params.num_threads):
@@ -2733,7 +2733,7 @@ def spliced_alignment(params,
                                              bwt_idx_prefix,
                                              [reads],
                                              "fastq",
-                                             params.initial_read_mismatches,
+                                             params.genome_read_mismatches,
                                              unspliced_out,
                                              unmapped_unspliced)
 
@@ -3163,7 +3163,7 @@ def main(argv=None):
                rdlist=reads_list.split(',')
                bwt=bowtie(params, bwt_idx_prefix, rdlist,
                      params.read_params.reads_format,
-                     params.initial_read_mismatches,
+                     params.genome_read_mismatches,
                      side_imap, side_ium,
                      "", False, params.preflt_data[ri].multihit_reads)
                params.preflt_data[ri].mappings = bwt[0] # initial mappings

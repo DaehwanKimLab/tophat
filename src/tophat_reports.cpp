@@ -1184,13 +1184,14 @@ struct ConsensusEventsWorker
   void operator()()
   {
     ReadTable it;
-    BAMHitFactory hit_factory(it, *rt);
-
-    HitStream l_hs(left_map_fname, &hit_factory, false, true, true, true);
+    vector<BAMHitFactory*> hit_factories;
+    hit_factories.push_back(new BAMHitFactory(it, *rt));
+    HitStream l_hs(left_map_fname, hit_factories.back(), false, true, true, true);
     if (left_map_offset > 0)
       l_hs.seek(left_map_offset);
-    
-    HitStream r_hs(right_map_fname, &hit_factory, false, true, true, true);
+
+    hit_factories.push_back(new BAMHitFactory(it, *rt));
+    HitStream r_hs(right_map_fname, hit_factories.back(), false, true, true, true);
     if (right_map_offset > 0)
       r_hs.seek(right_map_offset);
 
@@ -1302,6 +1303,11 @@ struct ConsensusEventsWorker
 	    curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
 	  }
       }
+
+    for (size_t i = 0; i < hit_factories.size(); ++i)
+      delete hit_factories[i];
+    
+    hit_factories.clear();
   }
 
   string left_map_fname;
@@ -1349,12 +1355,14 @@ struct ReportWorker
 	  err_die("Error: cannot open file %s for writing!\n",right_um_fname.c_str());
       }
 
-    BAMHitFactory hit_factory(it, *rt);
-    HitStream left_hs(left_map_fname, &hit_factory, false, true, true, true);
+    vector<BAMHitFactory*> hit_factories;
+    hit_factories.push_back(new BAMHitFactory(it, *rt));
+    HitStream left_hs(left_map_fname, hit_factories.back(), false, true, true, true);
     if (left_map_offset > 0)
       left_hs.seek(left_map_offset);
-    
-    HitStream right_hs(right_map_fname, &hit_factory, false, true, true, true);
+
+    hit_factories.push_back(new BAMHitFactory(it, *rt));
+    HitStream right_hs(right_map_fname, hit_factories.back(), false, true, true, true);
     if (right_map_offset > 0)
       right_hs.seek(right_map_offset);
     
@@ -1593,6 +1601,11 @@ struct ReportWorker
 
     left_um_out.close();
     right_um_out.close();
+
+    for (size_t i = 0; i < hit_factories.size(); ++i)
+      delete hit_factories[i];
+
+    hit_factories.clear();
   }
 
   string bam_output_fname;
