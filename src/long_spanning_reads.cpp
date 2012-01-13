@@ -175,7 +175,7 @@ BowtieHit merge_chain(RefSequenceTable& rt,
   bool antisense = hit_chain.front().antisense_align();
   uint64_t insert_id = hit_chain.front().insert_id();
   
-  int left = hit_chain.front().left();	
+  const int left = hit_chain.front().left();	
   
   list<BowtieHit>::iterator prev_hit = hit_chain.begin();
   list<BowtieHit>::iterator curr_hit = ++(hit_chain.begin());
@@ -1356,7 +1356,8 @@ BowtieHit merge_chain(RefSequenceTable& rt,
   if (bDebug)
     {
       cout << "daehwan - test3" << endl;
-      cout << print_cigar(new_hit.cigar()) << endl;
+      cout << new_hit.left() << " " << print_cigar(new_hit.cigar()) << endl;
+      cout << new_hit.ref_id() << "-" << new_hit.ref_id2() << ": " << new_hit.fusion_opcode() << endl;
     }
 
   int new_read_len = new_hit.read_len();
@@ -1961,7 +1962,6 @@ struct JoinSegmentsWorker
 
     vector<HitStream> contig_hits;
     vector<HitStream> spliced_hits;
-    fprintf (stderr, "        reference sequences loaded.\n");
     vector<HitFactory*> factories;
     for (size_t i = 0; i < segmap_fnames.size(); ++i)
       {
@@ -1978,11 +1978,6 @@ struct JoinSegmentsWorker
     for (size_t i = 0; i < spliced_segmap_fnames.size(); ++i)
       {
 	int anchor_length = 0;
-	
-	// we allow read alignments even 1bp overlapping with juctions.
-	// if (i == 0 || i == spliced_seg_files.size() - 1)
-	// anchor_length = min_anchor_len;
-	
 	HitFactory* fac = new SplicedBAMHitFactory(it, *rt, anchor_length);
 	factories.push_back(fac);
 	
@@ -2122,11 +2117,15 @@ struct JoinSegmentsWorker
 		    for (size_t i = 0; i < joined_hits.size(); i++)
 		      {
 			const char* ref_name = rt->get_name(joined_hits[i].ref_id());
+			const char* ref_name2 = "";
+			if (joined_hits[i].fusion_opcode() != FUSION_NOTHING)
+			  ref_name2 = rt->get_name(joined_hits[i].ref_id2());
+
 			if (color && !color_out)
-			  print_bamhit(bam_writer, read.name.c_str(), joined_hits[i], ref_name, joined_hits[i].seq().c_str(),
-				       joined_hits[i].qual().c_str(), true);
+			  print_bamhit(bam_writer, read.name.c_str(), joined_hits[i], ref_name, ref_name2,
+				       joined_hits[i].seq().c_str(), joined_hits[i].qual().c_str(), true);
 			else
-			  print_bamhit(bam_writer, read.name.c_str(), joined_hits[i], ref_name,
+			  print_bamhit(bam_writer, read.name.c_str(), joined_hits[i], ref_name, ref_name2,
 				       read.seq.c_str(), read.qual.c_str(), false);
 		      }
 		  }
@@ -2251,6 +2250,7 @@ void driver(const string& bam_output_fname,
    * Read the insertions from the list of insertion
    * files into a set
    */
+  fprintf(stderr, "Loading insertions...");
   std::set<Insertion> possible_insertions;
   for (size_t i=0; i < possible_insertions_files.size(); ++i)
   {
@@ -2280,6 +2280,7 @@ void driver(const string& bam_output_fname,
       possible_insertions.insert(Insertion(ref_id, left_coord, sequence));
     }
   }
+  fprintf(stderr, "done\n");
 
   vector<uint64_t> read_ids;
   vector<vector<int64_t> > offsets;
@@ -2295,46 +2296,51 @@ void driver(const string& bam_output_fname,
     }
 
   std::set<Fusion> possible_fusions;
-  for (size_t i=0; i < possible_fusions_files.size(); ++i)
+  if (fusion_search)
     {
-      char splice_buf[2048];	
-      FILE* fusions_file = possible_fusions_files[i];
-      if(!fusions_file){
-	continue;
-      } 
-      while(fgets(splice_buf, 2048, fusions_file)){
-	char* nl = strrchr(splice_buf, '\n');
-	char* buf = splice_buf;
-	if (nl) *nl = 0;
-	
-	char* ref_name1 = strsep((char**)&buf, "\t");
-	char* scan_left_coord = strsep((char**)&buf, "\t");
-	char* ref_name2 = strsep((char**)&buf, "\t");
-	char* scan_right_coord = strsep((char**)&buf, "\t");
-	char* scan_dir = strsep((char**)&buf, "\t");
-	
-	if (!ref_name1 || !scan_left_coord || !ref_name2 || !scan_right_coord || !scan_dir)
-	  {
-	    fprintf(stderr,"Error: malformed insertion coordinate record\n");
-	    exit(1);
+      fprintf(stderr, "Loading fusions...");
+      for (size_t i=0; i < possible_fusions_files.size(); ++i)
+	{
+	  char splice_buf[2048];	
+	  FILE* fusions_file = possible_fusions_files[i];
+	  if(!fusions_file){
+	    continue;
+	  } 
+	  while(fgets(splice_buf, 2048, fusions_file)){
+	    char* nl = strrchr(splice_buf, '\n');
+	    char* buf = splice_buf;
+	    if (nl) *nl = 0;
+	    
+	    char* ref_name1 = strsep((char**)&buf, "\t");
+	    char* scan_left_coord = strsep((char**)&buf, "\t");
+	    char* ref_name2 = strsep((char**)&buf, "\t");
+	    char* scan_right_coord = strsep((char**)&buf, "\t");
+	    char* scan_dir = strsep((char**)&buf, "\t");
+	    
+	    if (!ref_name1 || !scan_left_coord || !ref_name2 || !scan_right_coord || !scan_dir)
+	      {
+		fprintf(stderr,"Error: malformed insertion coordinate record\n");
+		exit(1);
+	      }
+	    
+	    uint32_t ref_id1 = rt.get_id(ref_name1,NULL,0);
+	    uint32_t ref_id2 = rt.get_id(ref_name2,NULL,0);
+	    uint32_t left_coord = atoi(scan_left_coord);
+	    uint32_t right_coord = atoi(scan_right_coord);
+	    uint32_t dir = FUSION_FF;
+	    if (strcmp(scan_dir, "fr") == 0)
+	      dir = FUSION_FR;
+	    else if(strcmp(scan_dir, "rf") == 0)
+	      dir = FUSION_RF;
+	    else if (strcmp(scan_dir, "rr") == 0)
+	      dir = FUSION_RR;
+	    
+	    possible_fusions.insert(Fusion(ref_id1, ref_id2, left_coord, right_coord, dir));
 	  }
-	
-	uint32_t ref_id1 = rt.get_id(ref_name1,NULL,0);
-	uint32_t ref_id2 = rt.get_id(ref_name2,NULL,0);
-	uint32_t left_coord = atoi(scan_left_coord);
-	uint32_t right_coord = atoi(scan_right_coord);
-	uint32_t dir = FUSION_FF;
-	if (strcmp(scan_dir, "fr") == 0)
-	  dir = FUSION_FR;
-	else if(strcmp(scan_dir, "rf") == 0)
-	  dir = FUSION_RF;
-	else if (strcmp(scan_dir, "rr") == 0)
-	  dir = FUSION_RR;
-	
-	possible_fusions.insert(Fusion(ref_id1, ref_id2, left_coord, right_coord, dir));
-      }
+	}
+      fprintf(stderr, "done\n");
     }
-
+      
   vector<boost::thread*> threads;
   for (int i = 0; i < num_threads; ++i)
     {
@@ -2358,7 +2364,6 @@ void driver(const string& bam_output_fname,
       worker.possible_insertions = &possible_insertions;
       worker.possible_fusions = &possible_fusions;
       worker.rt = &rt;
-      
       if (i == 0)
 	{
 	  worker.begin_id = 0;

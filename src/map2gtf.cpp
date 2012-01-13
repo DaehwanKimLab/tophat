@@ -142,8 +142,8 @@ void Map2GTF::convert_coords(std::string out_fname, std::string sam_header)
 
         for (bh_it = read_list.begin(); bh_it != bh_unique_it; ++bh_it)
         {
-            print_bamhit(bam_writer, read_name, bh_it->hit, bh_it->trans->getRefName(),
-                    bh_it->hit.seq().c_str(), bh_it->hit.qual().c_str(), true);
+	  print_bamhit(bam_writer, read_name, bh_it->hit, bh_it->trans->getRefName(), bh_it->trans->getRefName(),
+		       bh_it->hit.seq().c_str(), bh_it->hit.qual().c_str(), true);
         }
         read_list.clear();
     }

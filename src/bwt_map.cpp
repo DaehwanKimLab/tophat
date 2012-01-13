@@ -1288,9 +1288,9 @@ int spliceCigar(vector<CigarOp>& splcigar, vector<CigarOp>& cigar, vector<bool> 
  //return -1 if somehow the hit seems bad
 
  //these offsets are relative to the beginning of alignment on reference
- int spl_ofs=spl_start-left; //relative position of splice op
+ int spl_ofs=abs(spl_start-left); //relative position of splice op
  int spl_ofs_end=spl_ofs; //relative position of first ref base AFTER splice op
- CigarOp gapop(spl_code, spl_len); //for DEL or REF_SKIP
+ CigarOp gapop(spl_code, spl_len); //for DEL, REF_SKIP, FUSIONS
  if (spl_code==INS)
      spl_ofs_end += spl_len;
  int ref_ofs=0; //working offset on reference
@@ -1311,7 +1311,9 @@ int spliceCigar(vector<CigarOp>& splcigar, vector<CigarOp>& cigar, vector<bool> 
            case MATCH:
              ref_ofs+=cur_oplen;
              read_ofs+=cur_oplen;
-             if (spl_code==REF_SKIP) {
+             if (spl_code==REF_SKIP || spl_code==DEL ||
+		 spl_code==FUSION_FF || spl_code==FUSION_FR ||
+		 spl_code==FUSION_RF || spl_code==FUSION_RR) {
 	       for (int o=cur_op_ofs;o<ref_ofs;o++) {
 		 int rofs=prev_read_ofs+(o-cur_op_ofs);
 		 if (abs(spl_ofs-o)<min_anchor_len && mismatches[rofs])
@@ -1374,14 +1376,40 @@ int spliceCigar(vector<CigarOp>& splcigar, vector<CigarOp>& cigar, vector<bool> 
 		 if (ref_ofs>spl_ofs_end)
 		   cigar_add(splcigar,op);
                  }
-              else {//DEL or REF_SKIP
+              else {//DEL or REF_SKIP or FUSION_[FR][FR]
                  //spl_ofs == spl_ofs_end
                  //we have to split cur_opcode
                  //look for mismatches within min_anchor_len distance from splice point
                  CigarOp op(cigar[c]);
+		 CigarOpCode opcode = op.opcode;
                  op.length=spl_ofs-cur_op_ofs;
+		 if (gapop.opcode == FUSION_RF || gapop.opcode == FUSION_RR)
+		   {
+		     if (opcode == MATCH)
+		       op.opcode = mATCH;
+		     else if (opcode == INS)
+		       op.opcode = iNS;
+		     else if (opcode == DEL)
+		       op.opcode = dEL;
+		     else if (opcode == REF_SKIP)
+		       op.opcode = rEF_SKIP;			 
+		   }
                  cigar_add(splcigar, op);
-                 cigar_add(splcigar, gapop);
+
+		 cigar_add(splcigar, gapop);
+
+		 op.opcode = opcode;
+		 if (gapop.opcode == FUSION_FR || gapop.opcode == FUSION_RR)
+		   {
+		     if (opcode == MATCH)
+		       op.opcode = mATCH;
+		     else if (opcode == INS)
+		       op.opcode = iNS;
+		     else if (opcode == DEL)
+		       op.opcode = dEL;
+		     else if (opcode == REF_SKIP)
+		       op.opcode = rEF_SKIP;			 
+		   }
                  op.length=ref_ofs-spl_ofs;
                  cigar_add(splcigar,op);
                  }
@@ -1754,8 +1782,6 @@ bool BAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
       error_prob = 1.0;
     }
   
-  //header->target_name[c->tid]
-  
   bool end = true;
   unsigned int seg_offset = 0;
   unsigned int seg_num = 0;
@@ -1802,8 +1828,6 @@ bool BAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
     char src_strand_char = bam_aux2A(ptr);
     if (src_strand_char == '-')
       antisense_splice = true;
-    // else if (src_strand_char == '+')
-    //	source_strand = CUFF_FWD;
   }
   
   ptr = bam_aux_get(hit_buf, "NM");
@@ -2105,17 +2129,14 @@ bool SplicedBAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 	    //        toks[num_extra_toks + splice_field].c_str());
 	    return false;
 	  }
-	
-	string junction_strand = toks[num_extra_toks + strand_field];
-	if(junction_strand != "rev" && junction_strand != "fwd"){
-	  fprintf(stderr, "Malformed insertion record\n");
-	  return false;
-	}
+
+	const string& junction_type = toks[num_extra_toks + junction_type_field];
+	const string junction_strand = toks[num_extra_toks + strand_field];
 	
 	//
 	// check for an insertion hit
 	//
-	if(toks[num_extra_toks + junction_type_field] == "ins")
+	if(junction_type == "ins")
 	  {
 	    //int8_t spliced_read_len = strlen(seq_str);
 	    //TODO FIXME: use the CIGAR instead of seq length!
@@ -2139,10 +2160,8 @@ bool SplicedBAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 	    num_mismatches-=spl_num_mismatches;
 	    bh = create_hit(name,
 			    contig,
-			    // daehwan - implement fusion
 			    "",
 			    left,
-			    //splcigar,
 			    splcigar,
 			    sam_flag & 0x0010,
 			    junction_strand == "rev",
@@ -2152,35 +2171,87 @@ bool SplicedBAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 	    
 	    return true;
 	  } //"ins"
-	else //"del" or intron
+	else //"del", "intron", or "fusion"
 	  {
+	    char orientation = (sam_flag & 0x0010 ? '-' : '+');
+	    if (!(junction_strand == "ff" || junction_strand == "fr" || junction_strand == "rf" || junction_strand == "rr" || junction_strand == "rev" || junction_strand == "fwd")||
+		!(orientation == '-' || orientation == '+'))
+	      {
+		fprintf(stderr, "Warning: found malformed splice record, skipping\n");
+		return false;
+	      }
+	    
 	    // The 0-based position of the left edge of the alignment.
-	    int left = atoi(toks[num_extra_toks + left_window_edge_field].c_str()) + text_offset;
-	    
-	    // The 0-based position of the last genomic sequence before the deletion
-	    int left_splice_pos = atoi(splice_toks[0].c_str());
-	    int gap_len = atoi(splice_toks[1].c_str()) - left_splice_pos - 1;
-	    
+	    int left = atoi(toks[num_extra_toks + left_window_edge_field].c_str());
+	    if (junction_type != "fus" || (junction_strand != "rf" && junction_strand != "rr"))
+	      left += text_offset;
+	    else
+	      left -= text_offset;
+    
 	    vector<CigarOp> splcigar;
-	    CigarOpCode opcode=(toks[num_extra_toks + junction_type_field] == "del")? DEL : REF_SKIP;
+	    CigarOpCode opcode;
+	    if(junction_type == "del")
+	      opcode = DEL;
+	    else if(junction_type == "fus")
+	      {
+		if (junction_strand == "ff")
+		  opcode = FUSION_FF;
+		else if (junction_strand == "fr")
+		  opcode = FUSION_FR;
+		else if (junction_strand == "rf")
+		  opcode = FUSION_RF;
+		else
+		  opcode = FUSION_RR;
+	      }
+	    else
+	      opcode = REF_SKIP;
+
+	    int left_splice_pos = atoi(splice_toks[0].c_str());
+
+	    // The 0-based position of the last genomic sequence before the deletion
+	    int gap_len = 0;
+	    if (junction_type == "fus")
+	      gap_len = atoi(splice_toks[1].c_str());
+	    else
+	      gap_len = atoi(splice_toks[1].c_str()) - left_splice_pos - 1;
+
+	    if (opcode == FUSION_RF || opcode == FUSION_RR)
+	      left_splice_pos -= 1;
+	    else
+	      left_splice_pos += 1;
 	    
 	    int spl_num_mismatches=spliceCigar(splcigar, samcigar, mismatches, left,
-					       left_splice_pos+1, gap_len, opcode);
+					       left_splice_pos, gap_len, opcode);
 	    
 	    if (spl_num_mismatches<0) // || spl_num_mismatches>max_anchor_mismatches)
 	      return false;
+	    
+	    string contig2 = ""; 
+	    if (junction_type == "fus")
+	      {
+		vector<string> contigs;
+		tokenize(contig, "-", contigs);
+		if (contigs.size() != 2)
+		  return false;
+		
+		contig = contigs[0];
+		contig2 = contigs[1];
+		
+		if (junction_strand == "rf" || junction_strand == "rr")
+		  orientation = (orientation == '+' ? '-' : '+');
+	      }
+	    
 	    bh = create_hit(name,
 			    contig,
-			    // daehwan - implement fusion
-			    "",
+			    contig2,
 			    left,
 			    splcigar,
-			    (sam_flag & 0x0010),
+			    orientation == '-',
 			    junction_strand == "rev",
 			    num_mismatches,
 			    spl_num_mismatches,
 			    end);
-	    
+
 	    return true;
 	  }
       } //parse splice data
@@ -2534,143 +2605,220 @@ void print_hit(FILE* fout,
 }
 
 void print_bamhit(GBamWriter& wbam,
-           const char* read_name,
-           const BowtieHit& bh,
-           const char* ref_name,
-           const char* sequence,
-           const char* qualities,
-           bool from_bowtie)
+		  const char* read_name,
+		  const BowtieHit& bh,
+		  const char* ref_name,
+		  const char* ref_name2,
+		  const char* sequence,
+		  const char* qualities,
+		  bool from_bowtie)
 {
-    string seq;
-    string quals;
-    if (sequence) {
-        seq = sequence;
-        quals = qualities;
-        seq.resize(bh.read_len());
-        quals.resize(bh.read_len());
-        }
-      else {
-        seq = "*";
-        }
-    if (qualities) {
-        quals = qualities;
-        quals.resize(bh.read_len());
-    }
-    else
+  string seq;
+  string quals;
+  if (sequence) {
+    seq = sequence;
+    quals = qualities;
+    seq.resize(bh.read_len());
+    quals.resize(bh.read_len());
+  }
+  else {
+    seq = "*";
+  }
+  if (qualities) {
+    quals = qualities;
+    quals.resize(bh.read_len());
+  }
+  else {
+    quals = "*";
+  }
+  
+  uint32_t sam_flag = 0;
+  if (bh.antisense_align())
     {
-        quals = "*";
+      sam_flag |= 0x0010; // BAM_FREVERSE
+      if (sequence && !from_bowtie)  // if it is from bowtie hit, it's already reversed.
+	{
+	  reverse_complement(seq);
+	  reverse(quals.begin(), quals.end());
+	}
     }
-
-    uint32_t sam_flag = 0;
-    if (bh.antisense_align())
+  
+  uint32_t sam_pos = bh.left() + 1;
+  uint32_t map_quality = 255;
+  char cigar[256];
+  cigar[0] = 0;
+  string mate_ref_name = "*";
+  uint32_t mate_pos = 0;
+  uint32_t insert_size = 0;
+  //string qualities = "*";
+  
+  const vector<CigarOp>& bh_cigar = bh.cigar();
+  /*
+   * In addition to calculating the cigar string,
+   * we need to figure out how many in/dels are in the
+   * sequence, so that we can give the correct
+   * value for the NM tag
+   */
+  int indel_distance = 0;
+  CigarOpCode fusion_dir = FUSION_NOTHING;
+  for (size_t c = 0; c < bh_cigar.size(); ++c)
     {
-        sam_flag |= 0x0010; // BAM_FREVERSE
-        if (sequence && !from_bowtie)  // if it is from bowtie hit, it's already reversed.
-          {
-            reverse_complement(seq);
-            reverse(quals.begin(), quals.end());
-          }
+      const CigarOp& op = bh_cigar[c];
+
+      char ibuf[64];
+      sprintf(ibuf, "%d", op.length);
+      switch(op.opcode)
+	{
+	case MATCH:
+	case mATCH:
+	  strcat(cigar, ibuf);
+	  if (bh_cigar[c].opcode == MATCH)
+	    strcat(cigar, "M");
+	  else
+	    strcat(cigar, "m");
+	  break;
+	case INS:
+	case iNS:
+	  strcat(cigar, ibuf);
+	  if (bh_cigar[c].opcode == INS)
+	    strcat(cigar, "I");
+	  else
+	    strcat(cigar, "i");
+	  indel_distance += bh_cigar[c].length;
+	  break;
+	case DEL:
+	case dEL:
+	  strcat(cigar, ibuf);
+	  if (bh_cigar[c].opcode == DEL)
+	    strcat(cigar, "D");
+	  else
+	    strcat(cigar, "d");
+	  indel_distance += bh_cigar[c].length;
+	  break;
+	case REF_SKIP:
+	case rEF_SKIP:
+	  strcat(cigar, ibuf);
+	  if (bh_cigar[c].opcode == REF_SKIP)
+	    strcat(cigar, "N");
+	  else
+	    strcat(cigar, "n");
+	  break;
+	case FUSION_FF:
+	case FUSION_FR:
+	case FUSION_RF:
+	case FUSION_RR:
+	  fusion_dir = op.opcode;
+	  sprintf(ibuf, "%d", bh_cigar[c].length + 1);
+	  strcat(cigar, ibuf);
+	  strcat(cigar, "F");
+	  break;
+	default:
+	  break;
+	}
     }
 
-    uint32_t sam_pos = bh.left() + 1;
-    uint32_t map_quality = 255;
-    char cigar[256];
-    cigar[0] = 0;
-    string mate_ref_name = "*";
-    uint32_t mate_pos = 0;
-    uint32_t insert_size = 0;
-    //string qualities = "*";
-
-    const vector<CigarOp>& bh_cigar = bh.cigar();
-    /*
-     * In addition to calculating the cigar string,
-     * we need to figure out how many in/dels are in the
-     * sequence, so that we can give the correct
-     * value for the NM tag
-     */
-    int indel_distance = 0;
-    for (size_t c = 0; c < bh_cigar.size(); ++c)
+  char cigar1[256] = {0}, cigar2[256] = {0};
+  string left_seq, right_seq, left_qual, right_qual;
+  int left1 = -1, left2 = -1;
+  extract_partial_hits(bh, seq, quals,
+		       cigar1, cigar2, left_seq, right_seq,
+		       left_qual, right_qual, left1, left2);
+  
+  bool containsSplice = false;
+  for (vector<CigarOp>::const_iterator itr = bh.cigar().begin(); itr != bh.cigar().end(); ++itr)
     {
-        char ibuf[64];
-        sprintf(ibuf, "%d", bh_cigar[c].length);
-        switch(bh_cigar[c].opcode)
-        {
-            case MATCH:
-                strcat(cigar, ibuf);
-                strcat(cigar, "M");
-                break;
-            case INS:
-                strcat(cigar, ibuf);
-                strcat(cigar, "I");
-                indel_distance += bh_cigar[c].length;
-                break;
-            case DEL:
-                strcat(cigar, ibuf);
-                strcat(cigar, "D");
-                indel_distance += bh_cigar[c].length;
-                break;
-            case REF_SKIP:
-                strcat(cigar, ibuf);
-                strcat(cigar, "N");
-                break;
-            default:
-                break;
-        }
+      if (itr->opcode == REF_SKIP || itr->opcode == rEF_SKIP)
+	{
+	  containsSplice = true;
+	  break;
+	}
     }
-
-    //string q = string(bh.read_len(), '!');
-    //string s = string(bh.read_len(), 'N');
-    /*
-    fprintf(fout,
-            "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s",
-            read_name,
-            sam_flag,
-            ref_name,
-            sam_pos,
-            map_quality,
-            cigar,
-            mate_ref_name.c_str(),
-            mate_pos,
-            insert_size,
-            seq.c_str(),
-            quals.c_str());
-
-    fprintf(fout, "\tNM:i:%d", bh.edit_dist() + indel_distance);
-    */
-    vector<string> auxdata;
-    
-    if (!sam_readgroup_id.empty())
+  
+  if (fusion_dir != FUSION_NOTHING)
     {
-        string nm("RG:Z:");
-        nm += sam_readgroup_id;
-        auxdata.push_back(nm);
+      vector<string> auxdata;
+      if (!sam_readgroup_id.empty())
+	{
+	  string nm("RG:Z:");
+	  nm += sam_readgroup_id;
+	  auxdata.push_back(nm);
+	}
+      
+      string nm("NM:i:");
+      str_appendInt(nm, bh.edit_dist() + indel_distance);
+      auxdata.push_back(nm);
+
+      char XF[2048] = {0};
+      sprintf(XF,
+	      "XF:Z:1 %s-%s %d %s %s %s",
+	      ref_name,
+	      ref_name2,
+	      left + 1,
+	      cigar,
+	      seq.c_str(),
+	      quals.c_str());
+      auxdata.push_back(XF);
+            
+      if (containsSplice) {
+	nm="XS:A:";
+	nm+=(char)(bh.antisense_splice() ? '-' : '+');
+	auxdata.push_back(nm);
+      }
+      
+      GBamRecord *brec = wbam.new_record(read_name, sam_flag, ref_name, left1 + 1, map_quality,
+					 cigar1, mate_ref_name.c_str(), mate_pos,
+					 insert_size, left_seq.c_str(), left_qual.c_str(), &auxdata);
+      
+      wbam.write(brec);
+      delete brec;
+
+      sprintf(XF,
+	      "XF:Z:2 %s-%s %d %s %s %s",
+	      ref_name,
+	      ref_name2,
+	      left + 1,
+	      cigar,
+	      seq.c_str(),
+	      quals.c_str());
+      if (containsSplice)
+	auxdata[auxdata.size() - 2] = XF;
+      else
+	auxdata.back() = XF;
+     
+      brec = wbam.new_record(read_name, sam_flag, ref_name, left2 + 1, map_quality,
+			     cigar2, mate_ref_name.c_str(), mate_pos,
+			     insert_size, right_seq.c_str(), right_qual.c_str(), &auxdata);
+      
+      wbam.write(brec);
+      delete brec;
     }
-    
-    string nm("NM:i:");
-    str_appendInt(nm, bh.edit_dist() + indel_distance);
-    auxdata.push_back(nm);
-    bool containsSplice = false;
-    for(vector<CigarOp>::const_iterator itr = bh.cigar().begin(); itr != bh.cigar().end(); ++itr)
-       if(itr->opcode == REF_SKIP){
-            containsSplice = true;
-            break;
-            }
-
-    if (containsSplice) {
-       //fprintf(fout, "\tXS:A:%c", bh.antisense_splice() ? '-' : '+');
-       nm="XS:A:";
-       nm+=(char)(bh.antisense_splice() ? '-' : '+');
-       auxdata.push_back(nm);
-       }
-
-    GBamRecord *brec = wbam.new_record(read_name, sam_flag, ref_name, sam_pos, map_quality,
-                        cigar, mate_ref_name.c_str(), mate_pos,
-                        insert_size, seq.c_str(), quals.c_str(), &auxdata);
-                        
-    
-    
-    wbam.write(brec);
-    delete brec;
+  else
+    {
+      vector<string> auxdata;
+      if (!sam_readgroup_id.empty())
+	{
+	  string nm("RG:Z:");
+	  nm += sam_readgroup_id;
+	  auxdata.push_back(nm);
+	}
+      
+      string nm("NM:i:");
+      str_appendInt(nm, bh.edit_dist() + indel_distance);
+      auxdata.push_back(nm);
+      
+      if (containsSplice) {
+	nm="XS:A:";
+	nm+=(char)(bh.antisense_splice() ? '-' : '+');
+	auxdata.push_back(nm);
+      }
+      
+      GBamRecord *brec = wbam.new_record(read_name, sam_flag, ref_name, sam_pos, map_quality,
+					 cigar, mate_ref_name.c_str(), mate_pos,
+					 insert_size, seq.c_str(), quals.c_str(), &auxdata);
+      
+      wbam.write(brec);
+      delete brec;
+    }
 }
 
 /**
@@ -2951,8 +3099,9 @@ bool BowtieHit::check_editdist_consistency(const RefSequenceTable& rt)
 	    seqan::Dna5String ref_seq = seqan::infix(*ref_str, pos_ref, pos_ref + cigar.length);
 	    for (size_t j = 0; j < cigar.length; ++j)
 	      {
-		if (_seq[pos_seq++] != ref_seq[j])
+		if (_seq[pos_seq] != ref_seq[j])
 		  ++mismatch;
+		++pos_seq;
 	      }
 
 	    pos_ref += cigar.length;
@@ -2966,8 +3115,9 @@ bool BowtieHit::check_editdist_consistency(const RefSequenceTable& rt)
 
 	    for (size_t j = 0; j < cigar.length; ++j)
 	      {
-		if (_seq[pos_seq++] != ref_seq[j])
+		if (_seq[pos_seq] != ref_seq[j])
 		  ++mismatch;
+		++pos_seq;
 	      }
 
 	    pos_ref -= cigar.length;
