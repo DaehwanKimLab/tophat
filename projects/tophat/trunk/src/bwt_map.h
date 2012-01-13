@@ -1248,23 +1248,15 @@ void add_hit_to_coverage(const BowtieHit& bh, vector<unsigned int>& DoC);
 
 void accept_all_hits(HitTable& hits);
 
-//print BowtieHit as SAM line
-void print_hit(FILE* fout, 
-	       const char* read_name,
-	       const BowtieHit& bh,
-	       const char* ref_name,
-	       const char* ref_name2,
-	       const char* sequence,
-	       const char* qualities);
-
 //print BowtieHit as BAM record
 void print_bamhit(GBamWriter& wbam,
-           const char* read_name,
-           const BowtieHit& bh,
-           const char* ref_name,
-           const char* sequence,
-           const char* qualities,
-           bool from_bowtie = false);
+		  const char* read_name,
+		  const BowtieHit& bh,
+		  const char* ref_name,
+		  const char* ref_name2,
+		  const char* sequence,
+		  const char* qualities,
+		  bool from_bowtie = false);
 
 
 void extract_partial_hits(const BowtieHit& bh, const string& seq, const string& qual,

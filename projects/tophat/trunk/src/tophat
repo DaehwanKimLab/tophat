@@ -1896,7 +1896,6 @@ def build_juncs_index(min_anchor_length,
     deletions_file_list = ",".join(external_deletions)
     fusions_file_list = ",".join(external_fusions)
 
-
     juncs_db_log = open(logging_dir + "juncs_db.log", "w")
 
     external_splices_out_prefix  = tmp_dir + juncs_prefix
