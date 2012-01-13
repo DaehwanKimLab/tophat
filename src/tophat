@@ -73,11 +73,11 @@ Options:
     --fusion-read-mismatches       <int>       [ default: 2                ]
     --fusion-multireads            <int>       [ default: 2                ]
     --fusion-multipairs            <int>       [ default: 2                ]
-    --no-gtf-juncs                             
+    --no-gtf-juncs
     --no-coverage-search
     --coverage-search
     --no-closure-search
-    --closure-search      
+    --closure-search
     --microexon-search
     --butterfly-search
     --no-butterfly-search
@@ -448,7 +448,7 @@ class TopHatParams:
                                            None,                # sequencing center
                                            None,                # run date
                                            None)                # sequencing platform
-        
+
         self.system_params = self.SystemParams(1,               # bowtie_threads (num_threads)
                                                False)           # keep_tmp
 
@@ -495,7 +495,7 @@ class TopHatParams:
         self.fusion_read_mismatches = 2
         self.fusion_multireads = 2
         self.fusion_multipairs = 2
-        
+
     def check(self):
         self.splice_constraints.check()
         self.read_params.check()
@@ -563,7 +563,7 @@ class TopHatParams:
                         "--fusion-read-mismatches", str(self.fusion_read_mismatches),
                         "--fusion-multireads", str(self.fusion_multireads),
                         "--fusion-multipairs", str(self.fusion_multipairs)])
-            
+
         cmd.extend(self.system_params.cmd())
 
         if self.read_params.mate_inner_dist != None:
@@ -997,7 +997,7 @@ def get_index_sam_header(read_params, idx_prefix, sort = True):
 
         if not sort:
             return bowtie_sam_header_filename
-        
+
         bowtie_sam_header_file = open(bowtie_sam_header_filename, "r")
         sam_header_file = open(sam_header, "w")
 
@@ -1052,7 +1052,7 @@ def get_index_sam_header(read_params, idx_prefix, sort = True):
 
         sam_header_file.close()
 
-        copy(sam_header, bowtie_sam_header_filename);
+        copy(sam_header, bowtie_sam_header_filename)
         return sam_header
 
     except OSError, o:
@@ -1313,7 +1313,7 @@ class ZReader:
              if use_zpacker and filename.endswith(".z"):
                 pipecmd=[sysparams.zipper]
                 pipecmd.extend(sysparams.zipper_opts)
-                
+
           if pipecmd:
              pipecmd+=['-cd']
         if pipecmd:
@@ -1523,9 +1523,9 @@ def prep_reads(params, reads_list, quals_list, side="left", prefilter_reads=None
     do_use_zpacker = use_zpacker
     if params.system_params.num_threads > 1:
         do_use_zpacker = False
-        
+
     if do_use_zpacker: reads_suffix += ".z"
-        
+
     output_name=side+"_kept_reads"
     kept_reads_filename = tmp_dir + output_name + reads_suffix
 
@@ -1537,7 +1537,7 @@ def prep_reads(params, reads_list, quals_list, side="left", prefilter_reads=None
 
     info_file=output_dir+output_name+".info"
     index_file=kept_reads_filename+".index"
-    
+
     filter_cmd=prep_reads_cmd(params, reads_list, quals_list, info_file, index_file, prefilter_reads)
     shell_cmd = ' '.join(filter_cmd)
     #finally, add the compression pipe
@@ -1691,11 +1691,11 @@ def bowtie(params,
               fix_map_cmd += [mapped_reads]
 
         fix_map_cmd += ["--index-outfile", mapped_reads + ".index"]
-        
+
         max_hits = params.max_hits
         if t_mapping:
           max_hits = params.t_max_hits
-        if params.bowtie_alignment_option == "-n" and num_mismatches>3:
+        if num_mismatches>3:
            num_mismatches=3
         bowtie_cmd += [params.bowtie_alignment_option, str(num_mismatches),
                          "-p", str(params.system_params.num_threads),
@@ -1911,8 +1911,8 @@ def build_juncs_index(min_anchor_length,
                     insertions_file_list,
                     deletions_file_list,
                     fusions_file_list,
-                    reference_fasta]            
-    try:    
+                    reference_fasta]
+    try:
         print >> run_log, " ".join(juncs_db_cmd)
         retcode = subprocess.call(juncs_db_cmd,
                                  stderr=juncs_db_log,
@@ -2011,7 +2011,7 @@ def compile_reports(params, sam_header_filename, ref_fasta, mappings, readfiles,
     report_cmd = [report_cmdpath]
 
     alignments_output_filename = tmp_dir + "accepted_hits"
-    
+
     report_cmd.extend(params.cmd())
     report_cmd.extend(["--samtools="+samtools_path])
     report_cmd.extend([ref_fasta,
@@ -2022,7 +2022,7 @@ def compile_reports(params, sam_header_filename, ref_fasta, mappings, readfiles,
                        alignments_output_filename,
                        left_maps,
                        left_reads])
-    
+
     if len(right_maps) > 0 and right_reads:
         report_cmd.append(right_maps)
         report_cmd.append(right_reads)
@@ -2055,7 +2055,7 @@ def compile_reports(params, sam_header_filename, ref_fasta, mappings, readfiles,
                                    bam_parts[i],
                                    sorted_bam_parts[i]]
 
-                    sorted_bam_parts[i] += ".bam"                        
+                    sorted_bam_parts[i] += ".bam"
                     print >> run_log, " ".join(bamsort_cmd)
                     pid = os.fork()
                     if pid == 0:
@@ -2273,7 +2273,7 @@ def junctions_from_closures(params,
                             ref_fasta):
     th_log("Searching for junctions via mate-pair closures")
 
-    
+
     #maps = [x for x in seg_maps if (os.path.exists(x) and os.path.getsize(x) > 0)]
     #if len(maps) == 0:
     #    return None
@@ -2283,7 +2283,7 @@ def junctions_from_closures(params,
     if slash != -1:
         juncs_out += left_maps[0][:slash+1]
     fusions_out = juncs_out
-    
+
     juncs_out += "closure.juncs"
     fusions_out += "closure.fusions"
 
@@ -2940,7 +2940,7 @@ def spliced_alignment(params,
                     merge_cmd += [ maps[ri].unspliced_sam ]
                 if m2g_map:
                     merge_cmd += [ m2g_map ]
-                    
+
                 if os.path.exists(mapped_reads):
                     merge_cmd += [ mapped_reads ]
                 else:
@@ -2950,7 +2950,7 @@ def spliced_alignment(params,
                             merge_cmd += [ temp_bam ]
                         else:
                             break
-                   
+
                 print >> run_log, " ".join(merge_cmd)
                 ret = subprocess.call( merge_cmd,
                                    stderr=open(logging_dir + "sam_merge.log", "w") )
@@ -2996,11 +2996,6 @@ def which(program):
               return progpath
     return None
 
-def die(msg=None):
- if msg is not None: 
-    print >> sys.stderr, msg
-    sys.exit(1)
-
 def prog_path(program):
     progpath=which(program)
     if progpath == None:
@@ -3020,7 +3015,7 @@ def test_input_file(filename):
     except IOError, o:
         die("Error: Opening file %s" % filename)
     return
-    
+
 def main(argv=None):
     warnings.filterwarnings("ignore", "tmpnam is a potential security risk")
 
@@ -3114,7 +3109,7 @@ def main(argv=None):
         if right_reads_list:
                 reads_list = reads_list + "," + right_reads_list
         params.read_params = check_reads_format(params, reads_list)
-            
+
         user_supplied_juncs = []
         user_supplied_insertions = []
         user_supplied_deletions = []
