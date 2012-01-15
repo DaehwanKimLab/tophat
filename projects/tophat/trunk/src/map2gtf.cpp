@@ -13,7 +13,7 @@ void m2g_print_usage()
 }
 
 Map2GTF::Map2GTF(std::string gtf_fname, std::string reads_fname) :
-    gtf_fname_(gtf_fname), reads_fname_(reads_fname), refSeqTable_(true, true)
+    gtf_fname_(gtf_fname), reads_fname_(reads_fname), refSeqTable_(true)
 {
     gtf_fhandle_ = fopen(gtf_fname_.c_str(), "r");
     if (gtf_fhandle_ == NULL)

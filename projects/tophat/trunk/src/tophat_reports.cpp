@@ -173,260 +173,6 @@ void pair_best_alignments(const HitsForRead& left_hits,
     }
 }
 
-// daehwan - merge
-#if 0 
-  // Rewrite this hit, filling in the alt name, mate mapping
-  // and setting the pair flag
-  vector<string> sam_toks;
-  tokenize(bwt_buf, "\t", sam_toks);
-  char* slash_pos = strrchr(read_alt_name,'/');
-  if (slash_pos)
-    {
-      *slash_pos = 0;
-    }
-  
-  *rebuf = 0;
-  
-  string ref_name = sam_toks[2], ref_name2 = "";
-  char rebuf2[2048] = {0};
-  char cigar1[256] = {0}, cigar2[256] = {0};
-  string left_seq, right_seq, left_qual, right_qual;
-  int left = -1, left1 = -1, left2 = -1;
-  bool fusion_alignment = false;
-  for (size_t i = 11; i < sam_toks.size(); ++i)
-    {
-      const string& tok = sam_toks[i];
-      if (strncmp(tok.c_str(), "FR", 2) == 0)
-	{
-	  fusion_alignment = true;
-	  
-	  vector<string> tuple_fields;
-	  tokenize(tok.c_str(), " ", tuple_fields);
-	  vector<string> contigs;
-	  tokenize(tuple_fields[1].c_str(), "-", contigs);
-	  if (contigs.size() >= 2)
-	    {
-	      ref_name = contigs[0];
-	      ref_name2 = contigs[1];
-	    }	
-	  
-	  extract_partial_hits(bh, tuple_fields[4].c_str(), tuple_fields[5].c_str(),
-			       cigar1, cigar2, left_seq, right_seq,
-			       left_qual, right_qual, left1, left2);
-	  
-	  break;
-	}
-    }
-  
-  for (size_t t = 0; t < sam_toks.size(); ++t)
-    {
-      switch(t)
-	{
-	case 0: //QNAME
-	  {
-	    sam_toks[t] = read_alt_name;
-	    break;
-	  }
-          
-	case 1:
-	  {
-	    // SAM FLAG
-	    if (insert_side != FRAG_UNPAIRED)
-	      {
-		int flag = atoi(sam_toks[1].c_str());;
-		// mark this guys as a singleton mate
-		flag |= 0x0001;
-		if (insert_side == FRAG_LEFT)
-		  flag |= 0x0040;
-		else if (insert_side == FRAG_RIGHT)
-		  flag |= 0x0080;
-		flag |= 0x0008;
-		
-		char flag_buf[64];
-		sprintf(flag_buf, "%d", flag);
-		sam_toks[t] = flag_buf;
-	      }
-	    break;
-	  }
-	  
-	case 4: //MAPQ
-	  {
-	    int mapQ;
-	    if (grade.num_alignments > 1)
-	      {
-		double err_prob = 1 - (1.0 / grade.num_alignments);
-		mapQ = (int)(-10.0 * log(err_prob) / log(10.0));
-	      }
-	    else
-	      {
-		mapQ = 255;
-	      }
-	    char mapq_buf[64];
-	    sprintf(mapq_buf, "%d", mapQ);
-	    sam_toks[t] = mapq_buf;
-	    break;
-	  }
-          
-	default:
-	  break;
-	}
-      
-      if (fusion_alignment)
-	{
-	  switch(t)
-	    {
-	    case 2: // ref_name
-	      {
-		strcat(rebuf, ref_name.c_str());
-		strcat(rebuf2, ref_name2.c_str());
-	      }
-	      break;
-	      
-	    case 3: // coord
-	      {
-		char coord[32] = {0};
-		sprintf(coord, "%d", left1);
-		strcat(rebuf, coord);
-		
-		sprintf(coord, "%d", left2);
-		strcat(rebuf2, coord);
-	      }
-	      break;
-	      
-	    case 5: // cigar
-	      {
-		strcat(rebuf, cigar1);
-		strcat(rebuf2, cigar2);
-	      }
-	      break;
-	      
-	    case 9: // seq
-	      {
-		strcat(rebuf, left_seq.c_str());
-		strcat(rebuf2, right_seq.c_str());
-	      }
-	      break;
-	      
-	    case 10: // qual
-	      {
-		strcat(rebuf, left_qual.c_str());
-		strcat(rebuf2, right_qual.c_str());
-	      }
-	      break;
-	      
-	    default:
-	      strcat(rebuf, sam_toks[t].c_str());
-	      
-	      if (strncmp(sam_toks[t].c_str(), "FR", 2) == 0)
-		{
-		  sam_toks[t][5] = '2';
-		}
-	      
-	      strcat(rebuf2, sam_toks[t].c_str());
-	      break;
-	    }
-	}
-
-      else
-	strcat (rebuf, sam_toks[t].c_str());
-      
-      if (t != sam_toks.size() - 1)
-	{
-	  strcat(rebuf, "\t");
-	  if (fusion_alignment)
-	    strcat(rebuf2, "\t");
-	}
-    }
-  
-  char nh_buf[2048];
-  sprintf(nh_buf, "\tNH:i:%d", num_hits);
-  strcat(rebuf, nh_buf);
-  if (fusion_alignment)
-    strcat(rebuf2, nh_buf);
-  
-  if (next_hit)
-    {
-      char ref_name[1024];
-      sprintf(ref_name, "%s", rt.get_name(next_hit->ref_id()));
-      
-      char mate_buf[2048];
-      bool same_contig = bh.fusion_opcode() == next_hit->fusion_opcode() && bh.ref_id() == next_hit->ref_id();
-      
-      assert (num_hits > 1);
-      
-      sprintf(mate_buf, 
-	      "\tCC:Z:%s\tCP:i:%d",
-	      same_contig ? "=" : ref_name, 
-	      next_hit->left() + 1);
-      
-      strcat(rebuf, mate_buf);
-      if (fusion_alignment)
-	strcat(rebuf2, mate_buf);
-    }
-  
-  // FIXME: this code is still a bit brittle, because it contains no 
-  // consistency check that the mates are on opposite strands (a current protocol
-  // requirement, and that the strand indicated by the alignment is consistent
-  // with the orientation of the splices (though that should be handled upstream).
-  if (bh.contiguous())
-    {
-      char strand_specific[32] = {0};
-      
-      if (library_type == FR_FIRSTSTRAND)
-        {
-	  if (insert_side == FRAG_LEFT || insert_side == FRAG_UNPAIRED)
-            {
-	      if (bh.antisense_align())
-		strcpy(strand_specific, "\tXS:A:+");
-	      else 
-		strcpy(strand_specific, "\tXS:A:-");
-            }
-	  else
-            {
-	      if (bh.antisense_align())
-		strcpy(strand_specific, "\tXS:A:-");
-	      else 
-		strcpy(strand_specific, "\tXS:A:+");
-            }
-        }
-      else if (library_type == FR_SECONDSTRAND)
-        {
-	  if (insert_side == FRAG_LEFT || insert_side == FRAG_UNPAIRED)
-            {
-	      if (bh.antisense_align())
-		strcpy(strand_specific, "\tXS:A:-");
-	      else 
-		strcpy(strand_specific, "\tXS:A:+");
-            }
-	  else
-            {
-	      if (bh.antisense_align())
-		strcpy(strand_specific, "\tXS:A:+");
-	      else 
-		strcpy(strand_specific, "\tXS:A:-");
-            }
-        }
-      
-      if (strlen(strand_specific) > 0)
-	  {
-	    strcat(rebuf, strand_specific);
-	    if (fusion_alignment)
-	      strcat(rebuf2, strand_specific);
-	  }
-    }
-  
-  strcat(rebuf, "\n");
-  if (fusion_alignment)
-    {
-      strcat(rebuf2, "\n");
-      strcat(rebuf, rebuf2);
-    }
-  
-  return true;
-}
-
-#endif
-
 enum FragmentType {FRAG_UNPAIRED, FRAG_LEFT, FRAG_RIGHT};
 
 void add_auxData(vector<string>& auxdata, vector<string>& sam_toks,
@@ -500,7 +246,8 @@ void add_auxData(vector<string>& auxdata, vector<string>& sam_toks,
     }
 }
 
-bool rewrite_sam_record(GBamWriter& bam_writer, const RefSequenceTable& rt,
+bool rewrite_sam_record(GBamWriter& bam_writer,
+			const RefSequenceTable& rt,
                         const BowtieHit& bh,
                         const char* bwt_buf,
                         const char* read_alt_name,
@@ -515,6 +262,40 @@ bool rewrite_sam_record(GBamWriter& bam_writer, const RefSequenceTable& rt,
   // and setting the pair flag
   vector<string> sam_toks;
   tokenize(bwt_buf, "\t", sam_toks);
+
+  string ref_name = sam_toks[2], ref_name2 = "";
+  char rebuf2[2048] = {0};
+  char cigar1[256] = {0}, cigar2[256] = {0};
+  string left_seq, right_seq, left_qual, right_qual;
+  int left = -1, left1 = -1, left2 = -1;
+  bool fusion_alignment = false;
+  size_t XF_index = 0;
+  for (size_t i = 11; i < sam_toks.size(); ++i)
+    {
+      const string& tok = sam_toks[i];
+      if (strncmp(tok.c_str(), "XF", 2) == 0)
+	{
+	  fusion_alignment = true;
+	  XF_index = i;
+	  
+	  vector<string> tuple_fields;
+	  tokenize(tok.c_str(), " ", tuple_fields);
+	  vector<string> contigs;
+	  tokenize(tuple_fields[1].c_str(), "-", contigs);
+	  if (contigs.size() >= 2)
+	    {
+	      ref_name = contigs[0];
+	      ref_name2 = contigs[1];
+	    }	
+	  
+	  extract_partial_hits(bh, tuple_fields[4].c_str(), tuple_fields[5].c_str(),
+			       cigar1, cigar2, left_seq, right_seq,
+			       left_qual, right_qual, left1, left2);
+	  
+	  break;
+	}
+    }
+  
   string qname(read_alt_name);
   size_t slash_pos=qname.rfind('/');
   if (slash_pos!=string::npos)
@@ -533,29 +314,52 @@ bool rewrite_sam_record(GBamWriter& bam_writer, const RefSequenceTable& rt,
     //char flag_buf[64];
     //sprintf(flag_buf, "%d", flag);
     //sam_toks[t] = flag_buf;
-    }
-    if (!primary)
-        flag |= 0x100;
+  }
+  if (!primary)
+    flag |= 0x100;
+  
+  int gpos=isdigit(sam_toks[3][0]) ? atoi(sam_toks[3].c_str()) : 0;
+  int mapQ=255;
+  if (grade.num_alignments > 1)  {
+    double err_prob = 1 - (1.0 / grade.num_alignments);
+    mapQ = (int)(-10.0 * log(err_prob) / log(10.0));
+  }
+  int tlen =atoi(sam_toks[8].c_str()); //TLEN
+  int mate_pos=atoi(sam_toks[7].c_str());
+
+  GBamRecord* bamrec=NULL;
+  if (fusion_alignment) {
+    vector<string> auxdata;
+    add_auxData(auxdata, sam_toks, rt, bh, insert_side, num_hits, next_hit, hitIndex);
+    bamrec=bam_writer.new_record(qname.c_str(), flag, ref_name.c_str(), left1 + 1, mapQ,
+				 cigar1, sam_toks[6].c_str(), mate_pos,
+				 tlen, left_seq.c_str(), left_qual.c_str(), &auxdata);
+    bam_writer.write(bamrec);
+    delete bamrec;
+
+    auxdata.clear();
+    sam_toks[XF_index][5] = '2';
+    add_auxData(auxdata, sam_toks, rt, bh, insert_side, num_hits, next_hit, hitIndex);
+    bamrec=bam_writer.new_record(qname.c_str(), flag, ref_name2.c_str(), left2 + 1, mapQ,
+				 cigar2, sam_toks[6].c_str(), mate_pos,
+				 tlen, right_seq.c_str(), right_qual.c_str(), &auxdata);
+    bam_writer.write(bamrec);
+    delete bamrec;
+  } else {
+    vector<string> auxdata;
+    add_auxData(auxdata, sam_toks, rt, bh, insert_side, num_hits, next_hit, hitIndex);
+    bamrec=bam_writer.new_record(qname.c_str(), flag, sam_toks[2].c_str(), gpos, mapQ,
+				 sam_toks[5].c_str(), sam_toks[6].c_str(), mate_pos,
+				 tlen, sam_toks[9].c_str(), sam_toks[10].c_str(), &auxdata);
+    bam_writer.write(bamrec);
+    delete bamrec;
+  }
     
-	int gpos=isdigit(sam_toks[3][0]) ? atoi(sam_toks[3].c_str()) : 0;
-	int mapQ=255;
-	if (grade.num_alignments > 1)  {
-        double err_prob = 1 - (1.0 / grade.num_alignments);
-        mapQ = (int)(-10.0 * log(err_prob) / log(10.0));
-    }
-	vector<string> auxdata;
-	add_auxData(auxdata, sam_toks, rt, bh, insert_side, num_hits, next_hit, hitIndex);
-	int tlen =atoi(sam_toks[8].c_str()); //TLEN
-	int mate_pos=atoi(sam_toks[7].c_str());
-	GBamRecord* bamrec=bam_writer.new_record(qname.c_str(), flag, sam_toks[2].c_str(), gpos, mapQ,
-                                       sam_toks[5].c_str(), sam_toks[6].c_str(), mate_pos,
-                                       tlen, sam_toks[9].c_str(), sam_toks[10].c_str(), &auxdata);
-	bam_writer.write(bamrec);
-	delete bamrec;
-	return true;
+  return true;
 }
 
-bool rewrite_sam_record(GBamWriter& bam_writer, const RefSequenceTable& rt,
+bool rewrite_sam_record(GBamWriter& bam_writer,
+			const RefSequenceTable& rt,
                         const BowtieHit& bh,
                         const char* bwt_buf,
                         const char* read_alt_name,
@@ -567,64 +371,37 @@ bool rewrite_sam_record(GBamWriter& bam_writer, const RefSequenceTable& rt,
                         bool primary,
                         int hitIndex)
 {
-	// Rewrite this hit, filling in the alt name, mate mapping
-	// and setting the pair flag
-	vector<string> sam_toks;
-	tokenize(bwt_buf, "\t", sam_toks);
+  // Rewrite this hit, filling in the alt name, mate mapping
+  // and setting the pair flag
+  vector<string> sam_toks;
+  tokenize(bwt_buf, "\t", sam_toks);
   string qname(read_alt_name);
   size_t slash_pos=qname.rfind('/');
   if (slash_pos!=string::npos)
-      qname.resize(slash_pos);
-	//read_alt_name as QNAME
-	int flag = atoi(sam_toks[1].c_str());
-	// 0x0010 (strand of query) is assumed to be set correctly
-	// to begin with
-	flag |= 0x0001; //it must be paired
-	if (insert_side == FRAG_LEFT)
-		flag |= 0x0040;
-	else if (insert_side == FRAG_RIGHT)
-		flag |= 0x0080;
-    if (!primary)
-        flag |= 0x100;
-    
-	int gpos=isdigit(sam_toks[3][0]) ? atoi(sam_toks[3].c_str()) : 0;
-	int mapQ=255;
-	if (grade.num_alignments > 1) {
-		double err_prob = 1 - (1.0 / grade.num_alignments);
-		mapQ = (int)(-10.0 * log(err_prob) / log(10.0));
-    }
-	int tlen=0; //TLEN
-	int mate_pos=atoi(sam_toks[7].c_str());
-	if (partner) {
-	  if (partner->ref_id()==bh.ref_id()) {
-            sam_toks[6] = "="; //same chromosome
-            //TLEN:
-            tlen = bh.left() < partner->left() ? partner->right() - bh.left() :
-	      partner->left() - bh.right();
-	  }
+    qname.resize(slash_pos);
+  //read_alt_name as QNAME
+  int flag = atoi(sam_toks[1].c_str());
+  // 0x0010 (strand of query) is assumed to be set correctly
+  // to begin with
+  flag |= 0x0001; //it must be paired
+  if (insert_side == FRAG_LEFT)
+    flag |= 0x0040;
+  else if (insert_side == FRAG_RIGHT)
+    flag |= 0x0080;
+  if (!primary)
+    flag |= 0x100;
 
-	    else { //partner on different chromosome/contig
-	      sam_toks[6] = rt.get_name(partner->ref_id());
-            if (sam_toks[6].empty()) {
-	      //FIXME -- this should never happen
-	      sam_toks[6] = "=";
-	      fprintf(stderr, "Warning: partner ref_id %d has no entry in ref table?\n", partner->ref_id());
-
-	      // daehwan - merge
-#if 0
-  *rebuf = 0;
-  
   string ref_name = sam_toks[2], ref_name2 = "";
   char rebuf2[2048] = {0};
   char cigar1[256] = {0}, cigar2[256] = {0};
   string left_seq, right_seq, left_qual, right_qual;
   int left = -1, left1 = -1, left2 = -1;
   bool fusion_alignment = false;
-  size_t FR_tok_idx = 11;
-  for (; FR_tok_idx < sam_toks.size(); ++FR_tok_idx)
+  size_t XF_tok_idx = 11;
+  for (; XF_tok_idx < sam_toks.size(); ++XF_tok_idx)
     {
-      const string& tok = sam_toks[FR_tok_idx];
-      if (strncmp(tok.c_str(), "FR", 2) == 0)
+      const string& tok = sam_toks[XF_tok_idx];
+      if (strncmp(tok.c_str(), "XF", 2) == 0)
 	{
 	  fusion_alignment = true;
 	  
@@ -646,222 +423,73 @@ bool rewrite_sam_record(GBamWriter& bam_writer, const RefSequenceTable& rt,
 	}
     }
   
-  for (size_t t = 0; t < sam_toks.size(); ++t)
-    {
-      switch(t)
-        {
-	case 0: //QNAME
-	  {
-	    sam_toks[t] = read_alt_name;
-	    break;
-	  }
-	case 1: //SAM FLAG
-	  {
-	    // 0x0010 (strand of query) is assumed to be set correctly
-	    // to begin with
-            
-	    int flag = atoi(sam_toks[1].c_str());
-	    flag |= 0x0001;
-	    if (insert_side == FRAG_LEFT)
-	      flag |= 0x0040;
-	    else if (insert_side == FRAG_RIGHT)
-	      flag |= 0x0080;
-	    
-	    if (grade.happy() && partner)
-	      flag |= 0x0002;
-	    
-	    if (partner)
-	      {
-		if (partner->antisense_align())
-		  flag |= 0x0020;
-	      }
-	    else
-	      {
-		flag |= 0x0008;
-	      }
-	    
-	    char flag_buf[64];
-	    sprintf(flag_buf, "%d", flag);
-	    sam_toks[t] = flag_buf;
-	    break;
-	  }
-          
-	case 4: //MAPQ
-	  {
-	    int mapQ;
-	    if (grade.num_alignments > 1)
-	      {
-		double err_prob = 1 - (1.0 / grade.num_alignments);
-		mapQ = (int)(-10.0 * log(err_prob) / log(10.0));
-	      }
-	    else
-	      {
-		mapQ = 255;
-	      }
-	    char mapq_buf[64];
-	    sprintf(mapq_buf, "%d", mapQ);
-	    sam_toks[t] = mapq_buf;
-	    break;
-	  }
-	case 6: //MRNM
-	  {
-	    if (partner)
-	      {
-		if (partner->ref_id() == bh.ref_id())
-		  sam_toks[t] = "=";
-		else
-		  sam_toks[t] = rt.get_name(partner->ref_id());
-
-		if (partner->fusion_opcode() != FUSION_NOTHING)
-		  {
-		    char partner_pos[1024];
-		    sprintf(partner_pos, "FP:Z:%s-%s %d", rt.get_name(partner->ref_id()), rt.get_name(partner->ref_id2()), partner->left() + 1);
-		    sam_toks.push_back(partner_pos);
-		  }
-	      }
-	    else
-	      {
-		sam_toks[t] = "*";
-	      }
-	    break;
-#endif
-            }
-
-	  }
-	    mate_pos = partner->left() + 1;
-	    if (grade.happy())
-	      flag |= 0x0002;
-	    if (partner->antisense_align())
-	      flag |=  0x0020;
-	    // daehwan - merge
-#if 0
-	case 7: //MPOS
-	  {
-	    if (partner)
-	      {
-		char pos_buf[64];
-		int partner_pos = partner->left() + 1;  // SAM is 1-indexed
-                
-		sprintf(pos_buf, "%d", partner_pos);
-		sam_toks[t] = pos_buf;
-	      }
-	    else
-	      {
-		sam_toks[t] = "0";
-	      }
-	    break;
-	  }
-	default:
-	  break;
-        }
-
-      if (fusion_alignment)
-	{
-	  switch(t)
-	    {
-	    case 2: // ref_name
-	      {
-		strcat(rebuf, ref_name.c_str());
-		strcat(rebuf2, ref_name2.c_str());
-	      }
-	      break;
-	      
-	    case 3: // coord
-	      {
-		char coord[32] = {0};
-		sprintf(coord, "%d", left1);
-		strcat(rebuf, coord);
-		
-		sprintf(coord, "%d", left2);
-		strcat(rebuf2, coord);
-	      }
-	      break;
-	      
-	    case 5: // cigar
-	      {
-		strcat(rebuf, cigar1);
-		strcat(rebuf2, cigar2);
-	      }
-	      break;
-	      
-	    case 9: // seq
-	      {
-		strcat(rebuf, left_seq.c_str());
-		strcat(rebuf2, right_seq.c_str());
-	      }
-	      break;
-	      
-	    case 10: // qual
-	      {
-		strcat(rebuf, left_qual.c_str());
-		strcat(rebuf2, right_qual.c_str());
-	      }
-	      break;
-	      
-	    default:
-	      strcat(rebuf, sam_toks[t].c_str());
-	      
-	      if (strncmp(sam_toks[t].c_str(), "FR", 2) == 0)
-		{
-		  sam_toks[t][5] = '2';
-		}
-	      
-	      strcat(rebuf2, sam_toks[t].c_str());
-	      break;
-	    }
-	}
-      else
-	strcat (rebuf, sam_toks[t].c_str());
-      
-      if (t != sam_toks.size() - 1)
-	{
-	  strcat(rebuf, "\t");
-	  if (fusion_alignment)
-	    strcat(rebuf2, "\t");
-	}
-#endif
+  int gpos=isdigit(sam_toks[3][0]) ? atoi(sam_toks[3].c_str()) : 0;
+  int mapQ=255;
+  if (grade.num_alignments > 1) {
+    double err_prob = 1 - (1.0 / grade.num_alignments);
+    mapQ = (int)(-10.0 * log(err_prob) / log(10.0));
+  }
+  int tlen=0; //TLEN
+  int mate_pos=atoi(sam_toks[7].c_str());
+  if (partner) {
+    if (partner->ref_id()==bh.ref_id()) {
+      sam_toks[6] = "="; //same chromosome
+      //TLEN:
+      tlen = bh.left() < partner->left() ? partner->right() - bh.left() :
+	partner->left() - bh.right();
     }
-    else {
-		sam_toks[6] = "*";
-		mate_pos = 0;
-		flag |= 0x0008;
-
-		// daehwan - merge
-#if 0
-  char nh_buf[2048];
-  sprintf(nh_buf, "\tNH:i:%d", num_hits);
-  strcat(rebuf, nh_buf);
-  if (fusion_alignment)
-    strcat(rebuf2, nh_buf);
-  
-  if (next_hit)
-    {
-      char ref_name[1024];
-      sprintf(ref_name, "%s", rt.get_name(next_hit->ref_id()));
-      
-      char mate_buf[2048];
-      bool same_contig = bh.fusion_opcode() == next_hit->fusion_opcode() && bh.ref_id() == next_hit->ref_id();
-      
-      assert (num_hits > 1);
-      
-      sprintf(mate_buf, 
-	      "\tCC:Z:%s\tCP:i:%d",
-	      same_contig ? "=" : ref_name, 
-	      next_hit->left() + 1);
-      
-      strcat(rebuf, mate_buf);
-      if (fusion_alignment)
-	strcat(rebuf2, mate_buf);
-#endif
+    
+    else { //partner on different chromosome/contig
+      sam_toks[6] = rt.get_name(partner->ref_id());
     }
-	vector<string> auxdata;
-	add_auxData(auxdata, sam_toks, rt, bh, insert_side, num_hits, next_hit, hitIndex);
-	GBamRecord* bamrec=bam_writer.new_record(qname.c_str(), flag, sam_toks[2].c_str(), gpos, mapQ,
-                                             sam_toks[5].c_str(), sam_toks[6].c_str(), mate_pos,
-                                             tlen, sam_toks[9].c_str(), sam_toks[10].c_str(), &auxdata);
-	bam_writer.write(bamrec);
-	delete bamrec;
-	return true;
+    mate_pos = partner->left() + 1;
+    if (grade.happy())
+      flag |= 0x0002;
+    if (partner->antisense_align())
+      flag |=  0x0020;
+
+    if (partner->fusion_opcode() != FUSION_NOTHING)
+      {
+	char partner_pos[1024];
+	sprintf(partner_pos, "XP:Z:%s-%s %d", rt.get_name(partner->ref_id()), rt.get_name(partner->ref_id2()), partner->left() + 1);
+	sam_toks.push_back(partner_pos);
+      }
+  }
+  else {
+    sam_toks[6] = "*";
+    mate_pos = 0;
+    flag |= 0x0008;
+  }
+
+  GBamRecord* bamrec=NULL;
+  if (fusion_alignment) {
+    vector<string> auxdata;
+    add_auxData(auxdata, sam_toks, rt, bh, insert_side, num_hits, next_hit, hitIndex);
+    bamrec=bam_writer.new_record(qname.c_str(), flag, ref_name.c_str(), left1 + 1, mapQ,
+				 cigar1, sam_toks[6].c_str(), mate_pos,
+				 tlen, left_seq.c_str(), left_qual.c_str(), &auxdata);
+    bam_writer.write(bamrec);
+    delete bamrec;
+
+    auxdata.clear();
+    sam_toks[XF_tok_idx][5] = '2';
+    add_auxData(auxdata, sam_toks, rt, bh, insert_side, num_hits, next_hit, hitIndex);
+    bamrec=bam_writer.new_record(qname.c_str(), flag, ref_name2.c_str(), left2 + 1, mapQ,
+				 cigar2, sam_toks[6].c_str(), mate_pos,
+				 tlen, right_seq.c_str(), right_qual.c_str(), &auxdata);
+    bam_writer.write(bamrec);
+    delete bamrec;
+  } else {
+    vector<string> auxdata;
+    add_auxData(auxdata, sam_toks, rt, bh, insert_side, num_hits, next_hit, hitIndex);
+    bamrec=bam_writer.new_record(qname.c_str(), flag, sam_toks[2].c_str(), gpos, mapQ,
+				 sam_toks[5].c_str(), sam_toks[6].c_str(), mate_pos,
+				 tlen, sam_toks[9].c_str(), sam_toks[10].c_str(), &auxdata);
+    bam_writer.write(bamrec);
+    delete bamrec;
+  }
+
+  return true;
 }
 
 struct lex_hit_sort
@@ -1635,12 +1263,10 @@ struct ReportWorker
   int64_t left_map_offset;
   int64_t right_reads_offset;
   int64_t right_map_offset;
-
-  // for debug purposes
-  uint32_t thread_id;
 };
 
 void driver(const string& bam_output_fname,
+	    istream& ref_stream,
 	    const string& left_map_fname,
 	    const string& left_reads_fname,
 	    const string& right_map_fname,
@@ -1653,8 +1279,11 @@ void driver(const string& bam_output_fname,
   if (!parallel)
     num_threads = 1;
 
-  // if fusion_search is on, keep the sequences
-  RefSequenceTable rt(sam_header, true, fusion_search);
+  RefSequenceTable rt(sam_header, true);
+
+  if (fusion_search)
+    get_seqs(ref_stream, rt, true, false);
+
   srandom(1);
   
   JunctionSet gtf_junctions;
@@ -1856,8 +1485,6 @@ void driver(const string& bam_output_fname,
       
       worker.end_id = (i+1 < num_threads) ? read_ids[i] : std::numeric_limits<uint64_t>::max();
 
-      worker.thread_id = (uint32_t)i;
-
       if (num_threads > 1)
 	threads.push_back(new boost::thread(worker));
       else
@@ -2022,6 +1649,14 @@ int main(int argc, char** argv)
       }
       right_reads_filename=argv[optind++];
     }
+
+  ifstream ref_stream(ref_file_name.c_str(), ifstream::in);
+  if (!ref_stream.good())
+    {
+      fprintf(stderr, "Error: cannot open %s for reading\n",
+	      ref_file_name.c_str());
+      exit(1);
+    }
   
   FILE* junctions_file = fopen(junctions_file_name.c_str(), "w");
   if (junctions_file == NULL)
@@ -2056,6 +1691,7 @@ int main(int argc, char** argv)
     }
   
   driver(accepted_hits_file_name,
+	 ref_stream,
 	 left_map_filename,
 	 left_reads_filename,
 	 right_map_filename,

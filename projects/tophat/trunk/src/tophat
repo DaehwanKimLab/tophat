@@ -35,6 +35,7 @@ Usage:
 Options:
     -v/--version
     -o/--output-dir                <string>    [ default: ./tophat_out     ]
+    --bowtie1                                  [ default: bowtie2          ]
     -a/--min-anchor                <int>       [ default: 8                ]
     -m/--splice-mismatches         <0-2>       [ default: 0                ]
     -i/--min-intron-length         <int>       [ default: 50               ]
@@ -462,6 +463,7 @@ class TopHatParams:
 
         self.report_params = self.ReportParams()
 
+        self.bowtie2 = True
         self.gff_annotation = None
         self.transcriptome_only = False
         self.transcriptome_index = None
@@ -504,9 +506,16 @@ class TopHatParams:
             die("Error: arg to --segment-length must at least 10")
         if self.segment_mismatches < 0 or self.segment_mismatches > 3:
             die("Error: arg to --segment-mismatches must in [0, 3]")
+        if self.t_mismatches < 0 or self.t_mismatches > 3:
+            die("Error: arg to -n or --transcriptome-mismatches must in [0, 3]")
 
-        if self.read_params.color and self.butterfly_search:
-            die("Error: butterfly-search in colorspace is not yet supported")
+        if self.read_params.color:
+            if self.bowtie2:
+                die("Error: bowtie2 in colorspace is not yet supported\nuse --bowtie1 option")
+            if self.fusion_search:
+                die("Error: fusion-search in colorspace is not yet supported")
+            if self.butterfly_search:
+                die("Error: butterfly-search in colorspace is not yet supported")
 
         library_types = ["fr-unstranded", "fr-firststrand", "fr-secondstrand"]
 
@@ -608,6 +617,7 @@ class TopHatParams:
                                         ["version",
                                          "help",
                                          "output-dir=",
+                                         "bowtie1",
                                          "solexa-quals",
                                          "solexa1.3-quals",
                                          "phred64-quals",
@@ -708,6 +718,8 @@ class TopHatParams:
                 sys.exit(0)
             if option in ("-h", "--help"):
                 raise Usage(use_message)
+            if option == "-bowtie1":
+                self.bowtie2 = False
             if option in ("-g", "--max-multihits"):
                 self.max_hits = int(value)
             if option in ("-x", "--transcriptome-max-hits"):

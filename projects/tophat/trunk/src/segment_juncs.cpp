@@ -4726,7 +4726,7 @@ void driver(istream& ref_stream,
   std::set<Insertion> vinsertions[num_threads];
   FusionSimpleSet vfusions[num_threads];
   
-  RefSequenceTable rt(sam_header, true, true);
+  RefSequenceTable rt(sam_header, true);
   
   fprintf (stderr, "Loading reference sequences...\n");
   get_seqs(ref_stream, rt, true, false);

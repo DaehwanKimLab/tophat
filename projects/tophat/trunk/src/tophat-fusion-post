@@ -851,7 +851,7 @@ def read_dist(params):
 
             secondary_fusion_alignment = False
             for field in line[10:]:
-                if field[:5] == "FR:Z:":
+                if field[:5] == "XF:Z:":
                     if field[5] == '2':
                         secondary_fusion_alignment = True
                         break
