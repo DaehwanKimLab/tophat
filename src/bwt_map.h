@@ -557,13 +557,6 @@ inline bool REFID_Equal(uint32_t ref_id1, uint32_t ref_id2)
 class RefSequenceTable
 {
  public:
-  static RefSequenceTable* Instance();
-  static RefSequenceTable* Instance(RefSequenceTable*);
-
- private:
-  static RefSequenceTable* _instance;
-  
- public:
   typedef seqan::String<seqan::Dna5, seqan::Packed<seqan::Alloc<> > > Sequence;
   
   struct SequenceInfo
@@ -586,13 +579,12 @@ class RefSequenceTable
   typedef IDTable::iterator iterator;
   typedef IDTable::const_iterator const_iterator;
   
- RefSequenceTable(bool keep_names, bool keep_seqs = false) : 
+ RefSequenceTable(bool keep_names) : 
   _next_id(1), 
     _keep_names(keep_names) {}
   
  RefSequenceTable(const string& sam_header_filename, 
-		  bool keep_names, 
-		  bool keep_seqs = false) : 
+		  bool keep_names) : 
   _next_id(1), 
     _keep_names(keep_names) 
     {

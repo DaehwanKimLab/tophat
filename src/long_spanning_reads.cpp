@@ -2188,7 +2188,7 @@ void driver(const string& bam_output_fname,
     exit(0);
   }
 
-  RefSequenceTable rt(sam_header, true, true);
+  RefSequenceTable rt(sam_header, true);
   fprintf (stderr, "Loading reference sequences...\n");
   get_seqs(ref_stream, rt, true, false);
     fprintf (stderr, "        reference sequences loaded.\n");

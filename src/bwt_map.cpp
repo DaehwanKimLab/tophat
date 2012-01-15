@@ -30,18 +30,6 @@
 
 using namespace std;
 
-RefSequenceTable* RefSequenceTable::_instance = NULL;
-RefSequenceTable* RefSequenceTable::Instance()
-{
-  return _instance;
-}
-
-RefSequenceTable* RefSequenceTable::Instance(RefSequenceTable* instance)
-{
-  _instance = instance;
-  return _instance;
-}
-
 void HitTable::add_hit(const BowtieHit& bh, bool check_uniqueness)
 {
 	uint32_t reference_id = bh.ref_id();
@@ -1818,6 +1806,22 @@ bool BAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 		    end);
     return true;
   }
+  
+  if (seq!=NULL) {
+    char *bseq = (char*)bam1_seq(hit_buf);
+    for(int i=0;i<(hit_buf->core.l_qseq);i++) {
+      char v = bam1_seqi(bseq,i);
+      seq[i]=bam_nt16_rev_table[v];
+    }
+    seq[hit_buf->core.l_qseq]=0;
+  }
+  if (qual!=NULL) {
+    char *bq  = (char*)bam1_qual(hit_buf);
+    for(int i=0;i<(hit_buf->core.l_qseq);i++) {
+      qual[i]=bq[i]+33;
+    }
+    qual[hit_buf->core.l_qseq]=0;
+  }  
 
   bool antisense_splice=false;
   unsigned char num_mismatches = 0;
@@ -1839,59 +1843,168 @@ bool BAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
   if (ptr) {
     num_hits = bam_aux2i(ptr);
   }
-  
+
   string text_name = _sam_header->target_name[target_id];
-  for (int i = 0; i < hit_buf->core.n_cigar; ++i) 
-    {
-      //char* t;
-      
-      int length = bam1_cigar(hit_buf)[i] >> BAM_CIGAR_SHIFT;
+  string text_name2 = "";
+  
+  bool fusion_alignment = false;
+  string fusion_cigar_str;
+  ptr = bam_aux_get(hit_buf, "XF");
+  if (ptr) {
+    fusion_alignment = true;
+    char* xf = bam_aux2Z(ptr);
+
+    // ignore the second part of a fusion alignment                                                                                                                                                                                                                            
+    if (xf[0] == '2')
+      return false;
+
+    vector<string> fields;
+    tokenize(xf, " ", fields);
+
+    vector<string> contigs;
+    tokenize(fields[1], "-", contigs);
+    if (contigs.size() >= 2)
+      {
+	text_name = contigs[0];
+	text_name2 = contigs[1];
+      }
+
+    text_offset = atoi(fields[2].c_str());
+    fusion_cigar_str = fields[3].c_str();
+
+    if (seq)
+      strcpy(seq, fields[4].c_str());
+    if (qual)
+      strcpy(qual, fields[5].c_str());
+  }
+
+  if (fusion_alignment) {
+    const char* p_cig = fusion_cigar_str.c_str();
+    while (*p_cig) {
+      char* t;
+      int length = (int)strtol(p_cig, &t, 10);
       if (length <= 0)
 	{
-	  fprintf (stderr, "BAM error: CIGAR op has zero length\n");
+	  //fprintf (stderr, "CIGAR op has zero length\n");
 	  return false;
 	}
-      
+      char op_char = *t;
       CigarOpCode opcode;
-      switch(bam1_cigar(hit_buf)[i] & BAM_CIGAR_MASK)
+      if (op_char == 'M') opcode = MATCH;
+      else if(op_char == 'm') opcode = mATCH;
+      else if (op_char == 'I') opcode = INS;
+      else if (op_char == 'i') opcode = iNS;
+      else if (op_char == 'D') opcode = DEL;
+      else if (op_char == 'd') opcode = dEL;
+      else if (op_char == 'N' || op_char == 'n')
 	{
-	case BAM_CMATCH: opcode  = MATCH; break; 
-	case BAM_CINS: opcode  = INS; break;
-	case BAM_CDEL: opcode  = DEL; break; 
-	case BAM_CSOFT_CLIP: opcode  = SOFT_CLIP; break;
-	case BAM_CHARD_CLIP: opcode  = HARD_CLIP; break;
-	case BAM_CPAD: opcode  = PAD; break; 
-	case BAM_CREF_SKIP:
-	  opcode = REF_SKIP;
+	  if (length > max_report_intron_length)
+	    return false;
+	  
+	  if (op_char == 'N')
+	    opcode = REF_SKIP;
+	  else
+	    opcode = rEF_SKIP;
 	  spliced_alignment = true;
-	  if (length > (int)max_report_intron_length)
-	    {
-	      //fprintf(stderr, "Encounter REF_SKIP > max_gene_length, skipping\n");
-	      return false;
-	    }
-	  break;
-	default:
-	  fprintf (stderr, "BAM read: invalid CIGAR operation\n");
+	}
+      else if (op_char == 'F')
+	{
+	  opcode = FUSION_FF;
+	  length = length - 1;
+	}
+      else if (op_char == 'S') opcode = SOFT_CLIP;
+      else if (op_char == 'H') opcode = HARD_CLIP;
+      else if (op_char == 'P') opcode = PAD;
+      else
+	{
+	  fprintf (stderr, "(%d-%d) invalid CIGAR operation\n", length, (int)op_char);
 	  return false;
 	}
-      
-      if (opcode != HARD_CLIP)
-	cigar.push_back(CigarOp(opcode, length));
+      p_cig = t + 1;
+      cigar.push_back(CigarOp(opcode, length));
 
-       /*
-	* By convention,the NM field of the SAM record
-	* counts an insertion or deletion. I dont' think
-	* we want the mismatch count in the BowtieHit
-	* record to reflect this. Therefore, subtract out
-	* the mismatches due to in/dels
-	*/
-	 if(opcode == INS){
-	   num_mismatches -= length;
-	 }
-	 else if(opcode == DEL){
-	   num_mismatches -= length;
-	 }
-    }		
+      if(opcode == INS) {
+	num_mismatches -= length;
+      }
+      else if(opcode == DEL) {
+	num_mismatches -= length;
+      }
+      
+      /*
+       * update fusion direction.
+       */
+      size_t cigar_size = cigar.size();
+      if (cigar_size >= 3 && cigar[cigar_size - 2].opcode == FUSION_FF)
+	{
+	  CigarOpCode prev = cigar[cigar_size - 3].opcode;
+	  CigarOpCode next = cigar[cigar_size - 1].opcode;
+	  
+	  bool increase1 = false, increase2 = false;
+	  if (prev == MATCH || prev == DEL || prev == INS || prev == REF_SKIP)
+	    increase1 = true;
+	  if (next == MATCH || next == DEL || next == INS || next == REF_SKIP)
+	    increase2 = true;
+	  
+	  if (increase1 && !increase2)
+	    cigar[cigar_size - 2].opcode = FUSION_FR;
+	  else if (!increase1 && increase2)
+	    cigar[cigar_size - 2].opcode = FUSION_RF;
+	  else if (!increase1 && !increase2)
+	    cigar[cigar_size - 2].opcode = FUSION_RR;
+	}
+    }
+  }
+  else {
+    for (int i = 0; i < hit_buf->core.n_cigar; ++i) 
+      {
+	int length = bam1_cigar(hit_buf)[i] >> BAM_CIGAR_SHIFT;
+	if (length <= 0)
+	  {
+	    fprintf (stderr, "BAM error: CIGAR op has zero length\n");
+	    return false;
+	  }
+	
+	CigarOpCode opcode;
+	switch(bam1_cigar(hit_buf)[i] & BAM_CIGAR_MASK)
+	  {
+	  case BAM_CMATCH: opcode  = MATCH; break; 
+	  case BAM_CINS: opcode  = INS; break;
+	  case BAM_CDEL: opcode  = DEL; break; 
+	  case BAM_CSOFT_CLIP: opcode  = SOFT_CLIP; break;
+	  case BAM_CHARD_CLIP: opcode  = HARD_CLIP; break;
+	  case BAM_CPAD: opcode  = PAD; break; 
+	  case BAM_CREF_SKIP:
+	    opcode = REF_SKIP;
+	    spliced_alignment = true;
+	    if (length > (int)max_report_intron_length)
+	      {
+		//fprintf(stderr, "Encounter REF_SKIP > max_gene_length, skipping\n");
+		return false;
+	      }
+	    break;
+	  default:
+	    fprintf (stderr, "BAM read: invalid CIGAR operation\n");
+	    return false;
+	  }
+	
+	if (opcode != HARD_CLIP)
+	  cigar.push_back(CigarOp(opcode, length));
+	
+	/*
+	 * By convention,the NM field of the SAM record
+	 * counts an insertion or deletion. I dont' think
+	 * we want the mismatch count in the BowtieHit
+	 * record to reflect this. Therefore, subtract out
+	 * the mismatches due to in/dels
+	 */
+	if(opcode == INS){
+	  num_mismatches -= length;
+	}
+	else if(opcode == DEL){
+	  num_mismatches -= length;
+	}
+      }
+  }
   
   string mrnm;
   if (mate_target_id >= 0) {
@@ -1908,13 +2021,10 @@ bool BAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
     text_mate_pos = 0;
   }
   
-  //bool antisense_aln = bam1_strand(hit_buf);
-  
-  if (spliced_alignment)	{
+  if (spliced_alignment) {
     bh = create_hit(qname,
 		    text_name,
-		    // daehwan - implement fusion
-		    "",
+		    text_name2,
 		    text_offset,  // BAM files are 0-indexed
 		    cigar,
 		    sam_flag & 0x0010,
@@ -1927,8 +2037,7 @@ bool BAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
   else {
     bh = create_hit(qname,
 		    text_name,
-		    // daehwan - implement fusion
-		    "",
+		    text_name2,
 		    text_offset,  // BAM files are 0-indexed
 		    cigar,
 		    sam_flag & 0x0010,
@@ -1936,21 +2045,6 @@ bool BAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 		    num_mismatches,
 		    0,
 		    end);
-  }
-  if (seq!=NULL) {
-    char *bseq = (char*)bam1_seq(hit_buf);
-    for(int i=0;i<(hit_buf->core.l_qseq);i++) {
-      char v = bam1_seqi(bseq,i);
-      seq[i]=bam_nt16_rev_table[v];
-    }
-    seq[hit_buf->core.l_qseq]=0;
-  }
-  if (qual!=NULL) {
-    char *bq  = (char*)bam1_qual(hit_buf);
-    for(int i=0;i<(hit_buf->core.l_qseq);i++) {
-      qual[i]=bq[i]+33;
-    }
-    qual[hit_buf->core.l_qseq]=0;
   }
   
   return true;
@@ -2733,38 +2827,38 @@ void print_bamhit(GBamWriter& wbam,
 	  break;
 	}
     }
+
+  vector<string> auxdata;
+  if (!sam_readgroup_id.empty())
+    {
+      string nm("RG:Z:");
+      nm += sam_readgroup_id;
+      auxdata.push_back(nm);
+    }
+  
+  string nm("NM:i:");
+  str_appendInt(nm, bh.edit_dist() + indel_distance);
+  auxdata.push_back(nm);
+  
+  if (containsSplice) {
+    nm="XS:A:";
+    nm+=(char)(bh.antisense_splice() ? '-' : '+');
+    auxdata.push_back(nm);
+  }
   
   if (fusion_dir != FUSION_NOTHING)
     {
-      vector<string> auxdata;
-      if (!sam_readgroup_id.empty())
-	{
-	  string nm("RG:Z:");
-	  nm += sam_readgroup_id;
-	  auxdata.push_back(nm);
-	}
-      
-      string nm("NM:i:");
-      str_appendInt(nm, bh.edit_dist() + indel_distance);
-      auxdata.push_back(nm);
-
       char XF[2048] = {0};
       sprintf(XF,
-	      "XF:Z:1 %s-%s %d %s %s %s",
+	      "XF:Z:1 %s-%s %u %s %s %s",
 	      ref_name,
 	      ref_name2,
-	      left + 1,
+	      sam_pos,
 	      cigar,
 	      seq.c_str(),
 	      quals.c_str());
       auxdata.push_back(XF);
-            
-      if (containsSplice) {
-	nm="XS:A:";
-	nm+=(char)(bh.antisense_splice() ? '-' : '+');
-	auxdata.push_back(nm);
-      }
-      
+     
       GBamRecord *brec = wbam.new_record(read_name, sam_flag, ref_name, left1 + 1, map_quality,
 					 cigar1, mate_ref_name.c_str(), mate_pos,
 					 insert_size, left_seq.c_str(), left_qual.c_str(), &auxdata);
@@ -2773,17 +2867,14 @@ void print_bamhit(GBamWriter& wbam,
       delete brec;
 
       sprintf(XF,
-	      "XF:Z:2 %s-%s %d %s %s %s",
+	      "XF:Z:2 %s-%s %u %s %s %s",
 	      ref_name,
 	      ref_name2,
-	      left + 1,
+	      sam_pos,
 	      cigar,
 	      seq.c_str(),
 	      quals.c_str());
-      if (containsSplice)
-	auxdata[auxdata.size() - 2] = XF;
-      else
-	auxdata.back() = XF;
+      auxdata.back() = XF;
      
       brec = wbam.new_record(read_name, sam_flag, ref_name, left2 + 1, map_quality,
 			     cigar2, mate_ref_name.c_str(), mate_pos,
@@ -2794,24 +2885,6 @@ void print_bamhit(GBamWriter& wbam,
     }
   else
     {
-      vector<string> auxdata;
-      if (!sam_readgroup_id.empty())
-	{
-	  string nm("RG:Z:");
-	  nm += sam_readgroup_id;
-	  auxdata.push_back(nm);
-	}
-      
-      string nm("NM:i:");
-      str_appendInt(nm, bh.edit_dist() + indel_distance);
-      auxdata.push_back(nm);
-      
-      if (containsSplice) {
-	nm="XS:A:";
-	nm+=(char)(bh.antisense_splice() ? '-' : '+');
-	auxdata.push_back(nm);
-      }
-      
       GBamRecord *brec = wbam.new_record(read_name, sam_flag, ref_name, sam_pos, map_quality,
 					 cigar, mate_ref_name.c_str(), mate_pos,
 					 insert_size, seq.c_str(), quals.c_str(), &auxdata);
