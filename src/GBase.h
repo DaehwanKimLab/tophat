@@ -167,10 +167,10 @@ inline int Gintcmp(int a, int b) {
   return a-b;
 }
 
-int Gstrcmp(char* a, char* b);
+int Gstrcmp(const char* a, const char* b, int n=-1);
 //same as strcmp but doesn't crash on NULL pointers
 
-int Gstricmp(const char* a, const char* b);
+int Gstricmp(const char* a, const char* b, int n=-1);
 
 //basic swap template function
 template<class T> void Gswap(T& lhs, T& rhs) {

@@ -65,6 +65,14 @@ template <class OBJ> class GVec {
           TEST_INDEX(i);
           return fArray[i];
           }
+    OBJ& Last() {
+         TEST_INDEX(fCount-1);
+         return fArray[fCount-1];
+         }
+    OBJ& First() {
+         TEST_INDEX(0);
+         return fArray[0];
+         }
     void Clear();
     void Insert(int idx, OBJ* item);
     void Delete(int index);
