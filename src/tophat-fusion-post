@@ -1098,13 +1098,6 @@ def read_dist(params):
                 if len(check_list) > 0:
                     check_region(sample_name, sam_file_name, check_list)
 
-                for j in range(len(temp_list)):
-                    list_j = temp_list[j].split(" ")
-                    check_file_name = "%s/%s_%s" % (dir, sample_name, "_".join(list_j))
-                    check_file = open(check_file_name, "w")
-                    check_file.write(check_output_list[j])
-                    check_file.close()
-
             if params.num_threads <= 1:
                 work()
             else:
@@ -1924,7 +1917,7 @@ def prog_path(program):
 
 
 def get_version():
-   return "0.2.0"
+   return "2.0.0"
 
 
 def main(argv=None):
@@ -1970,7 +1963,7 @@ def main(argv=None):
         finish_time = datetime.now()
         duration = finish_time - start_time
         print >> sys.stderr,"-----------------------------------------------"
-        print >> sys.stderr, "Run complete [%s elapsed]" %  formatTD(duration)
+        print >> sys.stderr, "[%s] Run complete [%s elapsed]" %  (right_now(), formatTD(duration))
         
     except Usage, err:
         print >> sys.stderr, sys.argv[0].split("/")[-1] + ": " + str(err.msg)

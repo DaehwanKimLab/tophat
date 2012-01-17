@@ -66,8 +66,7 @@ int min_cov_length = 20;
 
 void get_seqs(istream& ref_stream,
 	      RefSequenceTable& rt,
-	      bool keep_seqs = true,
-	      bool strip_slash = false)
+	      bool keep_seqs = true)
 {    
   while(ref_stream.good() &&
 	!ref_stream.eof())
@@ -3355,15 +3354,15 @@ void find_gaps(RefSequenceTable& rt,
   
   HitsForRead& left_segment_hits = hits_for_read[first_segment];
   HitsForRead& right_segment_hits = partner_hits_for_read;
-
+  
   bool check_partner = true;
   if (first_segment != last_segment)
     {
       for (size_t i = 0; i < left_segment_hits.hits.size(); ++i)
-      {
-      BowtieHit& leftHit = left_segment_hits.hits[i];
-      for (size_t j = 0; j < right_segment_hits.hits.size(); ++j)
-        {
+	{
+	  BowtieHit& leftHit = left_segment_hits.hits[i];
+	  for (size_t j = 0; j < right_segment_hits.hits.size(); ++j)
+	    {
           BowtieHit& rightHit = right_segment_hits.hits[j];
 
           if (leftHit.ref_id() == rightHit.ref_id() && leftHit.antisense_align() == rightHit.antisense_align())
@@ -3401,98 +3400,98 @@ void find_gaps(RefSequenceTable& rt,
       seqan::convertInPlace(rcRead, seqan::FunctorComplement<Dna>());
       seqan::reverseInPlace(rcRead);
       size_t read_length =  read.seq.length();
-
+      
       for (size_t l = 0; l < left_segment_hits.hits.size(); ++l)
-      {
-        BowtieHit& leftHit = left_segment_hits.hits[l];
-        for (size_t r = 0; r < partner_hit_group.hits.size(); ++r)
-          {
-            BowtieHit& rightHit = partner_hit_group.hits[r];
-            if (leftHit.ref_id() != rightHit.ref_id() || leftHit.antisense_align() == rightHit.antisense_align())
-        continue;
-
-            int dist = 0;
-            if (leftHit.antisense_align())
-        dist = leftHit.left() - rightHit.right();
-            else
-        dist = rightHit.left() - leftHit.right();
-
-            if (dist < min_segment_intron_length && dist >= (int)max_segment_intron_length)
-        continue;
-
-            RefSequenceTable::Sequence* ref_str = rt.get_seq(rightHit.ref_id());
-            const size_t part_seq_len = inner_dist_std_dev > inner_dist_mean ? inner_dist_std_dev - inner_dist_mean : 0;
-            const size_t flanking_seq_len = inner_dist_mean + inner_dist_std_dev;
-
-            Dna5String right_flanking_seq;
-            size_t left = 0;
-            if (rightHit.antisense_align())
-        {
-          if (flanking_seq_len <= rightHit.left())
-            {
-              left = rightHit.left() - flanking_seq_len;
-              right_flanking_seq = seqan::infix(*ref_str, left, left + flanking_seq_len + part_seq_len);
-            }
-          else
-            break;
-        }
-            else
-        {
-          if (part_seq_len <= rightHit.right())
-            {
-              left = rightHit.right() - part_seq_len;
-              right_flanking_seq = seqan::infix(*ref_str, left, left + flanking_seq_len + part_seq_len);
-            }
-          else
-            break;
-        }
-
-            const size_t check_read_len = min(15, segment_length - segment_mismatches - 3);
-            seqan::String<char> fwd_read = infix(fullRead, read_length - check_read_len, read_length);
-            seqan::String<char> rev_read = infix(rcRead, 0, check_read_len);
-
-            int fwd_pos = map_read_to_contig(right_flanking_seq, fwd_read);
-            if (fwd_pos >= 0)
-        {
-          BowtieHit hit(rightHit.ref_id(), rightHit.ref_id2(), rightHit.insert_id(),
-			left + fwd_pos, check_read_len, false, 0, true);
-
-          hits_for_read[last_segment].hits.push_back(hit);
-        }
-
-            int rev_pos = map_read_to_contig(right_flanking_seq, rev_read);
-
-            if (rev_pos >= 0)
-        {
-          BowtieHit hit(rightHit.ref_id(), rightHit.ref_id2(), rightHit.insert_id(),
-			left + rev_pos, check_read_len, true, 0, true);
-
-          hits_for_read[last_segment].hits.push_back(hit);
-        }
-
-            // daehwan - for debug purposes
-    #if B_DEBUG
-            cerr << "daehwan!!!" << endl
-           << "insert id: " << rightHit.insert_id() << endl
-           << "first segment: " << first_segment << ", last_segment: " << last_segment << endl
-           << right_flanking_seq << " : " << seqan::length(right_flanking_seq) << endl
-           << fwd_read << " : " << fwd_pos << endl
-           << rev_read << " : " << rev_pos << endl
-           << "left: " << leftHit.left() << "-" << leftHit.right() << (leftHit.antisense_align() ? " -" : " +") << endl
-           << "right: " << rightHit.left() << "-" << rightHit.right() << (rightHit.antisense_align() ? " -" : " +") << endl;
-            if (fwd_pos >= 0 || rev_pos >= 0)
-        {
-          const BowtieHit& hit = hits_for_read[last_segment].hits.back();
-          cerr << "back: " << hit.left() << "-" << hit.right() << (hit.antisense_align() ? " -" : " +") << endl;
-        }
-    #endif
-          }
-      }
+	{
+	  BowtieHit& leftHit = left_segment_hits.hits[l];
+	  for (size_t r = 0; r < partner_hit_group.hits.size(); ++r)
+	    {
+	      BowtieHit& rightHit = partner_hit_group.hits[r];
+	      if (leftHit.ref_id() != rightHit.ref_id() || leftHit.antisense_align() == rightHit.antisense_align())
+		continue;
+	      
+	      int dist = 0;
+	      if (leftHit.antisense_align())
+		dist = leftHit.left() - rightHit.right();
+	      else
+		dist = rightHit.left() - leftHit.right();
+	      
+	      if (dist < min_segment_intron_length && dist >= (int)max_segment_intron_length)
+		continue;
+	      
+	      RefSequenceTable::Sequence* ref_str = rt.get_seq(rightHit.ref_id());
+	      const size_t part_seq_len = inner_dist_std_dev > inner_dist_mean ? inner_dist_std_dev - inner_dist_mean : 0;
+	      const size_t flanking_seq_len = inner_dist_mean + inner_dist_std_dev;
+	      
+	      Dna5String right_flanking_seq;
+	      size_t left = 0;
+	      if (rightHit.antisense_align())
+		{
+		  if (flanking_seq_len <= rightHit.left())
+		    {
+		      left = rightHit.left() - flanking_seq_len;
+		      right_flanking_seq = seqan::infix(*ref_str, left, left + flanking_seq_len + part_seq_len);
+		    }
+		  else
+		    break;
+		}
+	      else
+		{
+		  if (part_seq_len <= rightHit.right())
+		    {
+		      left = rightHit.right() - part_seq_len;
+		      right_flanking_seq = seqan::infix(*ref_str, left, left + flanking_seq_len + part_seq_len);
+		    }
+		  else
+		    break;
+		}
+	      
+	      const size_t check_read_len = min(15, segment_length - segment_mismatches - 3);
+	      seqan::String<char> fwd_read = infix(fullRead, read_length - check_read_len, read_length);
+	      seqan::String<char> rev_read = infix(rcRead, 0, check_read_len);
+	      
+	      int fwd_pos = map_read_to_contig(right_flanking_seq, fwd_read);
+	      if (fwd_pos >= 0)
+		{
+		  BowtieHit hit(rightHit.ref_id(), rightHit.ref_id2(), rightHit.insert_id(),
+				left + fwd_pos, check_read_len, false, 0, true);
+		  
+		  hits_for_read[last_segment].hits.push_back(hit);
+		}
+	      
+	      int rev_pos = map_read_to_contig(right_flanking_seq, rev_read);
+	      
+	      if (rev_pos >= 0)
+		{
+		  BowtieHit hit(rightHit.ref_id(), rightHit.ref_id2(), rightHit.insert_id(),
+				left + rev_pos, check_read_len, true, 0, true);
+		  
+		  hits_for_read[last_segment].hits.push_back(hit);
+		}
+	      
+	      // daehwan - for debug purposes
+#if B_DEBUG
+	      cerr << "daehwan!!!" << endl
+		   << "insert id: " << rightHit.insert_id() << endl
+		   << "first segment: " << first_segment << ", last_segment: " << last_segment << endl
+		   << right_flanking_seq << " : " << seqan::length(right_flanking_seq) << endl
+		   << fwd_read << " : " << fwd_pos << endl
+		   << rev_read << " : " << rev_pos << endl
+		   << "left: " << leftHit.left() << "-" << leftHit.right() << (leftHit.antisense_align() ? " -" : " +") << endl
+		   << "right: " << rightHit.left() << "-" << rightHit.right() << (rightHit.antisense_align() ? " -" : " +") << endl;
+	      if (fwd_pos >= 0 || rev_pos >= 0)
+		{
+		  const BowtieHit& hit = hits_for_read[last_segment].hits.back();
+		  cerr << "back: " << hit.left() << "-" << hit.right() << (hit.antisense_align() ? " -" : " +") << endl;
+		}
+#endif
+	    }
+	}
     }
-
+  
   vector<RefSeg> expected_don_acc_windows;
   string seq(read.seq);
-
+  
   for (size_t s = 0; s < hits_for_read.size(); ++s)
     {
       HitsForRead& curr = hits_for_read[s];
@@ -3559,7 +3558,7 @@ void find_gaps(RefSequenceTable& rt,
 	  
 	  if (!found_right_seg_partner && (drs_bhs.size() > 0 || rrs_bhs.size() > 0))
 	    {
-	      const int look_bp = 5;
+	      const int look_bp = 8;
 	      const size_t color_offset = color ? 1 : 0;
 
 	      vector<BowtieHit*> d_bhs = rrs_bhs.size() > 0 ? rrs_bhs : drs_bhs;
@@ -4729,7 +4728,7 @@ void driver(istream& ref_stream,
   RefSequenceTable rt(sam_header, true);
   
   fprintf (stderr, "Loading reference sequences...\n");
-  get_seqs(ref_stream, rt, true, false);
+  get_seqs(ref_stream, rt, true);
   
   string left_seg_fname_for_segment_search = left_segmap_fnames.back();
   string right_seg_fname_for_segment_search;

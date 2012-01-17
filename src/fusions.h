@@ -128,10 +128,10 @@ struct FusionStat
   string chr2_seq;
   
   static const uint32_t NUM_BASES = 50;
-  uint32_t left_bases[NUM_BASES];
-  uint32_t right_bases[NUM_BASES];
+  vector<uint32_t> left_bases;
+  vector<uint32_t> right_bases;
 
-  uint32_t diffs[5];
+  vector<uint32_t> diffs;
 
   uint32_t left_ext;
   uint32_t right_ext;
@@ -144,7 +144,9 @@ struct FusionStat
    */
   bool reversed;
 
-  FusionStat()
+FusionStat() :
+  left_bases(vector<uint32_t>(NUM_BASES, 0)),
+    right_bases(vector<uint32_t>(NUM_BASES, 0))
   {
     count = 0;
     unsupport_count = 0;
@@ -152,12 +154,8 @@ struct FusionStat
     pair_count = 0;
     pair_count_fusion = 0;
     symm = 0.0f;
-    memset(left_bases, 0, sizeof(left_bases));
-    memset(right_bases, 0, sizeof(right_bases));
-    memset(diffs, 0, sizeof(diffs));
 
     left_ext = right_ext = 0;
-
     reversed = false;
   }
 
@@ -166,14 +164,24 @@ struct FusionStat
     if (this == &other_fusion)
       return *this;
 
-
     count += other_fusion.count;
     unsupport_count += other_fusion.unsupport_count;
     unsupport_count_pair += other_fusion.unsupport_count_pair;
     pair_count += other_fusion.pair_count;
     pair_count_fusion += other_fusion.pair_count_fusion;
 
-    for (size_t i = 0; i < NUM_BASES; ++i)
+    if (other_fusion.count > 0)
+      {
+	symm == other_fusion.symm;
+	chr1_seq = other_fusion.chr1_seq;
+	chr2_seq = other_fusion.chr2_seq;
+	diffs = other_fusion.diffs;
+      }
+	
+    assert (left_bases.size() == right_bases.size());
+    assert (left_bases.size() == other_fusion.left_bases.size());
+    assert (right_bases.size() == other_fusion.right_bases.size());
+    for (size_t i = 0; i < left_bases.size(); ++i)
       {
 	left_bases[i] += other_fusion.left_bases[i];
 	right_bases[i] += other_fusion.right_bases[i];

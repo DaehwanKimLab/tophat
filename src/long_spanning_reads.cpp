@@ -64,8 +64,7 @@ bool key_lt(const pair<uint32_t, HitsForRead>& lhs,
 
 void get_seqs(istream& ref_stream,
         RefSequenceTable& rt,
-        bool keep_seqs = true,
-        bool strip_slash = false)
+        bool keep_seqs = true)
 {
   while(ref_stream.good() &&
   !ref_stream.eof())
@@ -2190,7 +2189,7 @@ void driver(const string& bam_output_fname,
 
   RefSequenceTable rt(sam_header, true);
   fprintf (stderr, "Loading reference sequences...\n");
-  get_seqs(ref_stream, rt, true, false);
+  get_seqs(ref_stream, rt, true);
     fprintf (stderr, "        reference sequences loaded.\n");
 
   fprintf(stderr, "Loading junctions...");
