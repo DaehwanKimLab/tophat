@@ -473,7 +473,6 @@ class TopHatParams:
         self.find_novel_indels = True
         self.find_novel_fusions = True
         self.find_GFF_juncs = True
-        #self.skip_check_reads = False
         self.max_hits = 20
         self.t_max_hits = 60
         self.prefilter_multi = False
@@ -718,7 +717,7 @@ class TopHatParams:
                 sys.exit(0)
             if option in ("-h", "--help"):
                 raise Usage(use_message)
-            if option == "-bowtie1":
+            if option == "--bowtie1":
                 self.bowtie2 = False
             if option in ("-g", "--max-multihits"):
                 self.max_hits = int(value)
@@ -964,23 +963,35 @@ def check_index(idx_prefix):
 
 # Retrive a tuple containing the system's version of Bowtie.  Parsed from
 # `bowtie --version`
-def get_bowtie_version():
+def get_bowtie_version(is_bowtie2):
     try:
         # Launch Bowtie to capture its version info
         proc = subprocess.Popen([bowtie_path, "--version"],
                           stdout=subprocess.PIPE)
 
         stdout_value = proc.communicate()[0]
+        
         bowtie_version = None
         bowtie_out = repr(stdout_value)
 
         # Find the version identifier
-        version_str = "bowtie version "
+        if is_bowtie2:
+            version_str = "bowtie2-align version "
+        else:
+            version_str = "bowtie version "
+            
         ver_str_idx = bowtie_out.find(version_str)
         if ver_str_idx != -1:
             nl = bowtie_out.find("\\n", ver_str_idx)
             version_val = bowtie_out[ver_str_idx + len(version_str):nl]
-            bowtie_version = [int(x) for x in version_val.split('.')]
+
+            if is_bowtie2:
+                ver_numbers = version_val.split('.')
+                ver_numbers[2:] = ver_numbers[2].split('-')
+                bowtie_version = [int(x) for x in ver_numbers[:3]] + [int(ver_numbers[3][4:])]
+            else:
+                bowtie_version = [int(x) for x in version_val.split('.')]
+
         if len(bowtie_version) == 3:
             bowtie_version.append(0)
 
@@ -1074,16 +1085,28 @@ def get_index_sam_header(read_params, idx_prefix, sort = True):
        die(errmsg)
 
 # Make sure Bowtie is installed and is recent enough to be useful
-def check_bowtie():
-    th_log("Checking for Bowtie")
+def check_bowtie(is_bowtie2):
+    log_msg = "Checking for Bowtie"
+    if is_bowtie2:
+        log_msg += "2"
+    th_log(log_msg)
+
+    bowtie_bin = "bowtie"
+    if is_bowtie2:
+        bowtie_bin += "2"
+        
     global bowtie_path
-    bowtie_path=prog_path("bowtie")
-    bowtie_version = get_bowtie_version()
+    bowtie_path=prog_path(bowtie_bin)
+    bowtie_version = get_bowtie_version(is_bowtie2)
     if bowtie_version == None:
         die("Error: Bowtie not found on this system")
-    elif bowtie_version[0] < 1 and bowtie_version[1] < 12 and bowtie_version[2] < 3:
-        die("Error: TopHat requires Bowtie 0.12.3 or later")
-    print >> sys.stderr, "\tBowtie version:\t\t\t %s" % ".".join([str(x) for x in bowtie_version])
+    elif is_bowtie2:
+        if bowtie_version[0] < 3 and bowtie_version[1] < 1 and bowtie_version[2] < 1 and bowtie_version[3] < 5:
+            die("Error: TopHat requires Bowtie 2.0.0-beta5 or later")
+    elif not is_bowtie2:
+        if bowtie_version[0] < 1 and bowtie_version[1] < 12 and bowtie_version[2] < 3:
+            die("Error: TopHat requires Bowtie 0.12.3 or later")
+    print >> sys.stderr, "\t version:\t\t\t %s" % ".".join([str(x) for x in bowtie_version])
 
 
 # Retrive a tuple containing the system's version of samtools.  Parsed from
@@ -3111,7 +3134,7 @@ def main(argv=None):
 
         (ref_fasta, ref_seq_dict) = check_index(bwt_idx_prefix)
 
-        check_bowtie()
+        check_bowtie(params.bowtie2)
         check_samtools()
         th_log("Generating SAM header for "+bwt_idx_prefix)
         sam_header_filename = get_index_sam_header(params.read_params, bwt_idx_prefix)

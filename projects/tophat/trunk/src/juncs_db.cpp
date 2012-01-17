@@ -258,8 +258,7 @@ static int parse_oInt(int lower, char* arg, const char *errmsg) {
 
 void get_seqs(istream& ref_stream,
 	      RefSequenceTable& rt,
-	      bool keep_seqs = true,
-	      bool strip_slash = false)
+	      bool keep_seqs = true)
 {    
     while(ref_stream.good() &&
           !ref_stream.eof())
@@ -289,7 +288,7 @@ void driver(const vector<FILE*>& splice_coords_files,
 {	
 	char splice_buf[2048];
 	RefSequenceTable rt(sam_header, true);
-	get_seqs(ref_stream, rt, true, false);
+	get_seqs(ref_stream, rt, true);
 
 	JunctionSet junctions;
 	for (size_t i = 0; i < splice_coords_files.size(); ++i)

@@ -55,8 +55,7 @@ using std::set;
 // daehwan - this is redundancy, which should be removed.
 void get_seqs(istream& ref_stream,
 	      RefSequenceTable& rt,
-	      bool keep_seqs = true,
-	      bool strip_slash = false)
+	      bool keep_seqs = true)
 {    
   while(ref_stream.good() && !ref_stream.eof())
     {
@@ -757,6 +756,7 @@ void update_fusions(const HitsForRead& hits,
 #endif
 
       fusions_from_alignment(bh, fusions, rt, update_stat);
+
       if (update_stat)
 	unsupport_fusions(bh, fusions, fusions_ref);
     }
@@ -1282,7 +1282,7 @@ void driver(const string& bam_output_fname,
   RefSequenceTable rt(sam_header, true);
 
   if (fusion_search)
-    get_seqs(ref_stream, rt, true, false);
+    get_seqs(ref_stream, rt, true);
 
   srandom(1);
   

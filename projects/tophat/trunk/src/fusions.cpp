@@ -195,19 +195,22 @@ void fusions_from_alignment(const BowtieHit& bh,
 	  FusionStat fusionStat;
 	  fusionStat.count = 1;
 	  fusions[fusion] = fusionStat;
+	  
 	  itr = fusions.find(fusion);
 
 	  if (!update_stat)
 	    {
 	      /*
-	       * put a reversed fusion.
+	       * make a reversed fusion.
 	       * this is necessary to detect reads that contradict the fusion.
 	       */
 
 	      FusionStat fusionStat_rev;
 	      fusionStat_rev.count = 1;
 	      fusionStat_rev.reversed = true;
-	      fusions[Fusion(fusion.refid2, fusion.refid1, fusion.right, fusion.left, fusion.dir)] = fusionStat_rev;
+
+	      Fusion fusion_rev(fusion.refid2, fusion.refid1, fusion.right, fusion.left, fusion.dir);
+	      fusions[fusion_rev] = fusionStat_rev;
 	    }
 	}
       
@@ -218,7 +221,7 @@ void fusions_from_alignment(const BowtieHit& bh,
 	      size_t len = 100;
 	      size_t half_len = len / 2;
 	      size_t increase = 20;
-	      
+
 	      if (fusion.left >= half_len && fusion.left + half_len <= seqan::length(*ref_str1) &&
 		  fusion.right >= half_len && fusion.right + half_len <= seqan::length(*ref_str2))
 		{
@@ -244,33 +247,29 @@ void fusions_from_alignment(const BowtieHit& bh,
 		  
 		  itr->second.chr1_seq = DnaString_to_string(left);
 		  itr->second.chr2_seq = DnaString_to_string(right);
-		  
+
 		  for (size_t j = 0; j < 5; ++j)
 		    {
 		      size_t pos = (5 - j - 1) * increase / 2;
 		      const string& left_sub = itr->second.chr1_seq.substr(pos, (j+1) * increase);
 		      const string& right_sub = itr->second.chr2_seq.substr(pos, (j+1) * increase);
 
-		      itr->second.diffs[j] = difference(left_sub, right_sub);
+		      itr->second.diffs.push_back(difference(left_sub, right_sub));
 		    }
 		}
 	    }
 		  
-	  // daehwan - this is a debugging purpose
-	  if (bh.ref_id() != itr->first.refid1)
-	    {
-	      fprintf(stderr, "read is in a different direction with its fusion\n");
-	    }
+	  assert (bh.ref_id() == itr->first.refid1);
 
 	  itr->second.left_ext = max((size_t)itr->second.left_ext, left_pos);
 	  itr->second.right_ext = max((size_t)itr->second.right_ext, right_pos);
 	  
-	  for (size_t k = 0; k < left_pos && k < FusionStat::NUM_BASES; ++k)
+	  for (size_t k = 0; k < left_pos && k < itr->second.left_bases.size(); ++k)
 	    {
 	      ++(itr->second.left_bases[k]);
 	    }
 	  
-	  for (size_t k = 0; k < right_pos && k < FusionStat::NUM_BASES; ++k)
+	  for (size_t k = 0; k < right_pos && k < itr->second.right_bases.size(); ++k)
 	    {
 	      ++(itr->second.right_bases[k]);
 	    }
@@ -366,8 +365,10 @@ void print_fusions(FILE* fusions_out, FusionSet& fusions, RefSequenceTable& ref_
       else
 	dir = "rr";
 
+      assert (itr->second.left_bases.size() == itr->second.right_bases.size());
+
       float symm = 0.0f;
-      for (uint32_t i = 0; i < FusionStat::NUM_BASES; ++i)
+      for (uint32_t i = 0; i < itr->second.left_bases.size(); ++i)
 	{
 	  float term = ((int)itr->second.left_bases[i] - (int)itr->second.right_bases[i]) / (float)counts;
 	  symm += (term * term);
@@ -389,7 +390,7 @@ void print_fusions(FILE* fusions_out, FusionSet& fusions, RefSequenceTable& ref_
 
       fprintf(fusions_out, "\t@\t");
 
-      for (uint32_t i = 0; i < 5; ++i)
+      for (uint32_t i = 0; i < itr->second.diffs.size(); ++i)
 	{
 	  fprintf(fusions_out, "%d ", itr->second.diffs[i]);
 	}
@@ -397,18 +398,17 @@ void print_fusions(FILE* fusions_out, FusionSet& fusions, RefSequenceTable& ref_
       fprintf(fusions_out, "\t@\t");
 
       uint32_t half_length = itr->second.chr1_seq.length() / 2;
-      
       fprintf(fusions_out, "%s %s\t@\t", itr->second.chr1_seq.substr(0, half_length).c_str(), itr->second.chr1_seq.substr(half_length).c_str());
       fprintf(fusions_out, "%s %s\t@\t", itr->second.chr2_seq.substr(0, half_length).c_str(), itr->second.chr2_seq.substr(half_length).c_str());
 
-      for (uint32_t i = 0; i < FusionStat::NUM_BASES; ++i)
+      for (uint32_t i = 0; i < itr->second.left_bases.size(); ++i)
 	{
 	  fprintf(fusions_out, "%d ", itr->second.left_bases[i]);
 	}
 
       fprintf(fusions_out, "\t@\t");
 
-      for (uint32_t i = 0; i < FusionStat::NUM_BASES; ++i)
+      for (uint32_t i = 0; i < itr->second.right_bases.size(); ++i)
 	{
 	  fprintf(fusions_out, "%d ", itr->second.right_bases[i]);
 	}
