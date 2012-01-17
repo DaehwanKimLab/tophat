@@ -98,7 +98,7 @@ class GffLine {
        num_parents=0;
        parents=NULL;
        }
-    char* extractAttr(const char* pre, bool caseStrict=true, bool enforce_GTF2=false);
+    char* extractAttr(const char* pre, bool caseStrict=false, bool enforce_GTF2=false);
     GffLine(GffLine* l) { //a copy constructor
       memcpy((void*)this, (void*)l, sizeof(GffLine));
       line=NULL;
