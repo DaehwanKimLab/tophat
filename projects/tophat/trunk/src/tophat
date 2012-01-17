@@ -1002,12 +1002,15 @@ def get_bowtie_version(is_bowtie2):
            errmsg+="Error: bowtie not found on this system"
        die(errmsg)
 
-def get_index_sam_header(read_params, idx_prefix, sort = True):
+def get_index_sam_header(is_bowtie2, read_params, idx_prefix, sort = True):
     try:
         bowtie_sam_header_filename = tmp_dir+idx_prefix.split('/')[-1]+".bwt.samheader.sam"
         bowtie_sam_header_file = open(bowtie_sam_header_filename,"w")
 
-        bowtie_header_cmd = [bowtie_path, "--sam"]
+        bowtie_header_cmd = [bowtie_path]
+        if not is_bowtie2:
+            bowtie_header_cmd += ["--sam"]
+            
         if read_params.color:
             bowtie_header_cmd.append('-C')
 
@@ -1629,12 +1632,15 @@ def bowtie(params,
     bwt_idx_name = bwt_idx_prefix.split('/')[-1]
     reads_file=reads_list[0]
     readfile_basename=getFileBaseName(reads_file)
+    bowtie_str = "Bowtie"
+    if params.bowtie2:
+        bowtie_str += "2"
     if t_mapping:
-       print >> sys.stderr, "[%s] Mapping %s against transcriptome %s with Bowtie %s" % (start_time.strftime("%c"),
-                         readfile_basename, bwt_idx_name, extra_output)
+       print >> sys.stderr, "[%s] Mapping %s against transcriptome %s with %s %s" % (start_time.strftime("%c"),
+                         readfile_basename, bwt_idx_name, bowtie_str, extra_output)
     else:
-       print >> sys.stderr, "[%s] Mapping %s against %s with Bowtie %s" % (start_time.strftime("%c"),
-                         readfile_basename, bwt_idx_name, extra_output)
+       print >> sys.stderr, "[%s] Mapping %s against %s with %s %s" % (start_time.strftime("%c"),
+                         readfile_basename, bwt_idx_name, bowtie_str, extra_output)
     bwt_log = open(logging_dir + 'bowtie.'+readfile_basename+'.fixmap.log', "w")
     #bwt_mapped=mapped_reads
     unmapped_reads_out=None
@@ -1732,16 +1738,31 @@ def bowtie(params,
           max_hits = params.t_max_hits
         if num_mismatches>3:
            num_mismatches=3
-        bowtie_cmd += [params.bowtie_alignment_option, str(num_mismatches),
-                         "-p", str(params.system_params.num_threads),
-                         "-k", str(max_hits),
-                         "-m", str(max_hits),
-                         "-S", "--sam-nohead"] #always use headerless SAM file
 
-        if multihits_out:
-            bowtie_cmd += ["--max", multihits_out]
+        if params.bowtie2:
+            bowtie_cmd += ["-k", str(max_hits)]
         else:
-            bowtie_cmd += ["--max", "/dev/null"]
+            bowtie_cmd += [params.bowtie_alignment_option, str(num_mismatches),
+                           "-k", str(max_hits),
+                           "-m", str(max_hits),
+                           "-S"]
+            
+        bowtie_cmd += ["-p", str(params.system_params.num_threads)]
+
+        if params.bowtie2: #always use headerless SAM file
+            bowtie_cmd += ["--sam-no-hd"]
+        else:
+            bowtie_cmd += ["--sam-nohead"]
+
+        if not params.bowtie2:
+            if multihits_out:
+                bowtie_cmd += ["--max", multihits_out]
+            else:
+                bowtie_cmd += ["--max", "/dev/null"]
+
+        if params.bowtie2:
+            bowtie_cmd += ["-x"]
+            
         bowtie_cmd += [ bwt_idx_prefix ]
         bowtie_proc=None
         shellcmd=""
@@ -1888,12 +1909,17 @@ def get_gtf_juncs(gff_annotation):
     return (True, gtf_juncs_out_name)
 
 # Call bowtie-build on the FASTA file of sythetic splice junction sequences
-def build_juncs_bwt_index(external_splice_prefix, color):
+def build_juncs_bwt_index(is_bowtie2, external_splice_prefix, color):
     th_log("Indexing splices")
     bowtie_build_log = open(logging_dir + "bowtie_build.log", "w")
 
     #user_splices_out_prefix  = output_dir + "user_splices_idx"
-    bowtie_build_cmd = [prog_path("bowtie-build")]
+
+    if is_bowtie2:
+        bowtie_build_cmd = [prog_path("bowtie2-build")]
+    else:
+        bowtie_build_cmd = [prog_path("bowtie-build")]
+
     if color:
         bowtie_build_cmd += ["-C"]
 
@@ -1915,7 +1941,8 @@ def build_juncs_bwt_index(external_splice_prefix, color):
 
 # Build a splice index from a .juncs file, suitable for use with specified read
 # (or read segment) lengths
-def build_juncs_index(min_anchor_length,
+def build_juncs_index(is_bowtie2,
+                      min_anchor_length,
                       max_seg_len,
                       juncs_prefix,
                       external_juncs,
@@ -1961,10 +1988,10 @@ def build_juncs_index(min_anchor_length,
            errmsg+="Error: juncs_db not found on this system"
        die(errmsg)
 
-    external_splices_out_prefix = build_juncs_bwt_index(external_splices_out_prefix, color)
+    external_splices_out_prefix = build_juncs_bwt_index(is_bowtie2, external_splices_out_prefix, color)
     return external_splices_out_prefix
 
-def build_idx_from_fa(fasta_fname, out_dir, color):
+def build_idx_from_fa(is_bowtie2, fasta_fname, out_dir, color):
     """ Build a bowtie index from a FASTA file.
 
     Arguments:
@@ -1975,7 +2002,12 @@ def build_idx_from_fa(fasta_fname, out_dir, color):
     - The path to the Bowtie index.
     """
     bwt_idx_path = out_dir + os.path.basename(fasta_fname).replace(".fa", "")
-    bowtie_idx_cmd = [prog_path("bowtie-build")]
+
+    if is_bowtie2:
+        bowtie_idx_cmd = [prog_path("bowtie2-build")]
+    else:
+        bowtie_idx_cmd = [prog_path("bowtie-build")]
+        
     if color:
         bowtie_idx_cmd += ["-C"]
 
@@ -2564,7 +2596,7 @@ def map2gtf(params, ref_fasta, left_reads, right_reads):
        # trans_hash = transcripts_to_fasta(transcripts,
        #                                   ref_fasta,
        #                                   m2g_ref_fasta)
-       m2g_bwt_idx = build_idx_from_fa(m2g_ref_fasta, t_out_dir, params.read_params.color)
+       m2g_bwt_idx = build_idx_from_fa(params.bowtie2, m2g_ref_fasta, t_out_dir, params.read_params.color)
     mapped_gtf_list = []
     unmapped_gtf_list = []
     # do the initial mapping in GTF coordinates
@@ -2894,7 +2926,8 @@ def spliced_alignment(params,
     if len(possible_fusions) == 0:
         possible_fusions.append(os.devnull)
     if junc_idx_prefix:
-        juncs_bwt_idx = build_juncs_index(3,
+        juncs_bwt_idx = build_juncs_index(params.bowtie2,
+                                          3,
                                           max_seg_len,
                                           junc_idx_prefix,
                                           possible_juncs,
@@ -2904,7 +2937,7 @@ def spliced_alignment(params,
                                           ref_fasta,
                                           params.read_params.color)
 
-        juncs_bwt_samheader = get_index_sam_header(params.read_params, juncs_bwt_idx, False)
+        juncs_bwt_samheader = get_index_sam_header(params.bowtie2, params.read_params, juncs_bwt_idx, False)
 
     # Now map read segments (or whole IUM reads, if num_segs == 1) to the splice
     # index with Bowtie
@@ -3137,7 +3170,7 @@ def main(argv=None):
         check_bowtie(params.bowtie2)
         check_samtools()
         th_log("Generating SAM header for "+bwt_idx_prefix)
-        sam_header_filename = get_index_sam_header(params.read_params, bwt_idx_prefix)
+        sam_header_filename = get_index_sam_header(params.bowtie2, params.read_params, bwt_idx_prefix)
         #if not params.skip_check_reads:
         reads_list = left_reads_list
         if right_reads_list:
