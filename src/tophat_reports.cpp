@@ -1035,6 +1035,7 @@ struct ReportWorker
 
 	    // Process hits for left singleton, select best alignments
 	    read_best_alignments(curr_left_hit_group, grade, best_hits, *gtf_junctions);
+
 	    if (best_hits.hits.size()>0 && best_hits.hits.size() <= max_multihits)
 	      {
 		update_junctions(best_hits, *final_junctions);

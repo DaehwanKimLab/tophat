@@ -912,6 +912,8 @@ int getBAMmismatches(const bam1_t* buf, vector<CigarOp>& cigar,
       case INS:
         sam_nm -= itr->length;
         break;
+      default:
+	break;
       }
   }
   return num_mismatches;
@@ -995,6 +997,8 @@ int getSAMmismatches(char* &buf, vector<CigarOp>& cigar,
       case INS:
         sam_nm -= itr->length;
         break;
+    default:
+      break;
 		}
 	 }
 	return num_mismatches;
@@ -1794,7 +1798,7 @@ bool BAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
       
       *pipe = 0;
     }
-  
+
   if (target_id < 0)	{
     //assert(cigar.size() == 1 && cigar[0].opcode == MATCH);
     bh = create_hit(qname,
@@ -1806,7 +1810,7 @@ bool BAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 		    end);
     return true;
   }
-  
+
   if (seq!=NULL) {
     char *bseq = (char*)bam1_seq(hit_buf);
     for(int i=0;i<(hit_buf->core.l_qseq);i++) {
@@ -2005,6 +2009,7 @@ bool BAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 	}
       }
   }
+
   
   string mrnm;
   if (mate_target_id >= 0) {
@@ -2020,7 +2025,7 @@ bool BAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
   else {
     text_mate_pos = 0;
   }
-  
+
   if (spliced_alignment) {
     bh = create_hit(qname,
 		    text_name,
