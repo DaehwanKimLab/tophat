@@ -970,7 +970,7 @@ def get_bowtie_version(is_bowtie2):
                           stdout=subprocess.PIPE)
 
         stdout_value = proc.communicate()[0]
-        
+
         bowtie_version = None
         bowtie_out = repr(stdout_value)
 
@@ -979,7 +979,7 @@ def get_bowtie_version(is_bowtie2):
             version_str = "bowtie2-align version "
         else:
             version_str = "bowtie version "
-            
+
         ver_str_idx = bowtie_out.find(version_str)
         if ver_str_idx != -1:
             nl = bowtie_out.find("\\n", ver_str_idx)
@@ -1010,7 +1010,7 @@ def get_index_sam_header(is_bowtie2, read_params, idx_prefix, sort = True):
         bowtie_header_cmd = [bowtie_path]
         if not is_bowtie2:
             bowtie_header_cmd += ["--sam"]
-            
+
         if read_params.color:
             bowtie_header_cmd.append('-C')
 
@@ -1097,7 +1097,7 @@ def check_bowtie(is_bowtie2):
     bowtie_bin = "bowtie"
     if is_bowtie2:
         bowtie_bin += "2"
-        
+
     global bowtie_path
     bowtie_path=prog_path(bowtie_bin)
     bowtie_version = get_bowtie_version(is_bowtie2)
@@ -1746,7 +1746,7 @@ def bowtie(params,
                            "-k", str(max_hits),
                            "-m", str(max_hits),
                            "-S"]
-            
+
         bowtie_cmd += ["-p", str(params.system_params.num_threads)]
 
         if params.bowtie2: #always use headerless SAM file
@@ -1762,7 +1762,7 @@ def bowtie(params,
 
         if params.bowtie2:
             bowtie_cmd += ["-x"]
-            
+
         bowtie_cmd += [ bwt_idx_prefix ]
         bowtie_proc=None
         shellcmd=""
@@ -2007,7 +2007,7 @@ def build_idx_from_fa(is_bowtie2, fasta_fname, out_dir, color):
         bowtie_idx_cmd = [prog_path("bowtie2-build")]
     else:
         bowtie_idx_cmd = [prog_path("bowtie-build")]
-        
+
     if color:
         bowtie_idx_cmd += ["-C"]
 
@@ -2737,7 +2737,7 @@ def spliced_alignment(params,
             # than the transcriptome OR we have no unmapped reads
             maps[0] = [m2g_left_maps]
             if right_reads:
-                maps[0] = [m2g_right_maps]
+                maps[1] = [m2g_right_maps]
             return maps
         # Feed the unmapped reads into spliced_alignment()
         initial_reads = unmapped_gtf_list[:]
