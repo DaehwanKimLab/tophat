@@ -826,7 +826,7 @@ def getFileBaseName(filepath):
       else:
          return fbase
    else:
-     if len(fbase)>len(fext):
+     if len(fbase)>0:
         return fbase
      else:
         return fname
