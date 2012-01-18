@@ -9,6 +9,10 @@
 #ifndef GTFToFasta_H
 #define GTFToFasta_H
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include <cassert>
 #include <cstdlib>
 #include <cstring>

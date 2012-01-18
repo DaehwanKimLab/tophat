@@ -4,10 +4,6 @@
 //
 //  Created by Harold Pimentel on 10/26/11.
 //
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #include "GTFToFasta.h"
 
 

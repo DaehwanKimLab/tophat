@@ -3,10 +3,6 @@
  * Contact: http://cs.berkeley.edu/~pimentel
  * Date: June 10, 2011
  */
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #include "map2gtf.h"
 
 void m2g_print_usage()
