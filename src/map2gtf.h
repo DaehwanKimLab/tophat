@@ -4,6 +4,13 @@
  * Date: June 10, 2011
  */
 
+#ifndef _MAP2GTF_H_
+#define _MAP2GTF_H_
+
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
@@ -83,3 +90,5 @@ bool get_read_start(GList<GffExon>* exon_list, size_t gtf_start,
 
 void print_trans(GffObj* trans, const BowtieHit& in, size_t rem_len,
         size_t match_len, size_t cur_pos, size_t start_pos);
+
+#endif /* _MAP2GTF_H_ */
