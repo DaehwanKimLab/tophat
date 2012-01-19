@@ -106,6 +106,33 @@ Advanced Options:
                                                 Output is <output_dir>accepted_hit.sam.
                                                 Implies --no-sort-bam)
 
+Bowtie2 related options:
+  Preset options in --end-to-end mode (local alignment is not used in TopHat2)
+    --b2-very-fast
+    --b2-fast
+    --b2-sensitive
+    --b2-very-sensitive
+
+  Alignment options
+    --b2-N                         <int>       [ default: 0                ]
+    --b2-L                         <int>       [ default: 20               ]
+    --b2-i                         <func>      [ default: S,1,1.25         ]
+    --b2-n-ceil                    <func>      [ default: L,0,0.15         ]
+    --b2-gbar                      <int>       [ default: 4                ]
+
+  Scoring options
+    --b2-ma                        <int>       [ default: 2                ]
+    --b2-mp                        <int>,<int> [ default: 6,2              ]
+    --b2-np                        <int>       [ default: 1                ]
+    --b2-rdg                       <int>,<int> [ default: 5,3              ]
+    --b2-rfg                       <int>,<int> [ default: 5,3              ]
+    --b2-score-min                 <func>      [ default: L,-0.6,-0.6      ]
+
+  Effort options
+    --b2-D                         <int>       [ default: 15               ]
+    --b2-R                         <int>       [ default: 2                ]
+
+
 SAM Header Options (for embedding sequencing run metadata in output):
     --rg-id                        <string>    (read group ID)
     --rg-sample                    <string>    (sample ID)
@@ -420,6 +447,115 @@ class TopHatParams:
                     self.convert_bam = False
                     self.sort_bam = False
 
+    class Bowtie2Params:
+        def __init__(self):
+            self.very_fast = False
+            self.fast = False
+            self.sensitive = False
+            self.very_sensitive = False
+
+            self.N = 0
+            self.L = 20
+            self.i = "S,1,1.25"
+            self.n_ceil = "L,0,0.15"
+            self.gbar = 4
+
+            self.ma = 2
+            self.mp = "6,2"
+            self.np = 1
+            self.rdg = "5,3"
+            self.rfg = "5,3"
+            self.score_min = "L,-0.6,-0.6"
+
+            self.D = 15
+            self.R = 2
+
+        def parse_options(self, opts):
+            for option, value in opts:
+                if option == "--b2-very-fast":
+                    self.very_fast = True
+                if option == "--b2-fast":
+                    self.fast = True
+                if option == "--b2-sensitive":
+                    self.sensitive = True
+                if option == "--b2-very-sensitive":
+                    self.very_sensitive = True
+
+                if option == "--b2-N":
+                    self.N = int(value)
+                if option == "--b2-L":
+                    self.L = 20
+                if option == "--b2-i":
+                    self.i = value
+                if option == "--b2-n-ceil":
+                    self.n_ceil = value
+                if option == "--b2-gbar":
+                    self.gbar = 4
+
+                if option == "--b2-ma":
+                    self.ma = int(value)
+                if option == "--b2-mp":
+                    self.mp = value
+                if option == "--b2-np":
+                    self.np = int(value)
+                if option == "--b2-rdg":
+                    self.rdg = value
+                if option == "--b2-rfg":
+                    self.rfg = value
+                if option == "--b2-score-min":
+                    self.score_min = value
+
+                if option == "--b2-D":
+                    self.D = int(value)
+                if option == "--b2-R":
+                    self.R = int(value)
+
+        def check(self):
+            more_than_once = False
+            if self.very_fast:
+                if self.fast or self.sensitive or self.very_sensitive:
+                    more_than_once = True
+            else:
+                if self.fast:
+                    if self.sensitive or self.very_sensitive:
+                        more_than_once = True
+                else:
+                    if self.sensitive and self.very_sensitive:
+                        more_than_once = True
+
+            if more_than_once:
+                die("Error: use only one of --b2-very-fast, --b2-fast, --b2-sensitive, --b2-very-sensitive")
+
+            if not self.N in [0, 1]:
+                die("Error: arg to --b2-N must be either 0 or 1")
+
+            function_re = r'^[CLSG],-?\d+(\.\d+)?,-?\d+(\.\d+)?$'
+            function_match = re.search(function_re, self.i)
+
+            if not function_match:
+                die("Error: arg to --b2-i must be <func> (e.g. --b2-i S,1,1.25)")
+
+            function_match = re.search(function_re, self.n_ceil)
+            if not function_match:
+                die("Error: arg to --b2-n-ceil must be <func> (e.g. --b2-n-ceil L,0,0.15)")
+
+            function_match = re.search(function_re, self.score_min)
+            if not function_match:
+                die("Error: arg to --b2-score-min must be <func> (e.g. --b2-score-min L,-0.6,-0.6)")
+            
+            pair_re = r'^\d+,\d+$'
+            pair_match = re.search(pair_re, self.mp)
+            if not pair_match:
+                die("Error: arg to --b2-mp must be <int>,<int> (e.g. --b2-mp 6,2)")
+
+            pair_match = re.search(pair_re, self.rdg)
+            if not pair_match:
+                die("Error: arg to --b2-rdg must be <int>,<int> (e.g. --b2-mp 5,3)")
+
+            pair_match = re.search(pair_re, self.rfg)
+            if not pair_match:
+                die("Error: arg to --b2-rfg must be <int>,<int> (e.g. --b2-mp 5,3)")
+
 
     def __init__(self):
         self.splice_constraints = self.SpliceConstraints(8,     # min_anchor
@@ -463,6 +599,8 @@ class TopHatParams:
 
         self.report_params = self.ReportParams()
 
+        self.bowtie2_params = self.Bowtie2Params()
+
         self.bowtie2 = True
         self.gff_annotation = None
         self.transcriptome_only = False
@@ -501,6 +639,7 @@ class TopHatParams:
         self.splice_constraints.check()
         self.read_params.check()
         self.system_params.check()
+        self.bowtie2_params.check()
         if self.segment_length < 10:
             die("Error: arg to --segment-length must at least 10")
         if self.segment_mismatches < 0 or self.segment_mismatches > 3:
@@ -563,6 +702,9 @@ class TopHatParams:
                "--sam-header", sam_header,
                "--max-insertion-length", str(self.max_insertion_length),
                "--max-deletion-length", str(self.max_deletion_length)]
+
+        if not self.bowtie2:
+            cmd.extend(["--bowtie1"])
 
         if self.fusion_search:
             cmd.extend(["--fusion-search",
@@ -689,7 +831,24 @@ class TopHatParams:
                                          "insertions=",
                                          "deletions=",
                                          "no-sort-bam",
-                                         "no-convert-bam"])
+                                         "no-convert-bam",
+                                         "b2-very-fast",
+                                         "b2-fast",
+                                         "b2-sensitive",
+                                         "b2-very-sensitive",
+                                         "b2-N=",
+                                         "b2-L=",
+                                         "b2-i=",
+                                         "b2-n-ceil=",
+                                         "b2-gbar=",
+                                         "b2-ma=",
+                                         "b2-mp=",
+                                         "b2-np=",
+                                         "b2-rdg=",
+                                         "b2-rfg=",
+                                         "b2-score-min=",
+                                         "b2-D=",
+                                         "b2-R="])
         except getopt.error, msg:
             raise Usage(msg)
 
@@ -698,6 +857,7 @@ class TopHatParams:
         self.read_params.parse_options(opts)
         self.search_params.parse_options(opts)
         self.report_params.parse_options(opts)
+        self.bowtie2_params.parse_options(opts)
         global use_BWT_FIFO
         global use_BAM_Unmapped
         if not self.read_params.color:
@@ -1626,7 +1786,7 @@ def bowtie(params,
            mapped_reads,
            unmapped_reads,
            extra_output = "",
-           t_mapping = False,
+           mapping_type = "read_against_genome",
            multihits_out = None): #only --prefilter-multihits should activate this parameter for the initial prefilter search
     start_time = datetime.now()
     bwt_idx_name = bwt_idx_prefix.split('/')[-1]
@@ -1635,6 +1795,21 @@ def bowtie(params,
     bowtie_str = "Bowtie"
     if params.bowtie2:
         bowtie_str += "2"
+
+    g_mapping, t_mapping, seg_mapping = False, False, False
+    if mapping_type == "read_against_transcriptome":
+        t_mapping = True
+    elif mapping_type == "seg_against_genome" or mapping_type == "seg_against_junctions":
+        seg_mapping = True
+    else:
+        g_mapping = True
+
+    if seg_mapping:
+        params.max_hits *= 2
+        if not params.bowtie2:
+            backup_bowtie_alignment_option = params.bowtie_alignment_option
+            params.bowtie_alignment_option = "-v"
+
     if t_mapping:
        print >> sys.stderr, "[%s] Mapping %s against transcriptome %s with %s %s" % (start_time.strftime("%c"),
                          readfile_basename, bwt_idx_name, bowtie_str, extra_output)
@@ -1736,11 +1911,46 @@ def bowtie(params,
         max_hits = params.max_hits
         if t_mapping:
           max_hits = params.t_max_hits
-        if num_mismatches>3:
-           num_mismatches=3
+        if num_mismatches > 3:
+           num_mismatches = 3
 
         if params.bowtie2:
             bowtie_cmd += ["-k", str(max_hits)]
+
+            bowtie2_params = params.bowtie2_params
+            if seg_mapping:
+                bowtie_cmd += ["-N", str(min(num_mismatches, 1)),
+                               "-L", str(min(params.segment_length, 30))]
+            else:
+                bowtie2_preset = ""
+                if bowtie2_params.very_fast:
+                    bowtie2_preset = "--very-fast"
+                elif bowtie2_params.fast:
+                    bowtie2_preset = "--fast"
+                elif bowtie2_params.sensitive:
+                    bowtie2_preset = "--sensitive"
+                elif bowtie2_params.very_sensitive:
+                    bowtie2_preset = "--very-sensitive"
+
+                if bowtie2_preset != "":
+                    bowtie_cmd += [bowtie2_preset]
+                else:
+                    bowtie_cmd += ["-D", str(bowtie2_params.D),
+                                   "-R", str(bowtie2_params.R),
+                                   "-N", str(bowtie2_params.N),
+                                   "-L", str(bowtie2_params.L),
+                                   "-i", bowtie2_params.i]
+
+                # "--n-ceil" is not correctly parsed in Bowtie2
+                bowtie_cmd += [# "--n-ceil", bowtie2_params.n_ceil,
+                               "--gbar", str(bowtie2_params.gbar),
+                               "--ma", str(bowtie2_params.ma),
+                               "--mp", bowtie2_params.mp,
+                               "--np", str(bowtie2_params.np),
+                               "--rdg", bowtie2_params.rdg,
+                               "--rfg", bowtie2_params.rfg,
+                               "--score-min", bowtie2_params.score_min]
+                    
         else:
             bowtie_cmd += [params.bowtie_alignment_option, str(num_mismatches),
                            "-k", str(max_hits),
@@ -1850,32 +2060,14 @@ def bowtie(params,
           pass
     if multihits_out and not os.path.exists(multihits_out):
         open(multihits_out, "w").close()
+
+    if seg_mapping:
+        params.max_hits /= 2
+        if not params.bowtie2:
+            params.bowtie_alignment_option = backup_bowtie_alignment_option
+
     return (mapped_reads, unmapped_reads_out)
 
-
-def bowtie_segment(params,
-           bwt_idx_prefix,
-           reads_file,
-           reads_format,
-           mapped_reads,
-           unmapped_reads = None,
-           extra_output = ""):
-    backup_bowtie_alignment_option = params.bowtie_alignment_option
-    params.bowtie_alignment_option = "-v"
-    params.max_hits *= 2
-
-    result = bowtie(params,
-                    bwt_idx_prefix,
-                    [reads_file],
-                    reads_format,
-                    params.segment_mismatches,
-                    mapped_reads,
-                    unmapped_reads,
-                    extra_output)
-
-    params.bowtie_alignment_option = backup_bowtie_alignment_option
-    params.max_hits /= 2
-    return result
 
 # Retrieve a .juncs file from a GFF file by calling the gtf_juncs executable
 def get_gtf_juncs(gff_annotation):
@@ -2619,7 +2811,7 @@ def map2gtf(params, ref_fasta, left_reads, right_reads):
                                            params.t_mismatches,
                                            mapped_gtf_out,
                                            unmapped_gtf,
-                                           "", True)
+                                           "", "read_against_transcriptome")
         mapped_gtf_list.append(mapped_gtf_map)
         unmapped_gtf_list.append(unmapped)
 
@@ -2796,12 +2988,14 @@ def spliced_alignment(params,
         else:
         # Perform the initial Bowtie mapping of the full length reads
           (unspliced_sam, unmapped_reads) = bowtie(params,
-                                             bwt_idx_prefix,
-                                             [reads],
-                                             "fastq",
-                                             params.genome_read_mismatches,
-                                             unspliced_out,
-                                             unmapped_unspliced)
+                                                   bwt_idx_prefix,
+                                                   [reads],
+                                                   "fastq",
+                                                   params.genome_read_mismatches,
+                                                   unspliced_out,
+                                                   unmapped_unspliced,
+                                                   "",
+                                                   "read_against_genome")
 
 #         unspliced_sam = tmp_dir+fbasename+'.unspl.bam'
 #         join_mapped_segments(params,
@@ -2836,13 +3030,15 @@ def spliced_alignment(params,
                 if use_BWT_FIFO:
                     unmapped_seg += ".z"
                 extra_output = "(%d/%d)" % (i+1, len(read_segments))
-                (seg_map, unmapped) = bowtie_segment(params,
-                                                     bwt_idx_prefix,
-                                                     seg,
-                                                     "fastq",
-                                                     seg_out,
-                                                     unmapped_seg,
-                                                     extra_output)
+                (seg_map, unmapped) = bowtie(params,
+                                             bwt_idx_prefix,
+                                             [seg],
+                                             "fastq",
+                                             params.segment_mismatches,
+                                             seg_out,
+                                             unmapped_seg,
+                                             extra_output,
+                                             "seg_against_genome")
                 seg_maps.append(seg_map)
                 unmapped_segs.append(unmapped)
                 segs.append(seg)
@@ -2959,13 +3155,15 @@ def spliced_alignment(params,
                 seg_out = tmp_dir + fsegname + ".to_spliced.bwtout"
                 if use_zpacker: seg_out += ".z"
                 extra_output = "(%d/%d)" % (i+1, len(maps[ri].segs))
-                (seg_map, unmapped) = bowtie_segment(params,
-                                                     tmp_dir + junc_idx_prefix,
-                                                     seg,
-                                                     "fastq",
-                                                     seg_out,
-                                                     None,
-                                                     extra_output)
+                (seg_map, unmapped) = bowtie(params,
+                                             tmp_dir + junc_idx_prefix,
+                                             [seg],
+                                             "fastq",
+                                             params.segment_mismatches,
+                                             seg_out,
+                                             None,
+                                             extra_output,
+                                             "seg_against_junctions")
                 spliced_seg_maps.append(seg_map)
                 i += 1
 
@@ -3227,7 +3425,7 @@ def main(argv=None):
                      params.read_params.reads_format,
                      params.genome_read_mismatches,
                      side_imap, side_ium,
-                     "", False, params.preflt_data[ri].multihit_reads)
+                     "", "read_against_genome", params.preflt_data[ri].multihit_reads)
                params.preflt_data[ri].mappings = bwt[0] # initial mappings
                params.preflt_data[ri].unmapped_reads = bwt[1] # IUM reads
 

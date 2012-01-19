@@ -1066,80 +1066,8 @@ bool SAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 	// Copy the tag out of the name field before we might wipe it out
 	parseSegReadName(name, name_tags, strip_slash, end, seg_offset, seg_num, num_segs);
 
-	// daehwan - merge
-#if 0
-	const char* p_cig = cigar_str;
-	
-	//vector<string> attributes;
-	//tokenize(tag_buf, " \t",attributes);
-	
-	bool antisense_splice = false;
-	unsigned char num_mismatches = 0;
-	unsigned char num_splice_anchor_mismatches = 0;
-	const char* tag_buf = buf;
-
-	bool fusion_alignment = false;
-	while((tag_buf = get_token((char**)&buf,"\t")))
-	{
-	  if (strncmp(tag_buf, "XS", 2) == 0)
-	    {
-	      if (tag_buf[5] == '-')
-		antisense_splice = true;
-	    }
-	  else if (strncmp(tag_buf, "NM", 2) == 0)
-	    {
-	      num_mismatches = atoi(tag_buf + 5);
-	    }
-	  else if (strncmp(tag_buf, "FR", 2) == 0)
-	    {
-	      fusion_alignment = true;
-	      
-	      if (tag_buf[5] == '1')
-		{
-		  vector<string> tuple_fields;
-		  tokenize(tag_buf + 5, " ", tuple_fields);
-		  
-		  vector<string> contigs;
-		  tokenize(tuple_fields[1], "-", contigs);
-		  if (contigs.size() >= 2)
-		    {
-		      ref_name = contigs[0];
-		      ref_name2 = contigs[1];
-		    }
-		  
-		  text_offset = atoi(tuple_fields[2].c_str());
-		  strcpy(cigar_str, tuple_fields[3].c_str());
-		  if (seq)
-		    strcpy(seq, tuple_fields[4].c_str());
-		  if (qual)
-		    strcpy(qual, tuple_fields[5].c_str());
-		}
-	      else
-		return false;
-	    }
-	  else if (strncmp(tag_buf, "NS", 2) == 0)
-	    {
-	      //ignored for now
-	    }
-	  else
-	    {
-	      //fprintf(stderr, "%s attribute not supported\n", tuple_fields[0].c_str());
-	      //return false;
-	    }
-	}
-
-	if (!fusion_alignment)
-	  {
-	    if (seq)
-	      strcpy(seq, seq_str);
-	    if (qual)
-	      strcpy(qual, qual_str);
-	  }
-#endif	
-
 	vector<CigarOp> cigar;
 	bool spliced_alignment = false;
-
 
 	int refspan=parseCigar(cigar, cigar_str, spliced_alignment);
 	if (refspan==0)
@@ -1153,83 +1081,6 @@ bool SAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 	vector<bool> mismatches;
 	mismatches.resize(strlen(seq_str), false);
 	int num_mismatches=getSAMmismatches(buf, cigar, mismatches, sam_nm, antisense_splice);
-
-	// daehwan - merge
-#if 0
-	// Mostly pilfered direct from the SAM tools:
-	while (*p_cig) 
-	{
-		char* t;
-		int length = (int)strtol(p_cig, &t, 10);
-		if (length <= 0)
-		{
-			//fprintf (stderr, "CIGAR op has zero length\n");
-			return false;
-		}
-		char op_char = *t;
-		CigarOpCode opcode;
-		if (op_char == 'M') opcode = MATCH;
-		else if(op_char == 'm') opcode = mATCH;
-		else if (op_char == 'I') opcode = INS;
-		else if (op_char == 'i') opcode = iNS;
-		else if (op_char == 'D') opcode = DEL;
-		else if (op_char == 'd') opcode = dEL;
-		else if (op_char == 'N' || op_char == 'n')
-		{
-		  if (length > max_report_intron_length)
-		    return false;
-		  
-		  if (op_char == 'N')
-		    opcode = REF_SKIP;
-		  else
-		    opcode = rEF_SKIP;
-		  spliced_alignment = true;
-		}
-		else if (op_char == 'F')
-		  {
-		    opcode = FUSION_FF;
-		    length = length - 1;
-		  }
-		else if (op_char == 'S') opcode = SOFT_CLIP;
-		else if (op_char == 'H') opcode = HARD_CLIP;
-		else if (op_char == 'P') opcode = PAD;
-		else
-		{
-		  fprintf (stderr, "(%d-%d) invalid CIGAR operation\n", length, (int)op_char);
-		  return false;
-		}
-		p_cig = t + 1;
-		cigar.push_back(CigarOp(opcode, length));
-
-		/*
-		 * update fusion direction.
-		 */
-		size_t cigar_size = cigar.size();
-		if (cigar_size >= 3 && cigar[cigar_size - 2].opcode == FUSION_FF)
-		  {
-		    CigarOpCode prev = cigar[cigar_size - 3].opcode;
-		    CigarOpCode next = cigar[cigar_size - 1].opcode;
-
-		    bool increase1 = false, increase2 = false;
-		    if (prev == MATCH || prev == DEL || prev == INS || prev == REF_SKIP)
-		      increase1 = true;
-		    if (next == MATCH || next == DEL || next == INS || next == REF_SKIP)
-		      increase2 = true;
-
-		    if (increase1 && !increase2)
-		      cigar[cigar_size - 2].opcode = FUSION_FR;
-		    else if (!increase1 && increase2)
-		      cigar[cigar_size - 2].opcode = FUSION_RF;
-		    else if (!increase1 && !increase2)
-		      cigar[cigar_size - 2].opcode = FUSION_RR;
-		  }
-	}
-	if (*p_cig)
-	{
-		fprintf (stderr, "unmatched CIGAR operation\n");
-		return false;
-	}
-#endif
 
 	if (spliced_alignment)
 	{
@@ -1646,7 +1497,6 @@ bool SplicedSAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 	
 	bh = create_hit(name,
 			contig,
-			// daehwan - implement fusion here
 			"",
 			left,
 			//splcigar,
@@ -1717,7 +1567,6 @@ bool SplicedSAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
         */
 	bh = create_hit(name,
 			contig,
-			// daehwan - implement fusion
 			"",
 			left,
 			splcigar,
@@ -1757,7 +1606,7 @@ bool BAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
   int text_mate_pos = hit_buf->core.mpos;
   int target_id = hit_buf->core.tid;
   int mate_target_id = hit_buf->core.mtid;
-  
+
   vector<CigarOp> cigar;
   bool spliced_alignment = false;
   int num_hits = 1;
@@ -1873,7 +1722,7 @@ bool BAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 	text_name2 = contigs[1];
       }
 
-    text_offset = atoi(fields[2].c_str());
+    text_offset = atoi(fields[2].c_str()) - 1;
     fusion_cigar_str = fields[3].c_str();
 
     if (seq)

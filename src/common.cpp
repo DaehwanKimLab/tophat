@@ -74,6 +74,8 @@ void print_mem_usage() {
   }
 #endif
 
+bool bowtie2 = true;
+
 // daehwan - temporary
 bool parallel = true;
 
@@ -293,6 +295,7 @@ enum
     OPT_FUSION_READ_MISMATCHES,
     OPT_FUSION_MULTIREADS,
     OPT_FUSION_MULTIPAIRS,
+    OPT_BOWTIE1,
   };
 
 static struct option long_options[] = {
@@ -350,6 +353,7 @@ static struct option long_options[] = {
 {"fusion-read-mismatches", required_argument, 0, OPT_FUSION_READ_MISMATCHES},
 {"fusion-multireads", required_argument, 0, OPT_FUSION_MULTIREADS},
 {"fusion-multipairs", required_argument, 0, OPT_FUSION_MULTIPAIRS},
+{"bowtie1", no_argument, 0, OPT_BOWTIE1},
 {0, 0, 0, 0} // terminator
 };
 
@@ -554,6 +558,9 @@ int parse_options(int argc, char** argv, void (*print_usage)())
       break;
     case OPT_FUSION_MULTIPAIRS:
       fusion_multipairs = parseIntOpt(1, "--fusion-multipars must be at least 11", print_usage);
+      break;
+    case OPT_BOWTIE1:
+      bowtie2 = false;
       break;
     default:
       print_usage();
