@@ -26,6 +26,8 @@
  void print_mem_usage();
 #endif
 
+extern bool bowtie2;
+
 // daehwan - temporary for parallelization
 extern bool parallel;
 

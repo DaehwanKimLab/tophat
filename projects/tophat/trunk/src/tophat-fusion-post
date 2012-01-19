@@ -695,10 +695,12 @@ def do_blast(params):
                     return
 
                 blast_cmd = "echo %s | blastn -db %s -evalue 1e-10 -word_size 28"
+                # blast_cmd = "echo %s | blastall -p blastn -d %s -e 1e-10 -W 28"
                 output = os.popen(blast_cmd % (seq, database)).read()
 
                 if str.find(output, "No hits found") != -1:
                     blast_cmd = "echo %s | blastn -db %s -evalue 1e-5"
+                    # blast_cmd = "echo %s | blastall -p blastn -d %s -e 1e-5"
                     output = os.popen(blast_cmd % (seq, database)).read()
                 
                 pos1 = str.find(output, ">ref|")
@@ -924,12 +926,15 @@ def read_dist(params):
                     chr_ref, pos1_ref, pos2_ref = check_list[i][:3]
                     chr1_ref, chr2_ref = chr_ref.split('-')
 
+                    # daehwan - check this out
+                    """
                     # a fusion point can be given like "chr9-chr1"
                     if (contigs[chr1_ref] < contigs[chr1] or (contigs[chr1_ref] == contigs[chr1] and left_pos - pos1_ref > 1000000)) and \
                             (contigs[chr2_ref] < contigs[chr1] or (contigs[chr2_ref] == contigs[chr1] and left_pos - pos2_ref > 1000000)):
                         report_idx = i
                     else:
-                        break                    
+                        break
+                    """
 
                 if report_idx >= 0:
                     for j in range(report_idx+1):
@@ -1011,6 +1016,14 @@ def read_dist(params):
                         if dir != dir_ref:
                             continue
 
+                        # daehwan - remove this
+                        if saw_fusion and False:
+                            if abs(pos1 - pos1_ref) < 3 and abs(pos2 - pos2_ref) < 3:
+                                print chr1_ref, chr2_ref, left_pos, right_pos, cigars, mismatch, params.fusion_read_mismatches
+                                print pos1, pos1_ref
+                                print pos2, pos2_ref
+                                sys.exit(1)
+
                         if pos1 != pos1_ref or pos2 != pos2_ref:
                             continue
                     else:
@@ -1035,7 +1048,6 @@ def read_dist(params):
                         if (before and dir_ref[0] == "r") or (not before and dir_ref[1] == "r"):
                             dir, antisense, left_pos_temp, right_pos_temp, seq_temp, qual_temp, cigars_temp = \
                                 reverse_read(fusion_read, dir, antisense, left_pos_temp, right_pos_temp, 0, seq_temp, qual_temp, cigars_temp)
-
 
                     reads_list[i].append([read_id, chr1, chr2, before, left_pos_temp, right_pos_temp, cigars_temp, seq_temp, qual_temp, mismatch, left, line])
 

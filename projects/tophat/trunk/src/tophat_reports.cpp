@@ -1552,10 +1552,13 @@ void driver(const string& bam_output_fname,
   fclose(deletions_out);
   fprintf (stderr, "done\n");
 
-  fprintf (stderr, "Printing fusions...");
-  print_fusions(fusions_out, final_fusions, rt);
-  fclose(fusions_out);
-  fprintf (stderr, "done\n");
+  if (fusion_search)
+    {
+      fprintf (stderr, "Printing fusions...");
+      print_fusions(fusions_out, final_fusions, rt);
+      fclose(fusions_out);
+      fprintf (stderr, "done\n");
+    }
   
   fprintf(stderr, "Found %lu junctions from happy spliced reads\n", (long unsigned int)final_junctions.size());
 }
