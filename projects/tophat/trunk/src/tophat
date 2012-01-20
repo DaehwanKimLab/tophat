@@ -542,7 +542,7 @@ class TopHatParams:
             function_match = re.search(function_re, self.score_min)
             if not function_match:
                 die("Error: arg to --b2-score-min must be <func> (e.g. --b2-score-min L,-0.6,-0.6)")
-            
+
             pair_re = r'^\d+,\d+$'
             pair_match = re.search(pair_re, self.mp)
             if not pair_match:
@@ -966,8 +966,17 @@ class TopHatParams:
             raise Usage(use_message)
         return args
 
+
+# check if a file exists and has non-zero (or minimum) size
+def fileExists(filepath, minfsize=1):
+  if os.path.exists(filepath) and os.path.getsize(filepath)>=minfsize:
+     return True
+  else:
+     return False
+
+
 def getFileDir(filepath):
-   #if fullpath, returns path including the ending /
+   #if fullpath given, returns path including the ending /
    fpath, fname=os.path.split(filepath)
    if fpath: fpath+='/'
    return fpath
@@ -1950,7 +1959,7 @@ def bowtie(params,
                                "--rdg", bowtie2_params.rdg,
                                "--rfg", bowtie2_params.rfg,
                                "--score-min", bowtie2_params.score_min]
-                    
+
         else:
             bowtie_cmd += [params.bowtie_alignment_option, str(num_mismatches),
                            "-k", str(max_hits),
@@ -2924,7 +2933,7 @@ def spliced_alignment(params,
 
         m2g_left_maps, m2g_right_maps = mapped_gtf_list
         m2g_maps = [m2g_left_maps, m2g_right_maps]
-        if params.transcriptome_only or not os.path.exists(unmapped_gtf_list[0]):
+        if params.transcriptome_only or not fileExists(unmapped_gtf_list[0]):
             # The case where the user doesn't want to map to anything other
             # than the transcriptome OR we have no unmapped reads
             maps[0] = [m2g_left_maps]
@@ -2972,9 +2981,10 @@ def spliced_alignment(params,
 
     # Perform the first part of the TopHat work flow on the left and right
     # reads of paired ends separately - we'll use the pairing information later
+    have_left_IUM=False
     for ri in (0,1):
         reads=initial_reads[ri]
-        if reads == None or os.path.getsize(reads)<25 :
+        if reads == None or not fileExists(reads,25):
             continue
         fbasename=getFileBaseName(reads)
         unspliced_out = tmp_dir + fbasename + ".mapped"
@@ -3011,7 +3021,10 @@ def spliced_alignment(params,
         seg_maps = []
         unmapped_segs = []
         segs = []
-        if num_segs > 1:
+        have_IUM = fileExists(unmapped_unspliced,25)
+        if ri==0 and have_IUM:
+           have_left_IUM = True
+        if num_segs > 1 and have_IUM:
             # split up the IUM reads into segments
             # unmapped_reads can be in BAM format
             read_segments = split_reads(unmapped_reads,
@@ -3068,7 +3081,7 @@ def spliced_alignment(params,
         right_reads_map = None
         right_seg_maps = None
 
-    if params.find_novel_juncs: # or params.find_novel_indels:
+    if params.find_novel_juncs and have_left_IUM: # or params.find_novel_indels:
         # Call segment_juncs to infer a list of possible splice junctions from
         # the regions of the genome covered in the initial and segment maps
         #if params.find_novel_juncs:
