@@ -3013,6 +3013,10 @@ def spliced_alignment(params,
                                                    "",
                                                    "read_against_genome")
 
+        # daehwan - check this out
+        params.bowtie2 = False
+        # check_bowtie(params.bowtie2)
+
         seg_maps = []
         unmapped_segs = []
         segs = []
