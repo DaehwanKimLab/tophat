@@ -73,13 +73,33 @@ struct MapOrdering {
 	}
 };
 
+// "AS:i" (alignment score) is considered.
 struct BamMapOrdering {
-	bool operator()(pair<uint64_t, bam1_t*>& lhs, pair<uint64_t, bam1_t*>& rhs)
-	{
-		uint64_t lhs_id = lhs.first;
-		uint64_t rhs_id = rhs.first;
-		return lhs_id > rhs_id;
-	}
+  bool operator()(pair<uint64_t, bam1_t*>& lhs, pair<uint64_t, bam1_t*>& rhs) {
+    uint64_t lhs_id = lhs.first;
+    uint64_t rhs_id = rhs.first;
+
+    if (lhs_id != rhs_id || !bowtie2)
+      return lhs_id > rhs_id;
+
+    assert (lhs.second->core.flag & BAM_FUNMAP  == 0);
+    assert (rhs.second->core.flag & BAM_FUNMAP  == 0);
+
+    int lhs_score, rhs_score;
+    lhs_score = rhs_score = numeric_limits<int>::min();
+    uint8_t* ptr = bam_aux_get(lhs.second, "AS");
+    if (ptr)
+      lhs_score = bam_aux2i(ptr);
+
+    ptr = bam_aux_get(rhs.second, "AS");
+    if (ptr)
+      rhs_score = bam_aux2i(ptr);
+
+    if (lhs_score != rhs_score)
+      return lhs_score < rhs_score;
+
+    return lhs.second->core.flag & BAM_FSECONDARY;
+  }
 };
 
 void writeSamLine(TabSplitLine& l, FILE* f) {
@@ -152,29 +172,47 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
    while (map_pq.size() > 1000000 || (!new_record && map_pq.size() > 0)) {
      const pair<uint64_t, bam1_t*>& t = map_pq.top();
      bam1_t* tb=t.second;
-     if ((tb->core.flag & BAM_FUNMAP) == 0) {
-       if (findex != NULL)
-	 {
-	   if (count >= 1000 && t.first != last_id)
-	     {
-	       int64_t offset = bam_writer.tell();
-	       int block_offset = offset & 0xFFFF;
 
-	       // daehwan - this is a bug in bgzf.c in samtools
-	       // I'll report this bug with a temporary solution, soon.
-	       if (block_offset <= 0xF000)
-		 {
-		   fprintf(findex, "%lu\t%ld\n", t.first, offset);
-		   count = 0;
-		 }
-	     }
+     bool unmapped = (tb->core.flag & BAM_FUNMAP) != 0;
+     if (!unmapped) {
+       if (findex != NULL) {
+	 if (count >= 1000 && t.first != last_id) {
+	   int64_t offset = bam_writer.tell();
+	   int block_offset = offset & 0xFFFF;
+	   
+	   // daehwan - this is a bug in bgzf.c in samtools
+	   // I'll report this bug with a temporary solution, soon.
+	   if (block_offset <= 0xF000) {
+	     fprintf(findex, "%lu\t%ld\n", t.first, offset);
+	     count = 0;
+	   }
 	 }
+
+	 ++count;
+       }
        
        bam_writer.write(tb); //mapped
-       last_id = t.first;
-       ++count;
      }
-     else { //unmapped
+
+     // In case of Bowtie2, some of the mapped reads against either transcriptome or genome
+     // may have low alignment scores due to gaps, in which case we will remap those.
+     // Later, we may have better alignments that usually involve splice junctions.
+     if (!unmapped) {
+       if (bowtie2 && t.first != last_id) {
+	   uint8_t* ptr = bam_aux_get(tb, "AS");
+	   if (ptr) {
+	     int score = bam_aux2i(ptr);
+	     if (score < bowtie2_min_score)
+	       {
+		 unmapped = true;
+	       }
+	   }
+       }
+       
+       last_id = t.first;
+     }
+
+     if (unmapped) { //unmapped
        if (umbam!=NULL)
 	 umbam->write(tb);
      }

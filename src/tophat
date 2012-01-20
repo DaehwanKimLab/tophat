@@ -121,7 +121,6 @@ Bowtie2 related options:
     --b2-gbar                      <int>       [ default: 4                ]
 
   Scoring options
-    --b2-ma                        <int>       [ default: 2                ]
     --b2-mp                        <int>,<int> [ default: 6,2              ]
     --b2-np                        <int>       [ default: 1                ]
     --b2-rdg                       <int>,<int> [ default: 5,3              ]
@@ -460,7 +459,6 @@ class TopHatParams:
             self.n_ceil = "L,0,0.15"
             self.gbar = 4
 
-            self.ma = 2
             self.mp = "6,2"
             self.np = 1
             self.rdg = "5,3"
@@ -492,8 +490,6 @@ class TopHatParams:
                 if option == "--b2-gbar":
                     self.gbar = 4
 
-                if option == "--b2-ma":
-                    self.ma = int(value)
                 if option == "--b2-mp":
                     self.mp = value
                 if option == "--b2-np":
@@ -1499,7 +1495,8 @@ class ZReader:
         pipecmd=[]
         s=filename.lower()
         if s.endswith(".bam"):
-           pipecmd=["bam2fastx", "-"]
+           # daehwan - want to ouptut mapped reads as well
+           pipecmd=[prog_path("bam2fastx"), "--all", "-"]
         else:
           if guess:
              if s.endswith(".z") or s.endswith(".gz") or s.endswith(".gzip"):
@@ -1888,6 +1885,13 @@ def bowtie(params,
                  os._exit(os.EX_OK)
 
         fix_map_cmd = [prog_path('fix_map_ordering')]
+
+        if params.bowtie2:
+            if t_mapping or g_mapping:
+                max_penalty = int(params.bowtie2_params.mp.split(',')[0])
+                min_score = max_penalty * num_mismatches
+                fix_map_cmd += ["--bowtie2-min-score", str(min_score)]
+            
         samzip_cmd=None
 
         # daehwan - just use bam format for multi-threading.
@@ -1928,8 +1932,10 @@ def bowtie(params,
 
             bowtie2_params = params.bowtie2_params
             if seg_mapping:
-                bowtie_cmd += ["-N", str(min(num_mismatches, 1)),
-                               "-L", str(min(params.segment_length, 30))]
+                None
+                # daehwan - check this out
+                # bowtie_cmd += ["-N", str(min(num_mismatches, 1)),
+                #               "-L", str(min(params.segment_length, 30))]
             else:
                 bowtie2_preset = ""
                 if bowtie2_params.very_fast:
@@ -1953,7 +1959,6 @@ def bowtie(params,
                 # "--n-ceil" is not correctly parsed in Bowtie2
                 bowtie_cmd += [# "--n-ceil", bowtie2_params.n_ceil,
                                "--gbar", str(bowtie2_params.gbar),
-                               "--ma", str(bowtie2_params.ma),
                                "--mp", bowtie2_params.mp,
                                "--np", str(bowtie2_params.np),
                                "--rdg", bowtie2_params.rdg,
@@ -3007,17 +3012,6 @@ def spliced_alignment(params,
                                                    "",
                                                    "read_against_genome")
 
-#         unspliced_sam = tmp_dir+fbasename+'.unspl.bam'
-#         join_mapped_segments(params,
-#                              sam_header_filename,
-#                              reads,
-#                              ref_fasta,
-#                              ["/dev/null"],
-#                              ["/dev/null"],
-#                              ["/dev/null"],
-#                              [unspliced_map],
-#                              [],
-#                              unspliced_sam)
         seg_maps = []
         unmapped_segs = []
         segs = []

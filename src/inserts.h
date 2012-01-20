@@ -138,17 +138,17 @@ InsertAlignmentGrade(const BowtieHit& h1,
     return num_mapped == 2 && opposite_strands && (num_spliced != 2 || consistent_splices) && !too_far;
   }
   
-  bool too_close : 1;
-  bool too_far : 1;
+  bool too_close;
+  bool too_far;
   
-  uint8_t num_spliced : 2;
-  uint8_t num_mapped : 2;
+  uint8_t num_spliced;
+  uint8_t num_mapped;
   
-  bool opposite_strands : 1;
-  bool consistent_splices : 1;
-  uint32_t longest_ref_skip : 18; // in 100s of bp
-  unsigned char edit_dist : 5;
-  bool fusion : 1;
+  bool opposite_strands;
+  bool consistent_splices;
+  uint32_t longest_ref_skip; // in 100s of bp
+  unsigned char edit_dist;
+  bool fusion;
   int num_alignments; // number of equally good alignments for the insert 
   int inner_dist; // distance between inner edges of mates
 };		

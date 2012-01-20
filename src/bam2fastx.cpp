@@ -92,18 +92,44 @@ void showfastq(const bam1_t *b, samfile_t* fp, FILE* fout) {
   bool ismapped=((b->core.flag & BAM_FUNMAP) == 0);
   if (ismapped && !all_reads) return;
   if (mapped_only && !ismapped) return;
-   
-  for(i=0;i<(b->core.l_qseq);i++) {
-    int8_t v = bam1_seqi(s,i);
-    qseq[i] = bam_nt16_rev_table[v];
-    }
+
+  bool isreversed=((b->core.flag & BAM_FREVERSE) != 0);
+
+  for(i=0;i<(b->core.l_qseq);i++)
+    qseq[i] = bam1_seqi(s,i);
   qseq[i] = 0;
-  
+   
+  // copied from sam_view.c in samtools.
+  static const int8_t seq_comp_table[16] = { 0, 8, 4, 12, 2, 10, 9, 14, 1, 6, 5, 13, 3, 11, 7, 15 };
+  if (isreversed) {
+    int qlen = b->core.l_qseq;
+    for(i=0;i<qlen>>1;i++) {
+      int8_t t = seq_comp_table[qseq[qlen - 1 - i]];
+      qseq[qlen - 1 - i] = seq_comp_table[qseq[i]];
+      qseq[i] = t;
+    }
+    if(qlen&1) qseq[i] = seq_comp_table[qseq[i]];
+  }
+
+  for(i=0;i<(b->core.l_qseq);i++) {
+    qseq[i] = bam_nt16_rev_table[qseq[i]];
+  }
+   
   fprintf(fout, "@%s\n%s\n",name, qseq);
   for(i=0;i<(b->core.l_qseq);i++) {
     qseq[i]=qual[i]+33;
     }
   qseq[i]=0;
+
+  if(isreversed) {
+    int qlen = b->core.l_qseq;
+    for(i= 0;i<qlen>>1;i++) {
+      int8_t t = qseq[qlen - 1 - i];
+      qseq[qlen - 1 - i] = qseq[i];
+      qseq[i] = t;
+    }
+  }
+  
   fprintf(fout, "+\n%s\n",qseq);
 }
 
@@ -111,9 +137,31 @@ void showfasta(const bam1_t *b, samfile_t* fp, FILE* fout) {
   char *name  = bam1_qname(b);
   char *s    = (char*)bam1_seq(b);
   int i;
+
+  bool ismapped=((b->core.flag & BAM_FUNMAP) == 0);
+  if (ismapped && !all_reads) return;
+  if (mapped_only && !ismapped) return;
+
+  bool isreversed=((b->core.flag & BAM_FREVERSE) != 0);
+
+  for(i=0;i<(b->core.l_qseq);i++)
+    qseq[i] = bam1_seqi(s,i);
+  qseq[i] = 0;
+   
+  // copied from sam_view.c in samtools.
+  static const int8_t seq_comp_table[16] = { 0, 8, 4, 12, 2, 10, 9, 14, 1, 6, 5, 13, 3, 11, 7, 15 };
+  if (isreversed) {
+    int qlen = b->core.l_qseq;
+    for(i=0;i<qlen>>1;i++) {
+      int8_t t = seq_comp_table[qseq[qlen - 1 - i]];
+      qseq[qlen - 1 - i] = seq_comp_table[qseq[i]];
+      qseq[i] = t;
+    }
+    if(qlen&1) qseq[i] = seq_comp_table[qseq[i]];
+  }
+
   for(i=0;i<(b->core.l_qseq);i++) {
-    int8_t v = bam1_seqi(s,i);
-    qseq[i] = bam_nt16_rev_table[v];
+    qseq[i] = bam_nt16_rev_table[qseq[i]];
   }
   qseq[i] = 0;
   fprintf(fout, ">%s\n%s\n",name, qseq);

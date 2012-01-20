@@ -123,33 +123,36 @@ void pair_best_alignments(const HitsForRead& left_hits,
 	  const BowtieHit& rh = right[j];
 	  if (rh.edit_dist() > max_read_mismatches) continue;
 
-	  bool left_fusion = lh.fusion_opcode() != FUSION_NOTHING;
-	  bool right_fusion = rh.fusion_opcode() != FUSION_NOTHING;
-	  if (left_fusion && right_fusion)
-	    continue;
-
-	  bool fusion = left_fusion || right_fusion;
-	  if (!fusion && lh.ref_id() != rh.ref_id())
-	    fusion = true;
-
-	  if (!fusion && lh.ref_id() == rh.ref_id())
+	  bool fusion = false;
+	  if (fusion_search)
 	    {
-	      if (lh.antisense_align() == rh.antisense_align())
+	      bool left_fusion = lh.fusion_opcode() != FUSION_NOTHING;
+	      bool right_fusion = rh.fusion_opcode() != FUSION_NOTHING;
+	      if (left_fusion && right_fusion)
+		continue;
+	      
+	      fusion = left_fusion || right_fusion;
+	      if (!fusion && lh.ref_id() != rh.ref_id())
 		fusion = true;
-	      else
+	      
+	      if (!fusion && lh.ref_id() == rh.ref_id())
 		{
-		  int inter_dist = 0;
-		  if (lh.antisense_align())
-		      inter_dist = lh.left() - rh.right();
-		  else
-		      inter_dist = rh.left() - lh.right();
-		  
-		  if (inter_dist < -(int)max_insertion_length || inter_dist > (int)fusion_min_dist)
+		  if (lh.antisense_align() == rh.antisense_align())
 		    fusion = true;
+		  else
+		    {
+		      int inter_dist = 0;
+		      if (lh.antisense_align())
+			inter_dist = lh.left() - rh.right();
+		      else
+			inter_dist = rh.left() - lh.right();
+		      
+		      if (inter_dist < -(int)max_insertion_length || inter_dist > (int)fusion_min_dist)
+			fusion = true;
+		    }
 		}
 	    }
 
-	  
 	  InsertAlignmentGrade g(lh, rh, min_mate_inner_dist, max_mate_inner_dist, fusion);
 
 	  // Is the new status better than the current best one?
@@ -1686,12 +1689,16 @@ int main(int argc, char** argv)
       exit(1);
     }
   
-  FILE* fusions_file = fopen(fusions_file_name.c_str(), "w");
-  if (fusions_file == NULL)
+  FILE* fusions_file = NULL;
+  if (fusion_search)
     {
-      fprintf(stderr, "Error: cannot open VCF file %s for writing\n",
-	      fusions_file_name.c_str());
-      exit(1);
+      fusions_file = fopen(fusions_file_name.c_str(), "w");
+      if (fusions_file == NULL)
+	{
+	  fprintf(stderr, "Error: cannot open VCF file %s for writing\n",
+		  fusions_file_name.c_str());
+	  exit(1);
+	}
     }
   
   driver(accepted_hits_file_name,
