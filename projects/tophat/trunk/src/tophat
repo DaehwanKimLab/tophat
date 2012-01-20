@@ -1798,9 +1798,6 @@ def bowtie(params,
     bwt_idx_name = bwt_idx_prefix.split('/')[-1]
     reads_file=reads_list[0]
     readfile_basename=getFileBaseName(reads_file)
-    bowtie_str = "Bowtie"
-    if params.bowtie2:
-        bowtie_str += "2"
 
     g_mapping, t_mapping, seg_mapping = False, False, False
     if mapping_type == "read_against_transcriptome":
@@ -1809,6 +1806,10 @@ def bowtie(params,
         seg_mapping = True
     else:
         g_mapping = True
+
+    bowtie_str = "Bowtie"
+    if params.bowtie2:
+        bowtie_str += "2"
 
     if seg_mapping:
         params.max_hits *= 2
@@ -3015,7 +3016,7 @@ def spliced_alignment(params,
         seg_maps = []
         unmapped_segs = []
         segs = []
-        have_IUM = fileExists(unmapped_unspliced,25)
+        have_IUM = fileExists(unmapped_reads,25)
         if ri==0 and have_IUM:
            have_left_IUM = True
         if num_segs > 1 and have_IUM:
