@@ -1889,8 +1889,10 @@ def bowtie(params,
 
         if params.bowtie2:
             if t_mapping or g_mapping:
-                max_penalty = int(params.bowtie2_params.mp.split(',')[0])
-                min_score = max_penalty * num_mismatches
+                max_penalty, min_penalty = params.bowtie2_params.mp.split(',')
+                max_penalty, min_penalty = int(max_penalty), int(min_penalty)
+                # min_score = (max_penalty + min_penalty) / 2 * num_mismatches
+                min_score = min_penalty * num_mismatches
                 fix_map_cmd += ["--bowtie2-min-score", str(min_score)]
             
         samzip_cmd=None
@@ -3015,7 +3017,7 @@ def spliced_alignment(params,
 
         # daehwan - check this out
         params.bowtie2 = False
-        # check_bowtie(params.bowtie2)
+        check_bowtie(params.bowtie2)
 
         seg_maps = []
         unmapped_segs = []

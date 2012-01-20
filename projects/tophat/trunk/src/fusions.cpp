@@ -925,7 +925,8 @@ void pair_support(const HitsForRead& left_hits, const HitsForRead& right_hits, F
 			++(itr->second.pair_count_fusion);
 		      else
 			{
-			  itr->second.vPairSupport.push_back(FusionPairSupport(left_dist, right_dist));
+			  if (itr->second.vPairSupport.size() < 200)
+			    itr->second.vPairSupport.push_back(FusionPairSupport(left_dist, right_dist));
 			  ++(itr->second.pair_count);
 			}
 		    }
