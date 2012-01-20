@@ -14,6 +14,7 @@
 #include <iostream>
 #include <sstream>
 #include <cstdarg>
+#include <limits>
 #include <getopt.h>
 
 #include "common.h"
@@ -75,10 +76,10 @@ void print_mem_usage() {
 #endif
 
 bool bowtie2 = true;
+int bowtie2_min_score = -10;
 
 // daehwan - temporary
 bool parallel = true;
-
 
 unsigned int max_insertion_length = 3;
 unsigned int max_deletion_length = 3;
@@ -296,6 +297,7 @@ enum
     OPT_FUSION_MULTIREADS,
     OPT_FUSION_MULTIPAIRS,
     OPT_BOWTIE1,
+    OPT_BOWTIE2_MIN_SCORE,
   };
 
 static struct option long_options[] = {
@@ -354,6 +356,7 @@ static struct option long_options[] = {
 {"fusion-multireads", required_argument, 0, OPT_FUSION_MULTIREADS},
 {"fusion-multipairs", required_argument, 0, OPT_FUSION_MULTIPAIRS},
 {"bowtie1", no_argument, 0, OPT_BOWTIE1},
+{"bowtie2-min-score", required_argument, 0, OPT_BOWTIE2_MIN_SCORE},
 {0, 0, 0, 0} // terminator
 };
 
@@ -557,10 +560,13 @@ int parse_options(int argc, char** argv, void (*print_usage)())
       fusion_multireads = parseIntOpt(1, "--fusion-multireads must be at least 1", print_usage);
       break;
     case OPT_FUSION_MULTIPAIRS:
-      fusion_multipairs = parseIntOpt(1, "--fusion-multipars must be at least 11", print_usage);
+      fusion_multipairs = parseIntOpt(1, "--fusion-multipairs must be at least 0", print_usage);
       break;
     case OPT_BOWTIE1:
       bowtie2 = false;
+      break;
+    case OPT_BOWTIE2_MIN_SCORE:
+      bowtie2_min_score = -1 * parseIntOpt(0, "--bowtie2-min-score must be at least 0", print_usage);
       break;
     default:
       print_usage();

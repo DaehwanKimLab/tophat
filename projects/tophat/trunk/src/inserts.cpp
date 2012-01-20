@@ -10,6 +10,7 @@
 #include <config.h>
 #endif
 
+#include <iostream>
 #include <cassert>
 #include <map>
 #include <set>
@@ -25,39 +26,43 @@ bool InsertAlignmentGrade::operator<(const InsertAlignmentGrade& rhs)
 
   if (!fusion && rhs.fusion)
     return false;
-  
+
   // We always prefer a insert alignment with both ends mapped than a
   // singleton
   if (num_mapped != rhs.num_mapped)
     {
       return num_mapped < rhs.num_mapped;
     }
-  // daehwan - later we should do more here.
+  // daehwan - later we should do many things to report the best pair alignments.
   else if (num_mapped == 2 && !fusion)
     {
-      // Prefer contiguous alignments over spliced ones
-      if (num_spliced != rhs.num_spliced)
-	return rhs.num_spliced < num_spliced;
-      
-      // Prefer a pair that is too close or perfect to one that is too far
-      if (too_far && !rhs.too_far)
-	return true;
-      
-      // Prefer a pair that is perfect to one that is too close
-      if (too_close && !(rhs.too_close || rhs.too_far))
-	return true;
-      
-      // Prefer closer mates
-      if (rhs.inner_dist < inner_dist)
-	return true;
-      
-      // Prefer shorter introns
-      if (longest_ref_skip != rhs.longest_ref_skip)
-	return rhs.longest_ref_skip < longest_ref_skip;
-      
+      // if significant difference in their inner mate distances 
+      if (abs(rhs.inner_dist - inner_dist) >= 30)
+	{
+	  // Prefer a pair that is too close or perfect to one that is too far
+	  if (too_far && !rhs.too_far)
+	    return true;
+	  
+	  // Prefer a pair that is perfect to one that is too close
+	  if (too_close && !(rhs.too_close || rhs.too_far))
+	    return true;
+	  
+	  // Prefer closer mates
+	  if (rhs.inner_dist < inner_dist)
+	    return true;
+	}
+
       if (edit_dist != rhs.edit_dist)
 	return rhs.edit_dist < edit_dist;
-      
+
+      // daehwan - do somethings here
+      if (!bowtie2)
+	{
+	  // Prefer shorter introns
+	  if (longest_ref_skip != rhs.longest_ref_skip)
+	    return rhs.longest_ref_skip < longest_ref_skip;
+	}
+	  
       return false;
     }
   else

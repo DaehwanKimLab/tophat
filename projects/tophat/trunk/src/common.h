@@ -27,6 +27,7 @@
 #endif
 
 extern bool bowtie2;
+extern int bowtie2_min_score;
 
 // daehwan - temporary for parallelization
 extern bool parallel;
