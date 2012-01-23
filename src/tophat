@@ -1812,6 +1812,9 @@ def bowtie(params,
         bowtie_str += "2"
 
     if seg_mapping:
+        # we multiply max_hits by 2 when mapping segments
+        # this multiplication factor (2) is also assumed in segment_juncs and long_spanning_reads,
+        # which means "2" should not be changed without modifying those sub-programs.
         params.max_hits *= 2
         if not params.bowtie2:
             backup_bowtie_alignment_option = params.bowtie_alignment_option
@@ -1865,8 +1868,6 @@ def bowtie(params,
         if use_zpacker and (unzip_cmd is None):
           unzip_cmd=[ params.system_params.zipper ]
           unzip_cmd.extend(params.system_params.zipper_opts)
-
-          # daehwan - should check now
           unzip_cmd+=['-cd']
 
         fifo_pid=None
@@ -1930,14 +1931,22 @@ def bowtie(params,
            num_mismatches = 3
 
         if params.bowtie2:
-            bowtie_cmd += ["-k", str(max_hits)]
+            if seg_mapping:
+                # since bowtie2 does not suppress reads that map to many places,
+                # we suppress those in segment_juncs and long_spanning_reads.
+                bowtie_cmd += ["-k", str(max_hits + 1)]
+            else:
+                bowtie_cmd += ["-k", str(max_hits)]
 
             bowtie2_params = params.bowtie2_params
             if seg_mapping:
-                None
-                # daehwan - check this out
-                # bowtie_cmd += ["-N", str(min(num_mismatches, 1)),
-                #               "-L", str(min(params.segment_length, 30))]
+                # after intensive testing,
+                # the following parameters seem to work faster than Bowtie1 and as sensitive as Bowtie1,
+                # but a chance for further improvements remains.
+                bowtie_cmd += ["-N", str(min(num_mismatches, 1))]
+                bowtie_cmd += ["-i", "C,2,0"]
+                bowtie_cmd += ["-L", "20"]
+                # bowtie_cmd += ["-L", str(min(params.segment_length, 20))]
             else:
                 bowtie2_preset = ""
                 if bowtie2_params.very_fast:
@@ -1958,7 +1967,8 @@ def bowtie(params,
                                    "-L", str(bowtie2_params.L),
                                    "-i", bowtie2_params.i]
 
-                # "--n-ceil" is not correctly parsed in Bowtie2
+                # "--n-ceil" is not correctly parsed in Bowtie2,
+                # I  (daehwan) already talked to Ben who will fix the problem.
                 bowtie_cmd += [# "--n-ceil", bowtie2_params.n_ceil,
                                "--gbar", str(bowtie2_params.gbar),
                                "--mp", bowtie2_params.mp,
@@ -2501,7 +2511,6 @@ def split_reads(reads_filename,
             tmp_num_segments = read_length / segment_length
             offsets = [segment_length * i for i in range(0, tmp_num_segments + 1)]
 
-            # daehwan
             # Bowtie's minimum read length here is 20bp, so if the last segment
             # is between 20 and segment_length bp long, go ahead and write it out
             if read_length % segment_length >= min(segment_length - 2, 20):
@@ -2962,7 +2971,6 @@ def spliced_alignment(params,
        # the last segment is longer
        if num_segs>1: max_seg_len += (read_len % segment_len)
 
-    # daehwan - check this out
     if num_segs <= 1:
          print >> sys.stderr, "Warning: you have only one segment per read.\n\tIf the read length is greater than or equal to 45bp,\n\twe strongly recommend that you decrease --segment-length to about half the read length because TopHat will work better with multiple segments"
 
@@ -3015,8 +3023,8 @@ def spliced_alignment(params,
                                                    "read_against_genome")
 
         # daehwan - check this out
-        params.bowtie2 = False
-        check_bowtie(params.bowtie2)
+        # params.bowtie2 = False
+        # check_bowtie(params.bowtie2)
 
         seg_maps = []
         unmapped_segs = []

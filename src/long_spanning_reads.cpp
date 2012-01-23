@@ -1916,6 +1916,17 @@ bool join_segments_for_read(RefSequenceTable& rt,
   vector<BowtieHit> seg_hit_stack;
   bool join_success = false;
 
+  // ignore segments that map to more than this many places.
+  if (bowtie2)
+    {
+      const size_t max_seg_hits = max_multihits * 2;
+      for (size_t s = 0; s < seg_hits_for_read.size(); ++s)
+	{
+	  if (seg_hits_for_read[s].hits.size() > max_seg_hits)
+	    return join_success;
+	}
+    }
+
   for (size_t i = 0; i < seg_hits_for_read[0].hits.size(); ++i)
     {
       BowtieHit& bh = seg_hits_for_read[0].hits[i];

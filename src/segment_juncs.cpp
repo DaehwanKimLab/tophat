@@ -1704,7 +1704,6 @@ struct RecordSegmentJuncs
 		   antisense);
 	
 	juncs.insert(j);
-	
 	if (juncs.size() > max_juncs)
 	  juncs.erase(*(juncs.rbegin()));
       }
@@ -3491,6 +3490,18 @@ void find_gaps(RefSequenceTable& rt,
   
   vector<RefSeg> expected_don_acc_windows;
   string seq(read.seq);
+
+  // ignore segments that map to more than this many places that would otherwise produce
+  // many false splice junctions.
+  if (bowtie2)
+    {
+      const size_t max_seg_hits = max_multihits * 2;
+      for (size_t s = 0; s < hits_for_read.size(); ++s)
+	{
+	  if (hits_for_read[s].hits.size() > max_seg_hits)
+	    return;
+	}
+    }
   
   for (size_t s = 0; s < hits_for_read.size(); ++s)
     {
@@ -5022,7 +5033,7 @@ void driver(istream& ref_stream,
       ++itr)
     {
       const char* ref_name = rt.get_name(itr->refid);
-      
+
       fprintf(juncs_out,
 	      "%s\t%d\t%d\t%c\n",
 	      ref_name,
@@ -5030,8 +5041,11 @@ void driver(istream& ref_stream,
 	      itr->right,
 	      itr->antisense ? '-' : '+');
 
-            splice_junction_coords.push_back(SpliceJunctionCoord(itr->refid, itr->left));
-	    splice_junction_coords.push_back(SpliceJunctionCoord(itr->refid, itr->right));
+      if (fusion_search)
+	{
+	  splice_junction_coords.push_back(SpliceJunctionCoord(itr->refid, itr->left));
+	  splice_junction_coords.push_back(SpliceJunctionCoord(itr->refid, itr->right));
+	}
     }
 	//close all reading pipes, just to exit cleanly
   /*
