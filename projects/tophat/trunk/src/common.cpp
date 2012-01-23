@@ -77,6 +77,7 @@ void print_mem_usage() {
 
 bool bowtie2 = true;
 int bowtie2_min_score = -10;
+int max_segment_mapping = 20;
 
 // daehwan - temporary
 bool parallel = true;
