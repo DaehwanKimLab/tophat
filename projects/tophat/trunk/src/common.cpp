@@ -77,7 +77,13 @@ void print_mem_usage() {
 
 bool bowtie2 = true;
 int bowtie2_min_score = -10;
-int max_segment_mapping = 20;
+int bowtie2_max_penalty = 6;
+int bowtie2_min_penalty = 2;
+int bowtie2_penalty_for_N = 1;
+int bowtie2_read_gap_open = 5;
+int bowtie2_read_gap_cont = 3;
+int bowtie2_ref_gap_open = 5;
+int bowtie2_ref_gap_cont = 3;
 
 // daehwan - temporary
 bool parallel = true;
@@ -115,7 +121,8 @@ ReadFormat reads_format = FASTQ;
 
 bool verbose = false;
 
-unsigned int max_multihits = 40;
+unsigned int max_multihits = 20;
+unsigned int max_seg_multihits = 40;
 bool no_closure_search = false;
 bool no_coverage_search = false;
 bool no_microexon_search = false;
@@ -140,9 +147,9 @@ bool phred64_quals = false;
 bool quals = false;
 bool integer_quals = false;
 bool color = false;
-bool color_out = false;
-
 string gtf_juncs = "";
+
+bool report_secondary_alignments = false;
 
 string flt_reads = "";
 string flt_mappings = "";
@@ -255,6 +262,7 @@ enum
     OPT_GENE_FILTER,
     OPT_GFF_ANNOTATIONS,
     OPT_MAX_MULTIHITS,
+    OPT_MAX_SEG_MULTIHITS,
     OPT_NO_CLOSURE_SEARCH,
     OPT_NO_COVERAGE_SEARCH,
     OPT_NO_MICROEXON_SEARCH,
@@ -279,7 +287,6 @@ enum
     OPT_QUALS,
     OPT_INTEGER_QUALS,
     OPT_COLOR,
-    OPT_COLOR_OUT,
     OPT_LIBRARY_TYPE,
     OPT_MAX_DELETION_LENGTH,
     OPT_MAX_INSERTION_LENGTH,
@@ -291,6 +298,7 @@ enum
     OPT_GTF_JUNCS,
     OPT_FILTER_READS,
     OPT_FILTER_HITS,
+    OPT_REPORT_SECONDARY_ALIGNMENTS,
     OPT_FUSION_SEARCH,
     OPT_FUSION_ANCHOR_LENGTH,
     OPT_FUSION_MIN_DIST,
@@ -299,6 +307,13 @@ enum
     OPT_FUSION_MULTIPAIRS,
     OPT_BOWTIE1,
     OPT_BOWTIE2_MIN_SCORE,
+    OPT_BOWTIE2_MAX_PENALTY,
+    OPT_BOWTIE2_MIN_PENALTY,
+    OPT_BOWTIE2_PENALTY_FOR_N,
+    OPT_BOWTIE2_READ_GAP_OPEN,
+    OPT_BOWTIE2_READ_GAP_CONT,
+    OPT_BOWTIE2_REF_GAP_OPEN,
+    OPT_BOWTIE2_REF_GAP_CONT,
   };
 
 static struct option long_options[] = {
@@ -315,6 +330,7 @@ static struct option long_options[] = {
 {"gene-filter",		required_argument,	0,	OPT_GENE_FILTER},
 {"gtf-annotations",	required_argument,	0,	OPT_GFF_ANNOTATIONS},
 {"max-multihits",	required_argument,	0,  OPT_MAX_MULTIHITS},
+{"max-seg-multihits",	required_argument,	0,  OPT_MAX_SEG_MULTIHITS},
 {"no-closure-search",	no_argument,		0,  OPT_NO_CLOSURE_SEARCH},
 {"no-coverage-search",	no_argument,		0,  OPT_NO_COVERAGE_SEARCH},
 {"no-microexon-search",	no_argument,		0,  OPT_NO_MICROEXON_SEARCH},
@@ -338,7 +354,6 @@ static struct option long_options[] = {
 {"quals",		no_argument,		0,	OPT_QUALS},
 {"integer-quals",	no_argument,		0,	OPT_INTEGER_QUALS},
 {"color",		no_argument,		0,	OPT_COLOR},
-{"color-out",		no_argument,		0,	OPT_COLOR_OUT},
 {"library-type",	required_argument,	0,	OPT_LIBRARY_TYPE},
 {"max-deletion-length", required_argument, 0, OPT_MAX_DELETION_LENGTH},
 {"max-insertion-length", required_argument, 0, OPT_MAX_INSERTION_LENGTH},
@@ -350,6 +365,7 @@ static struct option long_options[] = {
 {"gtf-juncs", required_argument, 0, OPT_GTF_JUNCS},
 {"flt-reads",required_argument, 0, OPT_FILTER_READS},
 {"flt-hits",required_argument, 0, OPT_FILTER_HITS},
+{"report-secondary-alignments", no_argument, 0, OPT_REPORT_SECONDARY_ALIGNMENTS},
 {"fusion-search", no_argument, 0, OPT_FUSION_SEARCH},
 {"fusion-anchor-length", required_argument, 0, OPT_FUSION_ANCHOR_LENGTH},
 {"fusion-min-dist", required_argument, 0, OPT_FUSION_MIN_DIST},
@@ -358,6 +374,13 @@ static struct option long_options[] = {
 {"fusion-multipairs", required_argument, 0, OPT_FUSION_MULTIPAIRS},
 {"bowtie1", no_argument, 0, OPT_BOWTIE1},
 {"bowtie2-min-score", required_argument, 0, OPT_BOWTIE2_MIN_SCORE},
+{"bowtie2-max-penalty", required_argument, 0, OPT_BOWTIE2_MAX_PENALTY},
+{"bowtie2-min-penalty", required_argument, 0, OPT_BOWTIE2_MIN_PENALTY},
+{"bowtie2-penalty-for-N", required_argument, 0, OPT_BOWTIE2_PENALTY_FOR_N},
+{"bowtie2-read-gap-open", required_argument, 0, OPT_BOWTIE2_READ_GAP_OPEN},
+{"bowtie2-read-gap-cont", required_argument, 0, OPT_BOWTIE2_READ_GAP_CONT},
+{"bowtie2-ref-gap-open", required_argument, 0, OPT_BOWTIE2_REF_GAP_OPEN},
+{"bowtie2-ref-gap-cont", required_argument, 0, OPT_BOWTIE2_REF_GAP_CONT},
 {0, 0, 0, 0} // terminator
 };
 
@@ -417,6 +440,9 @@ int parse_options(int argc, char** argv, void (*print_usage)())
       break;
     case OPT_MAX_MULTIHITS:
       max_multihits = parseIntOpt(1, "--max-multihits arg must be at least 1", print_usage);
+      break;
+    case OPT_MAX_SEG_MULTIHITS:
+      max_seg_multihits = parseIntOpt(1, "--max-seg-multihits arg must be at least 1", print_usage);
       break;
     case OPT_NO_CLOSURE_SEARCH:
       no_closure_search = true;
@@ -496,9 +522,6 @@ int parse_options(int argc, char** argv, void (*print_usage)())
     case OPT_COLOR:
       color = true;
       break;
-    case OPT_COLOR_OUT:
-      color_out = true;
-      break;
     case OPT_LIBRARY_TYPE:
       if (strcmp(optarg, "fr-unstranded") == 0)
 	library_type = FR_UNSTRANDED;
@@ -545,6 +568,9 @@ int parse_options(int argc, char** argv, void (*print_usage)())
     case OPT_FILTER_HITS:
       flt_mappings = optarg;
       break;
+    case OPT_REPORT_SECONDARY_ALIGNMENTS:
+      report_secondary_alignments = true;
+      break;
     case OPT_FUSION_SEARCH:
       fusion_search = true;
       break;
@@ -568,6 +594,27 @@ int parse_options(int argc, char** argv, void (*print_usage)())
       break;
     case OPT_BOWTIE2_MIN_SCORE:
       bowtie2_min_score = -1 * parseIntOpt(0, "--bowtie2-min-score must be at least 0", print_usage);
+      break;
+    case OPT_BOWTIE2_MAX_PENALTY:
+      bowtie2_max_penalty = parseIntOpt(0, "--bowtie2-max-penalty must be at least 0", print_usage);
+      break;
+    case OPT_BOWTIE2_MIN_PENALTY:
+      bowtie2_min_penalty = parseIntOpt(0, "--bowtie2-min-penalty must be at least 0", print_usage);
+      break;
+    case OPT_BOWTIE2_PENALTY_FOR_N:
+      bowtie2_penalty_for_N = parseIntOpt(0, "--bowtie2-penalty-for-N must be at least 0", print_usage);
+      break;
+    case OPT_BOWTIE2_READ_GAP_OPEN:
+      bowtie2_read_gap_open = parseIntOpt(0, "--bowtie2-read-gap-open must be at least 0", print_usage);
+      break;
+    case OPT_BOWTIE2_READ_GAP_CONT:
+      bowtie2_read_gap_cont = parseIntOpt(0, "--bowtie2-read-gap-cont must be at least 0", print_usage);
+      break;
+    case OPT_BOWTIE2_REF_GAP_OPEN:
+      bowtie2_ref_gap_open = parseIntOpt(0, "--bowtie2-ref-gap-open must be at least 0", print_usage);
+      break;
+    case OPT_BOWTIE2_REF_GAP_CONT:
+      bowtie2_ref_gap_cont = parseIntOpt(0, "--bowtie2-ref-gap-cont must be at least 0", print_usage);
       break;
     default:
       print_usage();
@@ -939,7 +986,6 @@ GBamRecord::GBamRecord(const char* qname, int32_t flags, int32_t g_tid,
    }
 
  void GBamRecord::add_aux(const char* str) {
-   // daehwan - this is not thread-safe - I made these varaiables as class members
      //requires: being called AFTER add_quals()
      // static char tag[2];
      // static uint8_t abuf[512];

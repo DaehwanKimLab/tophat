@@ -88,7 +88,9 @@ void read_best_alignments(const HitsForRead& hits_for_read,
       // Is the new status better than the current best one?
       if (best_grade < g)
       {
-        best_hits.hits.clear();
+	if (!report_secondary_alignments)
+	  best_hits.hits.clear();
+	
         best_grade = g;
         best_hits.hits.push_back(hits[i]);
       }
@@ -158,8 +160,11 @@ void pair_best_alignments(const HitsForRead& left_hits,
 	  // Is the new status better than the current best one?
 	  if (best_grade < g)
 	    {
-	      left_best_hits.hits.clear();
-	      right_best_hits.hits.clear();
+	      if (!report_secondary_alignments)
+		{
+		  left_best_hits.hits.clear();
+		  right_best_hits.hits.clear();
+		}
 	      
 	      best_grade = g;
 	      left_best_hits.hits.push_back(lh);
@@ -180,71 +185,72 @@ enum FragmentType {FRAG_UNPAIRED, FRAG_LEFT, FRAG_RIGHT};
 void add_auxData(vector<string>& auxdata, vector<string>& sam_toks,
                  const RefSequenceTable& rt,const BowtieHit& bh, FragmentType insert_side,
                  int num_hits, const BowtieHit* next_hit, int hitIndex) {
-    
-    if (sam_toks.size()>11) {
-        for (size_t i=11;i<sam_toks.size();++i) {
-            if (sam_toks[i].find("NH:i:")==string::npos)
-                auxdata.push_back(sam_toks[i]);
-        }
-	}
-    string aux("NH:i:");
-    str_appendInt(aux, num_hits);
+  
+  if (sam_toks.size()>11) {
+    for (size_t i=11;i<sam_toks.size();++i) {
+      if (sam_toks[i].find("NH:i:")==string::npos &&
+	  sam_toks[i].find("XS:i:")==string::npos)
+	auxdata.push_back(sam_toks[i]);
+    }
+  }
+  string aux("NH:i:");
+  str_appendInt(aux, num_hits);
+  auxdata.push_back(aux);
+  if (next_hit) {
+    const char* nh_ref_name = "=";
+    nh_ref_name = rt.get_name(next_hit->ref_id());
+    assert (nh_ref_name != NULL);
+    bool same_contig=(next_hit->ref_id()==bh.ref_id());
+    aux="CC:Z:";
+    aux+= (same_contig ? "=" : nh_ref_name);
     auxdata.push_back(aux);
-    if (next_hit) {
-        const char* nh_ref_name = "=";
-        nh_ref_name = rt.get_name(next_hit->ref_id());
-        assert (nh_ref_name != NULL);
-        bool same_contig=(next_hit->ref_id()==bh.ref_id());
-        aux="CC:Z:";
-        aux+= (same_contig ? "=" : nh_ref_name);
-        auxdata.push_back(aux);
-        aux="CP:i:";
-        int nh_gpos=next_hit->left() + 1;
-        str_appendInt(aux, nh_gpos);
-        auxdata.push_back(aux);
-    } //has next_hit
+    aux="CP:i:";
+    int nh_gpos=next_hit->left() + 1;
+    str_appendInt(aux, nh_gpos);
+    auxdata.push_back(aux);
+  } //has next_hit
     // FIXME: this code is still a bit brittle, because it contains no
     // consistency check that the mates are on opposite strands - a current protocol
     // requirement, and that the strand indicated by the alignment is consistent
     // with the orientation of the splices (though that should be handled upstream).
-    const string xs_f("XS:A:+");
-    const string xs_r("XS:A:-");
-    if (bh.contiguous())  {
-        if (library_type == FR_FIRSTSTRAND) {
-            if (insert_side == FRAG_LEFT || insert_side == FRAG_UNPAIRED) {
-                if (bh.antisense_align())
-                    auxdata.push_back(xs_f);
-                else
-                    auxdata.push_back(xs_r);
-            }
-            else {
-                if (bh.antisense_align())
-                    auxdata.push_back(xs_r);
-                else
-                    auxdata.push_back(xs_f);
-            }
-        }
-        else if (library_type == FR_SECONDSTRAND)   {
-            if (insert_side == FRAG_LEFT || insert_side == FRAG_UNPAIRED){
-                if (bh.antisense_align())
-                    auxdata.push_back(xs_r);
-                else
-                    auxdata.push_back(xs_f);
-            }
-            else
-            {
-                if (bh.antisense_align())
-                    auxdata.push_back(xs_f);
-                else
-                    auxdata.push_back(xs_r);
-            }
-        }
-    } //bh.contiguous()
-    if (hitIndex >= 0)
+  const string xs_f("XS:A:+");
+  const string xs_r("XS:A:-");
+  if (bh.contiguous())  {
+    if (library_type == FR_FIRSTSTRAND) {
+      if (insert_side == FRAG_LEFT || insert_side == FRAG_UNPAIRED) {
+	if (bh.antisense_align())
+	  auxdata.push_back(xs_f);
+	else
+	  auxdata.push_back(xs_r);
+      }
+      else {
+	if (bh.antisense_align())
+	  auxdata.push_back(xs_r);
+	else
+	  auxdata.push_back(xs_f);
+      }
+    }
+    else if (library_type == FR_SECONDSTRAND)   {
+      if (insert_side == FRAG_LEFT || insert_side == FRAG_UNPAIRED){
+	if (bh.antisense_align())
+	  auxdata.push_back(xs_r);
+	else
+	  auxdata.push_back(xs_f);
+      }
+      else
+	{
+	  if (bh.antisense_align())
+	    auxdata.push_back(xs_f);
+	  else
+	    auxdata.push_back(xs_r);
+	}
+    }
+  } //bh.contiguous()
+  if (hitIndex >= 0)
     {
-        string aux("HI:i:");
-        str_appendInt(aux, hitIndex);
-        auxdata.push_back(aux);
+      string aux("HI:i:");
+      str_appendInt(aux, hitIndex);
+      auxdata.push_back(aux);
     }
 }
 
@@ -519,13 +525,12 @@ struct lex_hit_sort
 
 void print_sam_for_single(const RefSequenceTable& rt,
 			  const HitsForRead& hits,
-                        const FragmentAlignmentGrade& grade,
-                        FragmentType frag_type,
-                        //FILE* reads_file,
-                        Read& read,
-                        GBamWriter& bam_writer,
-                        FILE* um_out//write unmapped reads here
-                        )
+			  const FragmentAlignmentGrade& grade,
+			  FragmentType frag_type,
+			  Read& read,
+			  GBamWriter& bam_writer,
+			  FILE* um_out //write unmapped reads here
+			  )
 {
     assert(!read.alt_name.empty());
     lex_hit_sort s(rt, hits);
@@ -1033,7 +1038,7 @@ struct ReportWorker
 						true, begin_id, end_id);
 	      assert(got_read);
 	    }
-
+    
 	    exclude_hits_on_filtered_junctions(*junctions, curr_left_hit_group);
 
 	    // Process hits for left singleton, select best alignments

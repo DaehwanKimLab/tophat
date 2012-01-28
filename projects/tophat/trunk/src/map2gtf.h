@@ -66,29 +66,30 @@ private:
 };
 
 class TranscriptomeHit {
-  public:
-    BowtieHit hit;
-    GffObj* trans;
-  TranscriptomeHit(GffObj* t=NULL):hit() {
+ public:
+  BowtieHit hit;
+  GffObj* trans;
+  vector<string> aux_fields;
+ TranscriptomeHit(GffObj* t=NULL):hit() {
     trans=t;
-    }
+  }
   bool operator==(const TranscriptomeHit& th) const {
     return (th.hit == hit);
-    }
+  }
   bool operator<(const TranscriptomeHit& th) const {
     return (th.hit < hit);
-    }
-
+  }
+  
 };
 
 
 void trans_to_genomic_coords(const char* read_name, HitFactory* hitFactory,
-        const BowtieHit& in, TranscriptomeHit& out);
+			     const BowtieHit& in, TranscriptomeHit& out);
 
 bool get_read_start(GList<GffExon>* exon_list, size_t gtf_start,
-        size_t& genome_start, int& exon_idx);
+		    size_t& genome_start, int& exon_idx);
 
 void print_trans(GffObj* trans, const BowtieHit& in, size_t rem_len,
-        size_t match_len, size_t cur_pos, size_t start_pos);
+		 size_t match_len, size_t cur_pos, size_t start_pos);
 
 #endif /* _MAP2GTF_H_ */

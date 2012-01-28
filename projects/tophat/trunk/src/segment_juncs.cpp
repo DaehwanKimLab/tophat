@@ -3495,10 +3495,9 @@ void find_gaps(RefSequenceTable& rt,
   // many false splice junctions.
   if (bowtie2)
     {
-      const size_t max_seg_hits = max_multihits * 2;
       for (size_t s = 0; s < hits_for_read.size(); ++s)
 	{
-	  if (hits_for_read[s].hits.size() > max_seg_hits)
+	  if (hits_for_read[s].hits.size() > max_seg_multihits)
 	    return;
 	}
     }

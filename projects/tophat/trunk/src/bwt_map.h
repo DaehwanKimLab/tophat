@@ -491,7 +491,7 @@ BowtieHit(uint32_t ref_id,
   void end(bool end) { _end = end; }
   
   // this is for debugging purpose
-  bool check_editdist_consistency(const RefSequenceTable& rt);
+  bool check_editdist_consistency(const RefSequenceTable& rt, bool bDebug = false);
   
 private:
   
@@ -1196,7 +1196,7 @@ public:
 		    // when it comes to convert from qual in color to qual in bp,
 		    // we need to fill in the two extream qual values using the adjacent qual values.
 		    size_t qual_len = strlen(qual);
-		    if (color && !color_out && qual_len > 2) {
+		    if (color && qual_len > 2) {
 			  qual[0] = qual[1];
 			  qual[qual_len-1] = qual[qual_len-2];
 			  }
@@ -1248,7 +1248,8 @@ void print_bamhit(GBamWriter& wbam,
 		  const char* ref_name2,
 		  const char* sequence,
 		  const char* qualities,
-		  bool from_bowtie = false);
+		  bool from_bowtie = false,
+		  const vector<string>* extra_fields = NULL);
 
 
 void extract_partial_hits(const BowtieHit& bh, const string& seq, const string& qual,
@@ -1259,5 +1260,14 @@ void extract_partial_hits(const BowtieHit& bh, const string& seq, const string& 
  * Convert a vector of CigarOps to a string representation 
  */
 std::string print_cigar(const vector<CigarOp>& bh_cigar);
+
+/**
+ * Calculate bowtie (1 or 2) related extra SAM fields such as
+ * AS:i (alignment score)
+ * MD:Z 
+ * NM:i
+ * etc
+ */
+void bowtie_sam_extra(const BowtieHit& bh, const RefSequenceTable& rt, vector<string>& fields);
 
 #endif
