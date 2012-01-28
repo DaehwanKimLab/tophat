@@ -44,7 +44,7 @@
 int difference(const string& first, const string& second)
 {
   int len = seqan::length(first);
-  if (len != seqan::length(second))
+  if (len != (int)seqan::length(second))
     return 0;
 
   int min_value = 10000;

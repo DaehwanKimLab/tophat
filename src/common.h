@@ -28,6 +28,13 @@
 
 extern bool bowtie2;
 extern int bowtie2_min_score;
+extern int bowtie2_max_penalty;
+extern int bowtie2_min_penalty;
+extern int bowtie2_penalty_for_N;
+extern int bowtie2_read_gap_open;
+extern int bowtie2_read_gap_cont;
+extern int bowtie2_ref_gap_open;
+extern int bowtie2_ref_gap_cont;
 
 // daehwan - temporary for parallelization
 extern bool parallel;
@@ -77,6 +84,7 @@ extern ReadFormat reads_format;
 
 extern bool verbose;
 extern unsigned int max_multihits;
+extern unsigned int max_seg_multihits;
 extern bool no_closure_search;
 extern bool no_coverage_search;
 extern bool no_microexon_search;
@@ -100,8 +108,9 @@ extern bool phred64_quals;
 extern bool quals;
 extern bool integer_quals;
 extern bool color;
-extern bool color_out;
 extern std::string gtf_juncs;
+
+extern bool report_secondary_alignments;
 
 //prep_reads only: --flt-reads <bowtie-fastq_for--max>
 //  filter out reads if their numeric ID is in this fastq file

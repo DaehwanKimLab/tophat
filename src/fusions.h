@@ -172,7 +172,7 @@ FusionStat() :
 
     if (other_fusion.count > 0)
       {
-	symm == other_fusion.symm;
+	symm = other_fusion.symm;
 	chr1_seq = other_fusion.chr1_seq;
 	chr2_seq = other_fusion.chr2_seq;
 	diffs = other_fusion.diffs;

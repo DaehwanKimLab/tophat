@@ -89,6 +89,7 @@ Options:
                                                  files for color space reads]
 
 Advanced Options:
+    --report-secondary-alignments
     --genome-read-mismatches       <int>       [ default: 2                ]
     -N/--read-mismatches           <int>       [ default: 2                ]
     --segment-mismatches           <int>       [ default: 2                ]
@@ -105,6 +106,8 @@ Advanced Options:
     --no-convert-bam                           (Do not convert to bam format.
                                                 Output is <output_dir>accepted_hit.sam.
                                                 Implies --no-sort-bam)
+    --keep-fasta-order
+    --allow-partial-mapping
 
 Bowtie2 related options:
   Preset options in --end-to-end mode (local alignment is not used in TopHat2)
@@ -168,18 +171,13 @@ unmapped_reads_fifo = None # if use_BWT_FIFO is True, this tricks bowtie into wr
 samtools_path = None
 bowtie_path = None
 fail_str = "\t[FAILED]\n"
-
-sam_header = tmp_dir + "stub_header.sam"
-
 gtf_juncs = None #file name with junctions extracted from given GFF file
-
 
 # TopHatParams captures all of the runtime paramaters used by TopHat, and many
 # of these are passed as command line options to exectubles run by the pipeline
 
 # This class and its nested classes also do options parsing through parse_options()
 # and option validation via the member function check()
-
 
 class BowtieOutputFiles:
     def __init__(self,
@@ -297,7 +295,6 @@ class TopHatParams:
                      quals,
                      integer_quals,
                      color,
-                     color_out,
                      library_type,
                      seed_length,
                      reads_format,
@@ -316,7 +313,6 @@ class TopHatParams:
             self.quals = quals
             self.integer_quals = integer_quals
             self.color = color
-            self.color_out = color_out
             self.library_type = library_type
             self.seed_length = seed_length
             self.reads_format = reads_format
@@ -343,8 +339,6 @@ class TopHatParams:
                     self.integer_quals = True
                 elif option in ("-C", "--color"):
                     self.color = True
-                elif option == "--color-out":
-                    self.color_out = True
                 elif option == "--library-type":
                     self.library_type = value
                 elif option in ("-s", "--seed-length"):
@@ -567,7 +561,6 @@ class TopHatParams:
                                            False,               # quals
                                            None,                # integer quals
                                            False,               # SOLiD - color space
-                                           False,               # SOLiD - color out instead of base pair,
                                            "",                  # library type (e.g. "illumina-stranded-pair-end")
                                            None,                # seed_length
                                            "fastq",             # quality_format
@@ -609,6 +602,7 @@ class TopHatParams:
         self.find_GFF_juncs = True
         self.max_hits = 20
         self.t_max_hits = 60
+        self.max_seg_hits = 40
         self.prefilter_multi = False
         self.genome_read_mismatches = 2
         self.max_read_mismatches = 2
@@ -624,6 +618,11 @@ class TopHatParams:
         self.closure_search = False
         self.microexon_search = False
         self.butterfly_search = None
+        self.report_secondary_alignments = False
+
+        self.keep_fasta_order = False
+        self.partial_mapping = False
+        
         self.fusion_search = False
         self.fusion_anchor_length = 20
         self.fusion_min_dist = 10000000
@@ -685,6 +684,7 @@ class TopHatParams:
                "--min-isoform-fraction", str(self.splice_constraints.min_isoform_fraction),
                "--output-dir", output_dir,
                "--max-multihits", str(self.max_hits),
+               "--max-seg-multihits", str(self.max_seg_hits),
                "--segment-length", str(self.segment_length),
                "--segment-mismatches", str(self.segment_mismatches),
                "--min-closure-exon", str(self.search_params.min_closure_exon_length),
@@ -695,7 +695,6 @@ class TopHatParams:
                "--min-segment-intron", str(self.search_params.min_segment_intron_length),
                "--max-segment-intron", str(self.search_params.max_segment_intron_length),
                "--max-mismatches", str(self.max_read_mismatches),
-               "--sam-header", sam_header,
                "--max-insertion-length", str(self.max_insertion_length),
                "--max-deletion-length", str(self.max_deletion_length)]
 
@@ -735,8 +734,6 @@ class TopHatParams:
             cmd.append("--integer-quals")
         if self.read_params.color:
             cmd.append("--color")
-            if self.read_params.color_out:
-                cmd.append("--color-out")
         if self.read_params.library_type:
             cmd.extend(["--library-type", self.read_params.library_type])
         if self.read_params.read_group_id:
@@ -761,7 +758,6 @@ class TopHatParams:
                                          "quals",
                                          "integer-quals",
                                          "color",
-                                         "color-out",
                                          "library-type=",
                                          "num-threads=",
                                          "splice-mismatches=",
@@ -828,6 +824,9 @@ class TopHatParams:
                                          "deletions=",
                                          "no-sort-bam",
                                          "no-convert-bam",
+                                         "report-secondary-alignments",
+                                         "keep-fasta-order",
+                                         "allow-partial-mapping",
                                          "b2-very-fast",
                                          "b2-fast",
                                          "b2-sensitive",
@@ -862,7 +861,6 @@ class TopHatParams:
         global output_dir
         global logging_dir
         global tmp_dir
-        global sam_header
 
         custom_tmp_dir = None
         custom_out_dir = None
@@ -877,6 +875,7 @@ class TopHatParams:
                 self.bowtie2 = False
             if option in ("-g", "--max-multihits"):
                 self.max_hits = int(value)
+                self.max_seg_hits = max(10, self.max_hits * 2)
             if option in ("-x", "--transcriptome-max-hits"):
                 self.t_max_hits = int(value)
             if option in ("-G", "--GTF"):
@@ -907,8 +906,6 @@ class TopHatParams:
                 self.fusion_multipairs = int(value)
             if option == "--no-gtf-juncs":
                 self.find_GFF_juncs = False
-            #if option == "--skip-check-reads":
-            #    self.skip_check_reads = True
             if option == "--no-coverage-search":
                 self.coverage_search = False
             if option == "--coverage-search":
@@ -943,6 +940,12 @@ class TopHatParams:
                 self.raw_insertions = value
             if option == "--deletions":
                 self.raw_deletions = value
+            if option == "--report-secondary-alignments":
+                self.report_secondary_alignments = True
+            if option == "--keep-fasta-order":
+                self.keep_fasta_order = True
+            if option == "--allow-partial-mapping":
+                self.partial_mapping = True
             if option in ("-o", "--output-dir"):
                 custom_out_dir = value + "/"
             if option == "--tmp-dir":
@@ -1167,13 +1170,15 @@ def get_bowtie_version(is_bowtie2):
            errmsg+="Error: bowtie not found on this system"
        die(errmsg)
 
-def get_index_sam_header(is_bowtie2, read_params, idx_prefix, sort = True):
+def get_index_sam_header(params, idx_prefix):
     try:
-        bowtie_sam_header_filename = tmp_dir+idx_prefix.split('/')[-1]+".bwt.samheader.sam"
-        bowtie_sam_header_file = open(bowtie_sam_header_filename,"w")
-
+        temp_sam_header_filename = tmp_dir + "temp.samheader.sam"
+        temp_sam_header_file = open(temp_sam_header_filename, "w")
+        
         bowtie_header_cmd = [bowtie_path]
-        if not is_bowtie2:
+
+        read_params = params.read_params
+        if not params.bowtie2:
             bowtie_header_cmd += ["--sam"]
 
         if read_params.color:
@@ -1181,21 +1186,19 @@ def get_index_sam_header(is_bowtie2, read_params, idx_prefix, sort = True):
 
         bowtie_header_cmd.extend([idx_prefix, '/dev/null'])
         subprocess.call(bowtie_header_cmd,
-                   stdout=bowtie_sam_header_file,
+                   stdout=temp_sam_header_file,
                    stderr=open('/dev/null'))
 
-        bowtie_sam_header_file.close()
+        temp_sam_header_file.close()
+        temp_sam_header_file = open(temp_sam_header_filename, "r")
 
-        if not sort:
-            return bowtie_sam_header_filename
-
-        bowtie_sam_header_file = open(bowtie_sam_header_filename, "r")
-        sam_header_file = open(sam_header, "w")
+        bowtie_sam_header_filename = tmp_dir + idx_prefix.split('/')[-1] + ".bwt.samheader.sam"
+        bowtie_sam_header_file = open(bowtie_sam_header_filename, "w")
 
         preamble = []
         sq_dict_lines = []
 
-        for line in bowtie_sam_header_file.readlines():
+        for line in temp_sam_header_file.readlines():
             line = line.strip()
             if line.find("@SQ") != -1:
                 # Sequence dictionary record
@@ -1213,9 +1216,8 @@ def get_index_sam_header(is_bowtie2, read_params, idx_prefix, sort = True):
                 continue
             else:
                 preamble.append(line)
-        #for line in preamble:
-        #    print >> sam_header_file, line
-        print >> sam_header_file, "@HD\tVN:1.0\tSO:coordinate"
+
+        print >> bowtie_sam_header_file, "@HD\tVN:1.0\tSO:coordinate"
         if read_params.read_group_id and read_params.sample_id:
             rg_str = "@RG\tID:%s\tSM:%s" % (read_params.read_group_id,
                                             read_params.sample_id)
@@ -1234,17 +1236,18 @@ def get_index_sam_header(is_bowtie2, read_params, idx_prefix, sort = True):
             if read_params.seq_platform:
                 rg_str += "\tPL:%s" % read_params.seq_platform
 
-            print >> sam_header_file, rg_str
+            print >> bowtie_sam_header_file, rg_str
 
-        sq_dict_lines.sort(lambda x,y: cmp(x[0],y[0]))
+        if not params.keep_fasta_order:
+            sq_dict_lines.sort(lambda x,y: cmp(x[0],y[0]))
+            
         for [name, line] in sq_dict_lines:
-            print >> sam_header_file, line
-        print >> sam_header_file, "@PG\tID:TopHat\tVN:%s\tCL:%s" % (get_version(), run_cmd)
+            print >> bowtie_sam_header_file, line
+        print >> bowtie_sam_header_file, "@PG\tID:TopHat\tVN:%s\tCL:%s" % (get_version(), run_cmd)
 
-        sam_header_file.close()
-
-        copy(sam_header, bowtie_sam_header_filename)
-        return sam_header
+        bowtie_sam_header_file.close()
+        temp_sam_header_file.close()
+        return bowtie_sam_header_filename
 
     except OSError, o:
        errmsg=fail_str+str(o)+"\n"
@@ -1621,7 +1624,6 @@ def check_reads_format(params, reads_files):
                                    params.read_params.quals,
                                    params.read_params.integer_quals,
                                    params.read_params.color,
-                                   params.read_params.color_out,
                                    params.read_params.library_type,
                                    #seed_len,
                                    params.read_params.seed_length,
@@ -1812,10 +1814,6 @@ def bowtie(params,
         bowtie_str += "2"
 
     if seg_mapping:
-        # we multiply max_hits by 2 when mapping segments
-        # this multiplication factor (2) is also assumed in segment_juncs and long_spanning_reads,
-        # which means "2" should not be changed without modifying those sub-programs.
-        params.max_hits *= 2
         if not params.bowtie2:
             backup_bowtie_alignment_option = params.bowtie_alignment_option
             params.bowtie_alignment_option = "-v"
@@ -1863,7 +1861,7 @@ def bowtie(params,
            unzip_cmd=[ prog_path('bam2fastx') ]
            if reads_format:
               unzip_cmd.append("--" + reads_format)
-           unzip_cmd+=[reads_list]
+           unzip_cmd+=[reads_list[0]]
 
         if use_zpacker and (unzip_cmd is None):
           unzip_cmd=[ params.system_params.zipper ]
@@ -1924,9 +1922,13 @@ def bowtie(params,
 
         fix_map_cmd += ["--index-outfile", mapped_reads + ".index"]
 
-        max_hits = params.max_hits
         if t_mapping:
-          max_hits = params.t_max_hits
+            max_hits = params.t_max_hits
+        elif seg_mapping:
+            max_hits = params.max_seg_hits
+        else:
+            max_hits = params.max_hits
+            
         if num_mismatches > 3:
            num_mismatches = 3
 
@@ -2004,6 +2006,7 @@ def bowtie(params,
         shellcmd=""
         unzip_proc=None
         samzip_proc=None
+
         if multihits_out:
            #special prefilter bowtie run: we use prep_reads on the fly
            #in order to get multi-mapped reads to exclude later
@@ -2027,7 +2030,8 @@ def bowtie(params,
                if bam_input:
                    unzip_proc = subprocess.Popen(unzip_cmd, stdout=subprocess.PIPE)
                    shellcmd=' '.join(unzip_cmd) + "|"
-               bowtie_cmd += [reads_file]
+               else:
+                   bowtie_cmd += [reads_file]
                bowtie_proc = subprocess.Popen(bowtie_cmd,
                                      stdout=subprocess.PIPE,
                                      stderr=bwt_log)
@@ -2088,7 +2092,6 @@ def bowtie(params,
         open(multihits_out, "w").close()
 
     if seg_mapping:
-        params.max_hits /= 2
         if not params.bowtie2:
             params.bowtie_alignment_option = backup_bowtie_alignment_option
 
@@ -2175,6 +2178,11 @@ def build_juncs_index(is_bowtie2,
     insertions_file_list = ",".join(external_insertions)
     deletions_file_list = ",".join(external_deletions)
     fusions_file_list = ",".join(external_fusions)
+
+    # do not use insertions and deletions in case of Bowtie2
+    if is_bowtie2:
+        insertions_file_list = "/dev/null"
+        deletions_file_list = "/dev/null"
 
     juncs_db_log = open(logging_dir + "juncs_db.log", "w")
 
@@ -2297,6 +2305,10 @@ def compile_reports(params, sam_header_filename, ref_fasta, mappings, readfiles,
     alignments_output_filename = tmp_dir + "accepted_hits"
 
     report_cmd.extend(params.cmd())
+    report_cmd += ["--sam-header", sam_header_filename]
+    if params.report_secondary_alignments:
+        report_cmd += ["--report-secondary-alignments"]
+    
     report_cmd.extend(["--samtools="+samtools_path])
     report_cmd.extend([ref_fasta,
                        junctions,
@@ -2551,6 +2563,7 @@ def split_reads(reads_filename,
 # Find possible splice junctions using the "closure search" strategy, and report
 # them in closures.juncs.  Calls the executable closure_juncs
 def junctions_from_closures(params,
+                            sam_header_filename,
                             left_maps,
                             right_maps,
                             ref_fasta):
@@ -2578,7 +2591,8 @@ def junctions_from_closures(params,
     right_maps = ','.join(right_maps)
 
     juncs_cmd.extend(params.cmd())
-    juncs_cmd.extend([juncs_out,
+    juncs_cmd.extend(["--sam-header", sam_header_filename,
+                      juncs_out,
                       fusions_out,
                       ref_fasta,
                       left_maps,
@@ -2603,6 +2617,7 @@ def junctions_from_closures(params,
 # segment.insertions, and segment.deletions.  Calls the executable
 # segment_juncs
 def junctions_from_segments(params,
+                            sam_header_filename,
                             left_reads,
                             left_reads_map,
                             left_seg_maps,
@@ -2626,15 +2641,16 @@ def junctions_from_segments(params,
     segj_cmd = [prog_path("segment_juncs")]
 
     segj_cmd.extend(params.cmd())
-    segj_cmd.extend(["--ium-reads", ",".join(unmapped_reads),
-                      ref_fasta,
-                      juncs_out,
-                      insertions_out,
-                      deletions_out,
-                      fusions_out,
-                      left_reads,
-                      left_reads_map,
-                      left_maps])
+    segj_cmd.extend(["--sam-header", sam_header_filename,
+                     "--ium-reads", ",".join(unmapped_reads),
+                     ref_fasta,
+                     juncs_out,
+                     insertions_out,
+                     deletions_out,
+                     fusions_out,
+                     left_reads,
+                     left_reads_map,
+                     left_maps])
     if right_seg_maps:
         right_maps = ','.join(right_seg_maps)
         segj_cmd.extend([right_reads, right_reads_map, right_maps])
@@ -2687,6 +2703,22 @@ def join_mapped_segments(params,
     align_cmd = [prog_path("long_spanning_reads")]
 
     align_cmd.extend(params.cmd())
+    align_cmd += ["--sam-header", sam_header_filename]
+
+    b2_params = params.bowtie2_params
+    max_penalty, min_penalty = b2_params.mp.split(',')
+    align_cmd += ["--bowtie2-max-penalty", max_penalty,
+                  "--bowtie2-min-penalty", min_penalty]
+
+    align_cmd += ["--bowtie2-penalty-for-N", str(b2_params.np)]
+
+    read_gap_open, read_gap_cont = b2_params.rdg.split(',')
+    align_cmd += ["--bowtie2-read-gap-open", read_gap_open,
+                  "--bowtie2-read-gap-cont", read_gap_cont]
+
+    ref_gap_open, ref_gap_cont = b2_params.rfg.split(',')
+    align_cmd += ["--bowtie2-ref-gap-open", ref_gap_open,
+                  "--bowtie2-ref-gap-cont", ref_gap_cont]
 
     align_cmd.append(ref_fasta)
     align_cmd.extend([reads,
@@ -2723,7 +2755,7 @@ class Maps:
             self.segs = segs
 
 # Map2GTF stuff
-def m2g_convert_coords(params, gtf_fname, reads, out_fname):
+def m2g_convert_coords(params, sam_header_filename, gtf_fname, reads, out_fname):
     """ajjkljlks
 
     Arguments:
@@ -2734,6 +2766,7 @@ def m2g_convert_coords(params, gtf_fname, reads, out_fname):
     """
     m2g_cmd = [prog_path("map2gtf")]
     m2g_cmd.extend(params.cmd())
+    m2g_cmd += ["--sam-header", sam_header_filename]
     m2g_cmd.append(gtf_fname)
     m2g_cmd.append(reads) #could be BAM file
     m2g_cmd.append(out_fname)
@@ -2783,7 +2816,7 @@ def gtf_to_fasta(params, trans_gtf, genome, out_fname):
         err_msg = fail_str + str(o)
         die(err_msg + "\n")
 
-def map2gtf(params, ref_fasta, left_reads, right_reads):
+def map2gtf(params, genome_sam_header_filename, ref_fasta, left_reads, right_reads):
     """ Main GTF mapping function
 
     Arguments:
@@ -2810,10 +2843,10 @@ def map2gtf(params, ref_fasta, left_reads, right_reads):
          t_out_dir=params.transcriptome_outdir+"/"
        m2g_ref_fasta = t_out_dir + gtf_name + ".fa"
        gtf_to_fasta(params, params.gff_annotation, ref_fasta, m2g_ref_fasta)
-       # trans_hash = transcripts_to_fasta(transcripts,
-       #                                   ref_fasta,
-       #                                   m2g_ref_fasta)
        m2g_bwt_idx = build_idx_from_fa(params.bowtie2, m2g_ref_fasta, t_out_dir, params.read_params.color)
+
+    get_index_sam_header(params, m2g_bwt_idx)
+    
     mapped_gtf_list = []
     unmapped_gtf_list = []
     # do the initial mapping in GTF coordinates
@@ -2845,6 +2878,7 @@ def map2gtf(params, ref_fasta, left_reads, right_reads):
         fbasename = getFileBaseName(reads)
         sam_out_fname = tmp_dir + fbasename + "_converted.bam"
         m2g_convert_coords(params,
+                           genome_sam_header_filename,
                            params.gff_annotation,
                            reads,
                            sam_out_fname)
@@ -2945,7 +2979,7 @@ def spliced_alignment(params,
 
     if params.gff_annotation:
         (mapped_gtf_list, unmapped_gtf_list) = \
-            map2gtf(params, ref_fasta, left_reads, right_reads)
+            map2gtf(params, sam_header_filename, ref_fasta, left_reads, right_reads)
 
         m2g_left_maps, m2g_right_maps = mapped_gtf_list
         m2g_maps = [m2g_left_maps, m2g_right_maps]
@@ -3097,6 +3131,7 @@ def spliced_alignment(params,
         #      or perhaps the GTF file directly
         #      -> this could improve alternative junction detection?
         juncs = junctions_from_segments(params,
+                                        sam_header_filename,
                                         left_reads,
                                         left_reads_map,
                                         left_seg_maps,
@@ -3120,6 +3155,7 @@ def spliced_alignment(params,
         # discover addtional junctions
         if params.closure_search and left_reads and right_reads:
             juncs = junctions_from_closures(params,
+                                            sam_header_filename,
                                             [maps[initial_reads[left_reads]].unspliced_sam, maps[initial_reads[left_reads]].seg_maps[-1]],
                                             [maps[initial_reads[right_reads]].unspliced_sam, maps[initial_reads[right_reads]].seg_maps[-1]],
                                             ref_fasta)
@@ -3154,7 +3190,7 @@ def spliced_alignment(params,
                                           ref_fasta,
                                           params.read_params.color)
 
-        juncs_bwt_samheader = get_index_sam_header(params.bowtie2, params.read_params, juncs_bwt_idx, False)
+        juncs_bwt_samheader = get_index_sam_header(params, juncs_bwt_idx)
 
     # Now map read segments (or whole IUM reads, if num_segs == 1) to the splice
     # index with Bowtie
@@ -3219,8 +3255,10 @@ def spliced_alignment(params,
             # the correct spliced alignment.
 
             try:
-                merge_cmd = [ prog_path("bam_merge"), "--index-outfile", merged_map + ".index",
-                              merged_map ]
+                merge_cmd = [prog_path("bam_merge"),
+                             "--index-outfile", merged_map + ".index",
+                             "--sam-header", sam_header_filename,
+                             merged_map]
 
                 if num_segs > 1:
                     merge_cmd += [ maps[ri].unspliced_sam ]
@@ -3389,7 +3427,7 @@ def main(argv=None):
         check_bowtie(params.bowtie2)
         check_samtools()
         th_log("Generating SAM header for "+bwt_idx_prefix)
-        sam_header_filename = get_index_sam_header(params.bowtie2, params.read_params, bwt_idx_prefix)
+        sam_header_filename = get_index_sam_header(params, bwt_idx_prefix)
         #if not params.skip_check_reads:
         reads_list = left_reads_list
         if right_reads_list:

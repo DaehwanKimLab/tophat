@@ -1120,30 +1120,33 @@ void cigar_add(vector<CigarOp>& cigar, CigarOp& op) {
  cigar.push_back(op);
 }
 
-int spliceCigar(vector<CigarOp>& splcigar, vector<CigarOp>& cigar, vector<bool> mismatches,
-		int &left, int spl_start, int spl_len, CigarOpCode spl_code) {
- //merge the original 'cigar' with the new insert/gap operation
- //at position spl_start and place the result into splcigar;
- //TODO: ideally this should also get and rebuild the MD string (alignment mismatches)
- int spl_mismatches=0;
- //return value: mismatches in the insert region for INS case,
- //or number of mismatches in the anchor region
- //return -1 if somehow the hit seems bad
+bool spliceCigar(vector<CigarOp>& splcigar, vector<CigarOp>& cigar, vector<bool> mismatches,
+		 int &left, int spl_start, int spl_len, CigarOpCode spl_code, int& spl_mismatches) {
+  //merge the original 'cigar' with the new insert/gap operation
+  //at position spl_start and place the result into splcigar;
+  //TODO: ideally this should also get and rebuild the MD string (alignment mismatches)
 
- //these offsets are relative to the beginning of alignment on reference
- int spl_ofs=abs(spl_start-left); //relative position of splice op
- int spl_ofs_end=spl_ofs; //relative position of first ref base AFTER splice op
- CigarOp gapop(spl_code, spl_len); //for DEL, REF_SKIP, FUSIONS
- if (spl_code==INS)
-     spl_ofs_end += spl_len;
- int ref_ofs=0; //working offset on reference
- int read_ofs=0; //working offset on the read, relative to the leftmost aligned base
- bool xfound=false;
- //if (left<=spl_start+spl_len) {
- if (spl_ofs_end>0) {
-     int prev_opcode=0;
-     int prev_oplen=0;
-     for (size_t c = 0 ; c < cigar.size(); ++c)
+  //return value: mismatches in the insert region for INS case,
+  //or number of mismatches in the anchor region
+  //return -1 if somehow the hit seems bad
+  
+  //these offsets are relative to the beginning of alignment on reference
+  int spl_ofs=spl_start-left; //relative position of splice op
+  if (spl_code == FUSION_FF || spl_code == FUSION_FR || spl_code == FUSION_RF || spl_code == FUSION_RR)
+    spl_ofs = abs(spl_ofs);
+  int spl_ofs_end=spl_ofs; //relative position of first ref base AFTER splice op
+  CigarOp gapop(spl_code, spl_len); //for DEL, REF_SKIP, FUSIONS
+  if (spl_code==INS)
+    spl_ofs_end += spl_len;
+  
+  int ref_ofs=0; //working offset on reference
+  int read_ofs=0; //working offset on the read, relative to the leftmost aligned base
+  bool xfound=false;
+  //if (left<=spl_start+spl_len) {
+  if (spl_ofs_end>0) {
+    int prev_opcode=0;
+    int prev_oplen=0;
+    for (size_t c = 0 ; c < cigar.size(); ++c)
       {
         int prev_read_ofs=read_ofs;
         int cur_op_ofs=ref_ofs;
@@ -1184,15 +1187,49 @@ int spliceCigar(vector<CigarOp>& splcigar, vector<CigarOp>& cigar, vector<bool> 
            }
 
         if (cur_op_ofs>=spl_ofs_end || ref_ofs<=spl_ofs) {
-           if (cur_op_ofs==spl_ofs_end && spl_code!=INS)
-              {
-              xfound=true;
-               //we have to insert the gap here first
-              cigar_add(splcigar, gapop);
-              //also, check
-              }
-           cigar_add(splcigar, cigar[c]);
-           }
+	  if (cur_op_ofs==spl_ofs_end) {
+	    if (spl_code!=INS) {
+	      if (cur_opcode!=INS) {
+		xfound=true;
+		//we have to insert the gap here first
+		cigar_add(splcigar, gapop);
+		//also, check
+	      }
+	    }
+	  }
+
+	  CigarOp op(cigar[c]);
+	  if (xfound)
+	    {
+	      if (spl_code == FUSION_FR || spl_code == FUSION_RR)
+		{
+		  if (op.opcode == MATCH)
+		    op.opcode = mATCH;
+		  else if (op.opcode == INS)
+		    op.opcode = iNS;
+		  else if (op.opcode == DEL)
+		    op.opcode = dEL;
+		  else if (op.opcode == REF_SKIP)
+		    op.opcode = rEF_SKIP;
+		}
+	    }
+	  else 
+	    {
+	      if (spl_code == FUSION_RF || spl_code == FUSION_RR)
+		{
+		  if (op.opcode == MATCH)
+		    op.opcode = mATCH;
+		  else if (op.opcode == INS)
+		    op.opcode = iNS;
+		  else if (op.opcode == DEL)
+		    op.opcode = dEL;
+		  else if (op.opcode == REF_SKIP)
+		    op.opcode = rEF_SKIP;
+		}
+	    }
+	  
+	  cigar_add(splcigar, op);
+	}
         else //if (ref_ofs>spl_ofs) {
            { //op intersection
            xfound=true;
@@ -1226,7 +1263,7 @@ int spliceCigar(vector<CigarOp>& splcigar, vector<CigarOp>& cigar, vector<bool> 
                  CigarOp op(cigar[c]);
 		 CigarOpCode opcode = op.opcode;
                  op.length=spl_ofs-cur_op_ofs;
-		 if (gapop.opcode == FUSION_RF || gapop.opcode == FUSION_RR)
+		 if (spl_code == FUSION_RF || spl_code == FUSION_RR)
 		   {
 		     if (opcode == MATCH)
 		       op.opcode = mATCH;
@@ -1242,7 +1279,7 @@ int spliceCigar(vector<CigarOp>& splcigar, vector<CigarOp>& cigar, vector<bool> 
 		 cigar_add(splcigar, gapop);
 
 		 op.opcode = opcode;
-		 if (gapop.opcode == FUSION_FR || gapop.opcode == FUSION_RR)
+		 if (spl_code == FUSION_FR || spl_code == FUSION_RR)
 		   {
 		     if (opcode == MATCH)
 		       op.opcode = mATCH;
@@ -1277,7 +1314,7 @@ int spliceCigar(vector<CigarOp>& splcigar, vector<CigarOp>& cigar, vector<bool> 
    //return spl_mismatches;
   // }
 
- return spl_mismatches;
+   return xfound;
 }
 
 bool SplicedSAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
@@ -1420,8 +1457,13 @@ bool SplicedSAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 
 	vector<CigarOp> splcigar;
 	//this also updates left to the adjusted genomic coordinates
-	int spl_num_mismatches=spliceCigar(splcigar, samcigar, mismatches,
-					   left, left_splice_pos+1, insertedSequence.length(), INS);
+	int spl_num_mismatches=0;
+	bool overlapped = spliceCigar(splcigar, samcigar, mismatches,
+				      left, left_splice_pos+1, insertedSequence.length(),
+				      INS, spl_num_mismatches);
+	
+	if (!overlapped)
+	  return false;
 
 	if (spl_num_mismatches<0) return false;
 	num_mismatches-=spl_num_mismatches;
@@ -1551,8 +1593,12 @@ bool SplicedSAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 
 	CigarOpCode opcode=(toks[num_extra_toks + junction_type_field] == "del")? DEL : REF_SKIP;
 	
-	int spl_num_mismatches=spliceCigar(splcigar, samcigar, mismatches, left,
-					   left_splice_pos+1, gap_len, opcode);
+	int spl_num_mismatches=0;
+	bool overlapped = spliceCigar(splcigar, samcigar, mismatches, left,
+				      left_splice_pos+1, gap_len, opcode, spl_num_mismatches);
+
+	if (!overlapped)
+	  return false;
 
 	if (spl_num_mismatches<0) // || spl_num_mismatches>max_anchor_mismatches)
 	  return false;
@@ -1593,9 +1639,9 @@ bool SplicedSAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 
 
 bool BAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf, 
-				 BowtieHit& bh, bool strip_slash,
-				char* name_out, char* name_tags,
-				char* seq, char* qual) {
+				     BowtieHit& bh, bool strip_slash,
+				     char* name_out, char* name_tags,
+				     char* seq, char* qual) {
   if (_sam_header==NULL)
     err_die("Error: no SAM header when BAMHitFactory::get_hit_from_buf()!");
   const bam1_t* hit_buf = (const bam1_t*)orig_bwt_buf;
@@ -2101,8 +2147,12 @@ bool SplicedBAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 	    
 	    vector<CigarOp> splcigar;
 	    //this also updates left to the adjusted genomic coordinates
-	    int spl_num_mismatches=spliceCigar(splcigar, samcigar, mismatches,
-					       left, left_splice_pos+1, insertedSequence.length(), INS);
+	    int spl_num_mismatches=0;
+	    bool overlapped=spliceCigar(splcigar, samcigar, mismatches,
+					left, left_splice_pos+1, insertedSequence.length(), INS, spl_num_mismatches);
+	    
+	    if (!overlapped)
+	      return false;
 	    
 	    if (spl_num_mismatches<0) return false;
 	    num_mismatches-=spl_num_mismatches;
@@ -2116,6 +2166,14 @@ bool SplicedBAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 			    num_mismatches,
 			    0,
 			    end);
+
+	    // daehwan - remove this
+	    if (samcigar.size() > 1 && false)
+	      {
+		cout << text_name << "\t" << left << endl
+		     << print_cigar(samcigar) << endl
+		     << print_cigar(splcigar) << endl;
+	      }
 	    
 	    return true;
 	  } //"ins"
@@ -2167,9 +2225,13 @@ bool SplicedBAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 	      left_splice_pos -= 1;
 	    else
 	      left_splice_pos += 1;
-	    
-	    int spl_num_mismatches=spliceCigar(splcigar, samcigar, mismatches, left,
-					       left_splice_pos, gap_len, opcode);
+
+	    int spl_num_mismatches=0;
+	    bool overlapped=spliceCigar(splcigar, samcigar, mismatches, left,
+					left_splice_pos, gap_len, opcode, spl_num_mismatches);
+
+	    if (!overlapped)
+	      return false;
 	    
 	    if (spl_num_mismatches<0) // || spl_num_mismatches>max_anchor_mismatches)
 	      return false;
@@ -2199,6 +2261,14 @@ bool SplicedBAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 			    num_mismatches,
 			    spl_num_mismatches,
 			    end);
+
+	    // daehwan - remove this
+	    if (samcigar.size() > 1 && false)
+	      {
+		cout << text_name << "\t" << left << endl
+		     << print_cigar(samcigar) << endl
+		     << print_cigar(splcigar) << endl;
+	      }
 
 	    return true;
 	  }
@@ -2330,228 +2400,6 @@ void add_hit_to_coverage(const BowtieHit& bh, vector<unsigned int>& DoC)
 	}
 }
 
-void print_hit(FILE* fout, 
-	       const char* read_name,
-	       const BowtieHit& bh,
-	       const char* ref_name,
-	       const char* ref_name2,
-	       const char* sequence,
-	       const char* qualities)
-{
-  string seq;
-  string quals;
-  if (sequence)
-    {
-      seq = sequence;
-      quals = qualities;
-      seq.resize(bh.read_len());
-      quals.resize(bh.read_len());
-    }
-  else
-    {
-      seq = "*";
-    }
-  
-  if (qualities)
-    {
-      quals = qualities;
-      quals.resize(bh.read_len());
-    }
-  else
-    {
-      quals = "*";	
-    }
-  
-  uint32_t sam_flag = 0;
-  if (bh.antisense_align())
-    {
-      sam_flag |= 0x0010; // BAM_FREVERSE
-    }
-  
-  int left = bh.left();
-  
-  uint32_t map_quality = 255;
-  char cigar[256] = {0};
-  string mate_ref_name = "*";
-  uint32_t mate_pos = 0;
-  uint32_t insert_size = 0;
-  
-  const vector<CigarOp>& bh_cigar = bh.cigar();
-  
-  /*
-   * In addition to calculating the cigar string,
-   * we need to figure out how many in/dels are in the 
-   * sequence, so that we can give the correct
-   * value for the NM tag
-   */
-  int indel_distance = 0;
-  CigarOpCode fusion_dir = FUSION_NOTHING;
-  for (size_t c = 0; c < bh_cigar.size(); ++c)
-    {
-      const CigarOp& op = bh_cigar[c];
-
-      char ibuf[64];
-      sprintf(ibuf, "%d", op.length);
-      switch(op.opcode)
-	{
-	case MATCH:
-	case mATCH:
-	  strcat(cigar, ibuf);
-	  if (bh_cigar[c].opcode == MATCH)
-	    strcat(cigar, "M");
-	  else
-	    strcat(cigar, "m");
-	  break;
-	case INS:
-	case iNS:
-	  strcat(cigar, ibuf);
-	  if (bh_cigar[c].opcode == INS)
-	    strcat(cigar, "I");
-	  else
-	    strcat(cigar, "i");
-	  indel_distance += bh_cigar[c].length;
-	  break;
-	case DEL:
-	case dEL:
-	  strcat(cigar, ibuf);
-	  if (bh_cigar[c].opcode == DEL)
-	    strcat(cigar, "D");
-	  else
-	    strcat(cigar, "d");
-	  indel_distance += bh_cigar[c].length;
-	  break;
-	case REF_SKIP:
-	case rEF_SKIP:
-	  strcat(cigar, ibuf);
-	  if (bh_cigar[c].opcode == REF_SKIP)
-	    strcat(cigar, "N");
-	  else
-	    strcat(cigar, "n");
-	  break;
-	case FUSION_FF:
-	case FUSION_FR:
-	case FUSION_RF:
-	case FUSION_RR:
-	  fusion_dir = op.opcode;
-	  sprintf(ibuf, "%d", bh_cigar[c].length + 1);
-	  strcat(cigar, ibuf);
-	  strcat(cigar, "F");
-	  break;
-	default:
-	  break;
-	}
-    }
-
-  char cigar1[256] = {0}, cigar2[256] = {0};
-  string left_seq, right_seq, left_qual, right_qual;
-  int left1 = -1, left2 = -1;
-  extract_partial_hits(bh, seq, quals,
-		       cigar1, cigar2, left_seq, right_seq,
-		       left_qual, right_qual, left1, left2);
-
-  
-  bool containsSplice = false;
-  for (vector<CigarOp>::const_iterator itr = bh.cigar().begin(); itr != bh.cigar().end(); ++itr)
-    {
-      if (itr->opcode == REF_SKIP || itr->opcode == rEF_SKIP)
-	{
-	  containsSplice = true;
-	  break;
-	}
-    }
-  
-  if (fusion_dir != FUSION_NOTHING)
-    {
-      fprintf(fout,
-	      "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\t",
-	      read_name,
-	      sam_flag,
-	      ref_name,
-	      left1 + 1,
-	      map_quality,
-	      cigar1,
-	      mate_ref_name.c_str(),
-	      mate_pos,
-	      insert_size,
-	      left_seq.c_str(),
-	      left_qual.c_str(),
-	      bh.edit_dist() + indel_distance);
-
-      if (containsSplice)
-	{
-	  fprintf(fout,
-		  "XS:A:%c\t",
-		  bh.antisense_splice() ? '-' : '+');
-	}
-
-      fprintf(fout,
-	      "FR:Z:1 %s-%s %d %s %s %s\n",
-	      ref_name,
-	      ref_name2,
-	      left + 1,
-	      cigar,
-	      seq.c_str(),
-	      quals.c_str());
-      
-      fprintf(fout,
-	      "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\t",
-	      read_name,
-	      sam_flag,
-	      ref_name2,
-	      left2 + 1,
-	      map_quality,
-	      cigar2,
-	      mate_ref_name.c_str(),
-	      mate_pos,
-	      insert_size,
-	      right_seq.c_str(),
-	      right_qual.c_str(),
-	      bh.edit_dist() + indel_distance);
-
-      if (containsSplice)
-	{
-	  fprintf(fout,
-		  "XS:A:%c\t",
-		  bh.antisense_splice() ? '-' : '+');
-	}      
-
-      fprintf(fout,
-	      "FR:Z:2 %s-%s %d %s %s %s\n",
-	      ref_name,
-	      ref_name2,
-	      left + 1,
-	      cigar,
-	      seq.c_str(),
-	      quals.c_str());
-    }
-  else
-    {
-      fprintf(fout,
-	      "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\t",
-	      read_name,
-	      sam_flag,
-	      ref_name,
-	      left + 1,
-	      map_quality,
-	      cigar,
-	      mate_ref_name.c_str(),
-	      mate_pos,
-	      insert_size,
-	      seq.c_str(),
-	      quals.c_str(),
-	      bh.edit_dist() + indel_distance);
-
-      if (containsSplice)
-	{
-	  fprintf(fout,
-		  "XS:A:%c\t",
-		  bh.antisense_splice() ? '-' : '+');
-	}
-
-      fprintf(fout, "\n");
-    }
-}
-
 void print_bamhit(GBamWriter& wbam,
 		  const char* read_name,
 		  const BowtieHit& bh,
@@ -2559,7 +2407,8 @@ void print_bamhit(GBamWriter& wbam,
 		  const char* ref_name2,
 		  const char* sequence,
 		  const char* qualities,
-		  bool from_bowtie)
+		  bool from_bowtie,
+		  const vector<string>* extra_fields)
 {
   string seq;
   string quals;
@@ -2683,6 +2532,9 @@ void print_bamhit(GBamWriter& wbam,
     }
 
   vector<string> auxdata;
+  if (extra_fields)
+    auxdata.insert(auxdata.end(), extra_fields->begin(), extra_fields->end());
+
   if (!sam_readgroup_id.empty())
     {
       string nm("RG:Z:");
@@ -2730,7 +2582,7 @@ void print_bamhit(GBamWriter& wbam,
 	      quals.c_str());
       auxdata.back() = XF;
      
-      brec = wbam.new_record(read_name, sam_flag, ref_name, left2 + 1, map_quality,
+      brec = wbam.new_record(read_name, sam_flag, ref_name2, left2 + 1, map_quality,
 			     cigar2, mate_ref_name.c_str(), mate_pos,
 			     insert_size, right_seq.c_str(), right_qual.c_str(), &auxdata);
       
@@ -3002,13 +2854,19 @@ void extract_partial_hits(const BowtieHit& bh, const string& seq, const string& 
 }
 
 
-bool BowtieHit::check_editdist_consistency(const RefSequenceTable& rt)
+bool BowtieHit::check_editdist_consistency(const RefSequenceTable& rt, bool bDebug)
 {
   RefSequenceTable::Sequence* ref_str1 = rt.get_seq(_ref_id);
   RefSequenceTable::Sequence* ref_str2 = rt.get_seq(_ref_id2);
   
   if (!ref_str1 || !ref_str2)
     return false;
+
+  if (bDebug)
+    {
+      cout << "check_editdist_consistency" << endl
+	   << "insert id: " << _insert_id << endl;
+    }
   
   RefSequenceTable::Sequence* ref_str = ref_str1;
 
@@ -3026,8 +2884,13 @@ bool BowtieHit::check_editdist_consistency(const RefSequenceTable& rt)
 	    seqan::Dna5String ref_seq = seqan::infix(*ref_str, pos_ref, pos_ref + cigar.length);
 	    for (size_t j = 0; j < cigar.length; ++j)
 	      {
-		if (_seq[pos_seq] != ref_seq[j])
+		seqan::Dna5 ref_nt = _seq[pos_seq];
+		if (ref_nt != ref_seq[j])
 		  ++mismatch;
+
+		if (bDebug)
+		  cout << pos_seq << "\t" << ref_nt << " vs. " << ref_seq[j] << "\t" << mismatch << endl;
+	    
 		++pos_seq;
 	      }
 
@@ -3042,8 +2905,13 @@ bool BowtieHit::check_editdist_consistency(const RefSequenceTable& rt)
 
 	    for (size_t j = 0; j < cigar.length; ++j)
 	      {
-		if (_seq[pos_seq] != ref_seq[j])
+		seqan::Dna5 ref_nt = _seq[pos_seq];
+		if (ref_nt != ref_seq[j])
 		  ++mismatch;
+
+		if (bDebug)
+		  cout << pos_seq << "\t" << ref_nt << " vs. " << ref_seq[j] << "\t" << mismatch << endl;
+	    
 		++pos_seq;
 	      }
 
@@ -3092,5 +2960,179 @@ bool BowtieHit::check_editdist_consistency(const RefSequenceTable& rt)
 	}
     }
 
+  if (bDebug)
+    cout << "mismatch (real) vs. (calculated):" << mismatch << " vs. " << (int)_edit_dist << endl;
+
   return mismatch == _edit_dist;
+}
+
+void bowtie_sam_extra(const BowtieHit& bh, const RefSequenceTable& rt, vector<string>& fields)
+{
+  RefSequenceTable::Sequence* ref_str1 = rt.get_seq(bh.ref_id());
+  RefSequenceTable::Sequence* ref_str2 = rt.get_seq(bh.ref_id2());
+  
+  if (!ref_str1 || !ref_str2)
+    return;
+  
+  RefSequenceTable::Sequence* ref_str = ref_str1;
+
+  size_t pos_seq = 0;
+  size_t pos_mismatch = 0;
+  size_t pos_ref = bh.left();
+  size_t mismatch = 0;
+  size_t num_gap_opens = 0;
+  size_t num_gap_conts = 0;
+  bool bSawFusion = false;
+
+  int AS_score = 0;
+  
+  const vector<CigarOp>& cigars = bh.cigar();
+  const string& seq = bh.seq();
+  const string& qual = bh.qual();
+
+  string AS = "AS:i:";
+  string MD = "MD:Z:";
+  
+  for (size_t i = 0; i < cigars.size(); ++i)
+    {
+      CigarOp cigar = cigars[i];
+      switch(cigar.opcode)
+	{
+	case MATCH:
+	case mATCH:
+	  {
+	    seqan::Dna5String ref_seq;
+	    if (cigar.opcode == MATCH)
+	      {
+		ref_seq = seqan::infix(*ref_str, pos_ref, pos_ref + cigar.length);
+		pos_ref += cigar.length;
+	      }
+	    else
+	      {
+		ref_seq = seqan::infix(*ref_str, pos_ref - cigar.length + 1, pos_ref + 1);
+		seqan::convertInPlace(ref_seq, seqan::FunctorComplement<seqan::Dna>());
+		seqan::reverseInPlace(ref_seq);
+		pos_ref -= cigar.length;
+	      }
+	    
+	    for (size_t j = 0; j < cigar.length; ++j)
+	      {
+		seqan::Dna5 ref_nt = ref_seq[j];
+		if (seq[pos_seq] != ref_nt)
+		  {
+		    ++mismatch;
+
+		    if (pos_seq >= qual.length())
+		      {
+			float penalty = (bowtie2_max_penalty - bowtie2_min_penalty) * min((int)(qual[pos_seq] - '!'), 40) / 40.0;
+			AS_score -= (int)penalty;
+		      }
+
+		    // daehwan - have to implement YS
+
+		    str_appendInt(MD, (int)pos_mismatch);
+		    MD.push_back((char)ref_nt);
+		    pos_mismatch = 0;
+		  }
+		else
+		  ++pos_mismatch;
+		
+		++pos_seq;
+	      }
+	  }
+	  break;
+
+	case INS:
+	case iNS:
+	  {
+	    pos_seq += cigar.length;
+
+	    AS_score -= bowtie2_read_gap_open;
+	    AS_score -= (int)(bowtie2_read_gap_cont * cigar.length);
+
+	    num_gap_opens += 1;
+	    num_gap_conts += cigar.length;
+	  }
+	  break;
+	  
+	case DEL:
+	case dEL:
+	  {
+	    AS_score -= bowtie2_ref_gap_open;
+	    AS_score -= (int)(bowtie2_ref_gap_cont * cigar.length);
+
+	    num_gap_opens += 1;
+	    num_gap_conts += cigar.length;
+	      
+	    seqan::Dna5String ref_seq;
+	    if (cigar.opcode == DEL)
+	      {
+		ref_seq = seqan::infix(*ref_str, pos_ref, pos_ref + cigar.length);
+		pos_ref += cigar.length;
+	      }
+	    else
+	      {
+		ref_seq = seqan::infix(*ref_str, pos_ref - cigar.length + 1, pos_ref + 1);
+		seqan::convertInPlace(ref_seq, seqan::FunctorComplement<seqan::Dna>());
+		seqan::reverseInPlace(ref_seq);
+		pos_ref -= cigar.length;
+	      }
+
+	    str_appendInt(MD, (int)pos_mismatch);
+	    MD.push_back('^');
+	    for (size_t k = 0; k < length(ref_seq); ++k)
+	      MD.push_back((char)ref_seq[k]);
+	    
+	    pos_mismatch = 0;
+	  }
+	  break;
+
+	case REF_SKIP:
+	case rEF_SKIP:
+	  {
+	    if (cigar.opcode == REF_SKIP)
+	      pos_ref += cigar.length;
+	    else
+	      pos_ref -= cigar.length;
+	  }
+	  break;
+
+	case FUSION_FF:
+	case FUSION_FR:
+	case FUSION_RF:
+	case FUSION_RR:
+	  {
+	    // We don't allow a read spans more than two chromosomes.
+	    if (bSawFusion)
+	      return;
+
+	    ref_str = ref_str2;  
+	    pos_ref = cigar.length;
+
+	    bSawFusion = true;
+	  }
+	  break;
+
+	default:
+	  break;
+	}
+    }
+
+  str_appendInt(AS, AS_score);
+  fields.push_back(AS);
+
+  string XM = "XM:i:";
+  str_appendInt(XM, (int)mismatch);
+  fields.push_back(XM);
+
+  string XO = "XO:i:";
+  str_appendInt(XO, (int)num_gap_opens);
+  fields.push_back(XO);
+
+  string XG = "XG:i:";
+  str_appendInt(XG, (int)num_gap_conts);
+  fields.push_back(XG);
+
+  str_appendInt(MD, (int)pos_mismatch);
+  fields.push_back(MD);
 }
