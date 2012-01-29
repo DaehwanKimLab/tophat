@@ -185,12 +185,16 @@ enum FragmentType {FRAG_UNPAIRED, FRAG_LEFT, FRAG_RIGHT};
 void add_auxData(vector<string>& auxdata, vector<string>& sam_toks,
                  const RefSequenceTable& rt,const BowtieHit& bh, FragmentType insert_side,
                  int num_hits, const BowtieHit* next_hit, int hitIndex) {
-  
+  bool XS_found = false;
   if (sam_toks.size()>11) {
+    
     for (size_t i=11;i<sam_toks.size();++i) {
       if (sam_toks[i].find("NH:i:")==string::npos &&
 	  sam_toks[i].find("XS:i:")==string::npos)
 	auxdata.push_back(sam_toks[i]);
+
+      if (sam_toks[i].find("XS:A:")!=string::npos)
+	XS_found = true;
     }
   }
   string aux("NH:i:");
@@ -213,9 +217,9 @@ void add_auxData(vector<string>& auxdata, vector<string>& sam_toks,
     // consistency check that the mates are on opposite strands - a current protocol
     // requirement, and that the strand indicated by the alignment is consistent
     // with the orientation of the splices (though that should be handled upstream).
-  const string xs_f("XS:A:+");
-  const string xs_r("XS:A:-");
-  if (bh.contiguous())  {
+  if (!XS_found) {
+    const string xs_f("XS:A:+");
+    const string xs_r("XS:A:-");
     if (library_type == FR_FIRSTSTRAND) {
       if (insert_side == FRAG_LEFT || insert_side == FRAG_UNPAIRED) {
 	if (bh.antisense_align())
@@ -245,7 +249,7 @@ void add_auxData(vector<string>& auxdata, vector<string>& sam_toks,
 	    auxdata.push_back(xs_r);
 	}
     }
-  } //bh.contiguous()
+  }
   if (hitIndex >= 0)
     {
       string aux("HI:i:");

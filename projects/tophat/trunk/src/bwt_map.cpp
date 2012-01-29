@@ -2547,9 +2547,23 @@ void print_bamhit(GBamWriter& wbam,
   auxdata.push_back(nm);
   
   if (containsSplice) {
-    nm="XS:A:";
-    nm+=(char)(bh.antisense_splice() ? '-' : '+');
-    auxdata.push_back(nm);
+    // do not add more than once
+    bool XS_found = false;
+    for (size_t i = 0; i < auxdata.size(); ++i)
+      {
+	if (auxdata[i].substr(0, 2) == "XS")
+	  {
+	    XS_found = true;
+	    break;
+	  }
+      }
+
+    if (!XS_found)
+      {
+	nm="XS:A:";
+	nm+=(char)(bh.antisense_splice() ? '-' : '+');
+	auxdata.push_back(nm);
+      }
   }
   
   if (fusion_dir != FUSION_NOTHING)

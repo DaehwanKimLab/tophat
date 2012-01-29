@@ -108,6 +108,10 @@ void Map2GTF::convert_coords(std::string out_fname, std::string sam_header)
 	      converted_out.aux_fields.push_back(aux);
 	    }
 
+	  string strand = "XS:A:";
+	  strand.push_back(converted_out.trans->strand);
+	  converted_out.aux_fields.push_back(strand);
+
 	  read_list.push_back(converted_out);
         }
       
@@ -219,7 +223,6 @@ void trans_to_genomic_coords(const char* read_name, HitFactory* hitFactory,
 	  }
       }
 
-    // daehwan - why don't we set antisense_splice flag?  we know the transcripts.
     bool antisense_splice = (spliced && out.trans->strand=='-'); //transcript strand <=> splice strand (if spliced)
     read_start -= 1; // handle the off-by-one problem
     out.hit = hitFactory->create_hit(read_id, ref_name, "",
