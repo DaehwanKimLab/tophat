@@ -170,7 +170,6 @@ void trans_to_genomic_coords(const char* read_name, HitFactory* hitFactory,
 	size_t remaining_length = cigar.length;	
 	for (; i < exon_list.Count(); ++i)
 	  {
-	    assert(cur_pos > 0);
 	    cur_exon = exon_list.Get(i);
 	    if (cur_pos >= cur_exon->start &&
 		cur_pos + remaining_length - 1 <= cur_exon->end) // read ends in this exon
@@ -194,8 +193,11 @@ void trans_to_genomic_coords(const char* read_name, HitFactory* hitFactory,
 		
 		// TODO: check this
 		match_length = cur_exon->end - cur_pos + 1;
-		CigarOp cig(cigar.opcode, match_length);
-		cig_list.push_back(cig);
+		if (match_length > 0)
+		  {
+		    CigarOp cig(cigar.opcode, match_length);
+		    cig_list.push_back(cig);
+		  }
 		
 		// XXX: DEBUG
 		if (i + 1 >= exon_list.Count())
