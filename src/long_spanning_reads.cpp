@@ -1957,7 +1957,20 @@ BowtieHit merge_chain(RefSequenceTable& rt,
   if (fusion_dir == FUSION_NOTHING || fusion_dir == FUSION_FF || fusion_dir == FUSION_RR)
     {
       new_hit.seq(seq);
-      new_hit.qual(qual);
+      if (bowtie2)
+	{
+	  // for the time being, let's compare "seq" and "read_seq"
+	  if (seq != read_seq)
+	    {
+	      string temp_qual = read_quals;
+	      reverse(temp_qual.begin(), temp_qual.end());
+	      new_hit.qual(temp_qual);
+	    }
+	  else
+	    new_hit.qual(read_quals);
+	}
+      else
+	new_hit.qual(qual);
     }
   else
     {
@@ -2000,8 +2013,7 @@ BowtieHit merge_chain(RefSequenceTable& rt,
   if (new_read_len != old_read_length || !new_hit.check_editdist_consistency(rt, bDebug))
     {
       // daehwan
-      // daehwan - remove
-      if (bDebug || true)
+      if (bDebug)
 	{
 	  cout << "Warning: " << new_hit.insert_id() << " malformed closure: " << print_cigar(new_hit.cigar()) << endl;
 	  exit(1);

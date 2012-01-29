@@ -3022,13 +3022,11 @@ void bowtie_sam_extra(const BowtieHit& bh, const RefSequenceTable& rt, vector<st
 		  {
 		    ++mismatch;
 
-		    if (pos_seq >= qual.length())
+		    if (pos_seq < qual.length())
 		      {
 			float penalty = (bowtie2_max_penalty - bowtie2_min_penalty) * min((int)(qual[pos_seq] - '!'), 40) / 40.0;
 			AS_score -= (int)penalty;
 		      }
-
-		    // daehwan - have to implement YS
 
 		    str_appendInt(MD, (int)pos_mismatch);
 		    MD.push_back((char)ref_nt);
