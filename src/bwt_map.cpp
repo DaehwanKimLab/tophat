@@ -1859,7 +1859,11 @@ bool BAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 	int length = bam1_cigar(hit_buf)[i] >> BAM_CIGAR_SHIFT;
 	if (length <= 0)
 	  {
-	    fprintf (stderr, "BAM error: CIGAR op has zero length\n");
+	    fprintf (stderr, "insert_id: %s - BAM error: CIGAR op has zero length\n", qname);
+
+	    // daehwan - remove this
+	    exit(1);
+	    
 	    return false;
 	  }
 	
