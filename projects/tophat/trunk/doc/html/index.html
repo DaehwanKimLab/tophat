@@ -80,15 +80,15 @@
 		    <ul>
 		      <table width="100%"><tr>
 		      <td>
-				<tr><td>version 1.4.0 (BETA)</td> <td align="right">1/5/2012</td></tr>
+				<tr><td>version 1.4.1 (BETA)</td> <td align="right">2/2/2012</td></tr>
 				<tr>
-		      		<td><a href="./downloads/tophat-1.4.0.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
+		      		<td><a href="./downloads/tophat-1.4.1.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
 		      	</tr>
 				<tr>
-					<td><a href="./downloads/tophat-1.4.0.Linux_x86_64.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
+					<td><a href="./downloads/tophat-1.4.1.Linux_x86_64.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
 				</tr>
 				<tr>
-					<td><a href="./downloads/tophat-1.4.0.OSX_x86_64.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
+					<td><a href="./downloads/tophat-1.4.1.OSX_x86_64.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
 				</tr>
 		      </td>
 		      </tr>
@@ -138,8 +138,18 @@
 		    </ul>
 		  </div>
 		
-    </div> <!-- End of "rightside" -->
-    <div id="leftside">
+	</div> <!-- End of "rightside" -->
+	<div id="leftside">
+	  <h2>TopHat 1.4.1 release 2/2/2012</h2>
+	  <p> Version 1.4.1 is a maintenance release addressing some issues found in the 1.4.0 release:
+	<ul>
+	  <li> fixed a bug that prevented the correct functionality of the new transcriptome mapping option for paired reads in cases where 
+	  the user only wanted to map to the transcriptome (-T option) or there were no unmapped reads</li>
+	  <li> fixed the -N/--initial-read-mismatches option to support values larger than 3 (e.g. for mapping on a genome from a different species). </li>
+	  <li> added basic file checks for extreme cases when there are no initially unmapped reads</li>
+	</ul>
+	  </p><br/>
+
       <h2>TopHat 1.4.0 release 1/5/2012</h2>
       <p> Version 1.4.0 includes the following new features and fixes:
 	<ul>
