@@ -84,6 +84,7 @@ void Map2GTF::convert_coords(std::string out_fname, std::string sam_header)
   // a hit group is a set of reads with the same name
   while (hitStream_->next_read_hits(hit_group))
     {
+      TranscriptomeHit primary_hit;
       for (size_t i = 0; i < hit_group.hits.size(); ++i)
         {
 	  // TODO: check if read is unmapped.
@@ -112,16 +113,29 @@ void Map2GTF::convert_coords(std::string out_fname, std::string sam_header)
 	  strand.push_back(converted_out.trans->strand);
 	  converted_out.aux_fields.push_back(strand);
 
-	  read_list.push_back(converted_out);
+	  // since Bowtie2 outputs quality values only for the primary hit,
+	  // we need to make sure that the primary hit is output.
+	  if (bowtie2 && bwt_hit.qual().length() > 0 && bwt_hit.qual()[0] != ' ')
+	    primary_hit = converted_out;
+	  else
+	    read_list.push_back(converted_out);
         }
       
       // XXX: Fine for now... should come up with a more efficient way though
       // FIXME: Take frag length into consideration when filtering
       std::sort(read_list.begin(), read_list.end());
       bh_unique_it = std::unique(read_list.begin(), read_list.end());
+
+      if (bowtie2)
+	print_bamhit(bam_writer, read_name, primary_hit.hit, primary_hit.trans->getRefName(), primary_hit.trans->getRefName(),
+		     primary_hit.hit.seq().c_str(), primary_hit.hit.qual().c_str(), true, &(primary_hit.aux_fields));
+      
       
       for (bh_it = read_list.begin(); bh_it != bh_unique_it; ++bh_it)
         {
+	  if (bowtie2 && primary_hit.hit == bh_it->hit)
+	    continue;
+	  
 	  print_bamhit(bam_writer, read_name, bh_it->hit, bh_it->trans->getRefName(), bh_it->trans->getRefName(),
 		       bh_it->hit.seq().c_str(), bh_it->hit.qual().c_str(), true, &(bh_it->aux_fields));
         }
@@ -290,29 +304,29 @@ bool get_read_start(GList<GffExon>* exon_list, size_t gtf_start,
 
 int main(int argc, char *argv[])
 {
-    int parse_ret = parse_options(argc, argv, m2g_print_usage);
-    if (parse_ret)
-        return parse_ret;
-
-    if (optind >= argc)
+  int parse_ret = parse_options(argc, argv, m2g_print_usage);
+  if (parse_ret)
+    return parse_ret;
+  
+  if (optind >= argc)
     {
-        m2g_print_usage();
-        return 1;
+      m2g_print_usage();
+      return 1;
     }
-
-    std::string gtf_file(argv[optind++]);
-    std::string reads_file(argv[optind++]);
-    std::string out_fname(argv[optind++]);
-
-    if (gtf_file == "" || reads_file == "" || out_fname == "")
+  
+  std::string gtf_file(argv[optind++]);
+  std::string reads_file(argv[optind++]);
+  std::string out_fname(argv[optind++]);
+  
+  if (gtf_file == "" || reads_file == "" || out_fname == "")
     {
-        m2g_print_usage();
-        exit(1);
+      m2g_print_usage();
+      exit(1);
     }
-
-    Map2GTF gtfMapper(gtf_file, reads_file);
-    //    gtfMapper.convert_coords(out_fname);
-    gtfMapper.convert_coords(out_fname, sam_header);
-
-    return 0;
+  
+  Map2GTF gtfMapper(gtf_file, reads_file);
+  //    gtfMapper.convert_coords(out_fname);
+  gtfMapper.convert_coords(out_fname, sam_header);
+  
+  return 0;
 }

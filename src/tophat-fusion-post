@@ -849,6 +849,8 @@ def read_dist(params):
 
             line = line[:-1].split('\t')
             read_id, chr1, left_pos, cigar_str, seq, qual, mismatch = line[0], line[2], int(line[3]) - 1, line[5], line[9], line[10], line[11]
+
+            # daehwan - should check this out
             mismatch = int(mismatch.split(':')[-1])
 
             secondary_fusion_alignment = False

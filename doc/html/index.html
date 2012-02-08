@@ -140,6 +140,26 @@
 		
 	</div> <!-- End of "rightside" -->
 	<div id="leftside">
+	  <h2>TopHat 2.0.0 release 2/1X/2012</h2>
+	  <p> TopHat2 expanded: Bowtie2, Parallelization, and Mapping against Fusion Transcripts.
+	<ul>
+	  <li> TopHat2 uses Bowtie2 by the default although Bowtie1 can still be used.  In a certain sense,
+	    TopHat2 is a generalization of Bowtie2 in ways that
+	    <ul>
+	      <li> most of optional outputs in SAM format (e.g., ) are also output from TopHat2, </li>
+	      <li> most of parameters used in Bowtie2 can be used with --b2--(bowtie option name), </li>
+	      <li> </li>
+	    </ul>
+	  </li>
+	  <li> Most of the time-consuming steps in the pipeline of TopHat2 are parallelized, resulting in 30% or more reducion in the run time.</li>
+	  <li> In addition to mapping across splice sites, TopHat2 allows reads to map across fusion points,
+	    which usually occurr due to genomic translocations, read-through transcription, or trans-splicing (see --fusion-search and the TopHat-Fusion website). </li>
+	  <li> Colorspace reads are handled with Bowtie1 (see --bowtie1 option). </li>
+	  <li> </li>
+	  <li> </li>
+	</ul>
+	  </p><br/>
+
 	  <h2>TopHat 1.4.1 release 2/2/2012</h2>
 	  <p> Version 1.4.1 is a maintenance release addressing some issues found in the 1.4.0 release:
 	<ul>
