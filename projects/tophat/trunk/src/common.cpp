@@ -91,7 +91,6 @@ bool parallel = true;
 unsigned int max_insertion_length = 3;
 unsigned int max_deletion_length = 3;
 
-
 int inner_dist_mean = 200;
 int inner_dist_std_dev = 20;
 int max_mate_inner_dist = -1; 
@@ -784,7 +783,7 @@ string getUnpackCmd(const string& fname, bool use_all_cpus) {
  string pipecmd("");
  string fext=getFext(fname);
  if (fext=="bam") {
-    pipecmd="bam2fastx";
+    pipecmd="bam2fastx --all";
     return pipecmd;
     }
  if (zpacker.empty() || fext!="z") { 

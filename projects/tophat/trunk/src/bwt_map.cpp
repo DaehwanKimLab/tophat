@@ -231,6 +231,7 @@ bool BAMHitFactory::next_record(HitStream& hs, const char*& buf, size_t& buf_siz
       }
   buf = (const char*)&_next_hit;
   buf_size = bytes_read;
+  
   return true;
   }
 
@@ -246,24 +247,25 @@ BowtieHit HitFactory::create_hit(const string& insert_name,
 				 unsigned char splice_mms,
 				 bool end)
 {
-	uint64_t insert_id = _insert_table.get_id(insert_name);
-
-	uint32_t reference_id = _ref_table.get_id(ref_name, NULL, 0);
-	uint32_t reference_id2 = reference_id;
-
-	if (ref_name2.length() > 0)
-	  reference_id2 = _ref_table.get_id(ref_name2, NULL, 0);
-	
-	return BowtieHit(reference_id,
-			 reference_id2,
-			 insert_id, 
-			 left, 
-			 cigar, 
-			 antisense_aln,
-			 antisense_splice,
-			 edit_dist,
-			 splice_mms,
-			 end);
+  uint64_t insert_id = _insert_table.get_id(insert_name);
+  
+  uint32_t reference_id = _ref_table.get_id(ref_name, NULL, 0);
+  
+  uint32_t reference_id2 = reference_id;
+  
+  if (ref_name2.length() > 0)
+    reference_id2 = _ref_table.get_id(ref_name2, NULL, 0);
+  
+  return BowtieHit(reference_id,
+		   reference_id2,
+		   insert_id, 
+		   left, 
+		   cigar, 
+		   antisense_aln,
+		   antisense_splice,
+		   edit_dist,
+		   splice_mms,
+		   end);
 }
 
 BowtieHit HitFactory::create_hit(const string& insert_name, 
@@ -274,132 +276,133 @@ BowtieHit HitFactory::create_hit(const string& insert_name,
 				 unsigned char edit_dist,
 				 bool end)
 {
-	uint64_t insert_id = _insert_table.get_id(insert_name);
-	uint32_t reference_id = _ref_table.get_id(ref_name, NULL, 0);
-	
-	return BowtieHit(reference_id,
-			 reference_id,
-			 insert_id, 
-			 left,
-			 read_len,
-			 antisense_aln,
-			 edit_dist,
-			 end);	
+  uint64_t insert_id = _insert_table.get_id(insert_name);
+  uint32_t reference_id = _ref_table.get_id(ref_name, NULL, 0);
+  
+  return BowtieHit(reference_id,
+		   reference_id,
+		   insert_id, 
+		   left,
+		   read_len,
+		   antisense_aln,
+		   edit_dist,
+		   end);	
 }
 
-bool BowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf, 
-					BowtieHit& bh,
-					bool strip_slash,
-					char* name_out,
-					char* name_tags,
-					char* seq,
-					char* qual)
+bool BowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
+                                        BowtieHit& bh,
+                                        bool strip_slash,
+                                        char* name_out,
+                                        char* name_tags,
+                                        char* seq,
+                                        char* qual)
 {
-	if (!orig_bwt_buf || !*orig_bwt_buf)
-		return false;
-	
-	static const int buf_size = 2048;
-	
-	char bwt_buf[buf_size];
-	strcpy(bwt_buf, orig_bwt_buf);
-	//const char* bwt_fmt_str = "%s %c %s %d %s %s %d %s";
+  if (!orig_bwt_buf || !*orig_bwt_buf)
+    return false;
 
-	char orientation;
-	
-	//int bwtf_ret = 0;
-	//uint32_t seqid = 0;
-	
-	char text_name[buf_size];
-	unsigned int text_offset;
-	
-	
-	//unsigned int other_occs;
-	char mismatches[buf_size];
-	//memset(mismatches, 0, sizeof(mismatches));
-	
-	const char* buf = bwt_buf;
-	char* name = get_token((char**)&buf,"\t");
-	char* orientation_str = get_token((char**)&buf,"\t");
-	char* text_name_str = get_token((char**)&buf,"\t");
-	
-	strcpy(text_name, text_name_str);
-	
-	char* text_offset_str = get_token((char**)&buf,"\t");
-	char* seq_str = get_token((char**)&buf,"\t");
-	if (seq)
-	  strcpy(seq, seq_str);
-	
-	const char* qual_str = get_token((char**)&buf,"\t");
-	if (qual)
-	  strcpy(qual, qual_str);
-	
-	/*const char* other_occs_str =*/ get_token((char**)&buf, "\t");
-	mismatches[0] = 0;
-	char* mismatches_str = get_token((char**)&buf, "\t");
-	if (mismatches_str)
-		strcpy(mismatches, mismatches_str);
-	
-	orientation = orientation_str[0];
-	text_offset = atoi(text_offset_str);
+  static const int buf_size = 2048;
 
-	bool end = true;
-	unsigned int seg_offset = 0;
-	unsigned int seg_num = 0;
-	unsigned int num_segs = 0;
-	
-	// Copy the tag out of the name field before we might wipe it out
-	char* pipe = strrchr(name, '|');
-	if (pipe)
+  char bwt_buf[buf_size];
+  strcpy(bwt_buf, orig_bwt_buf);
+  //const char* bwt_fmt_str = "%s %c %s %d %s %s %d %s";                                                                                                                                                                                                                   
+
+  char orientation;
+
+  //int bwtf_ret = 0;                                                                                                                                                                                                                                                      
+  //uint32_t seqid = 0;                                                                                                                                                                                                                                                    
+
+  char text_name[buf_size];
+  unsigned int text_offset;
+
+
+  //unsigned int other_occs;                                                                                                                                                                                                                                               
+  char mismatches[buf_size];
+  //memset(mismatches, 0, sizeof(mismatches));                                                                                                                                                                                                                             
+
+  const char* buf = bwt_buf;
+  char* name = get_token((char**)&buf,"\t");
+  char* orientation_str = get_token((char**)&buf,"\t");
+  char* text_name_str = get_token((char**)&buf,"\t");
+
+  strcpy(text_name, text_name_str);
+
+  char* text_offset_str = get_token((char**)&buf,"\t");
+  char* seq_str = get_token((char**)&buf,"\t");
+  if (seq)
+    strcpy(seq, seq_str);
+
+  const char* qual_str = get_token((char**)&buf,"\t");
+  if (qual)
+    strcpy(qual, qual_str);
+
+  /*const char* other_occs_str =*/ get_token((char**)&buf, "\t");
+  mismatches[0] = 0;
+  char* mismatches_str = get_token((char**)&buf, "\t");
+  if (mismatches_str)
+    strcpy(mismatches, mismatches_str);
+
+  orientation = orientation_str[0];
+  text_offset = atoi(text_offset_str);
+
+  bool end = true;
+  unsigned int seg_offset = 0;
+  unsigned int seg_num = 0;
+  unsigned int num_segs = 0;
+
+  // Copy the tag out of the name field before we might wipe it out                                                                                                                                                                                                        
+  char* pipe = strrchr(name, '|');
+  if (pipe)
+    {
+      if (name_tags)
+	strcpy(name_tags, pipe);
+
+      char* tag_buf = pipe + 1;
+      if (strchr(tag_buf, ':'))
 	{
-		if (name_tags)
-		  strcpy(name_tags, pipe);
-
-		char* tag_buf = pipe + 1;
-		if (strchr(tag_buf, ':'))
-		  {
-		    sscanf(tag_buf, "%u:%u:%u", &seg_offset, &seg_num, &num_segs);
-		    if (seg_num + 1 == num_segs)
-		      end = true;
-		    else
-		      end = false;
-		  }
-		
-		*pipe = 0;
+	  sscanf(tag_buf, "%u:%u:%u", &seg_offset, &seg_num, &num_segs);
+	  if (seg_num + 1 == num_segs)
+	    end = true;
+	  else
+	    end = false;
 	}
-	// Stripping the slash and number following it gives the insert name
-	char* slash = strrchr(name, '/');
-	if (strip_slash && slash)
-		*slash = 0;
-	
-	size_t read_len = strlen(seq_str);
-	
-	// Add this alignment to the table of hits for this half of the
-	// Bowtie map
 
-	//vector<string> mismatch_toks;
-	char* pch = strtok (mismatches,",");
-	unsigned char num_mismatches = 0;
-	while (pch != NULL)
+      *pipe = 0;
+    }
+  // Stripping the slash and number following it gives the insert name                                                                                                                                                                                                     
+  char* slash = strrchr(name, '/');
+  if (strip_slash && slash)
+    *slash = 0;
+
+  size_t read_len = strlen(seq_str);
+
+  // Add this alignment to the table of hits for this half of the                                                                                                                                                                                                          
+  // Bowtie map                                                                                                                                                                                                                                                            
+
+  //vector<string> mismatch_toks;                                                                                                                                                                                                                                          
+  char* pch = strtok (mismatches,",");
+  unsigned char num_mismatches = 0;
+  while (pch != NULL)
+    {
+      char* colon = strchr(pch, ':');
+      if (colon)
 	{
-		char* colon = strchr(pch, ':');
-		if (colon) 
-		{
-			num_mismatches++;
-		}
-		//mismatch_toks.push_back(pch);
-		pch = strtok (NULL, ",");
+	  num_mismatches++;
 	}
-	
-	bh = create_hit(name,
-			text_name,
-			text_offset, 
-			(int)read_len, 
-			orientation == '-',
-			num_mismatches,
-			end);
-	
-	return true;
+      //mismatch_toks.push_back(pch);                                                                                                                                                                                                                                  
+      pch = strtok (NULL, ",");
+    }
+
+  bh = create_hit(name,
+		  text_name,
+		  text_offset,
+		  (int)read_len,
+		  orientation == '-',
+		  num_mismatches,
+		  end);
+
+  return true;
 }
+
 
 int anchor_mismatch = 0;
 
@@ -2891,6 +2894,7 @@ bool BowtieHit::check_editdist_consistency(const RefSequenceTable& rt, bool bDeb
   size_t pos_seq = 0;
   size_t pos_ref = _left;
   size_t mismatch = 0;
+  size_t N_mismatch = 0;
   bool bSawFusion = false;
   for (size_t i = 0; i < _cigar.size(); ++i)
     {
@@ -2905,6 +2909,9 @@ bool BowtieHit::check_editdist_consistency(const RefSequenceTable& rt, bool bDeb
 		seqan::Dna5 ref_nt = _seq[pos_seq];
 		if (ref_nt != ref_seq[j])
 		  ++mismatch;
+
+		if (ref_nt == ref_seq[j] && ref_nt == 'N')
+		  ++N_mismatch;
 
 		if (bDebug)
 		  cout << pos_seq << "\t" << ref_nt << " vs. " << ref_seq[j] << "\t" << mismatch << endl;
@@ -2926,6 +2933,9 @@ bool BowtieHit::check_editdist_consistency(const RefSequenceTable& rt, bool bDeb
 		seqan::Dna5 ref_nt = _seq[pos_seq];
 		if (ref_nt != ref_seq[j])
 		  ++mismatch;
+
+		if (ref_nt == ref_seq[j] && ref_nt == 'N')
+		  ++N_mismatch;
 
 		if (bDebug)
 		  cout << pos_seq << "\t" << ref_nt << " vs. " << ref_seq[j] << "\t" << mismatch << endl;
@@ -2981,7 +2991,7 @@ bool BowtieHit::check_editdist_consistency(const RefSequenceTable& rt, bool bDeb
   if (bDebug)
     cout << "mismatch (real) vs. (calculated):" << mismatch << " vs. " << (int)_edit_dist << endl;
 
-  return mismatch == _edit_dist;
+  return mismatch == _edit_dist || mismatch + N_mismatch == _edit_dist;
 }
 
 void bowtie_sam_extra(const BowtieHit& bh, const RefSequenceTable& rt, vector<string>& fields)

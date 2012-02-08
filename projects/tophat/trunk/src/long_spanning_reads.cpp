@@ -2590,7 +2590,7 @@ bool join_segments_for_read(RefSequenceTable& rt,
       BowtieHit& bh = seg_hits_for_read[0].hits[i];
 
       // daehwan - remove this
-      //if (bh.insert_id() == 811745)
+      //if (bh.insert_id() == 115617)
       //bDebug = true;
       
       if (bh.fusion_opcode() == FUSION_RR)

@@ -1858,7 +1858,7 @@ def bowtie(params,
         bam_input=False
         if len(reads_list) > 0 and reads_list[0].endswith('.bam'):
            bam_input=True
-           unzip_cmd=[ prog_path('bam2fastx') ]
+           unzip_cmd=[ prog_path('bam2fastx'), "--all" ]
            if reads_format:
               unzip_cmd.append("--" + reads_format)
            unzip_cmd+=[reads_list[0]]

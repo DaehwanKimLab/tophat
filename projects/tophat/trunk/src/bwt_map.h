@@ -554,6 +554,171 @@ inline bool REFID_Equal(uint32_t ref_id1, uint32_t ref_id2)
   return ref_id1 == ref_id2;
 }
 
+#if 0
+class RefSequenceTable
+{
+public:
+	
+	typedef seqan::String<seqan::Dna5, seqan::Packed<seqan::Alloc<> > > Sequence;
+	
+	struct SequenceInfo
+	{
+		SequenceInfo(uint32_t _order, 
+					 char* _name, 
+					 Sequence* _seq, uint32_t _len) :
+            observation_order(_order),
+            name(_name),
+            seq(_seq),
+            len(_len) {}
+        
+		uint32_t observation_order;
+		char* name;
+		Sequence* seq;
+        uint32_t len;
+	};
+	
+	typedef map<string, uint64_t> IDTable;
+	typedef map<uint32_t, SequenceInfo> InvertedIDTable;
+	typedef InvertedIDTable::iterator iterator;
+	typedef InvertedIDTable::const_iterator const_iterator;
+	
+	RefSequenceTable(bool keep_names, bool keep_seqs = false) : 
+	_next_id(1), 
+	_keep_names(keep_names) {}
+    
+    RefSequenceTable(const string& sam_header_filename, 
+                     bool keep_names, 
+                     bool keep_seqs = false) : 
+        _next_id(1), 
+        _keep_names(keep_names) 
+    {
+        if (sam_header_filename != "")
+        {
+            samfile_t* fh = samopen(sam_header_filename.c_str(), "r", 0);
+            if (fh == 0) {
+                fprintf(stderr, "Failed to open SAM header file %s\n", sam_header_filename.c_str());
+                exit(1);
+            }
+            
+            for (size_t i = 0; i < (size_t)fh->header->n_targets; ++i)
+            {
+                const char* name = fh->header->target_name[i];
+                uint32_t len  = fh->header->target_len[i];
+                get_id(name, NULL, len);
+                //fprintf(stderr, "SQ: %s - %d\n", name, len);
+            }
+        }
+    }
+	
+	// This function should NEVER return zero
+	uint32_t get_id(const string& name,
+			Sequence* seq = NULL,
+			uint32_t len = 0)
+	{
+		uint32_t _id = hash_string(name.c_str());
+		pair<InvertedIDTable::iterator, bool> ret = 
+		_by_id.insert(make_pair(_id, SequenceInfo(_next_id, NULL, NULL, 0)));
+		if (ret.second == true)
+		{			
+			char* _name = NULL;
+			if (_keep_names)
+				_name = strdup(name.c_str());
+			ret.first->second.name  = _name;
+			ret.first->second.seq	= seq;
+            ret.first->second.len   = len;
+			++_next_id;
+		}
+		assert (_id);
+		return _id;
+	}
+	
+	const char* get_name(uint32_t ID) const
+	{
+		InvertedIDTable::const_iterator itr = _by_id.find(ID);
+		if (itr != _by_id.end())
+			return itr->second.name;
+		else
+			return NULL;
+	}
+    
+    uint32_t get_len(uint32_t ID) const
+	{
+		InvertedIDTable::const_iterator itr = _by_id.find(ID);
+		if (itr != _by_id.end())
+			return itr->second.len;
+		else
+			return 0;
+	}
+	
+	Sequence* get_seq(uint32_t ID) const
+	{
+		InvertedIDTable::const_iterator itr = _by_id.find(ID);
+		if (itr != _by_id.end())
+			return itr->second.seq;
+		else
+			return NULL;
+	}
+	
+	const SequenceInfo* get_info(uint32_t ID) const
+	{
+		
+		InvertedIDTable::const_iterator itr = _by_id.find(ID);
+		if (itr != _by_id.end())
+		{
+			return &(itr->second);
+		}
+		else
+			return NULL;
+	}
+	
+	int observation_order(uint32_t ID) const
+	{
+		InvertedIDTable::const_iterator itr = _by_id.find(ID);
+		if (itr != _by_id.end())
+		{
+			return itr->second.observation_order;
+		}
+		else
+			return -1;
+	}
+	
+	iterator begin() { return _by_id.begin(); }
+	iterator end() { return _by_id.end(); }
+	
+	const_iterator begin() const { return _by_id.begin(); }
+	const_iterator end() const { return _by_id.end(); }
+	
+	size_t size() const { return _by_id.size(); }
+	
+	void clear()
+	{
+		//_by_name.clear();
+		_by_id.clear();
+	}
+
+	// daehwan
+	// This is FNV-1, see http://en.wikipedia.org/wiki/Fowler_Noll_Vo_hash
+	static inline uint32_t hash_string(const char* __s)
+	{
+		uint32_t hash = 0x811c9dc5;
+		for ( ; *__s; ++__s)
+		{
+			hash *= 16777619;
+			hash ^= *__s;
+		}
+		return hash;
+	}
+	
+private:
+	
+	//IDTable _by_name;
+	uint32_t _next_id;
+	bool _keep_names;
+	InvertedIDTable _by_id;
+};
+
+#else
+
 class RefSequenceTable
 {
  public:
@@ -757,7 +922,7 @@ private:
   IDTable _by_name;
   vector<string> _refid_to_name;
 };
-
+#endif
 
 bool hit_insert_id_lt(const BowtieHit& h1, const BowtieHit& h2);
 

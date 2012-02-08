@@ -84,7 +84,7 @@ void read_best_alignments(const HitsForRead& hits_for_read,
       if (hits[i].edit_dist()>max_read_mismatches) continue;
       
       FragmentAlignmentGrade g(hits[i], gtf_junctions);
-      
+
       // Is the new status better than the current best one?
       if (best_grade < g)
       {
