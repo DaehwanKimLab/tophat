@@ -229,7 +229,7 @@ void fusions_from_alignment(const BowtieHit& bh, FusionSet& fusions, RefSequence
 void unsupport_fusions(const BowtieHit& bh, FusionSet& fusions, FusionSet& fusions_ref);
 void print_fusions(FILE* fusions_out, FusionSet& fusions, RefSequenceTable& ref_sequences);
 void fusions_from_spliced_hit(const BowtieHit& bh, vector<Fusion>& fusions, bool auto_sort = true);
-void pair_support(const HitsForRead& left_hits, const HitsForRead& right_hits, FusionSet& fusions, FusionSet& fusions_ref);
+void pair_support(const vector<pair<BowtieHit, BowtieHit> >& best_hits, FusionSet& fusions, FusionSet& fusions_ref);
 
 void merge_with(FusionSimpleSet& fusions, const FusionSimpleSet& other_fusions);
 void merge_with(FusionSet& fusions, const FusionSet& other_fusions);
