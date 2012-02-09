@@ -141,21 +141,31 @@
 	</div> <!-- End of "rightside" -->
 	<div id="leftside">
 	  <h2>TopHat 2.0.0 release 2/1X/2012</h2>
-	  <p> TopHat2 expanded: Bowtie2, Parallelization, and Mapping against Fusion Transcripts.
+	  <p> TopHat2 expanded: Bowtie2, Parallelization, and Mapping against Fusion points (in addition to splice junctions).
 	<ul>
 	  <li> TopHat2 uses Bowtie2 by the default although Bowtie1 can still be used.  In a certain sense,
 	    TopHat2 is a generalization of Bowtie2 in ways that
 	    <ul>
-	      <li> most of optional outputs in SAM format (e.g., ) are also output from TopHat2, </li>
-	      <li> most of parameters used in Bowtie2 can be used with --b2--(bowtie option name), </li>
-	      <li> </li>
+	      <li> most of optional fields (AS, MD, NM, and etc.) in SAM format produced by Bowtie2 are also reported from TopHat2. </li>
+	      <li> most of parameters used in Bowtie2 can be used with --b2--(bowtie option name).
+		These options apply to read mappings, not to segment mappings. </li>
+	      <li> in addition to gapped alignments enabled by Bowtie2,
+		reads could be mapped against splice sites and fusion points (fusiong mapping is optional).</li>
 	    </ul>
+	    TopHat2 maps reads against transcriptome (optional), genome, and novel/known splice sites using Bowtie2 (or 1)
+	    in a fashion to increase overall mapping sensitivity.
+	    In case of Bowtie2, some of reads can be mapped with many gaps, resulting in alignments with low score,
+	    in which case those poorly mapped reads will be re-mapped in downstream of the pipeline.
+	    Among alignments from transcriptome, genome, and splice junction mappings, best alignments or additional alignments will be finally reported (see --secondary-alignment).
 	  </li>
 	  <li> Most of the time-consuming steps in the pipeline of TopHat2 are parallelized, resulting in 30% or more reducion in the run time.</li>
 	  <li> In addition to mapping across splice sites, TopHat2 allows reads to map across fusion points,
-	    which usually occurr due to genomic translocations, read-through transcription, or trans-splicing (see --fusion-search and the TopHat-Fusion website). </li>
-	  <li> Colorspace reads are handled with Bowtie1 (see --bowtie1 option). </li>
-	  <li> </li>
+	    which usually occurr due to genomic translocations, read-through transcription, or trans-splicing (see --fusion-search and the TopHat-Fusion website).
+	    When --fusion-search is used, users are encouraged to use --bowtie1 as Bowtie2 is not tested with the fusion mapping capability.</li>
+	  <li> Colorspace reads are compatible only with Bowtie1 (see --bowtie1 option). </li>
+	  <li> In addition to reporting the best (or primary) alignments (the original TopHat1's behavior),
+	    TopHat2 can report the secondary alignments up to 20 (the default) paired or single alignments
+	    (see --report-secondary-alignments and -g/--max-multihits)</li>
 	  <li> </li>
 	</ul>
 	  </p><br/>

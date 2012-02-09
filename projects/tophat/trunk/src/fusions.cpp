@@ -488,18 +488,15 @@ void fusions_from_spliced_hit(const BowtieHit& bh, vector<Fusion>& fusions, bool
     }	
 } 
 
-void pair_support(const HitsForRead& left_hits, const HitsForRead& right_hits, FusionSet& fusions, FusionSet& fusions_ref)
+void pair_support(const vector<pair<BowtieHit, BowtieHit> >& best_hits, FusionSet& fusions, FusionSet& fusions_ref)
 {
-  const vector<BowtieHit>& left = left_hits.hits;
-  const vector<BowtieHit>& right = right_hits.hits;
-
-  if (left.size() > fusion_multipairs || left.size() != right.size())
+  if (best_hits.size() > fusion_multipairs)
     return;
 
-  for (size_t i = 0; i < left.size(); ++i)
+  for (size_t i = 0; i < best_hits.size(); ++i)
     {
-      const BowtieHit& lh = left[i];
-      const BowtieHit& rh = right[i];
+      const BowtieHit& lh = best_hits[i].first;
+      const BowtieHit& rh = best_hits[i].second;
 
       bool left_fusionSpanned = lh.fusion_opcode() != FUSION_NOTHING;
       bool right_fusionSpanned = rh.fusion_opcode() != FUSION_NOTHING;
