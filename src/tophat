@@ -24,6 +24,7 @@ import re
 import signal
 from datetime import datetime, date, time
 from shutil import copy
+import logging
 
 use_message = '''
 TopHat maps short sequences from spliced transcripts to whole genomes.
@@ -156,6 +157,8 @@ class Usage(Exception):
 output_dir = "./tophat_out/"
 logging_dir = output_dir + "logs/"
 run_log = None
+tophat_log = None  #main log file handle
+tophat_logger = None # main logging object
 run_cmd = None
 tmp_dir = output_dir + "tmp/"
 bin_dir = sys.path[0] + "/"
@@ -172,6 +175,29 @@ samtools_path = None
 bowtie_path = None
 fail_str = "\t[FAILED]\n"
 gtf_juncs = None #file name with junctions extracted from given GFF file
+
+
+
+def init_logger(log_fname):
+    global tophat_logger
+    tophat_logger = logging.getLogger('project')
+    formatter = logging.Formatter('%(asctime)s %(message)s', '[%Y-%m-%d %H:%M:%S]')
+    # level = logging.__dict__.get(options.loglevel.upper(),logging.DEBUG)
+    tophat_logger.setLevel(logging.DEBUG)
+
+    hstream = logging.StreamHandler(sys.stderr)
+    hstream.setFormatter(formatter)
+    tophat_logger.addHandler(hstream)
+    #
+    # Output logging information to file
+    if os.path.isfile(log_fname):
+        os.remove(log_fname)
+    global tophat_log
+    logfh = logging.FileHandler(log_fname)
+    logfh.setFormatter(formatter)
+    tophat_logger.addHandler(logfh)
+    tophat_log=logfh.stream
+
 
 # TopHatParams captures all of the runtime paramaters used by TopHat, and many
 # of these are passed as command line options to exectubles run by the pipeline
@@ -622,7 +648,7 @@ class TopHatParams:
 
         self.keep_fasta_order = False
         self.partial_mapping = False
-        
+
         self.fusion_search = False
         self.fusion_anchor_length = 20
         self.fusion_min_dist = 10000000
@@ -634,7 +660,6 @@ class TopHatParams:
         self.splice_constraints.check()
         self.read_params.check()
         self.system_params.check()
-        self.bowtie2_params.check()
         if self.segment_length < 10:
             die("Error: arg to --segment-length must at least 10")
         if self.segment_mismatches < 0 or self.segment_mismatches > 3:
@@ -644,11 +669,14 @@ class TopHatParams:
 
         if self.read_params.color:
             if self.bowtie2:
-                die("Error: bowtie2 in colorspace is not yet supported\nuse --bowtie1 option")
+                th_log("Warning: bowtie2 in colorspace is not yet supported; --bowtie1 option assumed.")
+                self.bowtie2=False
             if self.fusion_search:
                 die("Error: fusion-search in colorspace is not yet supported")
             if self.butterfly_search:
                 die("Error: butterfly-search in colorspace is not yet supported")
+
+        self.bowtie2_params.check()
 
         library_types = ["fr-unstranded", "fr-firststrand", "fr-secondstrand"]
 
@@ -1006,13 +1034,25 @@ def right_now():
 
 # The TopHat logging formatter
 def th_log(out_str):
-    print >> sys.stderr, "[%s] %s" % (right_now(), out_str)
+  #print >> sys.stderr, "[%s] %s" % (right_now(), out_str)
+  if tophat_logger:
+       tophat_logger.info(out_str)
+
+def th_logp(out_str=""):
+  print >> sys.stderr, out_str
+  if tophat_log:
+        print >> tophat_log, out_str
+
+def die(msg=None):
+  if msg is not None:
+    th_logp(msg)
+  sys.exit(1)
 
 # Ensures that the output, logging, and temp directories are present. If not,
 # they are created
 def prepare_output_dir():
 
-    th_log("Preparing output location "+output_dir)
+    #th_log("Preparing output location "+output_dir)
     if os.path.exists(output_dir):
         pass
     else:
@@ -1041,13 +1081,18 @@ def subprocess_setup():
 
 # Check that the Bowtie index specified by the user is present and all files
 # are there.
-def check_bowtie_index(idx_prefix):
+def check_bowtie_index(idx_prefix, is_bowtie2):
     th_log("Checking for Bowtie index files")
+    idxext="ebwt"
+    bowtie_ver=""
+    if is_bowtie2:
+        idxext="bt2"
+        bowtie_ver="2 "
 
-    idx_fwd_1 = idx_prefix + ".1.ebwt"
-    idx_fwd_2 = idx_prefix + ".2.ebwt"
-    idx_rev_1 = idx_prefix + ".rev.1.ebwt"
-    idx_rev_2 = idx_prefix + ".rev.2.ebwt"
+    idx_fwd_1 = idx_prefix + ".1."+idxext
+    idx_fwd_2 = idx_prefix + ".2."+idxext
+    idx_rev_1 = idx_prefix + ".rev.1."+idxext
+    idx_rev_2 = idx_prefix + ".rev.2."+idxext
 
     if os.path.exists(idx_fwd_1) and \
        os.path.exists(idx_fwd_2) and \
@@ -1055,23 +1100,18 @@ def check_bowtie_index(idx_prefix):
        os.path.exists(idx_rev_2):
         return
     else:
-        bowtie_idx_env_var = os.environ.get("BOWTIE_INDEXES")
-        if bowtie_idx_env_var == None:
-            die("Error: Could not find Bowtie index files " + idx_prefix + ".*")
-        idx_prefix = bowtie_idx_env_var + idx_prefix
+        bwtidxerr="Error: Could not find Bowtie "+bowtie_ver+"index files (" + idx_prefix + ".*."+idxext+")"
+        bwtidx_env = os.environ.get("BOWTIE_INDEXES")
 
-        idx_fwd_1 = idx_prefix + ".1.ebwt"
-        idx_fwd_2 = idx_prefix + ".2.ebwt"
-        idx_rev_1 = idx_prefix + ".rev.1.ebwt"
-        idx_rev_2 = idx_prefix + ".rev.2.ebwt"
-
-        if os.path.exists(idx_fwd_1) and \
-           os.path.exists(idx_fwd_2) and \
-           os.path.exists(idx_rev_1) and \
-           os.path.exists(idx_rev_2):
+        if bwtidx_env == None:
+            die(bwtidxerr)
+        if os.path.exists(bwtidx_env+idx_fwd_1) and \
+           os.path.exists(bwtidx_env+idx_fwd_2) and \
+           os.path.exists(bwtidx_env+idx_rev_1) and \
+           os.path.exists(bwtidx_env+idx_rev_2):
             return
         else:
-            die("Error: Could not find Bowtie index files " + idx_prefix + ".*")
+            die(bwtidxerr)
 
 # Reconstructs the multifasta file from which the Bowtie index was created, if
 # it's not already there.
@@ -1088,7 +1128,7 @@ def bowtie_idx_to_fa(idx_prefix):
         inspect_cmd = [prog_path("bowtie-inspect"),
                        idx_prefix]
 
-        print >> sys.stderr, "Executing: " + " ".join(inspect_cmd) + " > " + tmp_fasta_file_name
+        th_logp("  Executing: " + " ".join(inspect_cmd) + " > " + tmp_fasta_file_name)
         ret = subprocess.call(inspect_cmd,
                               stdout=tmp_fasta_file,
                               stderr=inspect_log)
@@ -1118,13 +1158,13 @@ def check_fasta(idx_prefix):
             if os.path.exists(idx_fasta):
                 return idx_fasta
 
-        print >> sys.stderr, "\tWarning: Could not find FASTA file " + idx_fasta
+        th_logp("\tWarning: Could not find FASTA file " + idx_fasta)
         idx_fa = bowtie_idx_to_fa(idx_prefix)
         return idx_fa
 
 # Check that both the Bowtie index and the genome's fasta file are present
-def check_index(idx_prefix):
-    check_bowtie_index(idx_prefix)
+def check_index(idx_prefix, is_bowtie2):
+    check_bowtie_index(idx_prefix, is_bowtie2)
     ref_fasta_file = check_fasta(idx_prefix)
 
     return (ref_fasta_file, None)
@@ -1174,7 +1214,7 @@ def get_index_sam_header(params, idx_prefix):
     try:
         temp_sam_header_filename = tmp_dir + "temp.samheader.sam"
         temp_sam_header_file = open(temp_sam_header_filename, "w")
-        
+
         bowtie_header_cmd = [bowtie_path]
 
         read_params = params.read_params
@@ -1240,7 +1280,7 @@ def get_index_sam_header(params, idx_prefix):
 
         if not params.keep_fasta_order:
             sq_dict_lines.sort(lambda x,y: cmp(x[0],y[0]))
-            
+
         for [name, line] in sq_dict_lines:
             print >> bowtie_sam_header_file, line
         print >> bowtie_sam_header_file, "@PG\tID:TopHat\tVN:%s\tCL:%s" % (get_version(), run_cmd)
@@ -1256,28 +1296,31 @@ def get_index_sam_header(params, idx_prefix):
        die(errmsg)
 
 # Make sure Bowtie is installed and is recent enough to be useful
-def check_bowtie(is_bowtie2):
-    log_msg = "Checking for Bowtie"
-    if is_bowtie2:
-        log_msg += "2"
+def check_bowtie(params):
+    bowtie_req=""
+    if params.bowtie2:
+        bowtie_req="2"
+    log_msg = "Checking for Bowtie" + bowtie_req
     th_log(log_msg)
 
-    bowtie_bin = "bowtie"
-    if is_bowtie2:
-        bowtie_bin += "2"
+    bowtie_bin = "bowtie"+bowtie_req
 
     global bowtie_path
     bowtie_path=prog_path(bowtie_bin)
-    bowtie_version = get_bowtie_version(is_bowtie2)
+    bowtie_version = get_bowtie_version(params.bowtie2)
+    if params.bowtie2 and bowtie_version == None:
+        #try to fallback on bowtie 1
+        params.bowtie2=False
+        bowtie_version=get_bowtie_version(params.bowtie2)
     if bowtie_version == None:
-        die("Error: Bowtie not found on this system")
-    elif is_bowtie2:
+           die("Error: Bowtie not found on this system.")
+    if params.bowtie2:
         if bowtie_version[0] < 3 and bowtie_version[1] < 1 and bowtie_version[2] < 1 and bowtie_version[3] < 5:
             die("Error: TopHat requires Bowtie 2.0.0-beta5 or later")
-    elif not is_bowtie2:
+    else:
         if bowtie_version[0] < 1 and bowtie_version[1] < 12 and bowtie_version[2] < 3:
             die("Error: TopHat requires Bowtie 0.12.3 or later")
-    print >> sys.stderr, "\t version:\t\t\t %s" % ".".join([str(x) for x in bowtie_version])
+    th_logp("\t\t  Bowtie version:\t %s" % ".".join([str(x) for x in bowtie_version]))
 
 
 # Retrive a tuple containing the system's version of samtools.  Parsed from
@@ -1313,7 +1356,8 @@ def check_samtools():
         die("Error: Samtools not found on this system")
     elif  samtools_version_arr[1] < 1 or samtools_version_arr[2] < 7:
         die("Error: TopHat requires Samtools 0.1.7 or later")
-    print >> sys.stderr, "\tSamtools %s" % samtools_version_str
+    th_logp("\t\tSamtools version:\t %s" % ".".join([str(x) for x in samtools_version_arr]))
+
 
 
 class FastxReader:
@@ -1464,7 +1508,7 @@ class FastxReader:
          return self.lastline
   def ungetLine(self):
       if self.lastline is None:
-         print >> sys.stderr, "Warning: FastxReader called ungetLine() with no prior line!"
+         th_logp("Warning: FastxReader called ungetLine() with no prior line!")
       self.bufline=self.lastline
       self.lastline=None
 #< class FastxReader
@@ -1591,7 +1635,7 @@ def check_reads_format(params, reads_files):
             if not seqid: break
             toread-=1
             if seq_len < 20:
-                  print >> sys.stderr, "Warning: found a read < 20bp in", f_name
+                  th_logp("Warning: found a read < 20bp in "+f_name)
             else:
                 min_seed_len = min(seq_len, min_seed_len)
                 max_seed_len = max(seq_len, max_seed_len)
@@ -1605,14 +1649,14 @@ def check_reads_format(params, reads_files):
     #else:
     #    seed_len = max_seed_len
     #print >> sys.stderr, "\tmin read length: %dbp, max read length: %dbp" % (min_seed_len, max_seed_len)
-    print >> sys.stderr, "\tformat:\t\t %s" % fileformat
+    th_logp("\tformat:\t\t %s" % fileformat)
     if fileformat == "fastq":
         quality_scale = "phred33 (default)"
         if params.read_params.solexa_quals and not params.read_params.phred64_quals:
             quality_scale = "solexa33 (reads generated with GA pipeline version < 1.3)"
         elif params.read_params.phred64_quals:
             quality_scale = "phred64 (reads generated with GA pipeline version >= 1.3)"
-        print >> sys.stderr, "\tquality scale:\t %s" % quality_scale
+        th_logp("\tquality scale:\t %s" % quality_scale)
     elif fileformat == "fasta":
         if params.read_params.color:
             params.read_params.integer_quals = True
@@ -1690,9 +1734,9 @@ class PrepReadsInfo:
                raise Exception()
            except Exception, e:
              die(fail_str+"Error retrieving prep_reads info.")
-           print >> sys.stderr, "\t%s reads: min. length=%s, count=%s" %  (side, self.min_len, self.out_count)
+           th_logp("\t%s reads: min. length=%s, count=%s" %  (side, self.min_len, self.out_count))
            if self.min_len < 20:
-               print >> sys.stderr, "Warning: short reads (<20bp) will make TopHat quite slow and take large amount of memory because they are likely to be mapped to too many places"
+               th_logp("Warning: short reads (<20bp) will make TopHat quite slow and take large amount of memory because they are likely to be mapped to too many places")
 
 
 def prep_reads_cmd(params, reads_list, quals_list=None, aux_file=None, index_file=None, filter_reads=None, hits_to_filter=None):
@@ -1819,11 +1863,11 @@ def bowtie(params,
             params.bowtie_alignment_option = "-v"
 
     if t_mapping:
-       print >> sys.stderr, "[%s] Mapping %s against transcriptome %s with %s %s" % (start_time.strftime("%c"),
-                         readfile_basename, bwt_idx_name, bowtie_str, extra_output)
+       th_log("Mapping %s against transcriptome %s with %s %s" % (readfile_basename,
+                     bwt_idx_name, bowtie_str, extra_output))
     else:
-       print >> sys.stderr, "[%s] Mapping %s against %s with %s %s" % (start_time.strftime("%c"),
-                         readfile_basename, bwt_idx_name, bowtie_str, extra_output)
+       th_log("Mapping %s against %s with %s %s" % (readfile_basename,
+                     bwt_idx_name, bowtie_str, extra_output))
     bwt_log = open(logging_dir + 'bowtie.'+readfile_basename+'.fixmap.log', "w")
     #bwt_mapped=mapped_reads
     unmapped_reads_out=None
@@ -1892,7 +1936,7 @@ def bowtie(params,
                 max_penalty, min_penalty = int(max_penalty), int(min_penalty)
                 min_score = (max_penalty - 1) * num_mismatches
                 fix_map_cmd += ["--bowtie2-min-score", str(min_score)]
-            
+
         samzip_cmd=None
 
         # daehwan - just use bam format for multi-threading.
@@ -1928,7 +1972,7 @@ def bowtie(params,
             max_hits = params.max_seg_hits
         else:
             max_hits = params.max_hits
-            
+
         if num_mismatches > 3:
            num_mismatches = 3
 
@@ -2116,7 +2160,7 @@ def get_gtf_juncs(gff_annotation):
                                   stdout=gtf_juncs_out)
         # cvg_islands returned an error
         if retcode == 1:
-            print >> sys.stderr, "\tWarning: TopHat did not find any junctions in GTF file"
+            th_logp("\tWarning: TopHat did not find any junctions in GTF file")
             return (False, gtf_juncs_out_name)
         elif retcode != 0:
             die(fail_str+"Error: GTF junction extraction failed with err ="+str(retcode))
@@ -2308,7 +2352,7 @@ def compile_reports(params, sam_header_filename, ref_fasta, mappings, readfiles,
     report_cmd += ["--sam-header", sam_header_filename]
     if params.report_secondary_alignments:
         report_cmd += ["--report-secondary-alignments"]
-    
+
     report_cmd.extend(["--samtools="+samtools_path])
     report_cmd.extend([ref_fasta,
                        junctions,
@@ -2573,7 +2617,6 @@ def junctions_from_closures(params,
     #maps = [x for x in seg_maps if (os.path.exists(x) and os.path.getsize(x) > 0)]
     #if len(maps) == 0:
     #    return None
-    #print >> sys.stderr, left_maps
     slash = left_maps[0].rfind('/')
     juncs_out = ""
     if slash != -1:
@@ -2608,7 +2651,7 @@ def junctions_from_closures(params,
     # cvg_islands not found
     except OSError, o:
         if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
-           print >> sys.stderr, fail_str, "Error: closure_juncs not found on this system"
+           th_logp(fail_str + "Error: closure_juncs not found on this system")
         die(str(o))
     return [juncs_out]
 
@@ -2667,7 +2710,7 @@ def junctions_from_segments(params,
     # cvg_islands not found
     except OSError, o:
         if o.errno == errno.ENOTDIR or o.errno == errno.ENOENT:
-           print >> sys.stderr, fail_str, "Error: segment_juncs not found on this system"
+           th_logp(fail_str + "Error: segment_juncs not found on this system")
         die(str(o))
 
     return [juncs_out, insertions_out, deletions_out, fusions_out]
@@ -2846,7 +2889,7 @@ def map2gtf(params, genome_sam_header_filename, ref_fasta, left_reads, right_rea
        m2g_bwt_idx = build_idx_from_fa(params.bowtie2, m2g_ref_fasta, t_out_dir, params.read_params.color)
 
     get_index_sam_header(params, m2g_bwt_idx)
-    
+
     mapped_gtf_list = []
     unmapped_gtf_list = []
     # do the initial mapping in GTF coordinates
@@ -3006,7 +3049,7 @@ def spliced_alignment(params,
        if num_segs>1: max_seg_len += (read_len % segment_len)
 
     if num_segs <= 1:
-         print >> sys.stderr, "Warning: you have only one segment per read.\n\tIf the read length is greater than or equal to 45bp,\n\twe strongly recommend that you decrease --segment-length to about half the read length because TopHat will work better with multiple segments"
+         th_logp("Warning: you have only one segment per read.\n\tIf the read length is greater than or equal to 45bp,\n\twe strongly recommend that you decrease --segment-length to about half the read length because TopHat will work better with multiple segments")
 
     # Using the num_segs value returned by check_reads(),
     # decide which junction discovery strategy to use
@@ -3175,7 +3218,7 @@ def spliced_alignment(params,
         # print >> sys.stderr, "Warning: deletions database is empty!"
     if len(possible_juncs) == 0:
         possible_juncs.append(os.devnull)
-        print >> sys.stderr, "Warning: junction database is empty!"
+        th_logp("Warning: junction database is empty!")
     if len(possible_fusions) == 0:
         possible_fusions.append(os.devnull)
     if junc_idx_prefix:
@@ -3296,11 +3339,6 @@ def spliced_alignment(params,
 
     return maps
 
-def die(msg=None):
- if msg is not None:
-    print >> sys.stderr, msg
-    sys.exit(1)
-
 # rough equivalent of the 'which' command to find external programs
 # (current script path is tested first, then PATH envvar)
 def which(program):
@@ -3368,18 +3406,22 @@ def main(argv=None):
             if params.read_params.quals:
                 left_quals_list = args[2]
 
-        print >> sys.stderr
-        th_log("Beginning TopHat run (v"+get_version()+")")
-        print >> sys.stderr, "-----------------------------------------------"
-
         start_time = datetime.now()
         prepare_output_dir()
+        init_logger(logging_dir + "tophat.log")
+
+        th_logp()
+        th_log("Beginning TopHat run (v"+get_version()+")")
+        th_logp("-----------------------------------------------")
 
         global run_log
         run_log = open(logging_dir + "run.log", "w", 0)
         global run_cmd
         run_cmd = " ".join(argv)
         print >> run_log, run_cmd
+
+        check_bowtie(params)
+        check_samtools()
 
         # Validate all the input files, check all prereqs before committing
         # to the run
@@ -3418,14 +3460,12 @@ def main(argv=None):
 
               if not (os.path.exists(t_gff) and os.path.getsize(t_gff)>10):
                   die("Error: GFF transcripts file not found or invalid (%s)" % t_gff)
-              check_bowtie_index(params.transcriptome_index)
+              check_bowtie_index(params.transcriptome_index, params.bowtie2)
            params.gff_annotation=t_gff
            #end @ transcriptome_index given
 
-        (ref_fasta, ref_seq_dict) = check_index(bwt_idx_prefix)
+        (ref_fasta, ref_seq_dict) = check_index(bwt_idx_prefix, params.bowtie2)
 
-        check_bowtie(params.bowtie2)
-        check_samtools()
         th_log("Generating SAM header for "+bwt_idx_prefix)
         sam_header_filename = get_index_sam_header(params, bwt_idx_prefix)
         #if not params.skip_check_reads:
@@ -3442,10 +3482,11 @@ def main(argv=None):
         if params.gff_annotation and params.find_GFF_juncs:
             test_input_file(params.gff_annotation)
             (found_juncs, gtf_juncs) = get_gtf_juncs(params.gff_annotation)
-            ##-- we don't need these junctions in user_supplied_juncs anymore because now map2gtf does a much better job
+            ##-- we shouldn't need these junctions in user_supplied_juncs anymore because now map2gtf does a much better job
             ## but we still need them loaded in gtf_juncs for later splice verification
-            #if found_juncs and not params.gff_annotation:
-            #    user_supplied_juncs.append(gtf_juncs)
+            if found_juncs:
+                ## and not params.gff_annotation:
+                user_supplied_juncs.append(gtf_juncs)
             #else:
             #    gtf_juncs = None
         if params.raw_junctions:
@@ -3552,12 +3593,12 @@ def main(argv=None):
 
         finish_time = datetime.now()
         duration = finish_time - start_time
-        print >> sys.stderr,"-----------------------------------------------"
+        th_logp("-----------------------------------------------")
         th_log("Run complete: %s elapsed" %  formatTD(duration))
 
     except Usage, err:
-        print >> sys.stderr, sys.argv[0].split("/")[-1] + ": " + str(err.msg)
-        print >> sys.stderr, "    for detailed help see http://tophat.cbcb.umd.edu/manual.html"
+        th_logp(sys.argv[0].split("/")[-1] + ": " + str(err.msg))
+        th_logp("    for detailed help see http://tophat.cbcb.umd.edu/manual.html")
         return 2
 
 
