@@ -55,7 +55,7 @@ extern unsigned int max_deletion_length;
 
 extern int inner_dist_mean;
 extern int inner_dist_std_dev;
-extern int max_mate_inner_dist; 
+extern int max_mate_inner_dist;
 
 extern int min_anchor_len;
 extern int min_report_intron_length;
@@ -226,9 +226,7 @@ class FZPipe {
 };
 
 void err_die(const char* format,...);
-
-//uint8_t* realloc_bdata(bam1_t *b, int size);
-//uint8_t* dupalloc_bdata(bam1_t *b, int size);
+void warn_msg(const char* format,...);
 
 class GBamRecord {
    bam1_t* b;
@@ -314,8 +312,18 @@ class GBamRecord {
 class GBamWriter {
    samfile_t* bam_file;
    bam_header_t* bam_header;
+   FILE* findex;
+   uint64_t wcount;
+   uint64_t idxcount;
+   int64_t idx_last_id;
+   bool external_header;
  public:
    void create(const char* fname, bool uncompressed=false) {
+	  findex=NULL;
+	  wcount=0;
+	  idxcount=0;
+	  idx_last_id=0;
+	  external_header=false;
       if (bam_header==NULL)
          err_die("Error: no bam_header for GBamWriter::create()!\n");
       if (uncompressed) {
@@ -328,14 +336,46 @@ class GBamWriter {
          err_die("Error: could not create BAM file %s!\n",fname);
       //do we need to call bam_header_write() ?
       }
+
+   void create(const char* fname, std::string idxfile) {
+	  findex=NULL;
+	  wcount=0;
+	  idxcount=0;
+	  idx_last_id=0;
+	  external_header=false;
+      if (bam_header==NULL)
+         err_die("Error: no bam_header for GBamWriter::create()!\n");
+      bam_file=samopen(fname, "wb", bam_header);
+      if (bam_file==NULL)
+         err_die("Error: could not create BAM file %s!\n",fname);
+      if (!idxfile.empty()) {
+    	   findex = fopen(idxfile.c_str(), "w");
+    	   if (findex == NULL)
+    	     err_die("Error: cannot create file %s\n", idxfile.c_str());
+           }
+      }
+
    void create(const char* fname, bam_header_t* bh, bool uncompressed=false) {
+     findex=NULL;
+	 wcount=0;
+	 idxcount=0;
+	 idx_last_id=0;
+     external_header=false;
 	 bam_header=bh;
-	 create(fname,uncompressed);
+	 create(fname, uncompressed);
      }
 
    GBamWriter(const char* fname, bam_header_t* bh, bool uncompressed=false) {
       create(fname, bh, uncompressed);
+      external_header=true;
       }
+
+   GBamWriter(const char* fname, bam_header_t* bh, std::string idxfile) {
+	  bam_header=bh;
+      create(fname, idxfile);
+      external_header=true;
+      }
+
 
    GBamWriter(const char* fname, const char* samfname, bool uncompressed=false) {
       tamFile samf_in=sam_open(samfname);
@@ -348,9 +388,23 @@ class GBamWriter {
       create(fname, uncompressed);
       }
 
+   GBamWriter(const char* fname, const char* samfname, std::string idxfile) {
+      tamFile samf_in=sam_open(samfname);
+      if (samf_in==NULL)
+         err_die("Error: could not open SAM file %s\n", samfname);
+      bam_header=sam_header_read(samf_in);
+      if (bam_header==NULL)
+         err_die("Error: could not read SAM header from %s!\n",samfname);
+      sam_close(samf_in);
+      create(fname, idxfile);
+      }
+
     ~GBamWriter() {
       samclose(bam_file);
-      bam_header_destroy(bam_header);
+      if (bam_header && !external_header)
+        bam_header_destroy(bam_header);
+      if (findex != NULL)
+        fclose(findex);
       }
    bam_header_t* get_header() { return bam_header; }
    int32_t get_tid(const char *seq_name) {
@@ -405,16 +459,71 @@ class GBamWriter {
       }
 
    void write(GBamRecord* brec) {
-      if (brec!=NULL)
-          samwrite(this->bam_file,brec->get_b());
+      if (brec!=NULL) {
+        samwrite(this->bam_file,brec->get_b());
+        wcount++;
       }
-   void write(bam1_t* b) {
-      samwrite(this->bam_file, b);
+
       }
+   void write(bam1_t* b, int64_t read_id=0) {
+	  /*
+	  if (findex && read_id) {
+		 if (idxcount >= 1000 && read_id != idx_last_id) {
+			 int64_t offset = this->tell();
+			 int block_offset = offset & 0xFFFF;
+			 //int64_t block_address = (offset >> 16) & 0xFFFFFFFFFFFFLL;
+			 // daehwan - this is a bug in bgzf.c in samtools
+			 // I'll report this bug with a temporary solution, soon.
+
+			 if (block_offset <= 0xF000) {
+			   fprintf(findex, "%lu\t%ld\n", read_id, offset);
+			   idxcount = 0;
+			 }
+		 }
+		 idx_last_id=read_id;
+		 idxcount++;
+	  }
+	  */
+	 int64_t pre_block_addr=0; //offsets after last write()
+	 int     pre_block_offs=0; //but before this write()
+	 int64_t pre_pos=0;
+	 bool write_index=false;
+	 if (findex && read_id) {
+		 if (idxcount >= 1000 && read_id != idx_last_id) {
+			 pre_pos = this->tell();
+			 pre_block_offs = pre_pos & 0xFFFF;
+			 pre_block_addr = (pre_pos >> 16) & 0xFFFFFFFFFFFFLL;
+			 write_index=true;
+		     }
+		 idx_last_id=read_id;
+		 idxcount++;
+	 }
+
+     samwrite(this->bam_file, b);
+     wcount++;
+     if (write_index) {
+    	int64_t offset = this->tell();
+   	    int     post_block_offs = offset & 0xFFFF; //offsets after this write()
+   	    int64_t post_block_addr = (offset >> 16) & 0xFFFFFFFFFFFFLL;
+		int data_len = b->data_len+BAM_CORE_SIZE;
+		if (post_block_addr != pre_block_addr &&
+			post_block_offs>=data_len)
+	       //all data written in this block
+           //WARNING: this check fails for very large BAM records (> 64K)
+	       {
+	       pre_pos = post_block_addr;
+	       }
+	    fprintf(findex, "%lu\t%ld\n", read_id, pre_pos);
+		}
+     }
+
 
    int64_t tell() {
      return bam_tell(this->bam_file->x.bam);
    }
+
+
+   int64_t writtenCount() { return wcount; }
 
    void flush() {
      bgzf_flush(this->bam_file->x.bam);

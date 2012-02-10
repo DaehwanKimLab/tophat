@@ -675,12 +675,12 @@ void print_sam_for_pair(const RefSequenceTable& rt,
       primaryHit = random() % right_hits.hits.size();
     
     bool got_left_read = left_reads_file.getRead(best_hits[0].first.insert_id(), left_read,
-						 reads_format, false, left_um_out,
-						 false, begin_id, end_id);
+						 reads_format, false, begin_id, end_id,
+						 left_um_out, false);
     
     bool got_right_read = right_reads_file.getRead(best_hits[0].first.insert_id(), right_read,
-						   reads_format, false, right_um_out,
-						   false, begin_id, end_id);
+						   reads_format, false, begin_id, end_id,
+						   right_um_out, false);
     
     assert (got_left_read && got_right_read);
     bool multipleHits = (best_hits.size() > 1);
@@ -1020,17 +1020,19 @@ struct ReportWorker
 	    best_hits.insert_id = curr_left_obs_order;
 	    FragmentAlignmentGrade grade;
 	    bool got_read=left_reads_file.getRead(curr_left_obs_order, l_read,
-						  reads_format, false, left_um_out.file,
-						  false, begin_id, end_id);
-	    assert(got_read);
+						  reads_format, false, begin_id, end_id,
+						  left_um_out.file, false);
+	    //assert(got_read);
 
 	    if (right_reads_file.file()) {
+           /*
 	      fprintf(left_um_out.file, "@%s #MAPPED#\n%s\n+\n%s\n", l_read.alt_name.c_str(),
 		      l_read.seq.c_str(), l_read.qual.c_str());
+           */
 	      got_read=right_reads_file.getRead(curr_left_obs_order, r_read,
-						reads_format, false, right_um_out.file,
-						true, begin_id, end_id);
-	      assert(got_read);
+						reads_format, false, begin_id, end_id,
+						right_um_out.file, true);
+	      //assert(got_read);
 	    }
     
 	    exclude_hits_on_filtered_junctions(*junctions, curr_left_hit_group);
@@ -1075,17 +1077,18 @@ struct ReportWorker
 	    if (curr_right_obs_order >=  begin_id)
 	      {
 		bool got_read=right_reads_file.getRead(curr_right_obs_order, r_read,
-						       reads_format, false, right_um_out.file,
-						       false, begin_id, end_id);
+						       reads_format, false, begin_id, end_id,
+						       right_um_out.file, false);
 
-		assert(got_read);
-
+		//assert(got_read);
+		/*
 		fprintf(right_um_out.file, "@%s #MAPPED#\n%s\n+\n%s\n", r_read.alt_name.c_str(),
 			r_read.seq.c_str(), r_read.qual.c_str());
+		*/
 		got_read=left_reads_file.getRead(curr_right_obs_order, l_read,
-						 reads_format, false, left_um_out.file,
-						 true, begin_id, end_id);
-		assert(got_read);
+						 reads_format, false, begin_id, end_id,
+						 left_um_out.file, true);
+		//assert(got_read);
 
 		exclude_hits_on_filtered_junctions(*junctions, curr_right_hit_group);
 
@@ -1127,17 +1130,18 @@ struct ReportWorker
 	  {
 	    exclude_hits_on_filtered_junctions(*junctions, curr_left_hit_group);
 	    exclude_hits_on_filtered_junctions(*junctions, curr_right_hit_group);
-	    
 	    if (curr_left_hit_group.hits.empty())
 	      {   //only right read mapped
                 //write it in the mapped file with the #MAPPED# flag
 		
 		bool got_read=right_reads_file.getRead(curr_left_obs_order, r_read,
-						       reads_format, false, right_um_out.file,
-						       false, begin_id, end_id);
-		assert(got_read);
+						       reads_format, false, begin_id, end_id,
+						       right_um_out.file, false);
+		//assert(got_read);
+		/*
 		fprintf(right_um_out.file, "@%s #MAPPED#\n%s\n+\n%s\n", r_read.alt_name.c_str(),
 			r_read.seq.c_str(), r_read.qual.c_str());
+		*/
 		HitsForRead right_best_hits;
 		right_best_hits.insert_id = curr_right_obs_order;
 		
@@ -1171,11 +1175,13 @@ struct ReportWorker
 		left_best_hits.insert_id = curr_left_obs_order;
 		//only left read mapped
 		bool got_read=left_reads_file.getRead(curr_left_obs_order, l_read,
-						      reads_format, false, left_um_out.file,
-						      false, begin_id, end_id);
-		assert(got_read);
+						      reads_format, false, begin_id, end_id,
+						      left_um_out.file, false);
+		//assert(got_read);
+		/*
 		fprintf(left_um_out.file, "@%s #MAPPED#\n%s\n+\n%s\n", l_read.alt_name.c_str(),
 			l_read.seq.c_str(), l_read.qual.c_str());
+		*/
 		FragmentAlignmentGrade grade;
 		// Process hits for left singleton, select best alignments
 		read_best_alignments(curr_left_hit_group, grade, left_best_hits, *gtf_junctions);
@@ -1257,12 +1263,12 @@ struct ReportWorker
       } //while we still have unreported hits..
     //print the remaining unmapped reads at the end of each reads' stream
     left_reads_file.getRead(VMAXINT32, l_read,
-			    reads_format, false, left_um_out.file,
-			    false, begin_id, end_id);
+			    reads_format, false, begin_id, end_id,
+			    left_um_out.file, false);
     if (right_reads_file.file())
       right_reads_file.getRead(VMAXINT32, r_read,
-			       reads_format, false, right_um_out.file,
-			       false, begin_id, end_id);
+			       reads_format, false, begin_id, end_id,
+			       right_um_out.file, false);
 
     left_um_out.close();
     right_um_out.close();

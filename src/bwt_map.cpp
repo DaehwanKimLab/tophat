@@ -231,7 +231,6 @@ bool BAMHitFactory::next_record(HitStream& hs, const char*& buf, size_t& buf_siz
       }
   buf = (const char*)&_next_hit;
   buf_size = bytes_read;
-  
   return true;
   }
 
@@ -250,7 +249,6 @@ BowtieHit HitFactory::create_hit(const string& insert_name,
   uint64_t insert_id = _insert_table.get_id(insert_name);
   
   uint32_t reference_id = _ref_table.get_id(ref_name, NULL, 0);
-  
   uint32_t reference_id2 = reference_id;
   
   if (ref_name2.length() > 0)
@@ -402,7 +400,6 @@ bool BowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 
   return true;
 }
-
 
 int anchor_mismatch = 0;
 

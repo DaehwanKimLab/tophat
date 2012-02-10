@@ -596,7 +596,7 @@ void BWA_decode(const string& color, const string& qual, const string& ref, stri
 
 bool ReadStream::next_read(Read& r, ReadFormat read_format) {
   FLineReader fr(fstream.file);
-  while (read_pq.size()<100000 && !r_eof) {
+  while (read_pq.size()<500000 && !r_eof) {
     //keep the queue topped off
     Read rf;
     if (!next_fastx_read(fr, rf, read_format)) {
@@ -621,10 +621,11 @@ bool ReadStream::getRead(uint64_t r_id,
 			 Read& read,
 			 ReadFormat read_format,
 			 bool strip_slash,
-			 FILE* um_out, //unmapped reads output
-			 bool um_write_found,
 			 uint64_t begin_id,
-			 uint64_t end_id) {
+			 uint64_t end_id,
+			 FILE* um_out, //unmapped reads output
+			 bool um_write_found //write the found ones
+			 ) {
   if (!fstream.file)
        err_die("Error: calling ReadStream::getRead() with no file handle!");
   if (r_id<last_id)
@@ -651,15 +652,16 @@ bool ReadStream::getRead(uint64_t r_id,
 
     if (id == r_id)
       {
-	found=true;
+	  found=true;
       }
     else if (id > r_id)
-      {
-	read_pq.push(make_pair(id, read));
-	break;
+      { //can't find it, went too far
+      //only happens when reads [mates] were removed for some reason
+      read_pq.push(make_pair(id, read));
+      break;
       }
-
-    if (um_out && (um_write_found || !found)) {
+    if (um_out && ((um_write_found && found) ||
+    	           (!um_write_found && !found))) {
      //write unmapped reads
       fprintf(um_out, "@%s\n%s\n+\n%s\n", read.alt_name.c_str(),
                               read.seq.c_str(), read.qual.c_str());
@@ -691,18 +693,19 @@ bool get_read_from_stream(uint64_t insert_id,
         if (slash != string::npos)
           read.name.resize(slash);
       }
-    uint64_t read_id = (uint64_t)atoi(read.name.c_str());
-    if (read_id == insert_id)
+    uint64_t id = (uint64_t)atoi(read.name.c_str());
+    if (id == insert_id)
       {
 	found=true;
       }
-    else if (read_id > insert_id)
+    else if (id > insert_id)
       {
-	fr.pushBack_read();
-	break;
+	  fr.pushBack_read();
+	  break;
       }
 
-    if (um_out && (um_write_found || !found)) {
+    if (um_out && ((um_write_found && found) ||
+    	           (!um_write_found && !found))) {
      //write unmapped reads
       fprintf(um_out, "@%s\n%s\n+\n%s\n", read.alt_name.c_str(),
                               read.seq.c_str(), read.qual.c_str());

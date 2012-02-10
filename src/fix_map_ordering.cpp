@@ -82,9 +82,6 @@ struct BamMapOrdering {
     if (lhs_id != rhs_id || !bowtie2)
       return lhs_id > rhs_id;
 
-    assert (lhs.second->core.flag & BAM_FUNMAP  == 0);
-    assert (rhs.second->core.flag & BAM_FUNMAP  == 0);
-
     int lhs_score, rhs_score;
     lhs_score = rhs_score = numeric_limits<int>::min();
     uint8_t* ptr = bam_aux_get(lhs.second, "AS");
@@ -149,17 +146,9 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
 					vector<pair<uint64_t, bam1_t*> >,
 					BamMapOrdering > map_pq;
 
- FILE* findex = NULL;
- if (!index_outfile.empty()) {
-   findex = fopen(index_outfile.c_str(), "w");
-   if (findex == NULL)
-     err_die("Error: cannot create file %s\n", index_outfile.c_str());
- }
-
  tamFile fp=sam_open(fname.c_str());
  bam1_t *b = bam_init1();
  uint64_t last_id = 0;
- uint64_t count = 0;
  do {
    bool new_record = (sam_read1(fp, header, b) >= 0);
    if (new_record) {
@@ -175,46 +164,28 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
 
      bool unmapped = (tb->core.flag & BAM_FUNMAP) != 0;
      if (!unmapped) {
-       if (findex != NULL) {
-	 if (count >= 1000 && t.first != last_id) {
-	   int64_t offset = bam_writer.tell();
-	   int block_offset = offset & 0xFFFF;
-	   
-	   // daehwan - this is a bug in bgzf.c in samtools
-	   // I'll report this bug with a temporary solution, soon.
-	   if (block_offset <= 0xF000) {
-	     fprintf(findex, "%lu\t%ld\n", t.first, offset);
-	     count = 0;
-	   }
-	 }
+       // mapped reads, write with index
+       bam_writer.write(tb, t.first);
 
-	 ++count;
-       }
-       
-       bam_writer.write(tb); //mapped
-     }
-
-     // In case of Bowtie2, some of the mapped reads against either transcriptome or genome
-     // may have low alignment scores due to gaps, in which case we will remap those.
-     // Later, we may have better alignments that usually involve splice junctions.
-     if (!unmapped) {
+       // In case of Bowtie2, some of the mapped reads against either transcriptome or genome
+       // may have low alignment scores due to gaps, in which case we will remap those.
+       // Later, we may have better alignments that usually involve splice junctions.
        if (bowtie2 && t.first != last_id) {
-	   uint8_t* ptr = bam_aux_get(tb, "AS");
-	   if (ptr) {
-	     int score = bam_aux2i(ptr);
-	     if (score < bowtie2_min_score)
-	       {
-		 unmapped = true;
-	       }
-	   }
+		   uint8_t* ptr = bam_aux_get(tb, "AS");
+		   if (ptr) {
+			 int score = bam_aux2i(ptr);
+			 if (score < bowtie2_min_score)
+			   {
+				 unmapped = true;
+			   }
+		   }
        }
-       
        last_id = t.first;
-     }
+     } // mapped reads
 
-     if (unmapped) { //unmapped
+     if (unmapped) { //unmapped reads or those we might want to map later
        if (umbam!=NULL)
-	 umbam->write(tb);
+    	 umbam->write(tb);
      }
      bam_destroy1(tb);
      map_pq.pop();
@@ -224,8 +195,6 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
  bam_destroy1(b);
  bam_header_destroy(header);
 
- if (findex != NULL)
-   fclose(findex);
 }
 
 void driver_headerless(FILE* map_file, FILE* f_out)
@@ -244,48 +213,7 @@ void driver_headerless(FILE* map_file, FILE* f_out)
 		if (nl) *nl = 0;
 		if (*bwt_buf == 0)
 			continue;
-        /*
-		const char* bwt_fmt_str = "%s %c %s %d %s %s %d %s";
-		static const int buf_size = 2048;
-		char qname[buf_size];
-		char flagstr[buf_size];
-		int bwtf_ret = 0;
-		char refname[buf_size];
-		unsigned int text_offset;
-        char orientation;
-		char sequence[buf_size];
-		char qualities[buf_size];
-		unsigned int other_occs;
-		char mismatches[buf_size];
-		memset(mismatches, 0, sizeof(mismatches));
-		// Get a new record from the tab-delimited Bowtie map
-		bwtf_ret = sscanf(bwt_buf,
-						  bwt_fmt_str,
-						  qname,
-						  &orientation,
-						  refname,   // name of reference sequence
-						  &text_offset,
-						  sequence,
-						  qualities,
-						  &other_occs,
-						  mismatches);
-		
-		// If we didn't get enough fields, this record is bad, so skip it
-		if (bwtf_ret > 0 && bwtf_ret < 6)
-		{
-			//fprintf(stderr, "Warning: found malformed record, skipping\n");
-			continue;
-		}
-        */
-		TabSplitLine* l=new TabSplitLine(bwt_buf);
-		/* bwtf_ret = sscanf(bwt_buf, sam_fmt_str, qname, flagstr, refname);
-		if (qname[0]=='@' && qname[3]==0) { //header line, skip it
-		   continue;
-		   }
-		if (bwtf_ret>9 && bwtf_ret<3) {
-		   continue; //skip this line
-		   }
-		 */
+ 		TabSplitLine* l=new TabSplitLine(bwt_buf);
 		if (l->tcount<10 || l->t[0][0]=='@') {
 		     delete l;
 		     continue;
@@ -363,7 +291,7 @@ int main(int argc, char** argv)
 	    }
 	else {
 		//BAM output, we have SAM header
-		GBamWriter bam_writer(out_file_name.c_str(),sam_header.c_str());
+		GBamWriter bam_writer(out_file_name.c_str(),sam_header.c_str(), index_outfile);
 		GBamWriter *unmapped_bam_writer=NULL;
 		if (!out_unmapped_fname.empty())
 		    unmapped_bam_writer=new GBamWriter(out_unmapped_fname.c_str(),
