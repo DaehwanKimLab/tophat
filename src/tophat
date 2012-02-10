@@ -176,7 +176,10 @@ bowtie_path = None
 fail_str = "\t[FAILED]\n"
 gtf_juncs = None #file name with junctions extracted from given GFF file
 
+#mapping types:
 
+
+_reads_vs_G, _reads_vs_T, _segs_vs_G, _segs_vs_J = range(1,5)
 
 def init_logger(log_fname):
     global tophat_logger
@@ -1573,7 +1576,7 @@ class ZReader:
               self.popen=subprocess.Popen(pipecmd,
                     preexec_fn=subprocess_setup,
                     stdin=self.fsrc,
-                    stdout=subprocess.PIPE, close_fds=True)
+                    stdout=subprocess.PIPE, stderr=tophat_log, close_fds=True)
            except Exception:
               die("Error: could not open pipe "+' '.join(pipecmd)+' < '+ self.fname)
            self.file=self.popen.stdout
@@ -1596,7 +1599,7 @@ class ZWriter:
              self.popen=subprocess.Popen(pipecmd,
                    preexec_fn=subprocess_setup,
                    stdin=subprocess.PIPE,
-                   stdout=self.ftarget, close_fds=True)
+                   stderr=tophat_log, stdout=self.ftarget, close_fds=True)
           except Exception:
               die("Error: could not open writer pipe "+' '.join(pipecmd)+' < '+ self.fname)
           self.file=self.popen.stdin # client writes to this end of the pipe
@@ -1734,7 +1737,7 @@ class PrepReadsInfo:
                raise Exception()
            except Exception, e:
              die(fail_str+"Error retrieving prep_reads info.")
-           th_logp("\t%s reads: min. length=%s, count=%s" %  (side, self.min_len, self.out_count))
+           th_logp("\t%5s reads: min. length=%s, count=%s" %  (side, self.min_len, self.out_count))
            if self.min_len < 20:
                th_logp("Warning: short reads (<20bp) will make TopHat quite slow and take large amount of memory because they are likely to be mapped to too many places")
 
@@ -1808,7 +1811,7 @@ def prep_reads(params, reads_list, quals_list, side="left", prefilter_reads=None
             zip_proc=subprocess.Popen(zip_cmd,
                                   preexec_fn=subprocess_setup,
                                   stdin=filter_proc.stdout,
-                                  stdout=kept_reads)
+                                  stderr=tophat_log, stdout=kept_reads)
             filter_proc.stdout.close() #as per http://bugs.python.org/issue7678
             zip_proc.communicate()
             retcode=filter_proc.poll()
@@ -1838,7 +1841,7 @@ def bowtie(params,
            mapped_reads,
            unmapped_reads,
            extra_output = "",
-           mapping_type = "read_against_genome",
+           mapping_type = _reads_vs_G,
            multihits_out = None): #only --prefilter-multihits should activate this parameter for the initial prefilter search
     start_time = datetime.now()
     bwt_idx_name = bwt_idx_prefix.split('/')[-1]
@@ -1846,9 +1849,9 @@ def bowtie(params,
     readfile_basename=getFileBaseName(reads_file)
 
     g_mapping, t_mapping, seg_mapping = False, False, False
-    if mapping_type == "read_against_transcriptome":
+    if mapping_type == _reads_vs_T:
         t_mapping = True
-    elif mapping_type == "seg_against_genome" or mapping_type == "seg_against_junctions":
+    elif mapping_type >= _segs_vs_G:
         seg_mapping = True
     else:
         g_mapping = True
@@ -1925,6 +1928,7 @@ def bowtie(params,
                  signal.signal(signal.SIGTERM, on_sig_exit)
                  subprocess.call(unm_zipcmd,
                                  stdin=open(unmapped_reads_fifo, "r"),
+                                 stderr=tophat_log,
                                  stdout=open(unmapped_reads_out, "wb"))
                  os._exit(os.EX_OK)
 
@@ -2066,13 +2070,13 @@ def bowtie(params,
            if z_input:
               unzip_proc = subprocess.Popen(unzip_cmd,
                                      stdin=open(reads_file, "rb"),
-                                     stdout=subprocess.PIPE)
+                                     stderr=tophat_log, stdout=subprocess.PIPE)
               shellcmd=' '.join(unzip_cmd) + "< " +reads_file +"|"
            else:
                #must be uncompressed fastq input (unmapped reads from a previous run)
                #or a BAM file with unmapped reads
                if bam_input:
-                   unzip_proc = subprocess.Popen(unzip_cmd, stdout=subprocess.PIPE)
+                   unzip_proc = subprocess.Popen(unzip_cmd, stderr=tophat_log, stdout=subprocess.PIPE)
                    shellcmd=' '.join(unzip_cmd) + "|"
                else:
                    bowtie_cmd += [reads_file]
@@ -2093,17 +2097,20 @@ def bowtie(params,
            shellcmd += "|"+ ' '.join(samzip_cmd)+" > " + mapped_reads
            fix_order_proc = subprocess.Popen(fix_map_cmd,
                                              stdin=bowtie_proc.stdout,
+                                             stderr=tophat_log,
                                              stdout=subprocess.PIPE)
            bowtie_proc.stdout.close() # needed?
            samzip_proc = subprocess.Popen(samzip_cmd,
                                  preexec_fn=subprocess_setup,
                                  stdin=fix_order_proc.stdout,
+                                 stderr=tophat_log,
                                  stdout=open(mapped_reads, "wb"))
            fix_order_proc.stdout.close()
         else:
            #write BAM output directly
            fix_order_proc = subprocess.Popen(fix_map_cmd,
-                                          stdin=bowtie_proc.stdout)
+                                          stdin=bowtie_proc.stdout,
+                                          stderr=tophat_log)
                                         # stdout=open(mapped_reads, "w"))
            bowtie_proc.stdout.close()
 
@@ -2244,7 +2251,7 @@ def build_juncs_index(is_bowtie2,
                     fusions_file_list,
                     reference_fasta]
     try:
-        print >> run_log, " ".join(juncs_db_cmd)
+        print >> run_log, " ".join(juncs_db_cmd) + " > " + external_splices_out_name
         retcode = subprocess.call(juncs_db_cmd,
                                  stderr=juncs_db_log,
                                  stdout=external_splices_out)
@@ -2912,7 +2919,7 @@ def map2gtf(params, genome_sam_header_filename, ref_fasta, left_reads, right_rea
                                            params.t_mismatches,
                                            mapped_gtf_out,
                                            unmapped_gtf,
-                                           "", "read_against_transcriptome")
+                                           "", _reads_vs_T)
         mapped_gtf_list.append(mapped_gtf_map)
         unmapped_gtf_list.append(unmapped)
 
@@ -2966,7 +2973,7 @@ def get_preflt_data(params, ri, target_reads, out_mappings, out_unmapped):
          zip_proc = subprocess.Popen(zip_cmd,
                                preexec_fn=subprocess_setup,
                                stdin=prep_proc.stdout,
-                               stdout=um_reads)
+                               stderr=tophat_log, stdout=um_reads)
          prep_proc.stdout.close() #as per http://bugs.python.org/issue7678
          zip_proc.communicate()
          retcode=prep_proc.poll()
@@ -3097,7 +3104,7 @@ def spliced_alignment(params,
                                                    unspliced_out,
                                                    unmapped_unspliced,
                                                    "",
-                                                   "read_against_genome")
+                                                   _reads_vs_G)
 
         # daehwan - check this out
         # params.bowtie2 = False
@@ -3122,8 +3129,8 @@ def spliced_alignment(params,
             for i in range(len(read_segments)):
                 seg = read_segments[i]
                 fbasename=getFileBaseName(seg)
-                seg_out =  tmp_dir + fbasename + ".bwtout"
-                if use_zpacker: seg_out += ".z"
+                seg_out =  tmp_dir + fbasename
+                #if use_zpacker: seg_out += ".z"
                 unmapped_seg = tmp_dir + fbasename + "_unmapped.fq"
                 if use_BWT_FIFO:
                     unmapped_seg += ".z"
@@ -3136,7 +3143,7 @@ def spliced_alignment(params,
                                              seg_out,
                                              unmapped_seg,
                                              extra_output,
-                                             "seg_against_genome")
+                                             _segs_vs_G)
                 seg_maps.append(seg_map)
                 unmapped_segs.append(unmapped)
                 segs.append(seg)
@@ -3252,8 +3259,8 @@ def spliced_alignment(params,
             for seg in maps[ri].segs:
                 #search each segment
                 fsegname = getFileBaseName(seg)
-                seg_out = tmp_dir + fsegname + ".to_spliced.bwtout"
-                if use_zpacker: seg_out += ".z"
+                seg_out = tmp_dir + fsegname + ".to_spliced"
+                #if use_zpacker: seg_out += ".z"
                 extra_output = "(%d/%d)" % (i+1, len(maps[ri].segs))
                 (seg_map, unmapped) = bowtie(params,
                                              tmp_dir + junc_idx_prefix,
@@ -3263,7 +3270,7 @@ def spliced_alignment(params,
                                              seg_out,
                                              None,
                                              extra_output,
-                                             "seg_against_junctions")
+                                             _segs_vs_J)
                 spliced_seg_maps.append(seg_map)
                 i += 1
 
@@ -3320,7 +3327,7 @@ def spliced_alignment(params,
 
                 print >> run_log, " ".join(merge_cmd)
                 ret = subprocess.call( merge_cmd,
-                                   stderr=open(logging_dir + "sam_merge.log", "w") )
+                                   stderr=open(logging_dir + "bam_merge.log", "w") )
                 if ret != 0:
                     die(fail_str+"Error executing: "+" ".join(merge_cmd))
             except OSError, o:
@@ -3513,9 +3520,8 @@ def main(argv=None):
                if not reads_list:
                   continue
                params.preflt_data[ri].multihit_reads = tmp_dir + sides[ri]+"_multimapped.fq"
-               side_imap = tmp_dir + sides[ri]+"_im.bwtout"
-               if use_zpacker:
-                   side_imap+=".z"
+               side_imap = tmp_dir + sides[ri]+"_im"
+               #if use_zpacker: side_imap+=".z"
                side_ium = tmp_dir + sides[ri]+"_ium.fq"
                if use_BWT_FIFO:
                   side_ium += ".z"
@@ -3525,7 +3531,7 @@ def main(argv=None):
                      params.read_params.reads_format,
                      params.genome_read_mismatches,
                      side_imap, side_ium,
-                     "", "read_against_genome", params.preflt_data[ri].multihit_reads)
+                     "", _reads_vs_G, params.preflt_data[ri].multihit_reads)
                params.preflt_data[ri].mappings = bwt[0] # initial mappings
                params.preflt_data[ri].unmapped_reads = bwt[1] # IUM reads
 
