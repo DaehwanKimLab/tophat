@@ -790,7 +790,7 @@ class RefSequenceTable
 	ret.first->second.seq = seq;
 	ret.first->second.len = len;
 	ret.first->second.observation_order = _next_id;
-	assert (_refid_to_hash.size() + 1 == _next_id);
+    //assert (_refid_to_hash.size() + 1 == _next_id);
 	_refid_to_name.push_back (name);
 			
 	++_next_id;
@@ -809,7 +809,7 @@ class RefSequenceTable
   
   const char* get_name(uint32_t ID) const
   {
-    assert (ID > 0 && ID <= _refid_to_hash.size());
+    //assert (ID > 0 && ID <= _refid_to_hash.size());
     const string& name = _refid_to_name[ID-1];
     IDTable::const_iterator itr = _by_name.find(name);
     if (itr != _by_name.end())

@@ -180,10 +180,11 @@ class ReadStream {
     bool getRead(uint64_t read_id, Read& read,
 		 ReadFormat read_format=FASTQ,
 		 bool strip_slash=false,
-		 FILE* um_out=NULL, //unmapped reads output
-		 bool um_write_found=false,
 		 uint64_t begin_id = 0,
-		 uint64_t end_id=std::numeric_limits<uint64_t>::max());
+		 uint64_t end_id=std::numeric_limits<uint64_t>::max(),
+		 FILE* um_out=NULL, //unmapped reads output
+		 bool um_write_found=false
+		 );
 
     void rewind() {
       fstream.rewind();

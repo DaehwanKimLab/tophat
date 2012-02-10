@@ -21,7 +21,7 @@
 
 using namespace std;
 
-#ifdef MEM_DEBUG 
+#ifdef MEM_DEBUG
 //function for debugging memory usage of current program in Linux
 
 #include <unistd.h>
@@ -91,9 +91,10 @@ bool parallel = true;
 unsigned int max_insertion_length = 3;
 unsigned int max_deletion_length = 3;
 
+
 int inner_dist_mean = 200;
 int inner_dist_std_dev = 20;
-int max_mate_inner_dist = -1; 
+int max_mate_inner_dist = -1;
 
 int min_anchor_len = 8;
 int min_report_intron_length = 50;
@@ -108,7 +109,7 @@ int max_coverage_intron_length = 20000;
 int min_segment_intron_length = 50;
 int max_segment_intron_length = 500000;
 
-uint32_t min_closure_exon_length = 100; 
+uint32_t min_closure_exon_length = 100;
 
 int island_extension = 25;
 int segment_length = 25;
@@ -196,22 +197,22 @@ int parseIntOpt(int lower, const char *errmsg, void (*print_usage)()) {
 static float parseFloatOpt(float lower, float upper, const char *errmsg, void (*print_usage)()) {
     float l;
     l = (float)atof(optarg);
-	
+
     if (l < lower) {
         cerr << errmsg << endl;
         print_usage();
         exit(1);
     }
-	
+
     if (l > upper)
     {
         cerr << errmsg << endl;
         print_usage();
         exit(1);
     }
-	
+
     return l;
-	
+
     cerr << errmsg << endl;
     print_usage();
     exit(1);
@@ -227,7 +228,7 @@ char* get_token(char** str, const char* delims)
   char* token;
   if (*str == NULL)
       return NULL;
-  
+
   token = *str;
   while (**str != '\0')
     {
@@ -237,10 +238,10 @@ char* get_token(char** str, const char* delims)
 	  ++(*str);
 	  return token;
 	}
-    
+
       ++(*str);
     }
-  
+
   *str = NULL;
   return token;
 }
@@ -405,7 +406,7 @@ int parse_options(int argc, char** argv, void (*print_usage)())
   do {
     next_option = getopt_long(argc, argv, short_options, long_options, &option_index);
     switch (next_option) {
-    case -1:    
+    case -1:
       break;
     case OPT_FASTA:
       reads_format = FASTA;
@@ -418,7 +419,7 @@ int parse_options(int argc, char** argv, void (*print_usage)())
       break;
     case OPT_SPLICE_MISMATCHES:
       max_splice_mismatches = parseIntOpt(0, "--splice-mismatches arg must be at least 0", print_usage);
-      break; 
+      break;
     case OPT_VERBOSE:
       verbose = true;
       break;
@@ -620,7 +621,7 @@ int parse_options(int argc, char** argv, void (*print_usage)())
       return 1;
     }
   } while(next_option != -1);
-  
+
   return 0;
 }
 
@@ -776,6 +777,15 @@ void err_die(const char* format,...) { // Error exit
   exit(1);
 }
 
+void warn_msg(const char* format,...) {
+  // print message to stderr
+  va_list arguments;
+  va_start(arguments,format);
+  vfprintf(stderr,format,arguments);
+  va_end(arguments);
+}
+
+
 string getUnpackCmd(const string& fname, bool use_all_cpus) {
  //prep_reads should use guess_packer() instead
   //otherwise compressed files MUST have the .z extension,
@@ -786,7 +796,7 @@ string getUnpackCmd(const string& fname, bool use_all_cpus) {
     pipecmd="bam2fastx --all";
     return pipecmd;
     }
- if (zpacker.empty() || fext!="z") { 
+ if (zpacker.empty() || fext!="z") {
       return pipecmd; //no packer used
       }
  pipecmd=zpacker;
