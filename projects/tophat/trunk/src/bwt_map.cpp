@@ -3008,6 +3008,7 @@ void bowtie_sam_extra(const BowtieHit& bh, const RefSequenceTable& rt, vector<st
   size_t pos_mismatch = 0;
   size_t pos_ref = bh.left();
   size_t mismatch = 0;
+  size_t N_mismatch = 0;
   size_t num_gap_opens = 0;
   size_t num_gap_conts = 0;
   bool bSawFusion = false;
@@ -3052,8 +3053,15 @@ void bowtie_sam_extra(const BowtieHit& bh, const RefSequenceTable& rt, vector<st
 
 		    if (pos_seq < qual.length())
 		      {
-			float penalty = (bowtie2_max_penalty - bowtie2_min_penalty) * min((int)(qual[pos_seq] - '!'), 40) / 40.0;
-			AS_score -= (int)penalty;
+			if (seq[pos_seq] == 'N' || ref_nt == 'N')
+			  {
+			    AS_score -= (int)bowtie2_penalty_for_N;
+			  }
+			else
+			  {
+			    float penalty = bowtie2_min_penalty + (bowtie2_max_penalty - bowtie2_min_penalty) * min((int)(qual[pos_seq] - '!'), 40) / 40.0;
+			    AS_score -= (int)penalty;
+			  }
 		      }
 
 		    str_appendInt(MD, (int)pos_mismatch);
@@ -3061,8 +3069,16 @@ void bowtie_sam_extra(const BowtieHit& bh, const RefSequenceTable& rt, vector<st
 		    pos_mismatch = 0;
 		  }
 		else
-		  ++pos_mismatch;
-		
+		  {
+		    if (ref_nt == 'N')
+		      {
+			++N_mismatch;
+			AS_score -= (int)bowtie2_penalty_for_N;
+		      }
+
+		    ++pos_mismatch;
+		  }
+
 		++pos_seq;
 	      }
 	  }
