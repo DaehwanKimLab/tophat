@@ -2361,6 +2361,22 @@ def compile_reports(params, sam_header_filename, ref_fasta, mappings, readfiles,
         report_cmd += ["--report-secondary-alignments"]
 
     report_cmd.extend(["--samtools="+samtools_path])
+
+    b2_params = params.bowtie2_params
+    max_penalty, min_penalty = b2_params.mp.split(',')
+    report_cmd += ["--bowtie2-max-penalty", max_penalty,
+                  "--bowtie2-min-penalty", min_penalty]
+
+    report_cmd += ["--bowtie2-penalty-for-N", str(b2_params.np)]
+
+    read_gap_open, read_gap_cont = b2_params.rdg.split(',')
+    report_cmd += ["--bowtie2-read-gap-open", read_gap_open,
+                  "--bowtie2-read-gap-cont", read_gap_cont]
+
+    ref_gap_open, ref_gap_cont = b2_params.rfg.split(',')
+    report_cmd += ["--bowtie2-ref-gap-open", ref_gap_open,
+                  "--bowtie2-ref-gap-cont", ref_gap_cont]
+
     report_cmd.extend([ref_fasta,
                        junctions,
                        insertions,

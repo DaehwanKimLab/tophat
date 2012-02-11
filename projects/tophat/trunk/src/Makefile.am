@@ -514,7 +514,8 @@ noinst_HEADERS = \
 	inserts.h \
 	segments.h \
 	qual.h \
-	utils.h
+	utils.h \
+	coverage.h
 
 
 libtophat_a_SOURCES = \
@@ -531,7 +532,8 @@ libtophat_a_SOURCES = \
 	tokenize.cpp \
 	inserts.cpp \
 	qual.cpp \
-	utils.cpp
+	utils.cpp \
+	coverage.cpp
     
 libgc_a_SOURCES = \
 	GBase.cpp \

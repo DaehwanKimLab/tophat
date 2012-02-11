@@ -17,6 +17,9 @@
 #include <bam/sam.h>
 #include "common.h"
 #include "junctions.h"
+#include "insertions.h"
+#include "deletions.h"
+#include "fusions.h"
 
 
 using namespace std;
@@ -31,8 +34,6 @@ using namespace std;
  */
 struct AlignStatus
 {
-
-
 private:
   /**
    * Is this alignment free of indels. Note, if there is no alignment
@@ -55,7 +56,12 @@ private:
   unsigned char _edit_dist;
 public:
   AlignStatus();
-  AlignStatus(const BowtieHit& bh, const JunctionSet& gtf_junctions);
+  AlignStatus(const BowtieHit& bh,
+	      const JunctionSet& gtf_junctions,
+	      const JunctionSet& junctions,
+	      const InsertionSet& insertions,
+	      const DeletionSet& deletions,
+	      const FusionSet& fusions);
 
   bool operator<(const AlignStatus& rhs) const;
   bool operator==(const AlignStatus& rhs) const;

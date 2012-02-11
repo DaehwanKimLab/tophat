@@ -52,6 +52,11 @@ using namespace std;
 using namespace seqan;
 using std::set;
 
+static const JunctionSet empty_junctions;
+static const InsertionSet empty_insertions;
+static const DeletionSet empty_deletions;
+static const FusionSet empty_fusions;
+
 // daehwan - this is redundancy, which should be removed.
 void get_seqs(istream& ref_stream,
 	      RefSequenceTable& rt,
@@ -80,8 +85,9 @@ struct cmp_read_alignment
     
   bool operator() (const BowtieHit& l, const BowtieHit& r) const
   {
-    FragmentAlignmentGrade gl(l, *_gtf_juncs);
-    FragmentAlignmentGrade gr(r, *_gtf_juncs);
+    // daehwan - implement this
+    FragmentAlignmentGrade gl(l, *_gtf_juncs, empty_junctions, empty_insertions, empty_deletions, empty_fusions);
+    FragmentAlignmentGrade gr(r, *_gtf_juncs, empty_junctions, empty_insertions, empty_deletions, empty_fusions);
     bool better = gr < gl;
     bool worse = gl < gr;
 
@@ -97,7 +103,11 @@ struct cmp_read_alignment
 void read_best_alignments(const HitsForRead& hits_for_read,
 			  FragmentAlignmentGrade& best_grade,
 			  HitsForRead& best_hits,
-			  const JunctionSet& gtf_junctions)
+			  const JunctionSet& gtf_junctions,
+			  const JunctionSet& junctions = empty_junctions,
+			  const InsertionSet& insertions = empty_insertions,
+			  const DeletionSet& deletions = empty_deletions,
+			  const FusionSet& fusions = empty_fusions)
 {
   const vector<BowtieHit>& hits = hits_for_read.hits;
   for (size_t i = 0; i < hits.size(); ++i)
@@ -111,7 +121,12 @@ void read_best_alignments(const HitsForRead& hits_for_read,
 	}
       else
 	{
-	  FragmentAlignmentGrade g(hits[i], gtf_junctions);
+	  FragmentAlignmentGrade g(hits[i],
+				   gtf_junctions,
+				   empty_junctions,
+				   empty_insertions,
+				   empty_deletions,
+				   empty_fusions);
 	  
 	  // Is the new status better than the current best one?
 	  if (best_grade < g)
@@ -132,7 +147,12 @@ void read_best_alignments(const HitsForRead& hits_for_read,
     {
       cmp_read_alignment cmp(gtf_junctions);
       sort(best_hits.hits.begin(), best_hits.hits.end(), cmp);
-      best_grade = FragmentAlignmentGrade(best_hits.hits[0], gtf_junctions);
+      best_grade = FragmentAlignmentGrade(best_hits.hits[0],
+					  gtf_junctions,
+					  empty_junctions,
+					  empty_insertions,
+					  empty_deletions,
+					  empty_fusions);
       best_grade.num_alignments = best_hits.hits.size();
     }
 }
@@ -203,7 +223,11 @@ void pair_best_alignments(const HitsForRead& left_hits,
 			  const HitsForRead& right_hits,
 			  InsertAlignmentGrade& best_grade,
 			  vector<pair<BowtieHit, BowtieHit> >& best_hits,
-			  const JunctionSet& gtf_junctions)
+			  const JunctionSet& gtf_junctions,
+			  const JunctionSet& junctions = empty_junctions,
+			  const InsertionSet& insertions = empty_insertions,
+			  const DeletionSet& deletions = empty_deletions,
+			  const FusionSet& fusions = empty_fusions)
 {
   const vector<BowtieHit>& left = left_hits.hits;
   const vector<BowtieHit>& right = right_hits.hits;
@@ -735,11 +759,10 @@ void update_insertions_and_deletions(const HitsForRead& hits,
 }
 
 
-FusionSet empty_fusions;
 void update_fusions(const HitsForRead& hits,
 		    RefSequenceTable& rt,
 		    FusionSet& fusions,
-		    FusionSet& fusions_ref = empty_fusions)
+		    const FusionSet& fusions_ref = empty_fusions)
 {
   if (hits.hits.size() > fusion_multireads)
     return;
@@ -870,6 +893,7 @@ struct ConsensusEventsWorker
 	    // Process hits for left singleton, select best alignments
 	    read_best_alignments(curr_left_hit_group, best_grade, best_hits, *gtf_junctions);
 	    update_junctions(best_hits, *junctions);
+	    update_insertions_and_deletions(best_hits, *insertions, *deletions);
 	    update_fusions(best_hits, *rt, *fusions);
             
 	    // Get next hit group
@@ -890,6 +914,7 @@ struct ConsensusEventsWorker
 		// Process hit for right singleton, select best alignments
 		read_best_alignments(curr_right_hit_group, best_grade, best_hits, *gtf_junctions);
 		update_junctions(best_hits, *junctions);
+		update_insertions_and_deletions(best_hits, *insertions, *deletions);
 		update_fusions(best_hits, *rt, *fusions);
 	      }
             
@@ -924,6 +949,7 @@ struct ConsensusEventsWorker
 	      }
 
 	    update_junctions(single_best_hits, *junctions);
+	    update_insertions_and_deletions(single_best_hits, *insertions, *deletions);
 	    update_fusions(single_best_hits, *rt, *fusions);
 	            
 	    l_hs.next_read_hits(curr_left_hit_group);
@@ -943,15 +969,19 @@ struct ConsensusEventsWorker
   string left_map_fname;
   string right_map_fname;
 
-  JunctionSet* junctions;
-  JunctionSet* gtf_junctions;
-  FusionSet* fusions;
   RefSequenceTable* rt;
+
+  JunctionSet* gtf_junctions;
 
   uint64_t begin_id;
   uint64_t end_id;
   int64_t left_map_offset;
   int64_t right_map_offset;
+
+  JunctionSet* junctions;
+  InsertionSet* insertions;
+  DeletionSet* deletions;
+  FusionSet* fusions;
 };
 
 struct ReportWorker
@@ -1291,8 +1321,12 @@ struct ReportWorker
   string right_um_fname;
 
   JunctionSet* gtf_junctions;
+  
   JunctionSet* junctions;
+  InsertionSet* insertions;
+  DeletionSet* deletions;
   FusionSet* fusions;
+
   JunctionSet* final_junctions;
   InsertionSet* final_insertions;
   DeletionSet* final_deletions;
@@ -1384,6 +1418,8 @@ void driver(const string& bam_output_fname,
     }
 
   JunctionSet vjunctions[num_threads];
+  InsertionSet vinsertions[num_threads];
+  DeletionSet vdeletions[num_threads];
   FusionSet vfusions[num_threads];
   vector<boost::thread*> threads;
   for (int i = 0; i < num_threads; ++i)
@@ -1392,10 +1428,13 @@ void driver(const string& bam_output_fname,
 
       worker.left_map_fname = left_map_fname;
       worker.right_map_fname = right_map_fname;
-      worker.junctions = &vjunctions[i];
-      worker.fusions = &vfusions[i];
-      worker.gtf_junctions = &gtf_junctions;
       worker.rt = &rt;
+      worker.gtf_junctions = &gtf_junctions;
+      
+      worker.junctions = &vjunctions[i];
+      worker.insertions = &vinsertions[i];
+      worker.deletions = &vdeletions[i];
+      worker.fusions = &vfusions[i];
 
       worker.right_map_offset = 0;
       
@@ -1431,11 +1470,19 @@ void driver(const string& bam_output_fname,
   threads.clear();
 
   JunctionSet junctions = vjunctions[0];
+  InsertionSet insertions = vinsertions[0];
+  DeletionSet deletions = vdeletions[0];
   FusionSet fusions = vfusions[0];
   for (size_t i = 1; i < num_threads; ++i)
     {
       merge_with(junctions, vjunctions[i]);
       vjunctions[i].clear();
+
+      merge_with(insertions, vinsertions[i]);
+      vinsertions[i].clear();
+      
+      merge_with(deletions, vdeletions[i]);
+      vdeletions[i].clear();
 
       merge_with(fusions, vfusions[i]);
       vfusions[i].clear();
@@ -1445,7 +1492,6 @@ void driver(const string& bam_output_fname,
   fprintf(stderr, "Loaded %lu junctions\n", (long unsigned int) num_unfiltered_juncs);
 
   // Read hits, extract junctions, and toss the ones that arent strongly enough supported.
-
   filter_junctions(junctions, gtf_junctions);
   
   //size_t num_juncs_after_filter = junctions.size();
@@ -1496,7 +1542,10 @@ void driver(const string& bam_output_fname,
 
       worker.gtf_junctions = &gtf_junctions;
       worker.junctions = &junctions;
+      worker.insertions = &insertions;
+      worker.deletions = &deletions;
       worker.fusions = &fusions;
+      
       worker.final_junctions = &vfinal_junctions[i];
       worker.final_insertions = &vfinal_insertions[i];
       worker.final_deletions = &vfinal_deletions[i];

@@ -123,7 +123,6 @@ struct less_bam {
 };
 
 void write_bam_lines(GBamWriter& bw, vector<CBamLine>& bam_lines) {
-  static size_t count = 0;
   std::sort (bam_lines.begin(), bam_lines.end(), less_bam());
 
   bool sense_strand = false, antisense_strand = false;
@@ -161,7 +160,6 @@ void write_bam_lines(GBamWriter& bw, vector<CBamLine>& bam_lines) {
     if (do_write) {
       //samwrite(fw, bam_line.b);
       bw.write(bam_line.b, bam_line.read_id);
-      ++count;
     }
   }
 
@@ -220,7 +218,7 @@ int main(int argc, char *argv[])
     lines.pop();
     assert (brec.fileno>=0 && brec.b!=NULL);
     // we need to eliminate duplicate records, which can happen when using Bowtie2
-    // as we may map the same read against transcriptome and genome.
+    // as we may map the same read against transcriptome, genome, and novel/known splice junctions.
     if (last_id != brec.read_id && bam_lines.size() > 0)
        write_bam_lines(bamwriter, bam_lines);
 

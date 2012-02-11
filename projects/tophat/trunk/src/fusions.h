@@ -198,7 +198,7 @@ FusionStat() :
 
 struct fusion_comparison 
 {
-  bool operator()(const Fusion& lhs, const Fusion& rhs)
+  bool operator()(const Fusion& lhs, const Fusion& rhs) const
   {
     if (lhs.left != rhs.left)
       return lhs.left < rhs.left;
@@ -226,7 +226,7 @@ typedef std::map<Fusion, FusionSimpleStat> FusionSimpleSet;
 typedef std::map<Fusion, FusionStat, fusion_comparison> FusionSet;
 
 void fusions_from_alignment(const BowtieHit& bh, FusionSet& fusions, RefSequenceTable& rt, bool update_stat = false);
-void unsupport_fusions(const BowtieHit& bh, FusionSet& fusions, FusionSet& fusions_ref);
+void unsupport_fusions(const BowtieHit& bh, FusionSet& fusions, const FusionSet& fusions_ref);
 void print_fusions(FILE* fusions_out, FusionSet& fusions, RefSequenceTable& ref_sequences);
 void fusions_from_spliced_hit(const BowtieHit& bh, vector<Fusion>& fusions, bool auto_sort = true);
 void pair_support(const vector<pair<BowtieHit, BowtieHit> >& best_hits, FusionSet& fusions, FusionSet& fusions_ref);
