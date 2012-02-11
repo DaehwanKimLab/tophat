@@ -67,6 +67,7 @@ struct CigarOp
 };
 
 typedef uint32_t ReadID;
+typedef uint32_t RefID;
 
 class RefSequenceTable;
 
@@ -84,6 +85,7 @@ BowtieHit() :
     _antisense_aln(false),
     _edit_dist(0),
     _splice_mms(0),
+    _alignment_score(0),
     _end(false){}
   
 BowtieHit(uint32_t ref_id,
@@ -103,6 +105,7 @@ BowtieHit(uint32_t ref_id,
     _antisense_aln(antisense),
     _edit_dist(edit_dist),
     _splice_mms(0),
+    _alignment_score(0),
     _end(end)
   {
     assert(_cigar.capacity() == _cigar.size());
@@ -127,75 +130,76 @@ BowtieHit(uint32_t ref_id,
     _antisense_aln(antisense_aln),
     _edit_dist(edit_dist),
     _splice_mms(splice_mms),
+    _alignment_score(0),
     _end(end)
   {
     assert(_cigar.capacity() == _cigar.size());
   }
   
-	int read_len() const
-	{
-		uint32_t len = 0;
-		for (size_t i = 0; i < _cigar.size(); ++i)
-		{
-			const CigarOp& op = _cigar[i];
-			switch(op.opcode)
-			{
-			case MATCH:
-			case mATCH:
-			case INS:
-			case iNS:
-			case SOFT_CLIP:
-			  len += op.length;
-			  break;
-			default:
-			  break;
-			}
-		}
-		return len;
-	}
-	
-	bool operator==(const BowtieHit& rhs) const
-	{
-	    return (_insert_id == rhs._insert_id &&
-	            _ref_id == rhs._ref_id &&
-		    _ref_id2 == rhs._ref_id2 &&
-	            _antisense_aln == rhs._antisense_aln &&
-	            _left == rhs._left && 
-	            _antisense_splice == rhs._antisense_splice &&
-		    _edit_dist == rhs._edit_dist && 
-	            /* DO NOT USE ACCEPTED IN COMPARISON */
-	            _cigar == rhs._cigar);
-    }
-	
-	bool operator<(const BowtieHit& rhs) const 
-	{
-		if (_insert_id != rhs._insert_id)
-			return _insert_id < rhs._insert_id;
-		if (_ref_id != rhs._ref_id)
-			return _ref_id < rhs._ref_id;
-		if (_ref_id2 != rhs._ref_id2)
-			return _ref_id2 < rhs._ref_id2;
-		if (_left != rhs._left)
-			return _left < rhs._left;
-		if (_antisense_aln != rhs._antisense_aln)
-			return _antisense_aln < rhs._antisense_aln;
-		if (_edit_dist != rhs._edit_dist)
-			return _edit_dist < rhs._edit_dist;
-		if (_cigar != rhs._cigar)
-		{
-			if (_cigar.size() != rhs._cigar.size())
-				return _cigar.size() < rhs._cigar.size();
-			for (size_t i = 0; i < _cigar.size(); ++i)
-			{
-				if (!(_cigar[i] == rhs._cigar[i]))
-					return (_cigar[i].opcode < rhs._cigar[i].opcode || (_cigar[i].opcode == rhs._cigar[i].opcode && _cigar[i].length < rhs._cigar[i].length)); 
-			}
-		}
-		return false;
-	}
-	
-  uint32_t ref_id() const				{ return _ref_id;			}
-  uint32_t ref_id2() const				{ return _ref_id2;			}
+  int read_len() const
+  {
+    uint32_t len = 0;
+    for (size_t i = 0; i < _cigar.size(); ++i)
+      {
+	const CigarOp& op = _cigar[i];
+	switch(op.opcode)
+	  {
+	  case MATCH:
+	  case mATCH:
+	  case INS:
+	  case iNS:
+	  case SOFT_CLIP:
+	    len += op.length;
+	    break;
+	  default:
+	    break;
+	  }
+      }
+    return len;
+  }
+  
+  bool operator==(const BowtieHit& rhs) const
+  {
+    return (_insert_id == rhs._insert_id &&
+	    _ref_id == rhs._ref_id &&
+	    _ref_id2 == rhs._ref_id2 &&
+	    _antisense_aln == rhs._antisense_aln &&
+	    _left == rhs._left && 
+	    _antisense_splice == rhs._antisense_splice &&
+	    _edit_dist == rhs._edit_dist && 
+	    /* DO NOT USE ACCEPTED IN COMPARISON */
+	    _cigar == rhs._cigar);
+  }
+  
+  bool operator<(const BowtieHit& rhs) const 
+  {
+    if (_insert_id != rhs._insert_id)
+      return _insert_id < rhs._insert_id;
+    if (_ref_id != rhs._ref_id)
+      return _ref_id < rhs._ref_id;
+    if (_ref_id2 != rhs._ref_id2)
+      return _ref_id2 < rhs._ref_id2;
+    if (_left != rhs._left)
+      return _left < rhs._left;
+    if (_antisense_aln != rhs._antisense_aln)
+      return _antisense_aln < rhs._antisense_aln;
+    if (_edit_dist != rhs._edit_dist)
+      return _edit_dist < rhs._edit_dist;
+    if (_cigar != rhs._cigar)
+      {
+	if (_cigar.size() != rhs._cigar.size())
+	  return _cigar.size() < rhs._cigar.size();
+	for (size_t i = 0; i < _cigar.size(); ++i)
+	  {
+	    if (!(_cigar[i] == rhs._cigar[i]))
+	      return (_cigar[i].opcode < rhs._cigar[i].opcode || (_cigar[i].opcode == rhs._cigar[i].opcode && _cigar[i].length < rhs._cigar[i].length)); 
+	  }
+      }
+    return false;
+  }
+  
+  uint32_t ref_id() const			{ return _ref_id;			}
+  uint32_t ref_id2() const			{ return _ref_id2;			}
   ReadID insert_id() const			{ return _insert_id;		}
   int left() const				{ return _left;				}
   int right() const	
@@ -428,8 +432,11 @@ BowtieHit(uint32_t ref_id,
     return result;
   }
   
-  unsigned char edit_dist() const		{ return _edit_dist;		}
+  unsigned char edit_dist() const	{ return _edit_dist;		}
   unsigned char splice_mms() const	{ return _splice_mms;		}
+
+  int alignment_score() const           { return _alignment_score;      }
+  void alignment_score(int as)          { _alignment_score = as;        }
   
   // For convenience, if you just want a copy of the gap intervals
   // for this hit.
@@ -494,7 +501,6 @@ BowtieHit(uint32_t ref_id,
   bool check_editdist_consistency(const RefSequenceTable& rt, bool bDebug = false);
   
 private:
-  
   uint32_t _ref_id;
   uint32_t _ref_id2;
   ReadID _insert_id;   // Id of the sequencing insert
@@ -510,6 +516,9 @@ private:
   string _hitfile_rec; // Points to the buffer for the record from which this hit came
   string _seq;
   string _qual;
+
+  int _alignment_score; // Bowtie2 outputs AS (alignment score) in SAM, TopHat2 uses the value when selecting the best alignments.
+  
   bool _end; // Whether this segment is the last one of the read it belongs to
 };
 
@@ -809,7 +818,6 @@ class RefSequenceTable
   
   const char* get_name(uint32_t ID) const
   {
-    //assert (ID > 0 && ID <= _refid_to_hash.size());
     const string& name = _refid_to_name[ID-1];
     IDTable::const_iterator itr = _by_name.find(name);
     if (itr != _by_name.end())
@@ -820,7 +828,6 @@ class RefSequenceTable
   
   uint32_t get_len(uint32_t ID) const
   {
-    assert (ID > 0 && ID <= _refid_to_name.size());
     const string& name = _refid_to_name[ID-1];
     IDTable::const_iterator itr = _by_name.find(name);
     if (itr != _by_name.end())

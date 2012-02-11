@@ -1743,6 +1743,14 @@ bool BAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
     num_hits = bam_aux2i(ptr);
   }
 
+  int alignment_score = 0;
+  bool has_alignment_score = false;
+  ptr = bam_aux_get(hit_buf, "AS");
+  if (ptr) {
+    alignment_score = bam_aux2i(ptr);
+    has_alignment_score = true;
+  }
+  
   string text_name = _sam_header->target_name[target_id];
   string text_name2 = "";
   
@@ -1822,12 +1830,18 @@ bool BAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
       p_cig = t + 1;
       cigar.push_back(CigarOp(opcode, length));
 
-      if(opcode == INS) {
+      if (opcode == INS)
 	num_mismatches -= length;
-      }
-      else if(opcode == DEL) {
+      else if (opcode == DEL)
 	num_mismatches -= length;
-      }
+
+      if (!has_alignment_score)
+	{
+	  if (opcode == INS)
+	    alignment_score -= (bowtie2_read_gap_open * bowtie2_read_gap_cont * length);
+	  else if(opcode == DEL)
+	    alignment_score -= (bowtie2_ref_gap_open * bowtie2_ref_gap_cont * length);
+	}
       
       /*
        * update fusion direction.
@@ -1860,10 +1874,6 @@ bool BAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 	if (length <= 0)
 	  {
 	    fprintf (stderr, "insert_id: %s - BAM error: CIGAR op has zero length\n", qname);
-
-	    // daehwan - remove this
-	    exit(1);
-	    
 	    return false;
 	  }
 	
@@ -1900,24 +1910,30 @@ bool BAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 	 * record to reflect this. Therefore, subtract out
 	 * the mismatches due to in/dels
 	 */
-	if(opcode == INS){
+	if (opcode == INS)
 	  num_mismatches -= length;
-	}
-	else if(opcode == DEL){
+	else if (opcode == DEL)
 	  num_mismatches -= length;
-	}
+	
+	if (!has_alignment_score)
+	  {
+	    if (opcode == INS)
+	      alignment_score -= (bowtie2_read_gap_open * bowtie2_read_gap_cont * length);
+	    else if(opcode == DEL)
+	      alignment_score -= (bowtie2_ref_gap_open * bowtie2_ref_gap_cont * length);
+	  }
       }
   }
 
+  if (!has_alignment_score)
+    alignment_score -= (num_mismatches * (bowtie2_max_penalty + bowtie2_min_penalty) / 2);
   
   string mrnm;
   if (mate_target_id >= 0) {
     if (mate_target_id == target_id) {
-      //mrnm = ((samfile_t*)(hs._hit_file))->header->target_name[mate_target_id];
       mrnm = _sam_header->target_name[mate_target_id];
     }
     else {
-      //fprintf(stderr, "Trans-spliced mates are not currently supported, skipping\n");
       return false;
     }
   }
@@ -1950,6 +1966,8 @@ bool BAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 		    0,
 		    end);
   }
+
+  bh.alignment_score(alignment_score);
   
   return true;
 }

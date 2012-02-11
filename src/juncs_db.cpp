@@ -461,45 +461,50 @@ void driver(const vector<FILE*>& splice_coords_files,
 
 	{
 	  JunctionSet::iterator itr = junctions.begin();
-	  while(itr != junctions.end())
+	  for (; itr != junctions.end(); ++itr)
 	    {
 	      RefSequenceTable::Sequence* ref_str = rt.get_seq(itr->first.refid);
+	      if (ref_str == NULL) continue;
+	      
 	      const char* name = rt.get_name(itr->first.refid);
 	      print_splice(itr->first, read_length, itr->first.antisense ? "GTAG|rev" : "GTAG|fwd", *ref_str, name, cout);
-	      ++itr;
 	    }
 	}
 
 	{
 	  std::set<Deletion>::iterator itr = deletions.begin();
-	  while(itr != deletions.end())
+	  for (; itr != deletions.end(); ++itr)
 	    {
 	      RefSequenceTable::Sequence* ref_str = rt.get_seq(itr->refid);
+	      if (ref_str == NULL) continue;
+	      
 	      const char* name = rt.get_name(itr->refid);
 	      print_splice((Junction)*itr, read_length, itr->antisense ? "del|rev" : "del|fwd", *ref_str, name, cout);
-	      ++itr;
 	    }
 	}
 
 	{
 	  std::set<Insertion>::iterator itr  = insertions.begin();
-	  while(itr != insertions.end()){
+	  for (; itr != insertions.end(); ++itr){
 	    RefSequenceTable::Sequence* ref_str = rt.get_seq(itr->refid);
+	    if (ref_str == NULL) continue;
+	    
 	    const char* name = rt.get_name(itr->refid);
 	    print_insertion(*itr, read_length, *ref_str, name, cout);	
-	    ++itr;
 	  }
 	}
 
 	{
 	  std::set<Fusion>::iterator itr = fusions.begin();
-	  while(itr != fusions.end()){
+	  for (; itr != fusions.end(); ++itr){
 	    RefSequenceTable::Sequence* left_ref_str = rt.get_seq(itr->refid1);
 	    RefSequenceTable::Sequence* right_ref_str = rt.get_seq(itr->refid2);
+
+	    if (left_ref_str == NULL || right_ref_str == NULL) continue;
+	    
 	    const char* left_ref_name = rt.get_name(itr->refid1);
 	    const char* right_ref_name = rt.get_name(itr->refid2);
 	    print_fusion(*itr, read_length, *left_ref_str, *right_ref_str, left_ref_name, right_ref_name, cout);	
-	    ++itr;
 	  }
 	}
 }

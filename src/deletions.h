@@ -23,20 +23,12 @@
 #include "junctions.h"
 using namespace std;
 
-
 typedef Junction Deletion;
 typedef std::map<Junction, uint32_t> DeletionSet;
 
 void deletions_from_alignment(const BowtieHit& spliced_alignment, DeletionSet& junctions);
-
 void deletions_from_spliced_hit(const BowtieHit& bh, vector<Deletion>& deletions);
-
 void print_deletions(FILE* deletions_out, const DeletionSet& deletions, RefSequenceTable& ref_sequences);
-
 void merge_with(DeletionSet& deletions, const DeletionSet& other);
 
 #endif
-
-
-
-

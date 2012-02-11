@@ -277,12 +277,12 @@ void fusions_from_alignment(const BowtieHit& bh,
     }
 }
 
-void unsupport_fusions(const BowtieHit& bh, FusionSet& fusions, FusionSet& fusions_ref)
+void unsupport_fusions(const BowtieHit& bh, FusionSet& fusions, const FusionSet& fusions_ref)
 {
   if (bh.fusion_opcode() != FUSION_NOTHING || bh.is_spliced() || bh.read_len() < 40)
     return;
 
-  FusionSet::iterator lb, ub;
+  FusionSet::const_iterator lb, ub;
   
   uint32_t left = bh.left() + 20;
   uint32_t right = bh.right() - 20;

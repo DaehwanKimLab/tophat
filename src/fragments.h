@@ -18,22 +18,29 @@ struct FragmentAlignmentGrade
 {
   FragmentAlignmentGrade() 
   {
-    //edit_dist = 0;
     num_alignments = 0;
     status = AlignStatus();
   }
   
-  FragmentAlignmentGrade(const BowtieHit& h1, const JunctionSet& gtf_junctions) 
+  FragmentAlignmentGrade(const BowtieHit& h1,
+			 const JunctionSet& gtf_junctions,
+			 const JunctionSet& junctions,
+			 const InsertionSet& insertions,
+			 const DeletionSet& deletions,
+			 const FusionSet& fusions) 
   {
-    status = AlignStatus(h1, gtf_junctions);
-    //edit_dist = h1.edit_dist();
+    status = AlignStatus(h1,
+			 gtf_junctions,
+			 junctions,
+			 insertions,
+			 deletions,
+			 fusions);
     num_alignments = 1;
   }
   
   FragmentAlignmentGrade& operator=(const FragmentAlignmentGrade& rhs)
   {
     status = rhs.status;
-    //edit_dist = rhs.edit_dist;
     num_alignments = rhs.num_alignments;
     
     return *this;
@@ -44,15 +51,10 @@ struct FragmentAlignmentGrade
     
   bool operator<(const FragmentAlignmentGrade& rhs)
   {
-    // -- Geo: check this
-    //if (status != rhs.status)
-      return status < rhs.status;
-    
-    //return rhs.edit_dist < edit_dist;
+    return status < rhs.status;
   }
   
   AlignStatus status;
-  //int edit_dist;
   int num_alignments; // number of equally good alignments for this fragment 
 };
 

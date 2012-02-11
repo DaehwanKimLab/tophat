@@ -20,7 +20,9 @@ void best_fragment_mappings(uint64_t refid,
 			    HitList& hits_in_ref,
 			    ReadTable& it, 
 			    BestFragmentAlignmentTable& best_status_for_fragments)
-{	
+{
+  return;
+#if 0
   for (size_t i = 0; i < hits_in_ref.size(); ++i)
     {
       BowtieHit& h1 = hits_in_ref[i];
@@ -45,6 +47,7 @@ void best_fragment_mappings(uint64_t refid,
 	  fragment_best.second.push_back(&h1);
 	}
     }
+#endif
 }
 
 bool valid_fragment_alignment(const FragmentAlignmentGrade& g, const FragmentAlignment& a)
