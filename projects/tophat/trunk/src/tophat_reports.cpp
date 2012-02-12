@@ -44,6 +44,7 @@
 #include "wiggles.h"
 #include "tokenize.h"
 #include "reads.h"
+#include "coverage.h"
 
 
 #include "inserts.h"
@@ -56,6 +57,7 @@ static const JunctionSet empty_junctions;
 static const InsertionSet empty_insertions;
 static const DeletionSet empty_deletions;
 static const FusionSet empty_fusions;
+static const Coverage empty_coverage;
 
 // daehwan - this is redundancy, which should be removed.
 void get_seqs(istream& ref_stream,
@@ -107,7 +109,8 @@ void read_best_alignments(const HitsForRead& hits_for_read,
 			  const JunctionSet& junctions = empty_junctions,
 			  const InsertionSet& insertions = empty_insertions,
 			  const DeletionSet& deletions = empty_deletions,
-			  const FusionSet& fusions = empty_fusions)
+			  const FusionSet& fusions = empty_fusions,
+			  const Coverage& coverage = empty_coverage)
 {
   const vector<BowtieHit>& hits = hits_for_read.hits;
   for (size_t i = 0; i < hits.size(); ++i)
@@ -227,7 +230,8 @@ void pair_best_alignments(const HitsForRead& left_hits,
 			  const JunctionSet& junctions = empty_junctions,
 			  const InsertionSet& insertions = empty_insertions,
 			  const DeletionSet& deletions = empty_deletions,
-			  const FusionSet& fusions = empty_fusions)
+			  const FusionSet& fusions = empty_fusions,
+			  const Coverage& coverage = empty_coverage)
 {
   const vector<BowtieHit>& left = left_hits.hits;
   const vector<BowtieHit>& right = right_hits.hits;
@@ -750,12 +754,62 @@ void update_insertions_and_deletions(const HitsForRead& hits,
                                      InsertionSet& insertions,
                                      DeletionSet& deletions)
 {
-	for (size_t i = 0; i < hits.hits.size(); ++i)
+  for (size_t i = 0; i < hits.hits.size(); ++i)
+    {
+      const BowtieHit& bh = hits.hits[i];
+      insertions_from_alignment(bh, insertions);
+      deletions_from_alignment(bh, deletions);
+    }
+}
+
+void update_coverage(const HitsForRead& hits,
+		     Coverage& coverage)
+{
+  for (size_t i = 0; i < hits.hits.size(); ++i)
+    {
+      const BowtieHit& hit = hits.hits[i];
+      const vector<CigarOp>& cigar = hit.cigar();
+      unsigned int positionInGenome = hit.left();
+      RefID ref_id = hit.ref_id();
+      
+      for(size_t c = 0; c < cigar.size(); ++c)
 	{
-		const BowtieHit& bh = hits.hits[i];
-		insertions_from_alignment(bh, insertions);
-		deletions_from_alignment(bh, deletions);
+	  int opcode = cigar[c].opcode;
+	  int length = cigar[c].length;
+	  switch(opcode)
+	    {
+	    case REF_SKIP:
+	    case MATCH:
+	    case DEL:
+	      if (opcode == MATCH)
+		coverage.add_coverage(ref_id, positionInGenome, length);
+      
+	      positionInGenome += length;
+	      break;
+	    case rEF_SKIP:
+	    case mATCH:
+	    case dEL:
+	      positionInGenome -= length;
+
+	      if (opcode == mATCH)
+		coverage.add_coverage(ref_id, positionInGenome + 1, length);
+	      break;
+	    case FUSION_FF:
+	    case FUSION_FR:
+	    case FUSION_RF:
+	    case FUSION_RR:
+	      if (opcode == FUSION_RF || opcode == FUSION_RR)
+		positionInGenome = positionInGenome + 1;
+	      else
+		positionInGenome = positionInGenome - 1;
+	      
+	      ref_id = hit.ref_id2();
+	      break;
+	    default:
+	      break;
+	    }	
 	}
+    }
 }
 
 
@@ -775,28 +829,6 @@ void update_fusions(const HitsForRead& hits,
       if (bh.edit_dist() > fusion_read_mismatches)
 	continue;
 
-      // daehwan
-#if 0
-      vector<Fusion> new_fusions;
-      fusions_from_spliced_hit(bh, new_fusions);
-      
-      for(size_t i = 0; i < new_fusions.size(); ++i)
-	{
-	  Fusion fusion = new_fusions[i];
-	  if (fusion.left == 110343414 && fusion.right == 80211173 && hits.hits.size() > 1)
-	    {
-	      for (size_t t = 0; t < hits.hits.size(); ++t)
-		{
-		  const BowtieHit& lh = hits.hits[t];
-		  cout << "insert id: " << lh.insert_id() << endl;
-		  cout << (lh.antisense_align() ? "-" : "+") <<  endl;
-		  cout << lh.ref_id() << ": " << lh.left() << "-" << lh.right() << endl;
-		  cout << lh.ref_id2() << ": " << print_cigar(lh.cigar()) << endl;
-		}
-	    }
-	}
-#endif
-
       fusions_from_alignment(bh, fusions, rt, update_stat);
 
       if (update_stat)
@@ -807,11 +839,11 @@ void update_fusions(const HitsForRead& hits,
 void update_junctions(const HitsForRead& hits,
 		      JunctionSet& junctions)
 {
-	for (size_t i = 0; i < hits.hits.size(); ++i)
-	{
-		const BowtieHit& bh = hits.hits[i];
-		junctions_from_alignment(bh, junctions);
-	}
+  for (size_t i = 0; i < hits.hits.size(); ++i)
+    {
+      const BowtieHit& bh = hits.hits[i];
+      junctions_from_alignment(bh, junctions);
+    }
 }
 
 // Extracts junctions from all the SAM hits (based on REF_SKIPs) in the hit file
@@ -892,6 +924,7 @@ struct ConsensusEventsWorker
             
 	    // Process hits for left singleton, select best alignments
 	    read_best_alignments(curr_left_hit_group, best_grade, best_hits, *gtf_junctions);
+	    update_coverage(best_hits, *coverage);
 	    update_junctions(best_hits, *junctions);
 	    update_insertions_and_deletions(best_hits, *insertions, *deletions);
 	    update_fusions(best_hits, *rt, *fusions);
@@ -913,6 +946,7 @@ struct ConsensusEventsWorker
 	      {
 		// Process hit for right singleton, select best alignments
 		read_best_alignments(curr_right_hit_group, best_grade, best_hits, *gtf_junctions);
+		update_coverage(best_hits, *coverage);
 		update_junctions(best_hits, *junctions);
 		update_insertions_and_deletions(best_hits, *insertions, *deletions);
 		update_fusions(best_hits, *rt, *fusions);
@@ -948,6 +982,7 @@ struct ConsensusEventsWorker
 		single_best_hits.hits.push_back(best_hits[i].second);
 	      }
 
+	    update_coverage(single_best_hits, *coverage);
 	    update_junctions(single_best_hits, *junctions);
 	    update_insertions_and_deletions(single_best_hits, *insertions, *deletions);
 	    update_fusions(single_best_hits, *rt, *fusions);
@@ -982,6 +1017,8 @@ struct ConsensusEventsWorker
   InsertionSet* insertions;
   DeletionSet* deletions;
   FusionSet* fusions;
+
+  Coverage* coverage;
 };
 
 struct ReportWorker
@@ -1055,10 +1092,6 @@ struct ReportWorker
 	    //assert(got_read);
 
 	    if (right_reads_file.file()) {
-           /*
-	      fprintf(left_um_out.file, "@%s #MAPPED#\n%s\n+\n%s\n", l_read.alt_name.c_str(),
-		      l_read.seq.c_str(), l_read.qual.c_str());
-           */
 	      got_read=right_reads_file.getRead(curr_left_obs_order, r_read,
 						reads_format, false, begin_id, end_id,
 						right_um_out.file, true);
@@ -1068,7 +1101,8 @@ struct ReportWorker
 	    exclude_hits_on_filtered_junctions(*junctions, curr_left_hit_group);
 
 	    // Process hits for left singleton, select best alignments
-	    read_best_alignments(curr_left_hit_group, grade, best_hits, *gtf_junctions);
+	    read_best_alignments(curr_left_hit_group, grade, best_hits, *gtf_junctions,
+				 *junctions, *insertions, *deletions, *fusions, *coverage);
 
 	    if (best_hits.hits.size() > max_multihits)
 	      {
@@ -1123,7 +1157,8 @@ struct ReportWorker
 		exclude_hits_on_filtered_junctions(*junctions, curr_right_hit_group);
 
 		// Process hit for right singleton, select best alignments
-		read_best_alignments(curr_right_hit_group, grade, best_hits, *gtf_junctions);
+		read_best_alignments(curr_right_hit_group, grade, best_hits, *gtf_junctions,
+				     *junctions, *insertions, *deletions, *fusions, *coverage);
 
 		if (best_hits.hits.size() > max_multihits)
 		  {
@@ -1176,7 +1211,8 @@ struct ReportWorker
 		right_best_hits.insert_id = curr_right_obs_order;
 		
 		FragmentAlignmentGrade grade;
-		read_best_alignments(curr_right_hit_group, grade, right_best_hits, *gtf_junctions);
+		read_best_alignments(curr_right_hit_group, grade, right_best_hits, *gtf_junctions,
+				     *junctions, *insertions, *deletions, *fusions, *coverage);
 
 		if (right_best_hits.hits.size() > max_multihits)
 		  {
@@ -1214,7 +1250,8 @@ struct ReportWorker
 		*/
 		FragmentAlignmentGrade grade;
 		// Process hits for left singleton, select best alignments
-		read_best_alignments(curr_left_hit_group, grade, left_best_hits, *gtf_junctions);
+		read_best_alignments(curr_left_hit_group, grade, left_best_hits, *gtf_junctions,
+				     *junctions, *insertions, *deletions, *fusions, *coverage);
 
 		if (left_best_hits.hits.size() > max_multihits)
 		  {
@@ -1244,9 +1281,8 @@ struct ReportWorker
 		InsertAlignmentGrade grade;
 		pair_best_alignments(curr_left_hit_group,
 				     curr_right_hit_group,
-				     grade,
-				     best_hits,
-				     *gtf_junctions);
+				     grade, best_hits, *gtf_junctions,
+				     *junctions, *insertions, *deletions, *fusions, *coverage);
 
 		if (best_hits.size() > max_multihits)
 		  {
@@ -1326,6 +1362,7 @@ struct ReportWorker
   InsertionSet* insertions;
   DeletionSet* deletions;
   FusionSet* fusions;
+  Coverage* coverage;
 
   JunctionSet* final_junctions;
   InsertionSet* final_insertions;
@@ -1421,6 +1458,8 @@ void driver(const string& bam_output_fname,
   InsertionSet vinsertions[num_threads];
   DeletionSet vdeletions[num_threads];
   FusionSet vfusions[num_threads];
+  Coverage vcoverages[num_threads];
+  
   vector<boost::thread*> threads;
   for (int i = 0; i < num_threads; ++i)
     {
@@ -1435,6 +1474,7 @@ void driver(const string& bam_output_fname,
       worker.insertions = &vinsertions[i];
       worker.deletions = &vdeletions[i];
       worker.fusions = &vfusions[i];
+      worker.coverage = &vcoverages[i];
 
       worker.right_map_offset = 0;
       
@@ -1469,10 +1509,11 @@ void driver(const string& bam_output_fname,
     }
   threads.clear();
 
-  JunctionSet junctions = vjunctions[0];
-  InsertionSet insertions = vinsertions[0];
-  DeletionSet deletions = vdeletions[0];
-  FusionSet fusions = vfusions[0];
+  JunctionSet& junctions = vjunctions[0];
+  InsertionSet& insertions = vinsertions[0];
+  DeletionSet& deletions = vdeletions[0];
+  FusionSet& fusions = vfusions[0];
+  Coverage& coverage = vcoverages[0];
   for (size_t i = 1; i < num_threads; ++i)
     {
       merge_with(junctions, vjunctions[i]);
@@ -1486,7 +1527,12 @@ void driver(const string& bam_output_fname,
 
       merge_with(fusions, vfusions[i]);
       vfusions[i].clear();
+
+      coverage.merge_with(vcoverages[i]);
+      vcoverages[i].clear();
     }
+
+  coverage.calculate_coverage();
 
   size_t num_unfiltered_juncs = junctions.size();
   fprintf(stderr, "Loaded %lu junctions\n", (long unsigned int) num_unfiltered_juncs);
@@ -1499,18 +1545,18 @@ void driver(const string& bam_output_fname,
   //     num_unfiltered_juncs - num_juncs_after_filter);
 
   /*
-	size_t small_overhangs = 0;
-	for (JunctionSet::iterator i = junctions.begin(); i != junctions.end(); ++i)
+    size_t small_overhangs = 0;
+    for (JunctionSet::iterator i = junctions.begin(); i != junctions.end(); ++i)
     {
-        if (i->second.accepted &&
-            (i->second.left_extent < min_anchor_len || i->second.right_extent < min_anchor_len))
-	    {
-            small_overhangs++;
-	    }
+    if (i->second.accepted &&
+    (i->second.left_extent < min_anchor_len || i->second.right_extent < min_anchor_len))
+    {
+    small_overhangs++;
+    }
     }
     
-	if (small_overhangs >0)
-        fprintf(stderr, "Warning: %lu small overhang junctions!\n", (long unsigned int)small_overhangs);
+    if (small_overhangs >0)
+    fprintf(stderr, "Warning: %lu small overhang junctions!\n", (long unsigned int)small_overhangs);
   */
 
   JunctionSet vfinal_junctions[num_threads];
@@ -1545,6 +1591,7 @@ void driver(const string& bam_output_fname,
       worker.insertions = &insertions;
       worker.deletions = &deletions;
       worker.fusions = &fusions;
+      worker.coverage = &coverage;
       
       worker.final_junctions = &vfinal_junctions[i];
       worker.final_insertions = &vfinal_insertions[i];

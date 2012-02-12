@@ -41,14 +41,18 @@ class Coverage
 
   // for debug purposes;
   void print_info() const;
-  void print_info(const PosCoverage& posCoverage) const;
+  void print_info(const PosCoverage& posCoverage, int begin = 0, int end = std::numeric_limits<int>::max()) const;
+  void print_info(int pos, const vector<int>& cov) const;
   
  private:
-  void merge_contig(PosCoverage::iterator l, PosCoverage::const_iterator r);
+  void merge_contig(int pos, vector<int>& cov, int pos2, const vector<int>& cov2);
   PosCoverage::iterator get_contig(PosCoverage& posCoverage, int pos);
   
  private:
   GenomeCoverage genomeCoverage;
+
+ public:
+  bool debug;
 };
 
 #endif

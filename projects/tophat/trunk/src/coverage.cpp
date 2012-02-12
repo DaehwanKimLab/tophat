@@ -16,6 +16,7 @@
 
 Coverage::Coverage()
 {
+  debug = false;
 }
 
 Coverage::~Coverage()
@@ -32,33 +33,77 @@ void Coverage::add_coverage(RefID refid, int pos, int length)
       itr = genomeCoverage.find(refid);
     }
 
-  PosCoverage::iterator itr2 = itr->second.find(pos);
-  if (itr2 == itr->second.end())
+  // daehwan - remove
+  static bool b14403 = false, b14404 = false, b14408 = false;
+  if (refid == 1)
     {
-      itr->second[pos] = vector<int>();
-      itr2 = itr->second.find(pos);
+      if (pos == 14403)
+	b14403 = true;
+      else if (pos == 14404)
+	b14404 = true;
+      else if (pos == 14408)
+	b14408 = true;
     }
 
-  vector<int>& contig_coverage = itr2->second;
-  if (contig_coverage.size() < length)
-    contig_coverage.resize(length, 0);
+  if (b14404 && b14408)
+    {
+    }
 
-  contig_coverage[0] += 1;
-  if (contig_coverage.size() > length + 1)
-    contig_coverage[length] -= 1;
+  if (debug)
+    {
+      fprintf(stderr, "pos(%d) - length(%d)\n", pos, length);
+      print_info(itr->second, 14403, 14500);
+      fprintf(stderr, "\n----------------------------------------\n");
+    }
 
-  PosCoverage::iterator itr_lower = itr->second.lower_bound(pos + 1);
-  PosCoverage::iterator itr_upper = itr->second.upper_bound(pos + length - 1);
+  PosCoverage::iterator itr2 = get_contig(itr->second, pos);
+  if (itr2 == itr->second.end())
+    {
+      itr->second[pos] = vector<int>(length + 1,  0);
+      itr2 = itr->second.find(pos);
+
+      vector<int>& contig_coverage = itr2->second;
+      contig_coverage[0] = 1;
+      contig_coverage[length] = -1;
+    }
+  else
+    {
+      // daehwan - remove this
+      if (debug)
+	{
+	  fprintf(stderr, "found2\n");
+	}
+      
+      const size_t first = pos - itr2->first;
+      const size_t last = first + length;
+      const size_t resize = last + 1;
+
+      if (resize > itr2->second.size())
+	itr2->second.resize(resize, 0);
+
+      itr2->second[first] += 1;
+      itr2->second[last] -= 1;
+    }
+
+  PosCoverage::iterator itr_lower = itr2; ++itr_lower;
+  PosCoverage::iterator itr_upper = itr->second.upper_bound(itr2->first + itr2->second.size() - 1);
 
   PosCoverage::iterator itr_temp = itr_lower;
   while (itr_temp != itr_upper)
     {
-      merge_contig(itr2, itr_temp);
+      merge_contig(itr2->first, itr2->second, itr_temp->first, itr_temp->second);
       ++itr_temp;
     }
 
   if  (itr_lower != itr_upper)
     itr->second.erase(itr_lower, itr_upper);
+
+  // daehwan - remove this
+  if (debug)
+    {
+      print_info(itr->second, 14403, 14500);
+      exit(1);
+    }
 }
 
 void Coverage::merge_with(const Coverage& other)
@@ -73,31 +118,66 @@ void Coverage::merge_with(const Coverage& other)
 	  continue;
 	}
       PosCoverage::const_iterator other_pos_itr = other_itr->second.begin();
+      for (; other_pos_itr != other_itr->second.end(); ++other_pos_itr)
+	{
+	  PosCoverage::iterator insert_itr = get_contig(itr->second, other_pos_itr->first);
+	  if (insert_itr == itr->second.end())
+	    {
+	      itr->second[other_pos_itr->first] = other_pos_itr->second;
+	      insert_itr = itr->second.find(other_pos_itr->first);
+	    }
+	  else
+	    {
+	      merge_contig(insert_itr->first, insert_itr->second,
+			   other_pos_itr->first, other_pos_itr->second);
+	    }
 
+	  int pos = insert_itr->first;
+	  size_t length = insert_itr->second.size();
+	  PosCoverage::iterator itr_lower = insert_itr; ++itr_lower;
+	  PosCoverage::iterator itr_upper = itr->second.upper_bound(pos + length - 1);
+	  
+	  PosCoverage::iterator itr_temp = itr_lower;
+	  while (itr_temp != itr_upper)
+	    {
+	      merge_contig(insert_itr->first, insert_itr->second,
+			   itr_temp->first, itr_temp->second);
+	      ++itr_temp;
+	    }
+	  
+	  if  (itr_lower != itr_upper)
+	    itr->second.erase(itr_lower, itr_upper);
+	}
     }
 }
 
-void Coverage::merge_contig(PosCoverage::iterator l, PosCoverage::const_iterator r)
+void Coverage::merge_contig(int pos, vector<int>& cov, int pos2, const vector<int>& cov2)
 {
-  assert (l->first <= r->first);
-  size_t resize = r->second.size() + r->first - l->first;
-  if (resize > l->second.size())
-      l->second.resize(resize, 0);
+  assert (pos <= pos2);
+  size_t resize = cov2.size() + pos2 - pos;
+  if (resize > cov.size())
+      cov.resize(resize, 0);
 
-  for (size_t i = 0; i < r->second.size(); ++i)
-    l->second[i + r->first - l->first] += r->second[i];
+  for (size_t i = 0; i < cov2.size(); ++i)
+    cov[i + pos2 - pos] += cov2[i];
 }
 
 PosCoverage::iterator Coverage::get_contig(PosCoverage& posCoverage, int pos)
 {
-  PosCoverage::iterator itr_contig = posCoverage.upper_bound(pos);
+  PosCoverage::iterator itr_contig = posCoverage.lower_bound(pos + 1);
   if (itr_contig != posCoverage.begin())
     {
       --itr_contig;
-      if (pos >= itr_contig->first && pos < itr_contig->first + itr_contig->second.size())
+      // daehwan - remove this
+      if (debug)
+	{
+	  fprintf(stderr, "found\n");
+	  fprintf(stderr, "pos(%d) in (%d, %u)?\n", pos, itr_contig->first, itr_contig->second.size());
+	}
+
+      if (pos >= itr_contig->first && pos < itr_contig->first + (int)itr_contig->second.size())
 	return itr_contig;
     }
-
   
   return posCoverage.end();
 }
@@ -125,7 +205,7 @@ int Coverage::get_coverage(RefID refid, int pos)
   GenomeCoverage::iterator itr = genomeCoverage.find(refid);
   if (itr != genomeCoverage.end())
     {
-      PosCoverage::iterator itr_contig = get_contig(itr->second, pos);
+      PosCoverage::const_iterator itr_contig = get_contig(itr->second, pos);
       if (itr_contig != itr->second.end())
 	{
 	  const vector<int>& contig_coverage = itr_contig->second;
@@ -148,7 +228,24 @@ void Coverage::clear()
 
 void Coverage::print_info() const
 {
+  size_t total_bases = 0;
   GenomeCoverage::const_iterator itr = genomeCoverage.begin();
+  for (; itr != genomeCoverage.end(); ++itr)
+    {
+      fprintf(stderr, "Reference %d\n", itr->first);
+
+      size_t bases = 0;
+      PosCoverage::const_iterator itr2 = itr->second.begin();
+      for (; itr2 != itr->second.end(); ++itr2)
+	bases += (itr2->second.size() - 1);
+	
+      fprintf(stderr, "# of islands: %d, # of bases covered: %d\n", itr->second.size(), bases);
+      total_bases += bases;
+    }
+
+  fprintf(stderr, "# of total bases: %d\n", total_bases);
+  
+  itr = genomeCoverage.begin();
   for (; itr != genomeCoverage.end(); ++itr)
     {
       fprintf(stderr, "Reference %d\n", itr->first);
@@ -156,14 +253,17 @@ void Coverage::print_info() const
     }
 }
 
-void Coverage::print_info(const PosCoverage& posCoverage) const
+void Coverage::print_info(const PosCoverage& posCoverage, int begin, int end) const
 {
   PosCoverage::const_iterator itr = posCoverage.begin();
   for (; itr != posCoverage.end(); ++itr)
-    {
-      fprintf(stderr, "\tPos: %d\n", itr->first);
-      const vector<int>& contig_coverage = itr->second;
-      for (size_t i = 0; i < contig_coverage.size(); ++i)
-	fprintf(stderr, "\t\t%d (%d)\n", contig_coverage[i], itr->first + i);
-    }
+    if (itr->first >= begin && itr->first < end)
+      print_info(itr->first, itr->second);
+}
+
+void Coverage::print_info(int pos, const vector<int>& cov) const
+{
+  fprintf(stderr, "\tPos: %d, size: %u\n", pos, cov.size());
+  for (size_t i = 0; i < cov.size(); ++i)
+    fprintf(stderr, "\t\t%d (%d)\n", cov[i], pos + (int)i);
 }
