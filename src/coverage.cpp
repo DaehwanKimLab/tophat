@@ -33,29 +33,6 @@ void Coverage::add_coverage(RefID refid, int pos, int length)
       itr = genomeCoverage.find(refid);
     }
 
-  // daehwan - remove
-  static bool b14403 = false, b14404 = false, b14408 = false;
-  if (refid == 1)
-    {
-      if (pos == 14403)
-	b14403 = true;
-      else if (pos == 14404)
-	b14404 = true;
-      else if (pos == 14408)
-	b14408 = true;
-    }
-
-  if (b14404 && b14408)
-    {
-    }
-
-  if (debug)
-    {
-      fprintf(stderr, "pos(%d) - length(%d)\n", pos, length);
-      print_info(itr->second, 14403, 14500);
-      fprintf(stderr, "\n----------------------------------------\n");
-    }
-
   PosCoverage::iterator itr2 = get_contig(itr->second, pos);
   if (itr2 == itr->second.end())
     {
@@ -97,13 +74,6 @@ void Coverage::add_coverage(RefID refid, int pos, int length)
 
   if  (itr_lower != itr_upper)
     itr->second.erase(itr_lower, itr_upper);
-
-  // daehwan - remove this
-  if (debug)
-    {
-      print_info(itr->second, 14403, 14500);
-      exit(1);
-    }
 }
 
 void Coverage::merge_with(const Coverage& other)
@@ -168,13 +138,6 @@ PosCoverage::iterator Coverage::get_contig(PosCoverage& posCoverage, int pos)
   if (itr_contig != posCoverage.begin())
     {
       --itr_contig;
-      // daehwan - remove this
-      if (debug)
-	{
-	  fprintf(stderr, "found\n");
-	  fprintf(stderr, "pos(%d) in (%d, %u)?\n", pos, itr_contig->first, itr_contig->second.size());
-	}
-
       if (pos >= itr_contig->first && pos < itr_contig->first + (int)itr_contig->second.size())
 	return itr_contig;
     }
@@ -197,17 +160,18 @@ void Coverage::calculate_coverage()
     }
 }
 
-int Coverage::get_coverage(RefID refid, int pos)
+int Coverage::get_coverage(RefID refid, int pos) const
 {
   assert (pos >= 0);
   
   int coverage = 0;
-  GenomeCoverage::iterator itr = genomeCoverage.find(refid);
+  GenomeCoverage::const_iterator itr = genomeCoverage.find(refid);
   if (itr != genomeCoverage.end())
     {
-      PosCoverage::const_iterator itr_contig = get_contig(itr->second, pos);
-      if (itr_contig != itr->second.end())
+      PosCoverage::const_iterator itr_contig = itr->second.lower_bound(pos + 1);
+      if (itr_contig != itr->second.begin())
 	{
+	  --itr_contig;
 	  const vector<int>& contig_coverage = itr_contig->second;
 	  if (pos >= itr_contig->first)
 	    {

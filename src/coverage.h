@@ -35,7 +35,7 @@ class Coverage
   void calculate_coverage();
 
   // this can be called after calculate_coverage() call.
-  int get_coverage(RefID refid, int pos);
+  int get_coverage(RefID refid, int pos) const;
 
   void clear();
 

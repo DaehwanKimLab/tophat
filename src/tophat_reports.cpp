@@ -82,28 +82,13 @@ void get_seqs(istream& ref_stream,
 
 struct cmp_read_alignment
 {
-  cmp_read_alignment(const JunctionSet& gtf_juncs) :
-    _gtf_juncs(&gtf_juncs) {}
-    
   bool operator() (const BowtieHit& l, const BowtieHit& r) const
   {
-    // daehwan - implement this
-    FragmentAlignmentGrade gl(l, *_gtf_juncs, empty_junctions, empty_insertions, empty_deletions, empty_fusions);
-    FragmentAlignmentGrade gr(r, *_gtf_juncs, empty_junctions, empty_insertions, empty_deletions, empty_fusions);
-    bool better = gr < gl;
-    bool worse = gl < gr;
-
-    if (better && !worse)
-      return true;
-    else	
-      return false;
+    return l.alignment_score() > r.alignment_score();
   }
-
-  const JunctionSet* _gtf_juncs;
 };
 
 void read_best_alignments(const HitsForRead& hits_for_read,
-			  FragmentAlignmentGrade& best_grade,
 			  HitsForRead& best_hits,
 			  const JunctionSet& gtf_junctions,
 			  const JunctionSet& junctions = empty_junctions,
@@ -118,46 +103,32 @@ void read_best_alignments(const HitsForRead& hits_for_read,
       if (hits[i].edit_dist() > max_read_mismatches)
 	continue;
 
+      BowtieHit hit = hits[i];
+      AlignStatus align_status(hit, gtf_junctions,
+			       junctions, insertions, deletions, fusions, coverage);
+      hit.alignment_score(align_status._alignment_score);
+
       if (report_secondary_alignments)
 	{
-	  best_hits.hits.push_back(hits[i]);
+	  best_hits.hits.push_back(hit);
 	}
       else
 	{
-	  FragmentAlignmentGrade g(hits[i],
-				   gtf_junctions,
-				   empty_junctions,
-				   empty_insertions,
-				   empty_deletions,
-				   empty_fusions);
-	  
 	  // Is the new status better than the current best one?
-	  if (best_grade < g)
+	  if (best_hits.hits.size() == 0 || cmp_read_alignment()(hit, best_hits.hits[0]))
 	    {
 	      best_hits.hits.clear();
-	      best_grade = g;
-	      best_hits.hits.push_back(hits[i]);
+	      best_hits.hits.push_back(hit);
 	    }
-	  else if (!(g < best_grade)) // is it just as good?
+	  else if (!cmp_read_alignment()(best_hits.hits[0], hit)) // is it just as good?
 	    {
-	      best_grade.num_alignments++;
-	      best_hits.hits.push_back(hits[i]);
+	      best_hits.hits.push_back(hit);
 	    }
 	}
     }
 
   if (report_secondary_alignments && best_hits.hits.size() > 0)
-    {
-      cmp_read_alignment cmp(gtf_junctions);
-      sort(best_hits.hits.begin(), best_hits.hits.end(), cmp);
-      best_grade = FragmentAlignmentGrade(best_hits.hits[0],
-					  gtf_junctions,
-					  empty_junctions,
-					  empty_insertions,
-					  empty_deletions,
-					  empty_fusions);
-      best_grade.num_alignments = best_hits.hits.size();
-    }
+    sort(best_hits.hits.begin(), best_hits.hits.end(), cmp_read_alignment());
 }
 
 void set_insert_alignment_grade(const BowtieHit& lh, const BowtieHit& rh, InsertAlignmentGrade& grade)
@@ -238,13 +209,21 @@ void pair_best_alignments(const HitsForRead& left_hits,
   
   for (size_t i = 0; i < left.size(); ++i)
     {
-      const BowtieHit& lh = left[i];
-      if (lh.edit_dist() > max_read_mismatches) continue;
+      if (left[i].edit_dist() > max_read_mismatches) continue;
+      
+      BowtieHit lh = left[i];
+      AlignStatus align_status(lh, gtf_junctions,
+			       junctions, insertions, deletions, fusions, coverage);
+      lh.alignment_score(align_status._alignment_score);
+
       for (size_t j = 0; j < right.size(); ++j)
 	{
-	  const BowtieHit& rh = right[j];
-	  if (rh.edit_dist() > max_read_mismatches) continue;
-
+	  if (right[j].edit_dist() > max_read_mismatches) continue;
+	  
+	  BowtieHit rh = right[j];
+	  AlignStatus align_status(rh, gtf_junctions,
+				   junctions, insertions, deletions, fusions, coverage);
+	  rh.alignment_score(align_status._alignment_score);
 	  InsertAlignmentGrade g; set_insert_alignment_grade(lh, rh, g);
 
 	  if (report_secondary_alignments)
@@ -361,7 +340,6 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
                         const BowtieHit& bh,
                         const char* bwt_buf,
                         const char* read_alt_name,
-                        const FragmentAlignmentGrade& grade,
                         FragmentType insert_side,
                         int num_hits,
                         const BowtieHit* next_hit,
@@ -382,7 +360,7 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
   size_t XF_index = 0;
   for (size_t i = 11; i < sam_toks.size(); ++i)
     {
-      const string& tok = sam_toks[i];
+      string& tok = sam_toks[i];
       if (strncmp(tok.c_str(), "XF", 2) == 0)
 	{
 	  fusion_alignment = true;
@@ -403,6 +381,13 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
 			       left_qual, right_qual, left1, left2);
 	  
 	  break;
+	}
+
+      else if (strncmp(tok.c_str(), "AS", 2) == 0)
+	{
+	  char AS_score[128] = {0};
+	  sprintf(AS_score, "AS:i:%d", bh.alignment_score());
+	  tok = AS_score;
 	}
     }
   
@@ -430,8 +415,8 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
   
   int gpos=isdigit(sam_toks[3][0]) ? atoi(sam_toks[3].c_str()) : 0;
   int mapQ=255;
-  if (grade.num_alignments > 1)  {
-    double err_prob = 1 - (1.0 / grade.num_alignments);
+  if (num_hits > 1)  {
+    double err_prob = 1 - (1.0 / num_hits);
     mapQ = (int)(-10.0 * log(err_prob) / log(10.0));
   }
   int tlen =atoi(sam_toks[8].c_str()); //TLEN
@@ -510,7 +495,7 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
   size_t XF_tok_idx = 11;
   for (; XF_tok_idx < sam_toks.size(); ++XF_tok_idx)
     {
-      const string& tok = sam_toks[XF_tok_idx];
+      string& tok = sam_toks[XF_tok_idx];
       if (strncmp(tok.c_str(), "XF", 2) == 0)
 	{
 	  fusion_alignment = true;
@@ -530,6 +515,13 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
 			       left_qual, right_qual, left1, left2);
 	  
 	  break;
+	}
+
+      else if (strncmp(tok.c_str(), "AS", 2) == 0)
+	{
+	  char AS_score[128] = {0};
+	  sprintf(AS_score, "AS:i:%d", bh.alignment_score());
+	  tok = AS_score;
 	}
     }
   
@@ -627,7 +619,6 @@ struct lex_hit_sort
 
 void print_sam_for_single(const RefSequenceTable& rt,
 			  const HitsForRead& hits,
-			  const FragmentAlignmentGrade& grade,
 			  FragmentType frag_type,
 			  Read& read,
 			  GBamWriter& bam_writer,
@@ -661,7 +652,6 @@ void print_sam_for_single(const RefSequenceTable& rt,
 			   bh,
 			   bh.hitfile_rec().c_str(),
 			   read.alt_name.c_str(),
-			   grade,
 			   frag_type,
 			   hits.hits.size(),
 			   (i < hits.hits.size()-1) ? &(hits.hits[index_vector[i+1]]) : NULL,
@@ -798,12 +788,8 @@ void update_coverage(const HitsForRead& hits,
 	    case FUSION_FR:
 	    case FUSION_RF:
 	    case FUSION_RR:
-	      if (opcode == FUSION_RF || opcode == FUSION_RR)
-		positionInGenome = positionInGenome + 1;
-	      else
-		positionInGenome = positionInGenome - 1;
-	      
-	      ref_id = hit.ref_id2();
+		positionInGenome = length;
+		ref_id = hit.ref_id2();
 	      break;
 	    default:
 	      break;
@@ -920,10 +906,9 @@ struct ConsensusEventsWorker
 	  {
 	    HitsForRead best_hits;
 	    best_hits.insert_id = curr_left_obs_order;
-	    FragmentAlignmentGrade best_grade;
             
 	    // Process hits for left singleton, select best alignments
-	    read_best_alignments(curr_left_hit_group, best_grade, best_hits, *gtf_junctions);
+	    read_best_alignments(curr_left_hit_group, best_hits, *gtf_junctions);
 	    update_coverage(best_hits, *coverage);
 	    update_junctions(best_hits, *junctions);
 	    update_insertions_and_deletions(best_hits, *insertions, *deletions);
@@ -941,11 +926,10 @@ struct ConsensusEventsWorker
 	  {
 	    HitsForRead best_hits;
 	    best_hits.insert_id = curr_right_obs_order;
-	    FragmentAlignmentGrade best_grade;
 	    if (curr_right_obs_order >= begin_id)
 	      {
 		// Process hit for right singleton, select best alignments
-		read_best_alignments(curr_right_hit_group, best_grade, best_hits, *gtf_junctions);
+		read_best_alignments(curr_right_hit_group, best_hits, *gtf_junctions);
 		update_coverage(best_hits, *coverage);
 		update_junctions(best_hits, *junctions);
 		update_insertions_and_deletions(best_hits, *insertions, *deletions);
@@ -1085,7 +1069,6 @@ struct ReportWorker
 	  {
 	    HitsForRead best_hits;
 	    best_hits.insert_id = curr_left_obs_order;
-	    FragmentAlignmentGrade grade;
 	    bool got_read=left_reads_file.getRead(curr_left_obs_order, l_read,
 						  reads_format, false, begin_id, end_id,
 						  left_um_out.file, false);
@@ -1101,13 +1084,12 @@ struct ReportWorker
 	    exclude_hits_on_filtered_junctions(*junctions, curr_left_hit_group);
 
 	    // Process hits for left singleton, select best alignments
-	    read_best_alignments(curr_left_hit_group, grade, best_hits, *gtf_junctions,
+	    read_best_alignments(curr_left_hit_group, best_hits, *gtf_junctions,
 				 *junctions, *insertions, *deletions, *fusions, *coverage);
 
 	    if (best_hits.hits.size() > max_multihits)
 	      {
 		best_hits.hits.erase(best_hits.hits.begin() + max_multihits, best_hits.hits.end());
-		grade.num_alignments = best_hits.hits.size();
 	      }
 
 	    if (best_hits.hits.size() > 0)
@@ -1118,7 +1100,6 @@ struct ReportWorker
 
 		print_sam_for_single(*rt,
 				     best_hits,
-				     grade,
 				     (right_map_fname.empty() ? FRAG_UNPAIRED : FRAG_LEFT),
 				     l_read,
 				     bam_writer,
@@ -1136,7 +1117,6 @@ struct ReportWorker
 	  {
 	    HitsForRead best_hits;
 	    best_hits.insert_id = curr_right_obs_order;
-	    FragmentAlignmentGrade grade;
 
 	    if (curr_right_obs_order >=  begin_id)
 	      {
@@ -1157,13 +1137,12 @@ struct ReportWorker
 		exclude_hits_on_filtered_junctions(*junctions, curr_right_hit_group);
 
 		// Process hit for right singleton, select best alignments
-		read_best_alignments(curr_right_hit_group, grade, best_hits, *gtf_junctions,
+		read_best_alignments(curr_right_hit_group, best_hits, *gtf_junctions,
 				     *junctions, *insertions, *deletions, *fusions, *coverage);
 
 		if (best_hits.hits.size() > max_multihits)
 		  {
 		    best_hits.hits.erase(best_hits.hits.begin() + max_multihits, best_hits.hits.end());
-		    grade.num_alignments = best_hits.hits.size();
 		  }
 		
 		if (best_hits.hits.size() > 0)
@@ -1174,7 +1153,6 @@ struct ReportWorker
 		    
 		    print_sam_for_single(*rt,
 					 best_hits,
-					 grade,
 					 FRAG_RIGHT,
 					 r_read,
 					 bam_writer,
@@ -1210,14 +1188,12 @@ struct ReportWorker
 		HitsForRead right_best_hits;
 		right_best_hits.insert_id = curr_right_obs_order;
 		
-		FragmentAlignmentGrade grade;
-		read_best_alignments(curr_right_hit_group, grade, right_best_hits, *gtf_junctions,
+		read_best_alignments(curr_right_hit_group, right_best_hits, *gtf_junctions,
 				     *junctions, *insertions, *deletions, *fusions, *coverage);
 
 		if (right_best_hits.hits.size() > max_multihits)
 		  {
 		    right_best_hits.hits.erase(right_best_hits.hits.begin() + max_multihits, right_best_hits.hits.end());
-		    grade.num_alignments = right_best_hits.hits.size();
 		  }
 		
 		if (right_best_hits.hits.size() > 0)
@@ -1228,7 +1204,6 @@ struct ReportWorker
 		    
 		    print_sam_for_single(*rt,
 					 right_best_hits,
-					 grade,
 					 FRAG_RIGHT,
 					 r_read,
 					 bam_writer,
@@ -1243,20 +1218,14 @@ struct ReportWorker
 		bool got_read=left_reads_file.getRead(curr_left_obs_order, l_read,
 						      reads_format, false, begin_id, end_id,
 						      left_um_out.file, false);
-		//assert(got_read);
-		/*
-		fprintf(left_um_out.file, "@%s #MAPPED#\n%s\n+\n%s\n", l_read.alt_name.c_str(),
-			l_read.seq.c_str(), l_read.qual.c_str());
-		*/
-		FragmentAlignmentGrade grade;
+
 		// Process hits for left singleton, select best alignments
-		read_best_alignments(curr_left_hit_group, grade, left_best_hits, *gtf_junctions,
+		read_best_alignments(curr_left_hit_group, left_best_hits, *gtf_junctions,
 				     *junctions, *insertions, *deletions, *fusions, *coverage);
 
 		if (left_best_hits.hits.size() > max_multihits)
 		  {
 		    left_best_hits.hits.erase(left_best_hits.hits.begin() + max_multihits, left_best_hits.hits.end());
-		    grade.num_alignments = left_best_hits.hits.size();
 		  }
 		
 		if (left_best_hits.hits.size() > 0)
@@ -1267,7 +1236,6 @@ struct ReportWorker
 		    
 		    print_sam_for_single(*rt,
 					 left_best_hits,
-					 grade,
 					 FRAG_LEFT,
 					 l_read,
 					 bam_writer,
@@ -1430,8 +1398,9 @@ void driver(const string& bam_output_fname,
               uint32_t right_coord = atoi(scan_right_coord);
               bool antisense = *orientation == '-';
 
-              // add 1 to left_coord to meet BED format
-              gtf_junctions.insert(make_pair<Junction, JunctionStats>(Junction(ref_id, left_coord + 1, right_coord, antisense), JunctionStats()));
+	      // daehwan - check this out
+              // add 1 to left_coord to meet BED format ??
+              gtf_junctions.insert(make_pair<Junction, JunctionStats>(Junction(ref_id, left_coord, right_coord, antisense), JunctionStats()));
             }
         }
       fprintf(stderr, "Loaded %d GFF junctions from %s.\n", (int)(gtf_junctions.size()), gtf_juncs.c_str());

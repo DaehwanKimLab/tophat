@@ -21,6 +21,7 @@ using namespace std;
 
 #include "common.h"
 #include "reads.h"
+
 #define _FBUF_SIZE 10*1024
 
 /*
@@ -135,7 +136,7 @@ BowtieHit(uint32_t ref_id,
   {
     assert(_cigar.capacity() == _cigar.size());
   }
-  
+
   int read_len() const
   {
     uint32_t len = 0;
@@ -496,7 +497,7 @@ BowtieHit(uint32_t ref_id,
   
   bool end() const { return _end; }
   void end(bool end) { _end = end; }
-  
+
   // this is for debugging purpose
   bool check_editdist_consistency(const RefSequenceTable& rt, bool bDebug = false);
   
@@ -518,7 +519,6 @@ private:
   string _qual;
 
   int _alignment_score; // Bowtie2 outputs AS (alignment score) in SAM, TopHat2 uses the value when selecting the best alignments.
-  
   bool _end; // Whether this segment is the last one of the read it belongs to
 };
 

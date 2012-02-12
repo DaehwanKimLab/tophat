@@ -27,14 +27,16 @@ struct FragmentAlignmentGrade
 			 const JunctionSet& junctions,
 			 const InsertionSet& insertions,
 			 const DeletionSet& deletions,
-			 const FusionSet& fusions) 
+			 const FusionSet& fusions,
+			 const Coverage& coverage) 
   {
     status = AlignStatus(h1,
 			 gtf_junctions,
 			 junctions,
 			 insertions,
 			 deletions,
-			 fusions);
+			 fusions,
+			 coverage);
     num_alignments = 1;
   }
   

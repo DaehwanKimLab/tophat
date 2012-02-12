@@ -14,6 +14,7 @@
 #include <cassert>
 #include "common.h"
 #include "junctions.h"
+#include "bwt_map.h"
 
 void junctions_from_spliced_hit(const BowtieHit& h, 
 				vector<pair<Junction, JunctionStats> >& new_juncs)
@@ -26,7 +27,11 @@ void junctions_from_spliced_hit(const BowtieHit& h,
     {
       Junction junc;
       JunctionStats stats;
-      switch(cigar[c].opcode)
+
+      int opcode = cigar[c].opcode;
+      int length = cigar[c].length;
+      
+      switch(opcode)
 	{
 	case REF_SKIP:
 	case rEF_SKIP:
@@ -35,34 +40,40 @@ void junctions_from_spliced_hit(const BowtieHit& h,
 	  else
 	    junc.refid = h.ref_id();
 
-	  if (cigar[c].opcode == REF_SKIP)
+	  // daehwan - we need to consider indels very next to REF_SKIP,
+	  // which is possible due to Bowtie2
+	  assert (c > 0 && c < cigar.size() - 1); 
+	  assert (cigar[c - 1].length);
+	  assert (cigar[c + 1].length);
+
+	  if (opcode == REF_SKIP)
 	    {
-	      junc.left = j;
-	      junc.right = junc.left + cigar[c].length;
+	      junc.left = j - 1;
+	      junc.right = j + length;
+	      stats.left_extent = cigar[c - 1].length;
+	      stats.right_extent = cigar[c + 1].length;
+	      j += length;
 	    }
 	  else
 	    {
 	      junc.right = j + 1;
-	      junc.left = junc.right - cigar[c].length;
+	      junc.left = j - length;
+	      stats.right_extent = cigar[c - 1].length;
+	      stats.left_extent = cigar[c + 1].length;
+	      j -= length;
 	    }
 	  
 	  junc.antisense = h.antisense_splice();
-	  
-	  assert (c > 0 && c < cigar.size() - 1); 
-	  assert (cigar[c - 1].length);
-	  assert (cigar[c + 1].length);
 
 	  /*
 	   * Note that in valid_hit() in tophat_report.cpp
 	   * we have tried to ensure that the REF_SKIP operator
 	   * will only be surrounded by match operators
 	   */	
-	  stats.left_extent = cigar[c - 1].length;
-	  stats.right_extent = cigar[c + 1].length;
+
 	  stats.min_splice_mms = h.splice_mms();
 	  stats.supporting_hits++;
 	  new_juncs.push_back(make_pair(junc, stats));
-	  j += cigar[c].length;
 	  break;
 	case MATCH:
 	case DEL:
@@ -90,19 +101,20 @@ void print_junction(FILE* junctions_out,
 		    const JunctionStats& s, 
 		    uint64_t junc_id)
 {
+  int left_plus_one = j.left + 1;
   fprintf(junctions_out,
 	  "%s\t%d\t%d\tJUNC%08d\t%d\t%c\t%d\t%d\t255,0,0\t2\t%d,%d\t0,%d\n",
 	  name,
-	  j.left - s.left_extent,
+	  left_plus_one - s.left_extent,
 	  j.right + s.right_extent,
 	  (int)junc_id,
 	  s.supporting_hits,
 	  j.antisense ? '-' : '+',
-	  j.left - s.left_extent,
+	  left_plus_one - s.left_extent,
 	  j.right + s.right_extent,
 	  s.left_extent,
 	  s.right_extent,
-	  j.right - (j.left - s.left_extent));
+	  j.right - (left_plus_one - s.left_extent));
 }
 
 void junctions_from_alignment(const BowtieHit& spliced_alignment,
