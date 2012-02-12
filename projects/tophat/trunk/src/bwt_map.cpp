@@ -27,8 +27,7 @@
 #include "bwt_map.h"
 #include "tokenize.h"
 #include "reads.h"
-
-using namespace std;
+#include "align_status.h"
 
 void HitTable::add_hit(const BowtieHit& bh, bool check_uniqueness)
 {
