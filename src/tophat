@@ -91,6 +91,7 @@ Options:
 
 Advanced Options:
     --report-secondary-alignments
+    --report-discordant-pair-alignments
     --genome-read-mismatches       <int>       [ default: 2                ]
     -N/--read-mismatches           <int>       [ default: 2                ]
     --segment-mismatches           <int>       [ default: 2                ]
@@ -648,6 +649,7 @@ class TopHatParams:
         self.microexon_search = False
         self.butterfly_search = None
         self.report_secondary_alignments = False
+        self.report_discordant_pair_alignments = False
 
         self.keep_fasta_order = False
         self.partial_mapping = False
@@ -856,6 +858,7 @@ class TopHatParams:
                                          "no-sort-bam",
                                          "no-convert-bam",
                                          "report-secondary-alignments",
+                                         "report-discordant-pair-alignments",
                                          "keep-fasta-order",
                                          "allow-partial-mapping",
                                          "b2-very-fast",
@@ -973,6 +976,8 @@ class TopHatParams:
                 self.raw_deletions = value
             if option == "--report-secondary-alignments":
                 self.report_secondary_alignments = True
+            if option == "--report-discordant-pair-alignments":
+                self.report_discordant_pair_alignments = True
             if option == "--keep-fasta-order":
                 self.keep_fasta_order = True
             if option == "--allow-partial-mapping":
@@ -2359,6 +2364,9 @@ def compile_reports(params, sam_header_filename, ref_fasta, mappings, readfiles,
     report_cmd += ["--sam-header", sam_header_filename]
     if params.report_secondary_alignments:
         report_cmd += ["--report-secondary-alignments"]
+
+    if params.report_discordant_pair_alignments:
+        report_cmd += ["--report-discordant-pair-alignments"]
 
     report_cmd.extend(["--samtools="+samtools_path])
 

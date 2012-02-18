@@ -33,9 +33,15 @@ bool InsertAlignmentGrade::operator<(const InsertAlignmentGrade& rhs)
     {
       return num_mapped < rhs.num_mapped;
     }
-  // daehwan - later we should do many things to report the best pair alignments.
   else if (num_mapped == 2 && !fusion)
     {
+      // daehwan - I'm testing this!
+#if 1
+      if (alignment_score != rhs.alignment_score)
+	return alignment_score < rhs.alignment_score;
+
+      return false;
+#else
       // if significant difference in their inner mate distances 
       if (abs(rhs.inner_dist - inner_dist) >= 30)
 	{
@@ -62,6 +68,7 @@ bool InsertAlignmentGrade::operator<(const InsertAlignmentGrade& rhs)
 	  if (longest_ref_skip != rhs.longest_ref_skip)
 	    return rhs.longest_ref_skip < longest_ref_skip;
 	}
+#endif
 	  
       return false;
     }

@@ -150,6 +150,7 @@ bool color = false;
 string gtf_juncs = "";
 
 bool report_secondary_alignments = false;
+bool report_discordant_pair_alignments = false;
 
 string flt_reads = "";
 string flt_mappings = "";
@@ -299,6 +300,7 @@ enum
     OPT_FILTER_READS,
     OPT_FILTER_HITS,
     OPT_REPORT_SECONDARY_ALIGNMENTS,
+    OPT_REPORT_DISCORDANT_PAIR_ALIGNMENTS,
     OPT_FUSION_SEARCH,
     OPT_FUSION_ANCHOR_LENGTH,
     OPT_FUSION_MIN_DIST,
@@ -366,6 +368,7 @@ static struct option long_options[] = {
 {"flt-reads",required_argument, 0, OPT_FILTER_READS},
 {"flt-hits",required_argument, 0, OPT_FILTER_HITS},
 {"report-secondary-alignments", no_argument, 0, OPT_REPORT_SECONDARY_ALIGNMENTS},
+{"report-discordant-pair-alignments", no_argument, 0, OPT_REPORT_DISCORDANT_PAIR_ALIGNMENTS},
 {"fusion-search", no_argument, 0, OPT_FUSION_SEARCH},
 {"fusion-anchor-length", required_argument, 0, OPT_FUSION_ANCHOR_LENGTH},
 {"fusion-min-dist", required_argument, 0, OPT_FUSION_MIN_DIST},
@@ -570,6 +573,9 @@ int parse_options(int argc, char** argv, void (*print_usage)())
       break;
     case OPT_REPORT_SECONDARY_ALIGNMENTS:
       report_secondary_alignments = true;
+      break;
+    case OPT_REPORT_DISCORDANT_PAIR_ALIGNMENTS:
+      report_discordant_pair_alignments = true;
       break;
     case OPT_FUSION_SEARCH:
       fusion_search = true;

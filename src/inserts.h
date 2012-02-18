@@ -13,16 +13,16 @@
 
 struct InsertAlignment
 {
-	InsertAlignment(uint64_t _refid, 
-			BowtieHit* _left_alignment, 
-			BowtieHit* _right_alignment) : 
-	refid(_refid), 
-	left_alignment(_left_alignment),
-	right_alignment(_right_alignment) {}
-	
-	uint64_t refid;
-	BowtieHit* left_alignment;
-	BowtieHit* right_alignment;
+InsertAlignment(uint64_t _refid, 
+		BowtieHit* _left_alignment, 
+		BowtieHit* _right_alignment) : 
+  refid(_refid), 
+    left_alignment(_left_alignment),
+    right_alignment(_right_alignment) {}
+  
+  uint64_t refid;
+  BowtieHit* left_alignment;
+  BowtieHit* right_alignment;
 };
 
 pair<int, int> pair_distances(const BowtieHit& h1, const BowtieHit& h2);
@@ -41,7 +41,9 @@ InsertAlignmentGrade() :
     longest_ref_skip(0x7FFFFu),
     edit_dist(0x1F),
     fusion(true),
-    inner_dist(99999999){}
+    inner_dist(99999999),
+    alignment_score(std::numeric_limits<int>::min())
+  {}
 
 InsertAlignmentGrade(const BowtieHit& h1, bool fusion = false) : 
   too_close(false),
@@ -53,7 +55,8 @@ InsertAlignmentGrade(const BowtieHit& h1, bool fusion = false) :
     edit_dist(0x1F),
     fusion(fusion),
     num_alignments(0),
-    inner_dist(99999999)
+    inner_dist(99999999),
+    alignment_score(std::numeric_limits<int>::min())
   {
     if (!h1.contiguous())
       num_spliced++;
@@ -64,7 +67,7 @@ InsertAlignmentGrade(const BowtieHit& h1, bool fusion = false) :
     edit_dist = h1.edit_dist();
     num_alignments = 1;
   }
-	
+  
 InsertAlignmentGrade(const BowtieHit& h1, 
 		     const BowtieHit& h2, 
 		     int min_inner_distance,
@@ -78,7 +81,8 @@ InsertAlignmentGrade(const BowtieHit& h1,
     consistent_splices(false),
     edit_dist(0x1F),
     fusion(fusion),
-    num_alignments(0)
+    num_alignments(0),
+    alignment_score(std::numeric_limits<int>::min())
   {
     pair<int, int> distances = pair_distances(h1, h2);
     inner_dist = distances.second;
@@ -94,14 +98,27 @@ InsertAlignmentGrade(const BowtieHit& h1,
     too_close = (inner_dist < min_inner_distance);
     opposite_strands = (h1.antisense_align() != h2.antisense_align());
     consistent_splices = (num_spliced == 2 && h1.antisense_splice() == h2.antisense_splice());
-
+    
     uint32_t ls = max(get_longest_ref_skip(h1), get_longest_ref_skip(h2));
     longest_ref_skip = min (ls / 100, 0x3FFFFu);
     edit_dist = h1.edit_dist() + h2.edit_dist();
     num_alignments = 1;
     assert(!(too_far && too_close));
+
+
+    //
+    static const int penalty_for_long_inner_dist = bowtie2_max_penalty;
+    alignment_score = h1.alignment_score() + h2.alignment_score();
+    if (too_far)
+      alignment_score -= penalty_for_long_inner_dist;
+    else if (too_close)
+      alignment_score -= (penalty_for_long_inner_dist / 2);
+
+    static const int penalty_for_same_strand = bowtie2_max_penalty;
+    if (!opposite_strands)
+      alignment_score -= penalty_for_same_strand;
   }
-	
+  
   InsertAlignmentGrade& operator=(const InsertAlignmentGrade& rhs)
   {
     too_close = rhs.too_close;
@@ -115,6 +132,7 @@ InsertAlignmentGrade(const BowtieHit& h1,
     fusion = rhs.fusion;
     num_alignments = rhs.num_alignments;
     inner_dist = rhs.inner_dist;
+    alignment_score = rhs.alignment_score;
     return *this;
   }
     
@@ -137,6 +155,8 @@ InsertAlignmentGrade(const BowtieHit& h1,
   {
     return num_mapped == 2 && opposite_strands && (num_spliced != 2 || consistent_splices) && !too_far;
   }
+
+  bool is_fusion() const { return fusion; }
   
   bool too_close;
   bool too_far;
@@ -151,6 +171,8 @@ InsertAlignmentGrade(const BowtieHit& h1,
   bool fusion;
   int num_alignments; // number of equally good alignments for the insert 
   int inner_dist; // distance between inner edges of mates
+
+  int alignment_score;
 };		
 
 typedef vector<pair<InsertAlignmentGrade, vector<InsertAlignment> > > BestInsertAlignmentTable;

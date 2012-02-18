@@ -95,7 +95,8 @@ void read_best_alignments(const HitsForRead& hits_for_read,
 			  const InsertionSet& insertions = empty_insertions,
 			  const DeletionSet& deletions = empty_deletions,
 			  const FusionSet& fusions = empty_fusions,
-			  const Coverage& coverage = empty_coverage)
+			  const Coverage& coverage = empty_coverage,
+			  bool final_report = false)
 {
   const vector<BowtieHit>& hits = hits_for_read.hits;
   for (size_t i = 0; i < hits.size(); ++i)
@@ -108,7 +109,7 @@ void read_best_alignments(const HitsForRead& hits_for_read,
 			       junctions, insertions, deletions, fusions, coverage);
       hit.alignment_score(align_status._alignment_score);
 
-      if (report_secondary_alignments)
+      if (report_secondary_alignments || !final_report)
 	{
 	  best_hits.hits.push_back(hit);
 	}
@@ -127,11 +128,19 @@ void read_best_alignments(const HitsForRead& hits_for_read,
 	}
     }
 
-  if (report_secondary_alignments && best_hits.hits.size() > 0)
-    sort(best_hits.hits.begin(), best_hits.hits.end(), cmp_read_alignment());
+  if ((report_secondary_alignments || !final_report) && best_hits.hits.size() > 0)
+    {
+      sort(best_hits.hits.begin(), best_hits.hits.end(), cmp_read_alignment());
+    }
+
+  if (final_report)
+    {
+      if (best_hits.hits.size() > max_multihits)
+	best_hits.hits.erase(best_hits.hits.begin() + max_multihits, best_hits.hits.end());
+    }
 }
 
-void set_insert_alignment_grade(const BowtieHit& lh, const BowtieHit& rh, InsertAlignmentGrade& grade)
+bool set_insert_alignment_grade(const BowtieHit& lh, const BowtieHit& rh, InsertAlignmentGrade& grade)
 {
   // max mate inner distance (genomic)
   int min_mate_inner_dist = inner_dist_mean - inner_dist_std_dev;
@@ -139,36 +148,35 @@ void set_insert_alignment_grade(const BowtieHit& lh, const BowtieHit& rh, Insert
     max_mate_inner_dist = inner_dist_mean + inner_dist_std_dev;
   
   bool fusion = false;
-  if (fusion_search)
+  bool left_fusion = lh.fusion_opcode() != FUSION_NOTHING;
+  bool right_fusion = rh.fusion_opcode() != FUSION_NOTHING;
+  if (left_fusion && right_fusion)
+    return false;
+  
+  fusion = left_fusion || right_fusion;
+  if (!fusion && lh.ref_id() != rh.ref_id())
+    fusion = true;
+  
+  if (!fusion && lh.ref_id() == rh.ref_id())
     {
-      bool left_fusion = lh.fusion_opcode() != FUSION_NOTHING;
-      bool right_fusion = rh.fusion_opcode() != FUSION_NOTHING;
-      if (left_fusion && right_fusion)
-	return;
-      
-      fusion = left_fusion || right_fusion;
-      if (!fusion && lh.ref_id() != rh.ref_id())
+      if (lh.antisense_align() == rh.antisense_align())
 	fusion = true;
-      
-      if (!fusion && lh.ref_id() == rh.ref_id())
+      else
 	{
-	  if (lh.antisense_align() == rh.antisense_align())
-	    fusion = true;
+	  int inter_dist = 0;
+	  if (lh.antisense_align())
+	    inter_dist = lh.left() - rh.right();
 	  else
-	    {
-	      int inter_dist = 0;
-	      if (lh.antisense_align())
-		inter_dist = lh.left() - rh.right();
-	      else
-		inter_dist = rh.left() - lh.right();
-	      
-	      if (inter_dist < -(int)max_insertion_length || inter_dist > (int)fusion_min_dist)
-		fusion = true;
-	    }
+	    inter_dist = rh.left() - lh.right();
+	  
+	  if (inter_dist < -(int)max_insertion_length || inter_dist > (int)fusion_min_dist)
+	    fusion = true;
 	}
     }
 
   grade = InsertAlignmentGrade(lh, rh, min_mate_inner_dist, max_mate_inner_dist, fusion);
+  
+  return true;
 }
 
 struct cmp_pair_alignment
@@ -202,7 +210,8 @@ void pair_best_alignments(const HitsForRead& left_hits,
 			  const InsertionSet& insertions = empty_insertions,
 			  const DeletionSet& deletions = empty_deletions,
 			  const FusionSet& fusions = empty_fusions,
-			  const Coverage& coverage = empty_coverage)
+			  const Coverage& coverage = empty_coverage,
+			  bool final_report = false)
 {
   const vector<BowtieHit>& left = left_hits.hits;
   const vector<BowtieHit>& right = right_hits.hits;
@@ -224,9 +233,13 @@ void pair_best_alignments(const HitsForRead& left_hits,
 	  AlignStatus align_status(rh, gtf_junctions,
 				   junctions, insertions, deletions, fusions, coverage);
 	  rh.alignment_score(align_status._alignment_score);
-	  InsertAlignmentGrade g; set_insert_alignment_grade(lh, rh, g);
+	  InsertAlignmentGrade g;
+	  bool allowed = set_insert_alignment_grade(lh, rh, g);
 
-	  if (report_secondary_alignments)
+	  if (!allowed) continue;
+	  if (!fusion_search && !report_discordant_pair_alignments && g.is_fusion()) continue;
+
+	  if (report_secondary_alignments || !final_report)
 	    {
 	      best_hits.push_back(make_pair(lh, rh));
 	    }
@@ -242,19 +255,25 @@ void pair_best_alignments(const HitsForRead& left_hits,
 	      else if (!(g < best_grade))
 		{
 		  best_hits.push_back(make_pair(lh, rh));
-		  best_grade.num_alignments++;
 		}
 	    }
 	}
     }
 
-    if (report_secondary_alignments && best_hits.size() > 0)
+  if ((report_secondary_alignments || !final_report) && best_hits.size() > 0)
     {
       cmp_pair_alignment cmp(gtf_junctions);
       sort(best_hits.begin(), best_hits.end(), cmp);
       set_insert_alignment_grade(best_hits[0].first, best_hits[0].second, best_grade);
-      best_grade.num_alignments = best_hits.size();
     }
+
+  if (final_report)
+    {
+      if (best_hits.size() > max_multihits)
+	best_hits.erase(best_hits.begin() + max_multihits, best_hits.end());
+    }
+  
+  best_grade.num_alignments = best_hits.size();
 }
 
 enum FragmentType {FRAG_UNPAIRED, FRAG_LEFT, FRAG_RIGHT};
@@ -1056,6 +1075,8 @@ struct ReportWorker
     uint64_t curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
     uint64_t curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
 
+    const bool final_report = true;
+
     // While we still have unreported hits...
     Read l_read;
     Read r_read;
@@ -1085,12 +1106,8 @@ struct ReportWorker
 
 	    // Process hits for left singleton, select best alignments
 	    read_best_alignments(curr_left_hit_group, best_hits, *gtf_junctions,
-				 *junctions, *insertions, *deletions, *fusions, *coverage);
-
-	    if (best_hits.hits.size() > max_multihits)
-	      {
-		best_hits.hits.erase(best_hits.hits.begin() + max_multihits, best_hits.hits.end());
-	      }
+				 *junctions, *insertions, *deletions, *fusions, *coverage,
+				 final_report);
 
 	    if (best_hits.hits.size() > 0)
 	      {
@@ -1138,13 +1155,9 @@ struct ReportWorker
 
 		// Process hit for right singleton, select best alignments
 		read_best_alignments(curr_right_hit_group, best_hits, *gtf_junctions,
-				     *junctions, *insertions, *deletions, *fusions, *coverage);
+				     *junctions, *insertions, *deletions, *fusions, *coverage,
+				     final_report);
 
-		if (best_hits.hits.size() > max_multihits)
-		  {
-		    best_hits.hits.erase(best_hits.hits.begin() + max_multihits, best_hits.hits.end());
-		  }
-		
 		if (best_hits.hits.size() > 0)
 		  {
 		    update_junctions(best_hits, *final_junctions);
@@ -1189,13 +1202,9 @@ struct ReportWorker
 		right_best_hits.insert_id = curr_right_obs_order;
 		
 		read_best_alignments(curr_right_hit_group, right_best_hits, *gtf_junctions,
-				     *junctions, *insertions, *deletions, *fusions, *coverage);
+				     *junctions, *insertions, *deletions, *fusions, *coverage,
+				     final_report);
 
-		if (right_best_hits.hits.size() > max_multihits)
-		  {
-		    right_best_hits.hits.erase(right_best_hits.hits.begin() + max_multihits, right_best_hits.hits.end());
-		  }
-		
 		if (right_best_hits.hits.size() > 0)
 		  {
 		    update_junctions(right_best_hits, *final_junctions);
@@ -1221,12 +1230,8 @@ struct ReportWorker
 
 		// Process hits for left singleton, select best alignments
 		read_best_alignments(curr_left_hit_group, left_best_hits, *gtf_junctions,
-				     *junctions, *insertions, *deletions, *fusions, *coverage);
-
-		if (left_best_hits.hits.size() > max_multihits)
-		  {
-		    left_best_hits.hits.erase(left_best_hits.hits.begin() + max_multihits, left_best_hits.hits.end());
-		  }
+				     *junctions, *insertions, *deletions, *fusions, *coverage,
+				     final_report);
 		
 		if (left_best_hits.hits.size() > 0)
 		  {
@@ -1250,13 +1255,8 @@ struct ReportWorker
 		pair_best_alignments(curr_left_hit_group,
 				     curr_right_hit_group,
 				     grade, best_hits, *gtf_junctions,
-				     *junctions, *insertions, *deletions, *fusions, *coverage);
-
-		if (best_hits.size() > max_multihits)
-		  {
-		    best_hits.erase(best_hits.begin() + max_multihits, best_hits.end());
-		    grade.num_alignments = best_hits.size();
-		  }
+				     *junctions, *insertions, *deletions, *fusions, *coverage,
+				     final_report);
 
 		//hits for both left and right reads
 		HitsForRead single_best_hits;

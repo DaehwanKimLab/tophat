@@ -131,72 +131,146 @@
       <div id="toc">
   	    <ul>
   	    <li><a href="#inst">Install quick-start</a></li>
-		<li><a href="#ref">Test the installation</a></li>
-		<li><a href="#ref">Preparing your reference</a></li>
+	    <li><a href="#ref">Test the installation</a></li>
+	    <li><a href="#ref">Preparing your reference</a></li>
   	    <li><a href="#reads">Preparing your reads</a></li>
   	    <li><a href="#toph">Running TopHat</a></li>
   	    <li><a href="#exam">Examining your results</a></li>
   	    </ul><br/>
   	  </div>
-	  	
-	<br/>
-  	<h2 id="inst">Install quick-start</h2><br/>
-      	<p>Download and extract the latest <a href="./downloads/">TopHat</a>
-            and <a href="https://sourceforge.net/project/showfiles.php?group_id=236897&package_id=288231">Bowtie</a> releases.</p>
-            You will need the following Bowtie programs in your <tt>PATH</tt>:
-            <ul>
-        	      <li><tt>bowtie</tt></li>
-        	      <li><tt>bowtie-build</tt></li>
-				  <li><tt>bowtie-inspect</tt></li>
-        	</ul>
-            You will also need the <tt>samtools</tt> program in your <tt>PATH</tt>, and if you plan to compile Tophat from source 
-            you should also install the SAM tools package, by following these steps:
-            <ul><ul>
-               <li><a href="http://samtools.sourceforge.net/">Download</a>
-                  the SAM tools</li>
-                <li>Unpack the SAM tools tarball and <tt>cd</tt> to
-                  the SAM tools source directory.</li>
-                <li>Build the SAM tools by typing <tt>make</tt> at
-                  the command line.</li>
-                <li>Choose a directory into which you wish to copy
-                  the SAM tools binary, the included library <tt>libbam.a</tt>,
-                  and the library headers. A common choice is <tt>/usr/local/</tt>.
-                </li>
-                <li>Copy libbam.a to the <tt>lib/</tt> directory in
-                  the folder you've chosen above (e.g. <tt>/usr/local/lib/</tt>)</li>
-                <li>Create a directory called "<tt>bam</tt>" in the
-                  <tt>include/</tt> directory (e.g.
-                  /usr/local/include/bam) </li>
-                <li>Copy the headers (files ending in .h) to the <tt>include/bam</tt>
-                  directory you've created above (e.g. <tt>/usr/local/include/bam</tt>)
-                </li>
-                <li>Copy the samtools binary to some directory in
-                      your PATH.</li>
-            </ul></ul>
-      	<p>
-		<p> To install TopHat, unpack the tarball and change to the package 
-			directory as follows: </p> <p>
-			<blockquote>tar zxvf tophat-1.2.0.tar.gz</blockquote> 
-			<blockquote>cd tophat-1.2.0/</blockquote>
-		  <p>Now build the package: </p> <p> 
-			<blockquote>./configure --prefix=/path/to/install/directory/</blockquote>
-            <ul><ul>
-            <p><b>Note:</b> 
-            If you copied the SAM tools library and header files to someplace other than <tt>/usr/local/</tt>, you
-            may need to supply the <tt>--with-bam</tt> configuration option. 
-            For example, if you placed the libbam.a files in <tt>/opt/biotools/lib/</tt> and SAM tools .h files in <tt>/opt/biotools/include/bam/</tt>
-            then the <tt>configure</tt> command will become something like this:
-            <blockquote>./configure --prefix=/opt/biotools --with-bam=/opt/biotools</blockquote>
-            (in this example tophat and its modules will be installed in <tt>/opt/biotools/bin/</tt> directory)
-            <p>
-            </ul></ul>
-            After the <tt>configure</tt> script finishes successfully, build the Tophat package:
-			<blockquote>make</blockquote>
-		  <p>Finally, install TopHat:</p><p>
-			<blockquote>make install</blockquote>
-			<p>This will install tophat and its modules into <tt>/path/to/install/directory/bin</tt> directory. 
-            You may want to add that directory to your shell's <tt>PATH</tt> if it's not there already.<p>
-      	<br/>
+
+      <h2 id="inst">Install quick-start</h2>
+	<p><strong>Download and extract the latest
+	    <a href="http://sourceforge.net/projects/bowtie-bio/files/bowtie2/">Bowtie2</a>
+	    (or <a href="http://sourceforge.net/projects/bowtie-bio/files/bowtie/">Bowtie1</a>) releases.</p></strong>
+	Note that you can use either Bowtie2 (the default) or Bowtie1 (--bowtie1)
+	and you will need the following Bowtie2 (or Bowtie1) programs in your <tt>PATH</tt>:
+        <ul>
+          <li><tt>bowtie2 (or bowtie)</tt></li>
+          <li><tt>bowtie2-build (or bowtie-build)</tt></li>
+	  <li><tt>bowtie2-inspect (or bowtie-inspect)</tt></li>
+        </ul>
+	</br>
+	
+        <strong>Installing a pre-compiled binary release</strong><br/>
+		<p>In order to make it easy to install TopHat, we
+		  provide a few binary packages to save users from
+		  occasionally frustrating process of building
+		  TopHat, which requires that you install the <a href="http://www.boost.org">Boost</a>
+		  libraries and the <a href="http://samtools.sourceforge.net/">SAM tools</a>.
+		  To use the binary packages, simply download the appropriate one for your machine, untar
+		  it, and make sure the <tt>TopHat</tt> binaries are in a
+		  directory in your PATH environment variable.</p>
+		<br/>
+		
+	<strong>Building TopHat from source</strong><br/>
+		<p> In order to build TopHat, you must have the <a href="http://www.boost.org">Boost C++ libraries</a>
+		  (version 1.38 or higher) installed on your system.
+		  See below for instructions on installing Boost. </p>
+		<br/>
+		<h3 id="boost">Installing Boost</h3>
+		<br/>
+		<ol>
+		  <li><a href="http://www.boost.org/users/download/">Download</a>
+		    Boost and the <tt>bjam</tt> build engine.</li>
+		  <li>Unpack bjam and add it to your PATH.</li>
+		  <li>Unpack the Boost tarball and <tt>cd</tt> to the
+		    Boost source directory. This directory is called
+		    the BOOST_ROOT in some Boost installation
+		    instructions.</li>
+		  <li>Build Boost. Note that you can specify where to
+		    put Boost with the --prefix option. The default
+		    Boost installation directory is <tt>/usr/local</tt>.
+		    Take note of the boost installation directory,
+		    because you will need to tell the Cufflinks
+		    installer where to find Boost later on.
+		    <p>If you are on Mac OS X, type (all on one line):
+                      <br/>
+		    </p>
+		    <blockquote>bjam
+                      --prefix=&lt;YOUR_BOOST_INSTALL_DIRECTORY&gt;
+                      --toolset=darwin architecture=x86
+                      address_model=32_64 link=static
+                      runtime-link=static --layout=versioned stage
+                      install</blockquote>
+		  </li>
+		  <p>If you are on a 32-bit Linux system, type (all on
+		    one line): <br/>
+		  </p>
+		  <blockquote>bjam
+		    --prefix=&lt;YOUR_BOOST_INSTALL_DIRECTORY&gt;
+		    --toolset=gcc architecture=x86 address_model=32
+		    link=static runtime-link=static stage install</blockquote>
+		  <p>If you are on a 64-bit Linux system, type (all on
+		    one line): <br/>
+		  </p>
+		  <blockquote>bjam
+		    --prefix=&lt;YOUR_BOOST_INSTALL_DIRECTORY&gt;
+		    --toolset=gcc architecture=x86 address_model=64
+		    link=static runtime-link=static stage install</blockquote>
+		</ol>
+		<br/>
+		<h3 id="samtools">Installing the SAM tools</h3>
+		<br/>
+		<ol>
+		  <li><a href="http://samtools.sourceforge.net/">Download</a>
+		    the SAM tools</li>
+		  <li>Unpack the SAM tools tarball and <tt>cd</tt> to
+		    the SAM tools source directory.</li>
+		  <li>Build the SAM tools by typing <tt>make</tt> at
+		    the command line.</li>
+		  <li>Choose a directory into which you wish to copy
+		    the SAM tools binary, the included library <tt>libbam.a</tt>,
+		    and the library headers. A common choice is <tt>/usr/local/</tt>.
+		  </li>
+		  <li>Copy libbam.a to the <tt>lib/</tt> directory in
+		    the folder you've chosen above (e.g. <tt>/usr/local/lib/</tt>)</li>
+		  <li>Create a directory called "<tt>bam</tt>" in the
+		    <tt>include/</tt> directory (e.g.
+		    /usr/local/include/bam) </li>
+		  <li>Copy the headers (files ending in .h) to the <tt>include/bam</tt>
+		    directory you've created above (e.g. <tt>/usr/local/include/bam</tt>)
+		  </li>
+		  <li>Copy the samtools binary to some directory in
+		    your PATH.</li>
+		</ol>
+		<br/>
+		<h3 id="boost">Building TopHat</h3>
+		<br/>
+		<ol>
+		  <li>Unpack the TopHat source tarball:
+		    <blockquote>tar zxvf tophat-2.0.0.tar.gz</blockquote>
+		  </li>
+		  <li>Change to the TopHat directory:
+		    <blockquote>cd tophat-0.7.0</blockquote>
+		  </li>
+		  <li>Configure TopHat. If Boost is installed
+		    somewhere other than <tt>/usr/local</tt>, you
+		    will need to tell the installer where to find it
+		    using the <tt>--with-boost</tt> option. Specify
+		    where to install TopHat using the <tt>--prefix</tt>
+		    option.
+		    <blockquote>./configure
+                      --prefix=/path/to/tophat/install
+                      --with-boost=/path/to/boost
+		      --with-bam=/path/to/bam</blockquote>
+		    If you see any errors during configuration, verify
+		    that you are using Boost version 1.38 or higher,
+		    and that the directory you specified via <tt>--with-boost</tt>
+		    contains the boost header files and libraries. See
+		    the Boost <a href="">Getting started</a> page for
+		    more details. If you copied the SAM tools binaries
+		    to someplace other than <tt>/usr/local/</tt>, you
+		    may need to supply the <tt>--with-bam</tt>
+		    configuration option. </li>
+		  <li>Finally, make and install TopHat.
+		    <blockquote>make</blockquote>
+		    <blockquote>make install</blockquote>
+		  </li>
+		  <p>This will install tophat and its modules into <tt>/path/to/install/directory/bin</tt> directory. 
+		    You may want to add that directory to your shell's <tt>PATH</tt> if it's not there already.<p>
+		</ol>
+		</br>
 
 		<h2 id="test">Testing the installation</h2><br/>
 		<p>

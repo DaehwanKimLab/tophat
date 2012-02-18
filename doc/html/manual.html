@@ -637,6 +637,108 @@
 	  </td></tr>
 	</td></tr>
 	 </table><br/>
+
+	  <b>Bowtie2 related options:</b>
+	  <a name="b2-option"></a>
+	  <p> Bowtie2 provides many options so that users can have more flexibilities as to how reads are mapped.
+	    TopHat2 does allow many these Bowtie2 options preceding with <strong>--b2-</strong>
+	    when mapping reads on transcriptome and genome.
+	    Please refer to the <a href="http://bowtie-bio.sourceforge.net/bowtie2/index.shtml">Bowtie2</a> website for detailed information.
+	  <table CELLSPACING=15>
+	  <tr><td VALIGN=top>
+	      Preset options in --end-to-end mode (local alignment is not used in TopHat2)
+	      <table CELLSPACING=15>
+		<tr><td VALIGN=top nowrap>
+		    <tt>--b2-very-fast</tt>
+		</td></tr>
+		<tr><td VALIGN=top nowrap>
+		    <tt>--b2-fast</tt>
+		</td></tr>
+		<tr><td VALIGN=top nowrap>
+		    <tt>--b2-sensitive</tt>
+		</td></tr>
+		<tr><td VALIGN=top nowrap>
+		    <tt>--b2-very-sensitive</tt>
+		</td></tr>
+	      </table>
+	  </td></tr>
+	  <tr><td VALIGN=top>
+	      Alignment options
+	      <table CELLSPACING=15>
+		<tr><td VALIGN=top nowrap>
+		    <tt>--b2-N</tt>
+		  </td><td>
+		    The default is 0.
+		</td></tr>
+		<tr><td VALIGN=top nowrap>
+		    <tt>--b2-L</tt>
+		  </td><td>
+		    The default is 20.
+		</td></tr>
+		<tr><td VALIGN=top nowrap>
+		    <tt>--b2-i</tt>
+		  </td><td >
+		    The default is S,1,1.25.
+		</td></tr>
+		<tr><td VALIGN=top nowrap>
+		    <tt>--b2-n-ceil</tt>
+		  </td><td>
+		    The default is L,0,0.15.
+		</td></tr>
+		<tr><td VALIGN=top nowrap>
+		    <tt>--b2-gbar</tt>
+		  </td><td>
+		    The default is 4.
+		</td></tr>
+	      </table>
+	  </td></tr>
+	  <tr><td VALIGN=top>
+	      Scoring options
+	      <table CELLSPACING=15>
+		<tr><td VALIGN=top nowrap>
+		    <tt>--b2-mp</tt>
+		  </td><td>
+		    The default is 6,2.
+		</td></tr>
+		<tr><td VALIGN=top nowrap>
+		    <tt>--b2-np</tt>
+		  </td><td>
+		    The default is 1.
+		</td></tr>
+		<tr><td VALIGN=top nowrap>
+		    <tt>--b2-rdg</tt>
+		  </td><td >
+		    The default is 5,3.
+		</td></tr>
+		<tr><td VALIGN=top nowrap>
+		    <tt>--b2-rfg</tt>
+		  </td><td>
+		    The default is 5,3.
+		</td></tr>
+		<tr><td VALIGN=top nowrap>
+		    <tt>--b2-score-min</tt>
+		  </td><td>
+		    The default is L,-0.6,-0.6.
+		</td></tr>
+	      </table>
+	  </td></tr>
+	  <tr><td VALIGN=top>
+	      Effort options
+	      <table CELLSPACING=15>
+		<tr><td VALIGN=top nowrap>
+		    <tt>--b2-D</tt>
+		  </td><td>
+		    The default is 15.
+		</td></tr>
+		<tr><td VALIGN=top nowrap>
+		    <tt>--b2-R</tt>
+		  </td><td>
+		    The default is 2.
+		</td></tr>
+	      </table>
+	  </td></tr>
+	  </table>
+
 	<b>Supplying your own transcript annotation data:</b>
 	  <p>The options below allow you validate your own list of known transcripts or junctions with your 
 		RNA-Seq data. Note that the chromosome names in the files provided
