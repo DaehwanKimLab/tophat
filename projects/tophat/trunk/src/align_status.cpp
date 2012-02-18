@@ -47,6 +47,8 @@ AlignStatus::AlignStatus(const BowtieHit& bh,
   const vector<CigarOp>& cigar = bh.cigar();
   _alignment_score = bh.alignment_score();
 
+  bool recalculate_score = !junctions.empty();
+
   int j = bh.left();
   int r = 0;
   RefID ref_id = bh.ref_id();
@@ -74,37 +76,41 @@ AlignStatus::AlignStatus(const BowtieHit& bh,
 		junc.left = j - length;
 		j -= length;
 	      }
-	    
-	    junc.antisense = bh.antisense_splice();
-	    if (gtf_junctions.find(junc) == gtf_junctions.end())
-	    {
-	      JunctionSet::const_iterator itr = junctions.find(junc);
-	      if (itr == junctions.end())
-		{
-		  _alignment_score -= bowtie2_max_penalty;
-		}
-	      else
-		{
-		  const int left_cov = coverage.get_coverage(ref_id, junc.left + 1);
-		  const int right_cov = coverage.get_coverage(ref_id, junc.right - 1);
-		  const int avg_cov = (left_cov + right_cov) / 2;
-		  
-		  int penalty = bowtie2_max_penalty;
-		  const int supporting_hits = itr->second.supporting_hits;
-		  if (supporting_hits > 0)
-		    penalty *= min((float)avg_cov/supporting_hits, 1.f);
 
-		  _alignment_score -= penalty;
-		  _alignment_score = min(0, _alignment_score);
-		  
-		  /*
-		  fprintf(stderr, "junc(%d:%d-%d) %d / (%d + %d) = %d => %d\n",
+	    if (recalculate_score)
+	      {
+		junc.antisense = bh.antisense_splice();
+		
+		if (gtf_junctions.find(junc) == gtf_junctions.end())
+		  {
+		    JunctionSet::const_iterator itr = junctions.find(junc);
+		    if (itr == junctions.end())
+		      {
+			_alignment_score -= bowtie2_max_penalty;
+		      }
+		    else
+		      {
+			const int left_cov = coverage.get_coverage(ref_id, junc.left + 1);
+			const int right_cov = coverage.get_coverage(ref_id, junc.right - 1);
+			const int avg_cov = (left_cov + right_cov) / 2;
+			
+			int penalty = bowtie2_max_penalty;
+			const int supporting_hits = itr->second.supporting_hits;
+			if (supporting_hits > 0)
+			  penalty *= min((float)avg_cov/supporting_hits, 1.f);
+			
+			_alignment_score -= penalty;
+			_alignment_score = min(0, _alignment_score);
+			
+			/*
+			  fprintf(stderr, "junc(%d:%d-%d) %d / (%d + %d) = %d => %d\n",
 			  junc.refid, junc.left, junc.right,
 			  itr->second.supporting_hits, left_cov, right_cov,
 			  _alignment_score + penalty, _alignment_score);
-		  */
-		}
-	    }
+			*/
+		      }
+		  }
+	      }
 	  }
 	  break;
 	  
@@ -137,29 +143,32 @@ AlignStatus::AlignStatus(const BowtieHit& bh,
 		junc.left = j - length;
 		j -= length;
 	      }
-	    
-	    DeletionSet::const_iterator itr = deletions.find(junc);
-	    if (itr != deletions.end())
+
+	    if (recalculate_score)
 	      {
-		const int left_cov = coverage.get_coverage(ref_id, junc.left + 1);
-		const int right_cov = (length == 1 ? left_cov : coverage.get_coverage(ref_id, junc.right - 1));
-		const int avg_cov = (left_cov + right_cov) / 2;
-		const int del_penalty = bowtie2_ref_gap_open + bowtie2_ref_gap_cont * length;
-		int addition = del_penalty;
-
-		const int supporting_hits = itr->second;
-		if (avg_cov > 0)
-		  addition *= min((float)supporting_hits/avg_cov * 2.f, 1.f);
-
-		_alignment_score += addition;
-		_alignment_score = min(0, _alignment_score);
-		
-		/*
-		fprintf(stderr, "del(%d:%d-%d) %d / (%d + %d) = %d => %d (%d)\n",
-			junc.refid, junc.left, junc.right,
-			itr->second, left_cov, right_cov,
-			_alignment_score - addition, _alignment_score, del_penalty);
-		*/
+		DeletionSet::const_iterator itr = deletions.find(junc);
+		if (itr != deletions.end())
+		  {
+		    const int left_cov = coverage.get_coverage(ref_id, junc.left + 1);
+		    const int right_cov = (length == 1 ? left_cov : coverage.get_coverage(ref_id, junc.right - 1));
+		    const int avg_cov = (left_cov + right_cov) / 2;
+		    const int del_penalty = bowtie2_ref_gap_open + bowtie2_ref_gap_cont * length;
+		    int addition = del_penalty;
+		    
+		    const int supporting_hits = itr->second;
+		    if (avg_cov > 0)
+		      addition *= min((float)supporting_hits/avg_cov * 2.f, 1.f);
+		    
+		    _alignment_score += addition;
+		    _alignment_score = min(0, _alignment_score);
+		    
+		    /*
+		      fprintf(stderr, "del(%d:%d-%d) %d / (%d + %d) = %d => %d (%d)\n",
+		      junc.refid, junc.left, junc.right,
+		      itr->second, left_cov, right_cov,
+		      _alignment_score - addition, _alignment_score, del_penalty);
+		    */
+		  }
 	      }
 	  }
 	  break;
@@ -167,28 +176,33 @@ AlignStatus::AlignStatus(const BowtieHit& bh,
 	case INS:
 	case iNS:
 	  {
-	    string seq = bh.seq().substr(r, length);
-	    Insertion ins(ref_id, j, seq);
-	    InsertionSet::const_iterator itr = insertions.find(ins);
-	    if (itr != insertions.end())
+	    if (recalculate_score)
 	      {
-		const int cov = coverage.get_coverage(ref_id, j);
-		const int ins_penalty = bowtie2_read_gap_open + bowtie2_read_gap_cont * length;
-		int addition = ins_penalty;
-
-		const int supporting_hits = itr->second;
-		if (cov > 0)
-		  addition *= min((float)supporting_hits/cov * 2.f, 1.f);
-
-		_alignment_score += addition;
-		_alignment_score = min(0, _alignment_score);
-		
-		/*
-		fprintf(stderr, "ins(%d:%d:%s) %d / %d = %d => %d (%d)\n",
-			ref_id, ins.left, seq.c_str(),
-			itr->second, cov,
-			_alignment_score - addition, _alignment_score, ins_penalty);
-		*/
+		string seq = bh.seq().substr(r, length);
+		Insertion ins(ref_id, j, seq);
+		InsertionSet::const_iterator itr = insertions.find(ins);
+		if (itr != insertions.end())
+		  {
+		    const int supporting_hits = itr->second;
+		    const int left_cov = coverage.get_coverage(ref_id, j);
+		    const int right_cov = coverage.get_coverage(ref_id, j + (opcode == INS ? 1 : -1));
+		    const int avg_cov = (left_cov + right_cov) / 2 - supporting_hits;
+		    const int ins_penalty = bowtie2_read_gap_open + bowtie2_read_gap_cont * length;
+		    int addition = ins_penalty;
+		    
+		    if (avg_cov > 0)
+		      addition *= min((float)supporting_hits/avg_cov * 2.f, 1.f);
+		    
+		    _alignment_score += addition;
+		    _alignment_score = min(0, _alignment_score);
+		    
+		    /*
+		      fprintf(stderr, "ins(%d:%d:%s) %d / (%d - %d) = %d => %d (%d)\n",
+		      ref_id, ins.left, seq.c_str(),
+		      supporting_hits, avg_cov, supporting_hits,
+		      _alignment_score - addition, _alignment_score, ins_penalty);
+		    */
+		  }
 	      }
 
 	    r += length;

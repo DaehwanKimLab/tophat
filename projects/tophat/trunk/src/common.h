@@ -111,6 +111,7 @@ extern bool color;
 extern std::string gtf_juncs;
 
 extern bool report_secondary_alignments;
+extern bool report_discordant_pair_alignments;
 
 //prep_reads only: --flt-reads <bowtie-fastq_for--max>
 //  filter out reads if their numeric ID is in this fastq file
@@ -466,57 +467,41 @@ class GBamWriter {
 
       }
    void write(bam1_t* b, int64_t read_id=0) {
-	  /*
-	  if (findex && read_id) {
-		 if (idxcount >= 1000 && read_id != idx_last_id) {
-			 int64_t offset = this->tell();
-			 int block_offset = offset & 0xFFFF;
-			 //int64_t block_address = (offset >> 16) & 0xFFFFFFFFFFFFLL;
-			 // daehwan - this is a bug in bgzf.c in samtools
-			 // I'll report this bug with a temporary solution, soon.
-
-			 if (block_offset <= 0xF000) {
-			   fprintf(findex, "%lu\t%ld\n", read_id, offset);
-			   idxcount = 0;
-			 }
-		 }
-		 idx_last_id=read_id;
-		 idxcount++;
-	  }
-	  */
-	 int64_t pre_block_addr=0; //offsets after last write()
-	 int     pre_block_offs=0; //but before this write()
-	 int64_t pre_pos=0;
-	 bool write_index=false;
-	 if (findex && read_id) {
-		 if (idxcount >= 1000 && read_id != idx_last_id) {
-			 pre_pos = this->tell();
-			 pre_block_offs = pre_pos & 0xFFFF;
-			 pre_block_addr = (pre_pos >> 16) & 0xFFFFFFFFFFFFLL;
-			 write_index=true;
-		     }
-		 idx_last_id=read_id;
-		 idxcount++;
-	 }
-
+     int64_t pre_block_addr=0; //offsets after last write()
+     int     pre_block_offs=0; //but before this write()
+     int64_t pre_pos=0;
+     bool write_index=false;
+     if (findex && read_id) {
+       if (idxcount >= 1000 && read_id != idx_last_id) {
+	 pre_pos = this->tell();
+	 pre_block_offs = pre_pos & 0xFFFF;
+	 pre_block_addr = (pre_pos >> 16) & 0xFFFFFFFFFFFFLL;
+	 write_index=true;
+       }
+       idx_last_id=read_id;
+       idxcount++;
+     }
+     
      samwrite(this->bam_file, b);
      wcount++;
      if (write_index) {
-    	int64_t offset = this->tell();
-   	    int     post_block_offs = offset & 0xFFFF; //offsets after this write()
-   	    int64_t post_block_addr = (offset >> 16) & 0xFFFFFFFFFFFFLL;
-		int data_len = b->data_len+BAM_CORE_SIZE;
-		if (post_block_addr != pre_block_addr &&
-			post_block_offs>=data_len)
-	       //all data written in this block
-           //WARNING: this check fails for very large BAM records (> 64K)
-	       {
-	       pre_pos = post_block_addr;
-	       }
-	    fprintf(findex, "%lu\t%ld\n", read_id, pre_pos);
-		}
-     }
+       int64_t offset = this->tell();
+       int     post_block_offs = offset & 0xFFFF; //offsets after this write()
+       int64_t post_block_addr = (offset >> 16) & 0xFFFFFFFFFFFFLL;
+       int data_len = b->data_len+BAM_CORE_SIZE;
+       if (post_block_addr != pre_block_addr &&
+	   post_block_offs>=data_len)
+	 //all data written in this block
+	 //WARNING: this check fails for very large BAM records (> 64K)
+	 {
+	   pre_pos = post_block_addr << 16;
+	 }
 
+       fprintf(findex, "%lu\t%ld\n", read_id, pre_pos);
+       idxcount = 0;
+     }
+   }
+   
 
    int64_t tell() {
      return bam_tell(this->bam_file->x.bam);

@@ -25,3 +25,6 @@ install routine the user will have to explicitly create the above
 directory structure (./include/bam/ and ./lib) and copy the required 
 Samtools files as indicated (the header files and libbam.a)
 
+TopHat also requires the Boost libraries (http://www.boost.org).
+Please refer to the TopHat webpage for installation information.
+
