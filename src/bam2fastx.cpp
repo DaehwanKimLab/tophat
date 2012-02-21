@@ -15,8 +15,6 @@ char outfname[1024];
 #define USAGE "Usage: bam2fastx [--fasta|-a|--fastq|-q] [--sam|-s|-t] \n\
         [-M|--mapped-only|-A|--all] [-o <outfile>] <in.bam>|<in.sam> \n"
 
-
-
 char qseq[2048];
 
 const char *short_options = "o:aqstMUA";
@@ -82,8 +80,6 @@ int parse_options(int argc, char** argv)
   return 0;
 }
 
-#define bam_unmapped(b) (((b)->core.flag & BAM_FUNMAP) != 0)
-
 void showfastq(const bam1_t *b, samfile_t* fp, FILE* fout) {
   char *name  = bam1_qname(b);
   char *qual  = (char*)bam1_qual(b);
@@ -94,7 +90,14 @@ void showfastq(const bam1_t *b, samfile_t* fp, FILE* fout) {
   if (mapped_only && !ismapped) return;
 
   bool isreversed=((b->core.flag & BAM_FREVERSE) != 0);
-
+  bool is_paired = ((b->core.flag & BAM_FPAIRED) != 0);
+  int mate_num=0;
+  if (is_paired) {
+     if ((b->core.flag & BAM_FREAD1) != 0) 
+         mate_num=1;
+     else if ((b->core.flag & BAM_FREAD2) != 0) 
+         mate_num=2;
+     }
   for(i=0;i<(b->core.l_qseq);i++)
     qseq[i] = bam1_seqi(s,i);
   qseq[i] = 0;
@@ -114,8 +117,9 @@ void showfastq(const bam1_t *b, samfile_t* fp, FILE* fout) {
   for(i=0;i<(b->core.l_qseq);i++) {
     qseq[i] = bam_nt16_rev_table[qseq[i]];
   }
+  if (mate_num>0) fprintf(fout, "@%s/%d\n%s\n",name, mate_num, qseq);
+             else fprintf(fout, "@%s\n%s\n",name, qseq);
    
-  fprintf(fout, "@%s\n%s\n",name, qseq);
   for(i=0;i<(b->core.l_qseq);i++) {
     qseq[i]=qual[i]+33;
     }
@@ -143,6 +147,14 @@ void showfasta(const bam1_t *b, samfile_t* fp, FILE* fout) {
   if (mapped_only && !ismapped) return;
 
   bool isreversed=((b->core.flag & BAM_FREVERSE) != 0);
+  bool is_paired = ((b->core.flag & BAM_FPAIRED) != 0);
+  int mate_num=0;
+  if (is_paired) {
+     if ((b->core.flag & BAM_FREAD1) != 0) 
+         mate_num=1;
+     else if ((b->core.flag & BAM_FREAD2) != 0) 
+         mate_num=2;
+     }
 
   for(i=0;i<(b->core.l_qseq);i++)
     qseq[i] = bam1_seqi(s,i);
@@ -164,7 +176,9 @@ void showfasta(const bam1_t *b, samfile_t* fp, FILE* fout) {
     qseq[i] = bam_nt16_rev_table[qseq[i]];
   }
   qseq[i] = 0;
-  fprintf(fout, ">%s\n%s\n",name, qseq);
+  if (mate_num>0) fprintf(fout, ">%s/%d\n%s\n",name, mate_num, qseq);
+             else fprintf(fout, ">%s\n%s\n",name, qseq);
+  
 }
 
 
