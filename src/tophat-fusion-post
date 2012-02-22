@@ -2,7 +2,7 @@
 
 
 """
-tophat-fusion-post.py
+tophat-fusion-post
 
 Created by Daehwan Kim on 2011-05-05.
 Copyright (c) 2011 Daehwan Kim. All rights reserved.
@@ -848,20 +848,19 @@ def read_dist(params):
                 continue
 
             line = line[:-1].split('\t')
-            read_id, chr1, left_pos, cigar_str, seq, qual, mismatch = line[0], line[2], int(line[3]) - 1, line[5], line[9], line[10], line[11]
-
-            # daehwan - should check this out
-            mismatch = int(mismatch.split(':')[-1])
+            read_id, chr1, left_pos, cigar_str, seq, qual = line[0], line[2], int(line[3]) - 1, line[5], line[9], line[10]
 
             secondary_fusion_alignment = False
             for field in line[10:]:
                 if field[:5] == "XF:Z:":
                     if field[5] == '2':
                         secondary_fusion_alignment = True
-                        break
 
                     chr1, left_pos, cigar_str, seq, qual = field[7:].split()
                     left_pos = int(left_pos) - 1
+
+                if field[:5] == "NM:i:":
+                    mismatch = int(field.split(':')[-1])
 
             if secondary_fusion_alignment:
                 continue
@@ -1403,7 +1402,7 @@ def generate_html(params):
                         if lcount <= lcount_min or rcount <= rcount_min or lgap / lcount > 0.1 or rgap / rcount > 0.1:
                             if abs(min(lcount, lcount_exon_min) - min(rcount, rcount_exon_min)) > diff_max or lcount < 60 or rcount < 60:
                                 do_not_add = True
-                                print >> sys.stderr, lcount_min, rcount_min, diff_max
+                                # print >> sys.stderr, lcount_min, rcount_min, diff_max
                                 if output["found_in_list"]:
                                     print >> sys.stderr, output
                                     print >> sys.stderr, lcount, rcount, abs(lcount - rcount), lgap, rgap
@@ -1425,7 +1424,7 @@ def generate_html(params):
                         output["ravg"] = ravg
                         output["rgap"] = rgap
                         output["rder"] = derivation(rcolor, rcount_min, ravg)
-                        print >> sys.stderr, "\t%d" % (line_no / 6 + 1)
+                        # print >> sys.stderr, "\t%d" % (line_no / 6 + 1)
 
                     else:
                         read_output = [r"too many - not shown"]
@@ -1662,7 +1661,7 @@ def generate_html(params):
         print >> html_file, r'<H1><BR>candidate fusion list</H1>'
         print >> html_file, r'The following tables show fusion candidates where fusions are grouped based on their genomic locations (<a href="#detail">table description</a>)<BR>'
         print >> html_file, r'<a href="#sample">sample information</a><BR>'
-        print >> html_file, r'Known fusions are found at <a href="#mcl">Mitelman Database</a> as of Feb 11, 2011<P>'
+        print >> html_file, r'Known fusions are found at <a href="#mcl">Mitelman Database</a> as of Feb 21, 2012<P>'
 
         def cmp(i, j):
             i_left = fusion_list[i]["left_coord"]
