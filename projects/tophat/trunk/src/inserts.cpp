@@ -33,7 +33,7 @@ bool InsertAlignmentGrade::operator<(const InsertAlignmentGrade& rhs)
     {
       return num_mapped < rhs.num_mapped;
     }
-  else if (num_mapped == 2 && !fusion)
+  else if (num_mapped == 2)
     {
       // daehwan - I'm testing this!
 #if 1

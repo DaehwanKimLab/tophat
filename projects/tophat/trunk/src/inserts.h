@@ -105,18 +105,20 @@ InsertAlignmentGrade(const BowtieHit& h1,
     num_alignments = 1;
     assert(!(too_far && too_close));
 
-
     //
     static const int penalty_for_long_inner_dist = bowtie2_max_penalty;
     alignment_score = h1.alignment_score() + h2.alignment_score();
-    if (too_far)
-      alignment_score -= penalty_for_long_inner_dist;
-    else if (too_close)
-      alignment_score -= (penalty_for_long_inner_dist / 2);
-
-    static const int penalty_for_same_strand = bowtie2_max_penalty;
-    if (!opposite_strands)
-      alignment_score -= penalty_for_same_strand;
+    if (!fusion)
+      {
+	if (too_far)
+	  alignment_score -= penalty_for_long_inner_dist;
+	else if (too_close)
+	  alignment_score -= (penalty_for_long_inner_dist / 2);
+	
+	static const int penalty_for_same_strand = bowtie2_max_penalty;
+	if (!opposite_strands)
+	  alignment_score -= penalty_for_same_strand;
+      }
   }
   
   InsertAlignmentGrade& operator=(const InsertAlignmentGrade& rhs)
@@ -155,6 +157,8 @@ InsertAlignmentGrade(const BowtieHit& h1,
   {
     return num_mapped == 2 && opposite_strands && (num_spliced != 2 || consistent_splices) && !too_far;
   }
+
+  int align_score() { return alignment_score; }
 
   bool is_fusion() const { return fusion; }
   

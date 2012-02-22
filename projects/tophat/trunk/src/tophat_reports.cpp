@@ -975,20 +975,24 @@ struct ConsensusEventsWorker
 				 best_hits,
 				 *gtf_junctions);
 
-	    HitsForRead single_best_hits;
-	    single_best_hits.insert_id = curr_left_obs_order;
+	    HitsForRead best_left_hit_group; best_left_hit_group.insert_id = curr_left_obs_order;
+	    HitsForRead best_right_hit_group; best_right_hit_group.insert_id = curr_left_obs_order;
 
-	    // this is too much memory copy - we will make it efficient soon
 	    for (size_t i = 0; i < best_hits.size(); ++i)
 	      {
-		single_best_hits.hits.push_back(best_hits[i].first);
-		single_best_hits.hits.push_back(best_hits[i].second);
+		best_left_hit_group.hits.push_back(best_hits[i].first);
+		best_right_hit_group.hits.push_back(best_hits[i].second);
 	      }
 
-	    update_coverage(single_best_hits, *coverage);
-	    update_junctions(single_best_hits, *junctions);
-	    update_insertions_and_deletions(single_best_hits, *insertions, *deletions);
-	    update_fusions(single_best_hits, *rt, *fusions);
+	    update_coverage(best_left_hit_group, *coverage);
+	    update_junctions(best_left_hit_group, *junctions);
+	    update_insertions_and_deletions(best_left_hit_group, *insertions, *deletions);
+	    update_fusions(best_left_hit_group, *rt, *fusions);
+
+	    update_coverage(best_right_hit_group, *coverage);
+	    update_junctions(best_right_hit_group, *junctions);
+	    update_insertions_and_deletions(best_right_hit_group, *insertions, *deletions);
+	    update_fusions(best_right_hit_group, *rt, *fusions);
 	            
 	    l_hs.next_read_hits(curr_left_hit_group);
 	    curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
@@ -1258,22 +1262,26 @@ struct ReportWorker
 				     *junctions, *insertions, *deletions, *fusions, *coverage,
 				     final_report);
 
-		//hits for both left and right reads
-		HitsForRead single_best_hits;
-		single_best_hits.insert_id = curr_left_obs_order;
+		HitsForRead best_left_hit_group; best_left_hit_group.insert_id = curr_left_obs_order;
+		HitsForRead best_right_hit_group; best_right_hit_group.insert_id = curr_left_obs_order;
+		
 		for (size_t i = 0; i < best_hits.size(); ++i)
 		  {
-		    single_best_hits.hits.push_back(best_hits[i].first);
-		    single_best_hits.hits.push_back(best_hits[i].second);
+		    best_left_hit_group.hits.push_back(best_hits[i].first);
+		    best_right_hit_group.hits.push_back(best_hits[i].second);
 		  }
-		
-		if (single_best_hits.hits.size() > 0)
+
+		if (best_hits.size() > 0)
 		  {
-		    update_junctions(single_best_hits, *final_junctions);
-		    update_insertions_and_deletions(single_best_hits, *final_insertions, *final_deletions);
+		    update_junctions(best_left_hit_group, *final_junctions);
+		    update_insertions_and_deletions(best_left_hit_group, *final_insertions, *final_deletions);
+		    update_fusions(best_left_hit_group, *rt, *final_fusions, *fusions);
+
+		    update_junctions(best_right_hit_group, *final_junctions);
+		    update_insertions_and_deletions(best_right_hit_group, *final_insertions, *final_deletions);
+		    update_fusions(best_right_hit_group, *rt, *final_fusions, *fusions);
 
 		    pair_support(best_hits, *final_fusions, *fusions);
-		    update_fusions(single_best_hits, *rt, *final_fusions, *fusions);
 
 		    print_sam_for_pair(*rt,
 				       best_hits,
@@ -1296,6 +1304,7 @@ struct ReportWorker
 	  }
       } //while we still have unreported hits..
     //print the remaining unmapped reads at the end of each reads' stream
+
     left_reads_file.getRead(VMAXINT32, l_read,
 			    reads_format, false, begin_id, end_id,
 			    left_um_out.file, false);

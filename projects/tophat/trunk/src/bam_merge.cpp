@@ -71,6 +71,10 @@ struct equal_bam {
 	return false;
     }
 
+    // for fusion alignments, two alignments are always not equal
+    if (bam_aux_get(first.b, "XF") || bam_aux_get(second.b, "XF"))
+      return false;
+
     return true;
   }
 };
