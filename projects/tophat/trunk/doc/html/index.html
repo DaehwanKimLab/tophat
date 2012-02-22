@@ -162,16 +162,17 @@
 	    Note that this beta version requires the installation of Bowtie2.0.0-beta5, and Bowtie1 and Bowtie2 indexes are different,
 	    it's necessary to use Bowtie2 indexes with TopHat2 unless --bowtie1 is used.
 	  </li>
-	  <li> Most of the time-consuming steps in the pipeline of TopHat2 are parallelized, resulting in 30% or more reducion in the run time.</li>
+	  <li> Most of the time-consuming steps in the pipeline of TopHat2 are parallelized, reducing the run time substantially.</li>
 	  <li> In addition to mapping across splice sites, TopHat2 allows reads to map across fusion points,
 	    which usually occurr due to genomic translocations, read-through transcription, or trans-splicing
 	    (see --fusion-search in the manual and the TopHat-Fusion website).
-	    When --fusion-search is used, users are encouraged to use --bowtie1 as Bowtie2 is not tested with the fusion mapping capability.</li>
 	  <li> Colorspace reads are compatible only with Bowtie1 (see --bowtie1 option). </li>
 	  <li> In addition to reporting the best (or primary) alignments (the original TopHat1's behavior),
 	    TopHat2 can report the secondary alignments up to 20 (the default) paired or single alignments
 	    (see --report-secondary-alignments and -g/--max-multihits)</li>
 	  <li> The installation of Boost package is required in order to use TopHat2 (see the installation).</li>
+	  <li> There are some other options you may want to check out such as
+	    --keep-fasta-order and --report-discordant-pair-alignments </li>
 	</ul>
 	  </p><br/>
 
