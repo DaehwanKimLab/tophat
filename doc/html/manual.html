@@ -376,6 +376,13 @@
 	  Prints the TopHat version number and exits   
 	  </td></tr>
 	  <tr><td VALIGN=top nowrap>
+	  <tt>--bowtie1</tt>
+	  </td><td VALIGN=top>
+	  Uses Bowtie1 instead of Bowtie2.
+	  If you use colorspace reads, you need to use this option
+	  as Bowtie2 does not support colorspace reads.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
 	  <tt>-o/--output-dir &lt;string&gt;</tt>
 	  </td><td VALIGN=top>
 	  Sets the name of the directory in which TopHat will write all of its 
@@ -483,7 +490,21 @@
 	  </td><td VALIGN=top>
 	  Instructs TopHat to allow up to this many alignments to the reference
 	  for a given read, and suppresses all alignments for reads with more than
-	  this many alignments. The default is 20 for read mapping (and it uses two time larger number (40) for segment mapping).
+	  this many alignments. The default is 20 for read mapping.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--report-secondary-hits</tt>
+	  </td><td VALIGN=top>
+	      Without the option, TopHat will report best or primary alignments based on alignment scores (AS).
+	      If you want to output additional or secondary alignments, use the option,
+	      which will report up to 20 alignments
+	      (the default number 20 can be changed using -g/--max-multihits option above).
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--report-discordant-pair-alignments</tt>
+	  </td><td VALIGN=top>
+	      This option will allow mate pairs to map to different chromosomes,
+	      distant places on the same chromosome, or on the same strand.
 	  </td></tr>
 	  <tr><td VALIGN=top nowrap>
 	  <tt>--no-closure-search</tt>
@@ -545,10 +566,26 @@
 	  </td><td VALIGN=top>
 	  </td></tr>
 	  <tr><td VALIGN=top nowrap>
-	  <tt>--initial-read-mismatches</tt>
+	  <tt>-n/--transcriptome-mismatches</tt>
 	  </td><td VALIGN=top>
-	  Reads are initially mapped, allowing up to this many mismatches
+	  Maximum number of mismatches allowed when reads are aligned to the transcriptome.  The default is 2.
+	  In case Bowtie2 is used, this number is used to decide whether or not
+	  to re-align some of the mapped reads in the transcriptome mapping.
+	  If the alignment score of the best alignment among multiple candidates for a read is lower than "bowtie2-min-score",
+	  which is internally defined as (max_penalty - 1) * max_mismatches.  You can specify max_penalty via "--b2-mp" option.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--genome-read-mismatches</tt>
+	  </td><td VALIGN=top>
+	  Reads are initially mapped against genome, allowing up to this many mismatches
 	  in each read alignment.  The default is 2.
+	  This number is also used to decide whether or not to re-align reads as in --transcriptome-mismatches case.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--read-mismatches</tt>
+	  </td><td VALIGN=top>
+	  In the final step of the pipeline, alignments having more than these many mismatches are discarded.
+	  The default is 2.
 	  </td></tr>
 	  <tr><td VALIGN=top nowrap>
 	  <tt>--bowtie-n</tt>
@@ -617,6 +654,14 @@
 	  By default, they are deleted upon exit.
 	  </td></tr>
 	  <tr><td VALIGN=top nowrap>
+	  <tt>--keep-fasta-odrer</tt>
+	  </td><td VALIGN=top>
+	      In order to sort alignments in the same order in the genome fasta file,
+	      the option can be used.
+	      But this option will make the output SAM/BAM file incompatible with
+	      those from the previous verions of TopHat (1.4.1 or lower).
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
 	  <tt>--no-sort-bam</tt>
 	  </td><td VALIGN=top>
 	  Output BAM is not coordinate-sorted.
@@ -625,7 +670,7 @@
 	  <tt>--no-convert-bam</tt>
 	  </td><td VALIGN=top>
 	  Do not convert to bam format. Output is &lt;output_dir&gt;/accepted_hit.sam.
-      Implies --no-sort-bam.
+	  Implies --no-sort-bam.
 	  </td></tr>
 	  <tr><td VALIGN=top nowrap>
 	  <tt>-z/--zpacker </tt>
@@ -739,6 +784,49 @@
 	  </td></tr>
 	  </table>
 
+	  <b>Fusion mapping options:</b>
+	  <a name="b2-option"></a>
+	  <p> Reads can align to fusion transcripts if you specify --fusion-search option.
+	    The fusion alignments are reported in SAM format using custom fields XF and XP (see the output format)
+	    and some additional information about fusions will be reported (see fusions.out).
+	    Once mapping is done, you can run tophat-fusion-post to filter out fusion transcripts
+	    (see the TopHat-Fusion website for more details).
+	  <table CELLSPACING=15>
+	    <tr><td VALIGN=top nowrap>
+		<tt>--fusion-search</tt>
+	      </td><td VALIGN=top>
+		Turn on fusion mapping
+	    </td></tr>
+	    <tr><td VALIGN=top nowrap>
+		<tt>--fusion-anchor-length</tt>
+	      </td><td VALIGN=top>
+		A "supporting" read must map to both sides of a fusion by at least this many bases. The default is 20.
+	    </td></tr>
+	    <tr><td VALIGN=top nowrap>
+		<tt>--fusion-min-dist</tt>
+	      </td><td VALIGN=top>
+		For intra-chromosomal fusions, TopHat-Fusion tries to find fusions separated by at least this distance.
+		The default is 10000000. 
+	    </td></tr>
+	    <tr><td VALIGN=top nowrap>
+		<tt>--fusion-read-mismatches</tt>
+	      </td><td VALIGN=top>
+		Reads support fusions if they map across fusion with at most this many mismatches. The default is 2. 
+	    </td></tr>
+	    <tr><td VALIGN=top nowrap>
+		<tt>--fusion-multireads</tt>
+	      </td><td VALIGN=top>
+		Reads that map to more than this many places will be ignored.
+		It may be possible that a fusion is supported by reads (or pairs) that map to multiple places.
+		The default is 2.
+	    </td></tr>
+	    <tr><td VALIGN=top nowrap>
+		<tt>--fusion-multipairs</tt>
+	      </td><td VALIGN=top>
+		Pairs that map to more than this many places will be ignored. The default is 2.
+	    </td></tr>
+	  </table>
+
 	<b>Supplying your own transcript annotation data:</b>
 	  <p>The options below allow you validate your own list of known transcripts or junctions with your 
 		RNA-Seq data. Note that the chromosome names in the files provided
@@ -834,11 +922,6 @@
 	  </td><td VALIGN=top>
 	  Maximum number of mappings allowed for a read, when aligned to the transcriptome (any reads found with more then this number of mappings 
 	  will be discarded).
-	  </td></tr>
-	  <tr><td VALIGN=top nowrap>
-	  <tt>-n/--transcriptome-mismatches</tt>
-	  </td><td VALIGN=top>
-	  Maximum number of mismatches allowed when reads are aligned to the transcriptome.
 	  </td></tr>
 
 	  <tr><td VALIGN=top nowrap>
