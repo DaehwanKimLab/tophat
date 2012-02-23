@@ -2,9 +2,12 @@
 <html xmlns="http://www.w3.org/1999/xhtml"><head>
 <title>TopHat :: Center for Bioinformatics and Computational Biology</title>
 
+
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
+
 <link rel="stylesheet" type="text/css" href="css/style.css" media="screen">
+
 
 </head>
 <body>
@@ -64,15 +67,15 @@
 		      <table width="100%"><tbody><tr>
 		      <td>
 				<br>
-</td></tr><tr><td>version 1.4.1 (BETA)</td> <td align="right">2/2/2012</td></tr>
+</td></tr><tr><td>version 2.0.0 (BETA)</td> <td align="right">2/23/2012</td></tr>
 				<tr>
-		      		<td><a href="./downloads/tophat-1.4.1.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
+		      		<td><a href="./downloads/tophat-2.0.0.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
 		      	</tr>
 				<tr>
-					<td><a href="./downloads/tophat-1.4.1.Linux_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
+					<td><a href="./downloads/tophat-2.0.0.Linux_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
 				</tr>
 				<tr>
-					<td><a href="./downloads/tophat-1.4.1.OSX_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
+					<td><a href="./downloads/tophat-2.0.0.OSX_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
 				</tr>
 		      
 		      
@@ -194,16 +197,6 @@
     <div id="leftside">
   	  <table><tbody><tr><td cellpadding="7">
   	  <h1>Manual</h1><br>
-		<div id="subheader">
-		  <table width="100%"><tbody><tr>
-		  <td>
-		  <strong>Please Note</strong> If you have questions 
-		  about how to use TopHat or would like more information about 
-		  different parts of the software, please email 
-		  <a href="mailto:cole@cs.umd.edu">Cole Trapnell</a>.
-		  
-		  </td></tr></tbody></table>
-		  </div>
 
       <div id="toc">
   	    <ul>
@@ -231,11 +224,13 @@
 	</p>
   	  <br>
 	  <h2 id="whis">How does TopHat find junctions?</h2><br>
-  	  <p> TopHat finds splice junctions without a reference annotation.  By 
+  	  <p> TopHat finds splice junctions without a reference annotation.  
+By 
 		first mapping RNA-Seq reads to the genome, TopHat identifies potential
 		exons, since many RNA-Seq reads will contiguously align to the genome.
-		Using this initial mapping, TopHat builds a database of possible splice
-		junctions, and then maps the reads against this junction to confirm
+ Using this initial mapping information, TopHat builds a database of 
+possible splice
+		junctions, and then maps the reads against these junctions to confirm
 		them.  
 	  </p> 
 	
@@ -261,20 +256,23 @@
 	  the database.  The third, and strongest, source of evidence for a splice
 	  junction is when two segments from the same read are mapped far apart, or
 	  when an internal segment fails to map. With long (&gt;=75bp) reads, "GT-AG", 
-	  "GC-AG" and "AT-AC" introns be found ab initio.  With shorter reads, 
+	  "GC-AG" and "AT-AC" introns will be found ab initio.  With shorter reads, 
 	  TopHat only reports alignments across "GT-AG" introns</p>
 	
   	  <br>
   	  <h2 id="bins">Prerequisites</h2><br>
-	  <p> To use TopHat, you will need the following Bowtie in your <tt>PATH</tt>:
+	  <p> To use TopHat, you will need the following programs in your <tt>PATH</tt>:
       </p><ul>
-         <li><tt>bowtie</tt></li>
-         <li><tt>bowtie-inspect</tt></li>
-         <li><tt>bowtie-build</tt></li>
+         <li><tt>bowtie2 and bowtie2-align (or bowtie)<br>
+</tt></li>
+         <li><tt>bowtie2-inspect (or bowtie-inspect)<br>
+</tt></li>
+         <li><tt>bowtie2-build (or bowtie-build)</tt></li>
+  <li><tt>samtools</tt></li>
+
       </ul>
-	  <p>Because TopHat outputs alignments in BAM format, you will need to download and install the <a href="http://samtools.sourceforge.net/">SAM tools</a>. 
-      You may want to take a look at the <a href="tutorial.html">Getting started</a> guide for more detailed installation instructions, 
-      including installation of SAM tools.
+	  <p>Because TopHat outputs alignments in BAM format, you will need to download and install the <a href="http://samtools.sourceforge.net/">SAM tools</a>. The Boost You may want to take a look at the <a href="tutorial.html">Getting started</a> guide for more detailed installation instructions, 
+      including installation of SAM tools and Boost.
 	  </p><p>You will also need Python <strong>version 2.4 or higher</strong>.
       </p>
   	  <br>
@@ -282,10 +280,11 @@
 	  <p> You can download the latest source release <a href="./downloads/">here</a>. </p>
 	  <p> To install TopHat, unpack the tarball and change to the package 
 		directory as follows: </p> <p>
-		</p><blockquote>tar zxvf tophat-1.2.0.tar.gz</blockquote> 
-		<blockquote>cd tophat-1.2.0/</blockquote>
+		</p><blockquote>tar zxvf tophat-2.0.0.tar.gz</blockquote> 
+		<blockquote>cd tophat-2.0.0/</blockquote>
 	  <p>Now build the package: </p> <p> 
-		</p><blockquote>./configure --prefix=/path/to/install/directory/</blockquote>
+		</p><blockquote>./configure --prefix=&lt;install_prefix&gt;                       --with-boost=&lt;boost_install_prefix&gt;
+		      --with-bam=&lt;samtools_install_prefix&gt;</blockquote>
 		<blockquote>make</blockquote>
 	  <p>Finally, install TopHat:</p><p>
 		</p><blockquote>make install</blockquote>
@@ -294,7 +293,7 @@
 	  <p>Below, you will find a detailed list of command-line options you can
 		use to control TopHat.  Beginning users should take a look at the 
 		<a href="tutorial.html">Getting started</a> guide for a tutorial on
-		running TopHat.
+		installing and running TopHat.
 
 	  <br>
   	  
@@ -1041,6 +1040,7 @@ and exclude such multi-mapped reads (according to the value of the
     </td></tr></tbody></table>
   </div>
 </div>
+
 
 
 <!-- Google analytics code -->
