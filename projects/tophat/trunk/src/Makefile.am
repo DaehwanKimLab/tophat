@@ -503,6 +503,7 @@ noinst_HEADERS = \
 	junctions.h \
 	assert_helpers.h \
 	insertions.h \
+	wiggles.h \
 	deletions.h \
 	fusions.h \
 	align_status.h \
