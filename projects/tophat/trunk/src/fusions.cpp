@@ -230,8 +230,7 @@ void fusions_from_alignment(const BowtieHit& bh,
 		  if (fusion.dir == FUSION_RF || fusion.dir == FUSION_RR)
 		    {
 		      left = seqan::infix(*ref_str1, fusion.left - half_len, fusion.left + half_len);
-		      seqan::convertInPlace(left, seqan::FunctorComplement<seqan::Dna>());
-		      seqan::reverseInPlace(left);
+		      seqan::reverseComplement(left);
 		    }
 		  else
 		    left = seqan::infix(*ref_str1, fusion.left - half_len + 1, fusion.left + half_len + 1);
@@ -239,8 +238,7 @@ void fusions_from_alignment(const BowtieHit& bh,
 		  if (fusion.dir == FUSION_FR || fusion.dir == FUSION_RR)
 		    {
 		      right = seqan::infix(*ref_str2, fusion.right - half_len + 1, fusion.right + half_len + 1);
-		      seqan::convertInPlace(right, seqan::FunctorComplement<seqan::Dna>());
-		      seqan::reverseInPlace(right);
+		      seqan::reverseComplement(right);
 		    }
 		  else
 		    right = seqan::infix(*ref_str2, fusion.right - half_len, fusion.right + half_len);
@@ -416,7 +414,6 @@ void print_fusions(FILE* fusions_out, FusionSet& fusions, RefSequenceTable& ref_
       fprintf(fusions_out, "\t@\t");
 
       sort(itr->second.vPairSupport.begin(), itr->second.vPairSupport.end());
-
       for (uint32_t i = 0; i < min((size_t)200, itr->second.vPairSupport.size()); ++i)
 	{
 	  fprintf(fusions_out, "%d:%d ", itr->second.vPairSupport[i].ldist, itr->second.vPairSupport[i].rdist);
@@ -922,9 +919,14 @@ void pair_support(const vector<pair<BowtieHit, BowtieHit> >& best_hits, FusionSe
 			++(itr->second.pair_count_fusion);
 		      else
 			{
-			  if (itr->second.vPairSupport.size() < 200)
-			    itr->second.vPairSupport.push_back(FusionPairSupport(left_dist, right_dist));
+			  itr->second.vPairSupport.push_back(FusionPairSupport(left_dist, right_dist));
 			  ++(itr->second.pair_count);
+			  
+			  if (itr->second.vPairSupport.size() >= 300)
+			    {
+			      sort(itr->second.vPairSupport.begin(), itr->second.vPairSupport.end());
+			      itr->second.vPairSupport.erase(itr->second.vPairSupport.begin() + 200, itr->second.vPairSupport.end());
+			    }
 			}
 		    }
 		}

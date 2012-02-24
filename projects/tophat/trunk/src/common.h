@@ -130,6 +130,7 @@ extern size_t fusion_min_dist;
 extern size_t fusion_read_mismatches;
 extern size_t fusion_multireads;
 extern size_t fusion_multipairs;
+extern std::vector<std::string> fusion_ignore_chromosomes;
 
 enum eLIBRARY_TYPE
   {

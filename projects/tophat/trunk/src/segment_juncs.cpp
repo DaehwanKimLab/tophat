@@ -23,10 +23,13 @@
 #include <sstream>
 #include <cstring>
 #include <bitset>
+#include <seqan/basic.h>
 #include <seqan/sequence.h>
 #include <seqan/find.h>
 #include <seqan/file.h>
 #include <seqan/modifier.h>
+#include <seqan/align.h>
+#include <seqan/graph_align.h>
 #include <getopt.h>
 
 #include <boost/thread.hpp>
@@ -2384,66 +2387,66 @@ void simpleSplitAlignment(seqan::String<char>& shorterSequence,
 			  vector<int>& insertPositions,
 			  int& mismatchCount)
 {
-			/*
-			 * In this restricted alignment, we already know the length and number (1) of insertions/deletions.
-			 * We simply need to know where to put it. Do a linear scan through sequence counting the number of induced
-			 * errors before and after putting the insertion at each sequence.
-			 */
-
-			/*
-			 * Note that we could have a case, where both the alignment and the read have the unknonw
-			 * nucleotide ('N') and we don't want to reward cases where these characters match
-			 */
-			vector<unsigned short> beforeErrors(seqan::length(shorterSequence));
-			for(int idx = seqan::length(shorterSequence) - 1; idx >= 0; idx -= 1){
-				unsigned short prevCount = 0;
-				/*
-				 * We guarentee idx >= 0, so cast to hide the compiler
-				 * warning here
-				 */
-				if(((size_t)idx) < seqan::length(shorterSequence) - 1){
-					prevCount = beforeErrors.at(idx + 1);
-				}
-				unsigned short currentMismatch = 0;
-				if(rightReference[idx] == 'N' || shorterSequence[idx] == 'N' || rightReference[idx] != shorterSequence[idx]){
-					currentMismatch = 1;
-				}
-				beforeErrors.at(idx) = prevCount + currentMismatch;
-			}
-
-			vector<unsigned short> afterErrors(seqan::length(shorterSequence));
-			for(size_t idx = 0; idx < seqan::length(shorterSequence) ; idx += 1){
-				unsigned short prevCount = 0;
-				if(idx > 0){
-					prevCount = afterErrors.at(idx - 1);
-				}
-				unsigned short currentMismatch = 0;
-				if(leftReference[idx] == 'N' || shorterSequence[idx] == 'N' || leftReference[idx] != shorterSequence[idx]){
-					currentMismatch = 1;
-				}
-				afterErrors.at(idx) = prevCount + currentMismatch;
-			}
-
-			mismatchCount = seqan::length(shorterSequence) + 1;
-			insertPositions.clear();
-
-			/*
-			 * Technically, we could allow the insert position to be at the end or beginning of the sequence,
-			 * but we are disallowing it here
-			 */
-			for(size_t currentInsertPosition = 1; currentInsertPosition < seqan::length(shorterSequence); currentInsertPosition += 1){
-				size_t errorCount = beforeErrors.at(currentInsertPosition) + afterErrors.at(currentInsertPosition - 1);
-
-				if(((int)errorCount) < mismatchCount){
-				  mismatchCount = (int)errorCount;
-				  insertPositions.clear();
-				  insertPositions.push_back(currentInsertPosition);
-				}
-				else if ((int)errorCount == mismatchCount) {
-				  insertPositions.push_back(currentInsertPosition);
-				}
-			}
-			return;
+  /*
+   * In this restricted alignment, we already know the length and number (1) of insertions/deletions.
+   * We simply need to know where to put it. Do a linear scan through sequence counting the number of induced
+   * errors before and after putting the insertion at each sequence.
+   */
+  
+  /*
+   * Note that we could have a case, where both the alignment and the read have the unknonw
+   * nucleotide ('N') and we don't want to reward cases where these characters match
+   */
+  vector<unsigned short> beforeErrors(seqan::length(shorterSequence));
+  for(int idx = seqan::length(shorterSequence) - 1; idx >= 0; idx -= 1){
+    unsigned short prevCount = 0;
+    /*
+     * We guarentee idx >= 0, so cast to hide the compiler
+     * warning here
+     */
+    if(((size_t)idx) < seqan::length(shorterSequence) - 1){
+      prevCount = beforeErrors.at(idx + 1);
+    }
+    unsigned short currentMismatch = 0;
+    if(rightReference[idx] == 'N' || shorterSequence[idx] == 'N' || rightReference[idx] != shorterSequence[idx]){
+      currentMismatch = 1;
+    }
+    beforeErrors.at(idx) = prevCount + currentMismatch;
+  }
+  
+  vector<unsigned short> afterErrors(seqan::length(shorterSequence));
+  for(size_t idx = 0; idx < seqan::length(shorterSequence) ; idx += 1){
+    unsigned short prevCount = 0;
+    if(idx > 0){
+      prevCount = afterErrors.at(idx - 1);
+    }
+    unsigned short currentMismatch = 0;
+    if(leftReference[idx] == 'N' || shorterSequence[idx] == 'N' || leftReference[idx] != shorterSequence[idx]){
+      currentMismatch = 1;
+    }
+    afterErrors.at(idx) = prevCount + currentMismatch;
+  }
+  
+  mismatchCount = seqan::length(shorterSequence) + 1;
+  insertPositions.clear();
+  
+  /*
+   * Technically, we could allow the insert position to be at the end or beginning of the sequence,
+   * but we are disallowing it here
+   */
+  for(size_t currentInsertPosition = 1; currentInsertPosition < seqan::length(shorterSequence); currentInsertPosition += 1){
+    size_t errorCount = beforeErrors.at(currentInsertPosition) + afterErrors.at(currentInsertPosition - 1);
+    
+    if(((int)errorCount) < mismatchCount){
+      mismatchCount = (int)errorCount;
+      insertPositions.clear();
+      insertPositions.push_back(currentInsertPosition);
+    }
+    else if ((int)errorCount == mismatchCount) {
+      insertPositions.push_back(currentInsertPosition);
+    }
+  }
+  return;
 }
 
 
@@ -2620,7 +2623,7 @@ void detect_small_deletion(RefSequenceTable& rt,
 
 int difference(const String<char>& first, const String<char>& second)
 {
-  int len = length(first);
+  const int len = length(first);
   if (len != length(second))
     return 0;
 
@@ -2676,6 +2679,120 @@ int difference(const String<char>& first, const String<char>& second)
   return min_value;
 }
 
+void difference_with_values(const String<char>& first, const String<char>& second, short values[][1024])
+{
+  const int len = length(first);
+  if (len != length(second))
+    return;
+
+  int min_value = 10000;
+
+  for (int j = 0; j < len; ++j)
+    {
+      for (int i = 0; i < len; ++i)
+	{
+	  int value = 10000;
+	  int match = (first[i] == second[j] ? 0 : 1);
+
+	  // right
+	  if (i == 0)
+	    value = j * 2 + match;
+	  else if (j > 0)
+	    value = values[i][j-1] + 2;
+
+	  int temp_value = 10000;
+
+	  // down
+	  if (j == 0)
+	    temp_value = i * 2 + match;
+	  else if (i > 0)
+	    temp_value = values[i-1][j] + 2;
+
+	  if (temp_value < value)
+	    value = temp_value;
+
+	  // match
+	  if (i > 0 && j > 0)
+	    temp_value = values[i-1][j-1] + match;
+
+	  if (temp_value < value)
+	    value = temp_value;
+
+	  values[i][j] = value;
+	}
+   }
+}
+
+// Smith-Waterman Split alignment
+void SWSplitAlignment(seqan::String<char> read,
+		      seqan::String<char> leftReference,
+		      seqan::String<char> rightReference,
+		      vector<pair<int, int> >& insertPositions,
+		      int& mismatchCount)
+{
+#if 0
+  short values1[1024][1024] = {{0,},};
+  difference_with_values(read, leftReference, values1);
+  
+  short values2[1024][1024] = {{0,},};
+  seqan::reverseInPlace(read);
+  seqan::reverseInPlace(rightReference);
+  difference_with_values(read, rightReference, values2);
+
+  const int len = length(read);
+  int min_value = 10000;
+  for (int i = 0; i < len; ++i)
+    {
+      int min1 = 10000;
+      vector<int> pos1;
+      for (int j = 0; j < len; ++i)
+	{
+	  int value = values1[i][j];
+	  if (min1 > value)
+	    {
+	      min1 = value;
+	      pos1.clear();
+	      pos1.push_back(j);
+	    }
+	  else if (min1 == value)
+	    pos1.push_back(j);
+	}
+
+      int min2 = 10000;
+      vector<int> pos2;
+      for (int j = 0; j < len; ++i)
+	{
+	  int value = values2[len-i-2][j];
+	  if (min2 > value)
+	    {
+	      min2 = value;
+	      pos2.clear();
+	      pos2.push_back(j);
+	    }
+	  else if (min2 == value)
+	    pos2.push_back(j);
+	}
+
+      int value = min1 + min2;
+      if (value < min_value)
+	{
+	  min_value = value;
+	  insertPositions.clear();
+	  for (size_t a = 0; a < pos1.size(); ++a)
+	    for (size_t b = 0; b < pos2.size(); ++b)
+	      insertPositions.push_back(make_pair<int, int>(pos1[a], pos2[b]));
+	}
+      else if (value == min_value)
+	{
+	  for (size_t a = 0; a < pos1.size(); ++a)
+	    for (size_t b = 0; b < pos2.size(); ++b)
+	      insertPositions.push_back(make_pair<int, int>(pos1[a], pos2[b]));
+	}
+    }  
+
+#endif
+}
+
 void detect_fusion(RefSequenceTable& rt,
 		   seqan::String<char>& read_sequence,
 		   BowtieHit& leftHit,
@@ -2704,8 +2821,7 @@ void detect_fusion(RefSequenceTable& rt,
 	return;
 
       leftGenomicSequence_temp = seqan::infix(*left_ref_str, leftHit.right() - read_length, leftHit.right());
-      seqan::convertInPlace(leftGenomicSequence_temp, seqan::FunctorComplement<Dna>());
-      seqan::reverseInPlace(leftGenomicSequence_temp);
+      seqan::reverseComplement(leftGenomicSequence_temp);
     }
 
   if (dir == FUSION_FF || dir == FUSION_RF)
@@ -2721,8 +2837,7 @@ void detect_fusion(RefSequenceTable& rt,
 	return;
 
       rightGenomicSequence_temp = seqan::infix(*right_ref_str, rightHit.left(), rightHit.left() + read_length);
-      seqan::convertInPlace(rightGenomicSequence_temp, seqan::FunctorComplement<Dna>());
-      seqan::reverseInPlace(rightGenomicSequence_temp);
+      seqan::reverseComplement(rightGenomicSequence_temp);
     }
 
   String<char> leftGenomicSequence;
@@ -2734,10 +2849,32 @@ void detect_fusion(RefSequenceTable& rt,
   vector<int> bestInsertPositions;
   int minErrors = -1;
 
-  simpleSplitAlignment(read_sequence, leftGenomicSequence, rightGenomicSequence, bestInsertPositions, minErrors);
+#if 0
+  Align<String<char> > align;
+  appendValue(rows(align), read_sequence);
+  appendValue(rows(align), leftGenomicSequence);
+  // int score = globalAlignment(align, Score<int>(1, -1, -1, -1), Hirscheberg());
+  int score = localAlignment(align, Score<int>(0, -1, -2, -2), SmithWaterman());
+  unsigned cBeginPos = clippedBeginPosition(row(align, 0));
+  unsigned cEndPos = clippedEndPosition(row(align, 0)) - 1;
+  cerr << "Score = " << score << "[" << cBeginPos << ":" << cEndPos << "]" << endl;
+  cerr << align;
+#endif
+
+  int score2 = difference(read_sequence, leftGenomicSequence);
+  cerr << "my version: " << score2 << endl;
+
+  // todo - we need to do (efficient) Smith-Waterman Alignment.
+  if (bowtie2)
+    simpleSplitAlignment(read_sequence, leftGenomicSequence, rightGenomicSequence, bestInsertPositions, minErrors);
+  else
+    simpleSplitAlignment(read_sequence, leftGenomicSequence, rightGenomicSequence, bestInsertPositions, minErrors);
 
   uint32_t total_edit_dist = leftHit.edit_dist() + rightHit.edit_dist();
   if (minErrors > total_edit_dist)
+    return;
+
+  if (bowtie2 && minErrors > 2)
     return;
 
   // daehwan
@@ -2881,12 +3018,11 @@ void find_insertions_and_deletions(RefSequenceTable& rt,
 	if(color){
 	  fullRead = read.seq.c_str() + 1;
 	  rcRead = fullRead;
-	  seqan::reverseInPlace(rcRead);
+	  seqan::reverse(rcRead);
 	}else{
 	  fullRead = read.seq;
 	  rcRead = read.seq;
-	  seqan::convertInPlace(rcRead, seqan::FunctorComplement<Dna>());
-	  seqan::reverseInPlace(rcRead);
+	  seqan::reverseComplement(rcRead);
 	}
 
 	size_t read_length = seqan::length(fullRead);
@@ -3081,8 +3217,7 @@ void find_fusions(RefSequenceTable& rt,
   seqan::String<char> fullRead, rcRead;
   fullRead = read.seq;
   rcRead = read.seq;
-  seqan::convertInPlace(rcRead, seqan::FunctorComplement<Dna>());
-  seqan::reverseInPlace(rcRead);
+  seqan::reverseComplement(rcRead);
 
   size_t read_length = seqan::length(fullRead);
 
@@ -3211,9 +3346,13 @@ void find_fusions(RefSequenceTable& rt,
 	}
     }
 
-  // daehwan - should check this out
-  static const string chrM = "chrM";
-  static const uint32_t chrM_id = rt.get_id(chrM);
+  static std::set<RefID> ignore_chromosomes;
+  if (ignore_chromosomes.size() <= 0 && fusion_ignore_chromosomes.size() > 0)
+    {
+      for (size_t i = 0; i < fusion_ignore_chromosomes.size(); ++i)
+	ignore_chromosomes.insert(rt.get_id(fusion_ignore_chromosomes[i]));
+    }
+
   for (size_t left_segment_index = 0; left_segment_index < left_segment_hits.hits.size(); ++left_segment_index)
     {
       for (size_t right_segment_index = 0; right_segment_index < right_segment_hits.hits.size(); ++right_segment_index)
@@ -3221,9 +3360,15 @@ void find_fusions(RefSequenceTable& rt,
 	  BowtieHit* leftHit = &left_segment_hits.hits[left_segment_index];
 	  BowtieHit* rightHit = &right_segment_hits.hits[right_segment_index];
 
-	  // daehwan
-	  if (leftHit->ref_id() == chrM_id || rightHit->ref_id() == chrM_id)
+	  if (ignore_chromosomes.find(leftHit->ref_id()) != ignore_chromosomes.end() ||
+	      ignore_chromosomes.find(rightHit->ref_id()) != ignore_chromosomes.end())
 	    continue;
+
+	  if (bowtie2)
+	    {
+	      if (leftHit->edit_dist() + rightHit->edit_dist() >= ((segment_mismatches + 1) << 1))
+		continue;
+	    }
 
 	  // daehwan
 #if 0
@@ -3396,8 +3541,7 @@ void find_gaps(RefSequenceTable& rt,
       seqan::String<char> fullRead, rcRead;
       fullRead = read.seq;
       rcRead = read.seq;
-      seqan::convertInPlace(rcRead, seqan::FunctorComplement<Dna>());
-      seqan::reverseInPlace(rcRead);
+      seqan::reverseComplement(rcRead);
       size_t read_length =  read.seq.length();
       
       for (size_t l = 0; l < left_segment_hits.hits.size(); ++l)

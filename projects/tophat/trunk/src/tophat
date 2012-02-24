@@ -69,12 +69,6 @@ Options:
     --mate-std-dev                 <int>       [ default: 20                  ]
     --no-novel-juncs
     --no-novel-indels
-    --fusion-search
-    --fusion-anchor-length         <int>       [ default: 20               ]
-    --fusion-min-dist              <int>       [ default: 10000000         ]
-    --fusion-read-mismatches       <int>       [ default: 2                ]
-    --fusion-multireads            <int>       [ default: 2                ]
-    --fusion-multipairs            <int>       [ default: 2                ]
     --no-gtf-juncs
     --no-coverage-search
     --coverage-search
@@ -136,6 +130,14 @@ Bowtie2 related options:
     --b2-D                         <int>       [ default: 15               ]
     --b2-R                         <int>       [ default: 2                ]
 
+Fusion related options:
+    --fusion-search
+    --fusion-anchor-length         <int>       [ default: 20               ]
+    --fusion-min-dist              <int>       [ default: 10000000         ]
+    --fusion-read-mismatches       <int>       [ default: 2                ]
+    --fusion-multireads            <int>       [ default: 2                ]
+    --fusion-multipairs            <int>       [ default: 2                ]
+    --fusion-ignore-chromosomes    <list>      [ e.g, <chrM,chrX>          ]
 
 SAM Header Options (for embedding sequencing run metadata in output):
     --rg-id                        <string>    (read group ID)
@@ -660,6 +662,7 @@ class TopHatParams:
         self.fusion_read_mismatches = 2
         self.fusion_multireads = 2
         self.fusion_multipairs = 2
+        self.fusion_ignore_chromosomes = []
 
     def check(self):
         self.splice_constraints.check()
@@ -740,7 +743,8 @@ class TopHatParams:
                         "--fusion-min-dist", str(self.fusion_min_dist),
                         "--fusion-read-mismatches", str(self.fusion_read_mismatches),
                         "--fusion-multireads", str(self.fusion_multireads),
-                        "--fusion-multipairs", str(self.fusion_multipairs)])
+                        "--fusion-multipairs", str(self.fusion_multipairs),
+                        "--fusion-ignore-chromosomes", ",".join(self.fusion_ignore_chromosomes)])
 
         cmd.extend(self.system_params.cmd())
 
@@ -812,6 +816,7 @@ class TopHatParams:
                                          "fusion-read-mismatches=",
                                          "fusion-multireads=",
                                          "fusion-multipairs=",
+                                         "fusion-ignore-chromosomes=",
                                          "no-novel-indels",
                                          "no-gtf-juncs",
                                          "mate-inner-dist=",
@@ -938,6 +943,8 @@ class TopHatParams:
                 self.fusion_multireads = int(value)
             if option == "--fusion-multipairs":
                 self.fusion_multipairs = int(value)
+            if option == "--fusion-ignore-chromosomes":
+                self.fusion_ignore_chromosomes = value.split(",")
             if option == "--no-gtf-juncs":
                 self.find_GFF_juncs = False
             if option == "--no-coverage-search":
