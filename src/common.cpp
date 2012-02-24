@@ -17,16 +17,17 @@
 #include <limits>
 #include <getopt.h>
 
-#include "common.h"
-
-using namespace std;
-
-#ifdef MEM_DEBUG
-//function for debugging memory usage of current program in Linux
-
 #include <unistd.h>
 #include <ios>
 #include <fstream>
+
+using namespace std;
+
+#include "common.h"
+#include "tokenize.h"
+
+#ifdef MEM_DEBUG
+//function for debugging memory usage of current program in Linux
 
 //////////////////////////////////////////////////////////////////////////////
 // process_mem_usage(double &, double &) - takes two doubles by reference,
@@ -161,6 +162,7 @@ size_t fusion_min_dist = 10000000;
 size_t fusion_read_mismatches = 2;
 size_t fusion_multireads = 2;
 size_t fusion_multipairs = 2;
+std::vector<std::string> fusion_ignore_chromosomes;
 
 eLIBRARY_TYPE library_type = LIBRARY_TYPE_NONE;
 
@@ -307,6 +309,7 @@ enum
     OPT_FUSION_READ_MISMATCHES,
     OPT_FUSION_MULTIREADS,
     OPT_FUSION_MULTIPAIRS,
+    OPT_FUSION_IGNORE_CHROMOSOMES,
     OPT_BOWTIE1,
     OPT_BOWTIE2_MIN_SCORE,
     OPT_BOWTIE2_MAX_PENALTY,
@@ -375,6 +378,7 @@ static struct option long_options[] = {
 {"fusion-read-mismatches", required_argument, 0, OPT_FUSION_READ_MISMATCHES},
 {"fusion-multireads", required_argument, 0, OPT_FUSION_MULTIREADS},
 {"fusion-multipairs", required_argument, 0, OPT_FUSION_MULTIPAIRS},
+{"fusion-ignore-chromosomes", required_argument, 0, OPT_FUSION_IGNORE_CHROMOSOMES},
 {"bowtie1", no_argument, 0, OPT_BOWTIE1},
 {"bowtie2-min-score", required_argument, 0, OPT_BOWTIE2_MIN_SCORE},
 {"bowtie2-max-penalty", required_argument, 0, OPT_BOWTIE2_MAX_PENALTY},
@@ -594,6 +598,9 @@ int parse_options(int argc, char** argv, void (*print_usage)())
       break;
     case OPT_FUSION_MULTIPAIRS:
       fusion_multipairs = parseIntOpt(1, "--fusion-multipairs must be at least 0", print_usage);
+      break;
+    case OPT_FUSION_IGNORE_CHROMOSOMES:
+      tokenize(optarg, ",", fusion_ignore_chromosomes);
       break;
     case OPT_BOWTIE1:
       bowtie2 = false;

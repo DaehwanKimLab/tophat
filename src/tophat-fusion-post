@@ -13,11 +13,9 @@ import os, subprocess, errno
 import string, re
 from datetime import datetime, date, time
 import math
-from sets import Set
-
 
 use_message = '''
-TopHat maps short sequences from spliced transcripts to whole genomes.
+TopHat-Fusion
 
 Usage:
     tophat-fusion-post [options] <bowtie_index>
@@ -170,6 +168,27 @@ def reverse_complement(seq):
     return result
 
 
+def get_chromosome_order(bowtie_index, chrs):
+    bowtie_header_cmd = ['bowtie',
+                         '--sam',
+                         bowtie_index,
+                         '/dev/null']
+
+    bowtie_header_filename = tmp_dir + "sam_header"
+    subprocess.call(bowtie_header_cmd,
+                    stdout=open(bowtie_header_filename, "w"),
+                    stderr=open("/dev/null"))
+
+    bowtie_header_file = open(bowtie_header_filename)
+    for line in bowtie_header_file:
+        index = string.find(line, "SN:")
+        if index != -1:
+            SN = line[index+3:].split()
+            chrs.append(SN[0])
+            
+    bowtie_header_file.close()
+
+
 # Ensures that the output, logging, and temp directories are present. If not, 
 # they are created
 def prepare_output_dir():
@@ -254,7 +273,14 @@ def map_fusion_kmer(bwt_idx_prefix, params):
         convert_bowtie()
 
     
-def filter_fusion(params):
+def filter_fusion(bwt_idx_prefix, params):
+    chrs = []
+    get_chromosome_order(bwt_idx_prefix, chrs)
+
+    chr_order = {}
+    for chr in chrs:
+        chr_order[chr] = len(chr_order)
+
     def filter_fusion_impl(fusion, refGene_list, ensGene_list, ensGtp_dic, seq_chr_dic, fusion_gene_list):
         def gene_exists(gene_list, chr, coord, dir, is_left):
             min = 0
@@ -266,7 +292,7 @@ def filter_fusion(params):
                 ref_chr = gene[1]
 
                 if chr != ref_chr:
-                    if chr < ref_chr:
+                    if chr_order[chr] < chr_order[ref_chr]:
                         max = mid - 1
                     else:
                         min = mid + 1
@@ -384,9 +410,6 @@ def filter_fusion(params):
             coord1, coord2 = int(info[1]), int(info[2])
             dir = info[3]
 
-            if chr1 == "chrM" or chr2 == "chrM":
-                continue
-
             if string.find(sample_name, "single") != -1:
                 single = True
             else:
@@ -489,8 +512,11 @@ def filter_fusion(params):
             gene1, gene1_name, gene1_where, gene1_belong, gene1_sense, ens_gene1, ens_gene1_name = find_gene(chr1, coord1, dir[0], True)
             gene2, gene2_name, gene2_where, gene2_belong, gene2_sense, ens_gene2, ens_gene2_name = find_gene(chr2, coord2, dir[1], False)
 
-            if ens_gene1_name == ens_gene2_name or ens_gene1 == ens_gene2 or gene1 == "N/A" or gene2 == "N/A" or \
-                    (string.find(gene1, "ENS") == 0 and string.find(gene2, "ENS") == 0) or gene1_name == gene2_name:
+            if gene1_name == gene2_name or ens_gene1_name == ens_gene2_name or ens_gene1 == ens_gene2:
+                # if dir in ["ff", "rr"]:
+                continue
+
+            if gene1 == "N/A" or gene2 == "N/A" or (string.find(gene1, "ENS") == 0 and string.find(gene2, "ENS") == 0):
                 continue
 
             """
@@ -562,7 +588,7 @@ def filter_fusion(params):
 
             fusion_gene_list.append(fusion_gene)
 
-        fusion_file.close
+        fusion_file.close()
 
     print >> sys.stderr, "[%s] Filtering fusions" % right_now()
     
@@ -575,9 +601,7 @@ def filter_fusion(params):
     
     seq_chr_file.close()
 
-    re_chr = re.compile(r'^chr(\d+|[XYM])$')
     re_mir = re.compile(r'^(MIR)')
-
     def read_genes(gene_file_name, offset = 1, id = -4):
         gene_list = []
         gene_file = open(gene_file_name, 'r')
@@ -587,13 +611,33 @@ def filter_fusion(params):
             left_coords = line[8].split(',')[:num_exons]
             right_coords = line[9].split(',')[:num_exons]
             
-            if re_chr.findall(line[1]) and not re_mir.findall(line[id]):
+            if line[1] in chr_order and not re_mir.findall(line[id]):
                 gene_list.append([line[0], line[1], int(line[3]), int(line[4]), line[id], left_coords, right_coords, line[2]])
 
         gene_file.close()
+
+        def my_cmp(a, b):
+            if a[1] != b[1]:
+                if chr_order[a[1]] < chr_order[b[1]]:
+                    return -1
+                else:
+                    return 1
+            else:
+                if a[2] != b[2]:
+                    if a[2] < b[2]:
+                        return -1
+                    else:
+                        return 1
+                else:
+                    if a[3] < b[3]:
+                        return -1
+                    else:
+                        return 1                   
+
+        gene_list = sorted(gene_list, cmp=my_cmp)
         return gene_list
 
-    refGene_list = read_genes("refGene_sorted.txt")
+    refGene_list = read_genes("refGene.txt")
     ensGene_list = read_genes("ensGene.txt")
 
     ensGtp_dic = {}
@@ -773,10 +817,6 @@ def read_dist(params):
                 for read in reads:
                     seq_pos = 0
                     read_id, chr1, chr2, before, left_pos, right_pos, cigars, seq, qual, mismatch, left = read[:-1]
-                    if (left and left_readid_dic[read_id] > params.fusion_multireads) or\
-                            (not left and right_readid_dic[read_id] > params.fusion_multireads):
-                        continue
-
                     space_len = 0
                     if before:
                         space_len = abs(left_pos - begin_pos)
@@ -832,9 +872,9 @@ def read_dist(params):
         cigar_re = re.compile('\d+\w')
         within = 300
 
+        old_chr = ""
         reads_list = [[] for i in range(len(check_list))]
-        left_readid_dic = {}
-        right_readid_dic = {}
+        reads_compress_list = [[1, 0] for i in range(len(check_list))]
         sam_file = open(sam, 'r')
         contigs = {}
         for line in sam_file:
@@ -850,7 +890,12 @@ def read_dist(params):
             line = line[:-1].split('\t')
             read_id, chr1, left_pos, cigar_str, seq, qual = line[0], line[2], int(line[3]) - 1, line[5], line[9], line[10]
 
+            if chr1 != old_chr:
+                old_chr = chr1
+                # print "%s - %s" % (sample_name, chr1)
+
             secondary_fusion_alignment = False
+            num_hits = 0
             for field in line[10:]:
                 if field[:5] == "XF:Z:":
                     if field[5] == '2':
@@ -862,23 +907,18 @@ def read_dist(params):
                 if field[:5] == "NM:i:":
                     mismatch = int(field.split(':')[-1])
 
+                if field[:5] == "NH:i:":
+                    num_hits = int(field.split(':')[-1])
+                    
+            if num_hits > params.fusion_multireads:
+                continue
+
             if secondary_fusion_alignment:
                 continue
 
             flag = int(line[1])
             left = (flag & 64 != 0)
             antisense = (flag & 16 != 0)
-
-            if left:
-                if not read_id in left_readid_dic:
-                    left_readid_dic[read_id] = 1
-                else:
-                    left_readid_dic[read_id] += 1
-            else:
-                if not read_id in right_readid_dic:
-                    right_readid_dic[read_id] = 1
-                else:
-                    right_readid_dic[read_id] += 1
 
             if '-' in chr1:
                 chr1, chr2 = chr1.split('-')
@@ -1049,8 +1089,10 @@ def read_dist(params):
                         if (before and dir_ref[0] == "r") or (not before and dir_ref[1] == "r"):
                             dir, antisense, left_pos_temp, right_pos_temp, seq_temp, qual_temp, cigars_temp = \
                                 reverse_read(fusion_read, dir, antisense, left_pos_temp, right_pos_temp, 0, seq_temp, qual_temp, cigars_temp)
-
+        
                     reads_list[i].append([read_id, chr1, chr2, before, left_pos_temp, right_pos_temp, cigars_temp, seq_temp, qual_temp, mismatch, left, line])
+                    reads_compress_list[i][1] += 1
+
 
         for i in range(len(check_list)):
             output_region(sample_name, check_list[i], reads_list[i])
@@ -1229,15 +1271,14 @@ def generate_html(params):
                 seq = left_seq + right_seq
 
                 temp_output = blast_output(output_dir + "blast_genomic", left_seq)
-                left_chromosomes = Set(re_find_chromosomes.findall(temp_output))
+                left_chromosomes = set(re_find_chromosomes.findall(temp_output))
 
                 temp_output = blast_output(output_dir + "blast_genomic", right_seq)
-                right_chromosomes = Set(re_find_chromosomes.findall(temp_output))
+                right_chromosomes = set(re_find_chromosomes.findall(temp_output))
 
-                # daehwan
                 if string.find(output["sample_name"], "single") == -1:
                     chr1, chr2 = output["chr"].split("-")
-                    if chr1 != chr2 and left_chromosomes.intersection(right_chromosomes):
+                    if chr1 != chr2 and left_chromosomes & right_chromosomes:
                         do_not_add = True
 
                     temp_output = blast_output(output_dir + "blast_genomic", seq) + blast_output(output_dir + "blast_nt", seq)
@@ -1956,7 +1997,7 @@ def main(argv=None):
             map_fusion_kmer(bwt_idx_prefix, params)
 
         if not params.skip_filter_fusion:
-            filter_fusion(params)
+            filter_fusion(bwt_idx_prefix, params)
 
         if not params.skip_blast:
             do_blast(params)

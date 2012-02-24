@@ -180,17 +180,13 @@ void print_fusion(const Fusion& fusion,
 
       if (fusion.dir == FUSION_RF || fusion.dir == FUSION_RR)
 	{
-	  seqan::convertInPlace(left_splice, seqan::FunctorComplement<Dna>());
-	  seqan::reverseInPlace(left_splice);
-
+	  seqan::reverseComplement(left_splice);
 	  left_start = left_end - 1;
 	}
 
       if (fusion.dir == FUSION_FR || fusion.dir == FUSION_RR)
 	{
-	  seqan::convertInPlace(right_splice, seqan::FunctorComplement<Dna>());
-	  seqan::reverseInPlace(right_splice);
-
+	  seqan::reverseComplement(right_splice);
 	  right_end = right_start - 1;
 	}
 

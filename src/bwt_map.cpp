@@ -2939,8 +2939,7 @@ bool BowtieHit::check_editdist_consistency(const RefSequenceTable& rt, bool bDeb
 	case mATCH:
 	  {
 	    seqan::Dna5String ref_seq = seqan::infix(*ref_str, pos_ref - cigar.length + 1, pos_ref + 1);
-	    seqan::convertInPlace(ref_seq, seqan::FunctorComplement<seqan::Dna>());
-	    seqan::reverseInPlace(ref_seq);
+	    seqan::reverseComplement(ref_seq);
 
 	    for (size_t j = 0; j < cigar.length; ++j)
 	      {
@@ -3053,8 +3052,7 @@ void bowtie_sam_extra(const BowtieHit& bh, const RefSequenceTable& rt, vector<st
 	    else
 	      {
 		ref_seq = seqan::infix(*ref_str, pos_ref - cigar.length + 1, pos_ref + 1);
-		seqan::convertInPlace(ref_seq, seqan::FunctorComplement<seqan::Dna>());
-		seqan::reverseInPlace(ref_seq);
+		seqan::reverseComplement(ref_seq);
 		pos_ref -= cigar.length;
 	      }
 	    
@@ -3129,8 +3127,7 @@ void bowtie_sam_extra(const BowtieHit& bh, const RefSequenceTable& rt, vector<st
 	    else
 	      {
 		ref_seq = seqan::infix(*ref_str, pos_ref - cigar.length + 1, pos_ref + 1);
-		seqan::convertInPlace(ref_seq, seqan::FunctorComplement<seqan::Dna>());
-		seqan::reverseInPlace(ref_seq);
+		seqan::reverseComplement(ref_seq);
 		pos_ref -= cigar.length;
 	      }
 

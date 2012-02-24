@@ -1063,8 +1063,7 @@ BowtieHit merge_chain(RefSequenceTable& rt,
 		      seqan::Dna5String insertionSequence = seqan::Dna5String(lb->sequence);
 		      if (reversed)
 			{
-			  seqan::convertInPlace(insertionSequence, seqan::FunctorComplement<seqan::Dna>());
-			  seqan::reverseInPlace(insertionSequence);
+			  seqan::reverseComplement(insertionSequence);
 			}
 		      
 		      /*
@@ -1080,8 +1079,7 @@ BowtieHit merge_chain(RefSequenceTable& rt,
 			  if (reversed)
 			    {
 			      referenceSequence = seqan::infix(*ref_str, prev_hit->right() + 1, lb->left + 1);
-			      seqan::convertInPlace(referenceSequence, seqan::FunctorComplement<seqan::Dna>());
-			      seqan::reverseInPlace(referenceSequence);
+			      seqan::reverseComplement(referenceSequence);
 
 			      string temp;
 
@@ -1169,8 +1167,7 @@ BowtieHit merge_chain(RefSequenceTable& rt,
 			  if (reversed)
 			    {
 			      referenceSequence = seqan::infix(*ref_str, lb->left + 1, curr_hit->left() + 1);
-			      seqan::convertInPlace(referenceSequence, seqan::FunctorComplement<seqan::Dna>());
-			      seqan::reverseInPlace(referenceSequence);
+			      seqan::reverseComplement(referenceSequence);
 
 			      string temp = read_seq.substr(curr_seg_index * segment_length, curr_left_to_insert);
 			      oldSegmentSequence = seqan::Dna5String(temp);
@@ -1362,12 +1359,10 @@ BowtieHit merge_chain(RefSequenceTable& rt,
 			  if (reversed)
 			    {
 			      new_cmp_str = seqan::infix(*ref_str, curr_hit->left() + 1, lb->left + 1);
-			      seqan::convertInPlace(new_cmp_str, seqan::FunctorComplement<seqan::Dna>());
-			      seqan::reverseInPlace(new_cmp_str);
+			      seqan::reverseComplement(new_cmp_str);
 			      
 			      old_cmp_str = seqan::infix(*ref_str, prev_hit->right() + 1, lb->right);
-			      seqan::convertInPlace(old_cmp_str, seqan::FunctorComplement<seqan::Dna>());
-			      seqan::reverseInPlace(old_cmp_str);
+			      seqan::reverseComplement(old_cmp_str);
 			    }
 			  else
 			    {
@@ -1421,12 +1416,10 @@ BowtieHit merge_chain(RefSequenceTable& rt,
 			  if (reversed)
 			    {
 			      new_cmp_str = seqan::infix(*ref_str, lb->right, prev_hit->right() + 1);
-			      seqan::convertInPlace(new_cmp_str, seqan::FunctorComplement<seqan::Dna>());
-			      seqan::reverseInPlace(new_cmp_str);
+			      seqan::reverseComplement(new_cmp_str);
 
 			      old_cmp_str = seqan::infix(*ref_str, lb->left + 1, curr_hit->left() + 1);
-			      seqan::convertInPlace(old_cmp_str, seqan::FunctorComplement<seqan::Dna>());
-			      seqan::reverseInPlace(old_cmp_str);
+			      seqan::reverseComplement(old_cmp_str);
 			    }
 			  else
 			    {
@@ -1684,8 +1677,7 @@ BowtieHit merge_chain(RefSequenceTable& rt,
 		      if (fusion_dir == FUSION_RF)
 			{
 			  new_cmp_str = seqan::infix(*ref_str, lb_left, prev_hit->right() + 1);
-			  seqan::convertInPlace(new_cmp_str, seqan::FunctorComplement<seqan::Dna>());
-			  seqan::reverseInPlace(new_cmp_str);
+			  seqan::reverseComplement(new_cmp_str);
 			}
 		      else
 			new_cmp_str = seqan::infix(*ref_str, prev_hit->right(), lb_left + 1);
@@ -1693,8 +1685,7 @@ BowtieHit merge_chain(RefSequenceTable& rt,
 		      if (fusion_dir == FUSION_FR)
 			{
 			  old_cmp_str = seqan::infix(*ref_str2, lb_right + 1, curr_hit->left() + 1);
-			  seqan::convertInPlace(old_cmp_str, seqan::FunctorComplement<seqan::Dna>());
-			  seqan::reverseInPlace(old_cmp_str);
+			  seqan::reverseComplement(old_cmp_str);
 			}
 		      else
 			old_cmp_str = seqan::infix(*ref_str2, curr_hit->left(), lb_right);
@@ -1730,8 +1721,7 @@ BowtieHit merge_chain(RefSequenceTable& rt,
 		      if (fusion_dir == FUSION_FR)
 			{
 			  new_cmp_str = seqan::infix(*ref_str2, curr_hit->left() + 1, lb_right + 1);
-			  seqan::convertInPlace(new_cmp_str, seqan::FunctorComplement<seqan::Dna>());
-			  seqan::reverseInPlace(new_cmp_str);
+			  seqan::reverseComplement(new_cmp_str);
 			}
 		      else
 			new_cmp_str = seqan::infix(*ref_str2, lb_right, curr_hit->left());
@@ -1739,8 +1729,7 @@ BowtieHit merge_chain(RefSequenceTable& rt,
 		      if (fusion_dir == FUSION_RF)
 			{
 			  old_cmp_str = seqan::infix(*ref_str, prev_hit->right() + 1, lb_left);
-			  seqan::convertInPlace(old_cmp_str, seqan::FunctorComplement<seqan::Dna>());
-			  seqan::reverseInPlace(old_cmp_str);
+			  seqan::reverseComplement(old_cmp_str);
 			}
 		      else
 			old_cmp_str = seqan::infix(*ref_str, lb_left + 1, prev_hit->right());
