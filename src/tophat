@@ -743,8 +743,10 @@ class TopHatParams:
                         "--fusion-min-dist", str(self.fusion_min_dist),
                         "--fusion-read-mismatches", str(self.fusion_read_mismatches),
                         "--fusion-multireads", str(self.fusion_multireads),
-                        "--fusion-multipairs", str(self.fusion_multipairs),
-                        "--fusion-ignore-chromosomes", ",".join(self.fusion_ignore_chromosomes)])
+                        "--fusion-multipairs", str(self.fusion_multipairs)])
+
+            if self.fusion_ignore_chromosomes:
+                cmd.extend(["--fusion-ignore-chromosomes", ",".join(self.fusion_ignore_chromosomes)])
 
         cmd.extend(self.system_params.cmd())
 

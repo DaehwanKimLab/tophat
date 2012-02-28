@@ -53,6 +53,7 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 		      <li><a href="tutorial.html">Getting started</a></li>
 		      <li><a href="manual.html">Manual</a></li>
 		      <li><a href="igenomes.html">Index and annotation downloads</a></li>
+		      <li><a href="fusion_index.html">Fusion mapping</a></li>
 		    </ul>
 		  </div>
 		
@@ -186,7 +187,7 @@ align reads across fusion points,
 	    which usually occur due to genomic translocations, read-through 
 transcription, or trans-splicing; Tophat 2 integrates the fusion 
 discovery engine previously found in TopHat-Fusion&nbsp; 
-(fusion mapping is optional, please see the <tt><a href="manual.html#fusion">--fusion-...</a></tt> options in the manual).<br>
+(fusion mapping is optional, please see <a href="fusion_index.html">the separate page</a> for fusion mapping and the <tt><a href="manual.html#fusion">--fusion-...</a></tt> options in the manual).<br>
 </li><li> Colorspace (SOLiD) reads require the older version of Bowtie, since Bowtie 2 does not provide support for this kind of reads.</li>
 	  <li> In addition to reporting the best (or primary) alignments (the original TopHat behavior),
 	    TopHat 2 can report the secondary alignments up to 20 (the default) paired or single alignments
@@ -200,6 +201,10 @@ sequences in the genome fasta file) <br>
   </li>
   <li>--report-discordant-pair-alignments </li>
 </ul>
+  <li>  If you had some older versions of TopHat and TopHat-Fusion installed on your system,
+    we suggest that you remove both programs before installing the new version and
+    make sure that your system PATH includes the new version but does not include the other ones.
+  </li>
 
 	</ul>
 	  <p></p><br>

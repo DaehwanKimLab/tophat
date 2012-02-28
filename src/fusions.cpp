@@ -26,7 +26,7 @@
 #include <seqan/find.h>
 #include <seqan/file.h>
 #include <seqan/modifier.h>
-// #include <seqan/align.h>
+#include <seqan/align.h>
 #include <getopt.h>
 
 #include "common.h"
@@ -40,7 +40,7 @@
 
 #include "inserts.h"
 
-// daehwan - this is redundancy, too!
+// daehwan - replace this with that of SeqAn
 int difference(const string& first, const string& second)
 {
   int len = seqan::length(first);
