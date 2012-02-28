@@ -29,6 +29,7 @@ Options:
 
     --fusion-read-mismatches       <int>       [ default: 2                  ]
     --fusion-multireads            <int>       [ default: 2                  ]
+    --non-human
 
     -p/--num-threads               <int>       [ default: 1                  ]
 
@@ -64,6 +65,8 @@ class TopHatFusionParams:
         self.fusion_read_mismatches = 2
         self.fusion_multireads = 2
 
+        self.is_human = True
+
         self.num_threads = 1
         
         self.skip_fusion_kmer = False
@@ -89,6 +92,7 @@ class TopHatFusionParams:
                                          "num-fusion-both=",
                                          "fusion-read-mismatches=",
                                          "fusion-multireads=",
+                                         "non-human",
                                          "num-threads=",
                                          "skip-fusion-kmer",
                                          "skip-filter-fusion",
@@ -115,6 +119,8 @@ class TopHatFusionParams:
                 self.fusion_read_mismatches = int(value)
             if option == "--fusion-multireads":
                 self.fusion_multireads = int(value)
+            if option == "--non-human":
+                self.is_human = False
             if option in ("-p", "--num-threads"):
                 self.num_threads = int(value)
             if option == "--skip-fusion-kmer":
@@ -641,12 +647,14 @@ def filter_fusion(bwt_idx_prefix, params):
     ensGene_list = read_genes("ensGene.txt")
 
     ensGtp_dic = {}
+    """
     ensGtp_file = open("ensGtp.txt", "r")
     for line in ensGtp_file:
         transcript, gene, protein = line[:-1].split()
         ensGtp_dic[transcript] = protein
         ensGtp_dic[gene] = protein
     ensGtp_file.close()
+    """
 
     fusion_gene_list = []
     for file in sorted(os.listdir(".")):
@@ -704,14 +712,14 @@ def do_blast(params):
     print >> sys.stderr, "[%s] Blasting 50-mers around fusions" % right_now()
 
     file_name = output_dir + "potential_fusion.txt"
-    blast_genomic = output_dir + "blast_genomic"
-    blast_nt = output_dir + "blast_nt"
+    blast_genomic_out = output_dir + "blast_genomic"
+    blast_nt_out = output_dir + "blast_nt"
 
-    if not os.path.exists(blast_genomic):
-        os.system("mkdir %s" % blast_genomic);
+    if not os.path.exists(blast_genomic_out):
+        os.system("mkdir %s" % blast_genomic_out);
 
-    if not os.path.exists(blast_nt):
-        os.system("mkdir %s" % blast_nt)
+    if not os.path.exists(blast_nt_out):
+        os.system("mkdir %s" % blast_nt_out)
 
     pids = [0 for i in range(params.num_threads)]
 
@@ -762,12 +770,19 @@ def do_blast(params):
             seq = left_seq + right_seq
 
             def work():
-                blast("blast_human/human_genomic", left_seq, blast_genomic)
-                blast("blast_human/human_genomic", right_seq, blast_genomic)
-                blast("blast_human/human_genomic", seq, blast_genomic)
-                blast("blast_human/nt", left_seq, blast_nt)
-                blast("blast_human/nt", right_seq, blast_nt)
-                blast("blast_human/nt", seq, blast_nt)
+                if params.is_human:
+                    blast_genomic = "blast/human_genomic"
+                else:
+                    blast_genomic = "blast/other_genomic"
+                    
+                blast_nt = "blast/nt"
+                
+                blast(blast_genomic, left_seq, blast_genomic_out)
+                blast(blast_genomic, right_seq, blast_genomic_out)
+                blast(blast_genomic, seq, blast_genomic_out)
+                blast(blast_nt, left_seq, blast_nt_out)
+                blast(blast_nt, right_seq, blast_nt_out)
+                blast(blast_nt, seq, blast_nt_out)
             
             if not os.path.exists(output_dir + "blast_nt/" + seq ):
                 print >> sys.stderr,  "\t%d. %s" % (count, line[:-1])
@@ -888,6 +903,7 @@ def read_dist(params):
                 continue
 
             line = line[:-1].split('\t')
+                
             read_id, chr1, left_pos, cigar_str, seq, qual = line[0], line[2], int(line[3]) - 1, line[5], line[9], line[10]
 
             if chr1 != old_chr:

@@ -2394,7 +2394,7 @@ void simpleSplitAlignment(seqan::String<char>& shorterSequence,
    */
   
   /*
-   * Note that we could have a case, where both the alignment and the read have the unknonw
+   * Note that we could have a case, where both the alignment and the read have the unknown
    * nucleotide ('N') and we don't want to reward cases where these characters match
    */
   vector<unsigned short> beforeErrors(seqan::length(shorterSequence));
@@ -2462,76 +2462,76 @@ void simpleSplitAlignment(seqan::String<char>& shorterSequence,
  * @param insertions If an insertion is sucessfully detected, it will be added to this set
  */
 void detect_small_insertion(RefSequenceTable& rt,
-		seqan::String<char>& read_sequence,
-		BowtieHit& leftHit,
-		BowtieHit& rightHit,
-		std::set<Insertion>& insertions)
+			    seqan::String<char>& read_sequence,
+			    BowtieHit& leftHit,
+			    BowtieHit& rightHit,
+			    std::set<Insertion>& insertions)
 {
 
-	RefSequenceTable::Sequence* ref_str = rt.get_seq(leftHit.ref_id());
-	if(!ref_str){
-		fprintf(stderr, "Error accessing sequence record\n");
-	}else{
-		size_t read_length = seqan::length(read_sequence);
-		int begin_offset = 0;
-		int end_offset = 0;
-
-		if(color){
-		  if(leftHit.antisense_align())
-		    end_offset = 1;
-		  else
-		    begin_offset = -1;
-		}
-		
-		if(leftHit.left() + begin_offset < 0)
-		  return;
-
-		/*
-		 * If there is in fact a deletion, we are expecting the genomic sequence to be shorter than
-		 * the actual read sequence
-		 */
-		int discrepancy = read_length - (rightHit.right() - leftHit.left());
-		DnaString genomic_sequence_temp = seqan::infix(*ref_str, leftHit.left() + begin_offset, rightHit.right() + end_offset);
-		String<char> genomic_sequence;
-		assign(genomic_sequence, genomic_sequence_temp);
-
-		if(color)
-		  genomic_sequence = convert_bp_to_color(genomic_sequence, true);
-
-		String<char> left_read_sequence = seqan::infix(read_sequence, 0, 0 + seqan::length(genomic_sequence));
-		String<char> right_read_sequence = seqan::infix(read_sequence, read_length - seqan::length(genomic_sequence), read_length);
-
-		vector<int> bestInsertPositions;
-		int minErrors = -1;
-		simpleSplitAlignment(genomic_sequence, left_read_sequence, right_read_sequence, bestInsertPositions, minErrors);
-
-		assert (bestInsertPositions.size() > 0);
-		int bestInsertPosition = bestInsertPositions[0];
-
-
-		/*
-		 * Need to decide if the insertion is suitably improves the alignment
-		 */
-		/*
-		 * If these two segments anchors constitue the entire read, then we require
-		 * that this alignment actually improve the number of errors observed in the alignment
-		 * Otherwise, it is OK as long as the number of errors doesn't increase.
-		 */
-		int adjustment = 0;
-		if(leftHit.read_len() + rightHit.read_len() >= (int)read_length){
-			adjustment = -1;
-		}
-		if(minErrors <= (leftHit.edit_dist()+rightHit.edit_dist()+adjustment)){
-			String<char> insertedSequence = seqan::infix(left_read_sequence, bestInsertPosition, bestInsertPosition + discrepancy);
-			if(color)
-			  insertedSequence = convert_color_to_bp(genomic_sequence_temp[bestInsertPosition - begin_offset + end_offset - 1], insertedSequence);
-			
-			insertions.insert(Insertion(leftHit.ref_id(),
-					leftHit.left() + bestInsertPosition - 1 + end_offset,
-					seqan::toCString(insertedSequence)));
-		}
-	}
-	return;
+  RefSequenceTable::Sequence* ref_str = rt.get_seq(leftHit.ref_id());
+  if(!ref_str){
+    fprintf(stderr, "Error accessing sequence record\n");
+  }else{
+    size_t read_length = seqan::length(read_sequence);
+    int begin_offset = 0;
+    int end_offset = 0;
+    
+    if(color){
+      if(leftHit.antisense_align())
+	end_offset = 1;
+      else
+	begin_offset = -1;
+    }
+    
+    if(leftHit.left() + begin_offset < 0)
+      return;
+    
+    /*
+     * If there is in fact a deletion, we are expecting the genomic sequence to be shorter than
+     * the actual read sequence
+     */
+    int discrepancy = read_length - (rightHit.right() - leftHit.left());
+    DnaString genomic_sequence_temp = seqan::infix(*ref_str, leftHit.left() + begin_offset, rightHit.right() + end_offset);
+    String<char> genomic_sequence;
+    assign(genomic_sequence, genomic_sequence_temp);
+    
+    if(color)
+      genomic_sequence = convert_bp_to_color(genomic_sequence, true);
+    
+    String<char> left_read_sequence = seqan::infix(read_sequence, 0, 0 + seqan::length(genomic_sequence));
+    String<char> right_read_sequence = seqan::infix(read_sequence, read_length - seqan::length(genomic_sequence), read_length);
+    
+    vector<int> bestInsertPositions;
+    int minErrors = -1;
+    simpleSplitAlignment(genomic_sequence, left_read_sequence, right_read_sequence, bestInsertPositions, minErrors);
+    
+    assert (bestInsertPositions.size() > 0);
+    int bestInsertPosition = bestInsertPositions[0];
+    
+    
+    /*
+     * Need to decide if the insertion is suitably improves the alignment
+     */
+    /*
+     * If these two segments anchors constitue the entire read, then we require
+     * that this alignment actually improve the number of errors observed in the alignment
+     * Otherwise, it is OK as long as the number of errors doesn't increase.
+     */
+    int adjustment = 0;
+    if(leftHit.read_len() + rightHit.read_len() >= (int)read_length){
+      adjustment = -1;
+    }
+    if(minErrors <= (leftHit.edit_dist()+rightHit.edit_dist()+adjustment)){
+      String<char> insertedSequence = seqan::infix(left_read_sequence, bestInsertPosition, bestInsertPosition + discrepancy);
+      if(color)
+	insertedSequence = convert_color_to_bp(genomic_sequence_temp[bestInsertPosition - begin_offset + end_offset - 1], insertedSequence);
+      
+      insertions.insert(Insertion(leftHit.ref_id(),
+				  leftHit.left() + bestInsertPosition - 1 + end_offset,
+				  seqan::toCString(insertedSequence)));
+    }
+  }
+  return;
 }
 
 /**
@@ -2546,253 +2546,174 @@ void detect_small_insertion(RefSequenceTable& rt,
  * @param deletion_juncs If a deletion is sucessfully detected, it will be added to this set
  */
 void detect_small_deletion(RefSequenceTable& rt,
-		seqan::String<char>& read_sequence,
-		BowtieHit& leftHit,
-		BowtieHit& rightHit,
-		std::set<Deletion>& deletions)
+			   seqan::String<char>& read_sequence,
+			   BowtieHit& leftHit,
+			   BowtieHit& rightHit,
+			   std::set<Deletion>& deletions)
 {
-
-	RefSequenceTable::Sequence* ref_str = rt.get_seq(leftHit.ref_id());
-	if(!ref_str){
-		fprintf(stderr, "Error accessing sequence record\n");
-	}else{
-		int begin_offset = 0;
-		int end_offset = 0;
-
-		if(color){
-		  if(leftHit.antisense_align())
-		    end_offset = 1;
-		  else
-		    begin_offset = -1;
-		}
-
-		if(leftHit.left() + begin_offset < 0)
-		  return;
-
-		size_t read_length = seqan::length(read_sequence);
-		if(rightHit.right() + read_length + begin_offset < 0 )
-		  return;
-
-		int discrepancy = (rightHit.right() - leftHit.left()) - read_length;
-		Dna5String leftGenomicSequence_temp = seqan::infix(*ref_str, leftHit.left() + begin_offset, leftHit.left() + read_length + end_offset);
-		Dna5String rightGenomicSequence_temp = seqan::infix(*ref_str, rightHit.right() - read_length + begin_offset, rightHit.right() + end_offset);
-
-		if (length(leftGenomicSequence_temp) < read_length || length(rightGenomicSequence_temp) < read_length)
-		  return;
-
-		String<char> leftGenomicSequence;
-		assign(leftGenomicSequence, leftGenomicSequence_temp);
-
-		String<char> rightGenomicSequence;
-		assign(rightGenomicSequence, rightGenomicSequence_temp);
-
-		if(color){
-		  leftGenomicSequence = convert_bp_to_color(leftGenomicSequence, true);
-		  rightGenomicSequence = convert_bp_to_color(rightGenomicSequence, true);
-		}
-
-		vector<int> bestInsertPositions;
-		int minErrors = -1;
-		simpleSplitAlignment(read_sequence, leftGenomicSequence, rightGenomicSequence, bestInsertPositions, minErrors);
-
-		assert (bestInsertPositions.size() > 0);
-		int bestInsertPosition = bestInsertPositions[0];
-
-		/*
-		 * Need to decide if the deletion is suitably improves the alignment
-		 */
-		int adjustment = 0;
-
-		/*
-		 * If these two segments anchors constitue the entire read, then we require
-		 * that this alignment actually improve the number of errors observed in the alignment
-		 * Otherwise, it is OK as long as the number of errors doesn't increase.
-		 */
-		if(leftHit.read_len() + rightHit.read_len() >= (int)read_length){
-			adjustment = -1;
-		}
-		if(minErrors <= (leftHit.edit_dist()+rightHit.edit_dist()+adjustment)){
-			deletions.insert(Deletion(leftHit.ref_id(),
-					leftHit.left() + bestInsertPosition - 1 + end_offset,
-					leftHit.left() + bestInsertPosition + discrepancy + end_offset,
-					false));
-		}
-	}
-	return;
+  RefSequenceTable::Sequence* ref_str = rt.get_seq(leftHit.ref_id());
+  if(!ref_str){
+    fprintf(stderr, "Error accessing sequence record\n");
+  }else{
+    int begin_offset = 0;
+    int end_offset = 0;
+    
+    if(color){
+      if(leftHit.antisense_align())
+	end_offset = 1;
+      else
+	begin_offset = -1;
+    }
+    
+    if(leftHit.left() + begin_offset < 0)
+      return;
+    
+    size_t read_length = seqan::length(read_sequence);
+    if(rightHit.right() + read_length + begin_offset < 0 )
+      return;
+    
+    int discrepancy = (rightHit.right() - leftHit.left()) - read_length;
+    Dna5String leftGenomicSequence_temp = seqan::infix(*ref_str, leftHit.left() + begin_offset, leftHit.left() + read_length + end_offset);
+    Dna5String rightGenomicSequence_temp = seqan::infix(*ref_str, rightHit.right() - read_length + begin_offset, rightHit.right() + end_offset);
+    
+    if (length(leftGenomicSequence_temp) < read_length || length(rightGenomicSequence_temp) < read_length)
+      return;
+    
+    String<char> leftGenomicSequence;
+    assign(leftGenomicSequence, leftGenomicSequence_temp);
+    
+    String<char> rightGenomicSequence;
+    assign(rightGenomicSequence, rightGenomicSequence_temp);
+    
+    if(color){
+      leftGenomicSequence = convert_bp_to_color(leftGenomicSequence, true);
+      rightGenomicSequence = convert_bp_to_color(rightGenomicSequence, true);
+    }
+    
+    vector<int> bestInsertPositions;
+    int minErrors = -1;
+    simpleSplitAlignment(read_sequence, leftGenomicSequence, rightGenomicSequence, bestInsertPositions, minErrors);
+    
+    assert (bestInsertPositions.size() > 0);
+    int bestInsertPosition = bestInsertPositions[0];
+    
+    /*
+     * Need to decide if the deletion is suitably improves the alignment
+     */
+    int adjustment = 0;
+    
+    /*
+     * If these two segments anchors constitue the entire read, then we require
+     * that this alignment actually improve the number of errors observed in the alignment
+     * Otherwise, it is OK as long as the number of errors doesn't increase.
+     */
+    if(leftHit.read_len() + rightHit.read_len() >= (int)read_length){
+      adjustment = -1;
+    }
+    if(minErrors <= (leftHit.edit_dist()+rightHit.edit_dist()+adjustment)){
+      deletions.insert(Deletion(leftHit.ref_id(),
+				leftHit.left() + bestInsertPosition - 1 + end_offset,
+				leftHit.left() + bestInsertPosition + discrepancy + end_offset,
+				false));
+    }
+  }
+  return;
 }
 
-int difference(const String<char>& first, const String<char>& second)
+void gappedAlignment(const seqan::String<char>& read,
+		     const seqan::String<char>& leftReference,
+		     const seqan::String<char>& rightReference,
+		     vector<int>& insertLeftPositions,
+		     vector<int>& insertRightPositions,
+		     int& mismatchCount)
 {
-  const int len = length(first);
-  if (len != length(second))
-    return 0;
-
-  int min_value = 10000;
-  short value1[1024] = {0,};
-  short value2[1024] = {0,};
-
-  short* curr = value1;
-  short* prev = value2;
+  const Score<int> globalScore(0, -5, -1, -10);  // (match, mismatch, gapextend, gapopen)
+  Align<String<char> > align;
+  appendValue(rows(align), read);
   
-  for (int j = 0; j < len; ++j)
-    {
-      for (int i = 0; i < len; ++i)
-	{
-	  int value = 10000;
-	  int match = first[i] == second[j] ? 0 : 1;
+  String<char> genomicSequence;
+  assign(genomicSequence, leftReference);
+  append(genomicSequence, rightReference);
+  appendValue(rows(align), genomicSequence);
+  int score = globalAlignment(align, globalScore);
 
-	  // right
-	  if (i == 0)
-	    value = j * 2 + match;
-	  else if (j > 0)
-	    value = prev[i] + 2;
+  Row<Align<String<char> > >::Type& row0 = row(align, 0);
+  Row<Align<String<char> > >::Type& row1 = row(align, 1);
 
-	  int temp_value = 10000;
-
-	  // down
-	  if (j == 0)
-	    temp_value = i * 2 + match;
-	  else if (i > 0)
-	    temp_value = curr[i-1] + 2;
-
-	  if (temp_value < value)
-	    value = temp_value;
-
-	  // match
-	  if (i > 0 && j > 0)
-	    temp_value = prev[i-1] + match;
-
-	  if (temp_value < value)
-	    value = temp_value;
-
-	  curr[i] = value;
-
-	  if ((i == len - 1 || j == len - 1) && value < min_value)
-	    min_value = value;
-	}
-
-      short* temp = prev;
-      prev = curr;
-      curr = temp;
-   }
-
-  return min_value;
-}
-
-void difference_with_values(const String<char>& first, const String<char>& second, short values[][1024])
-{
-  const int len = length(first);
-  if (len != length(second))
-    return;
-
-  int min_value = 10000;
-
-  for (int j = 0; j < len; ++j)
-    {
-      for (int i = 0; i < len; ++i)
-	{
-	  int value = 10000;
-	  int match = (first[i] == second[j] ? 0 : 1);
-
-	  // right
-	  if (i == 0)
-	    value = j * 2 + match;
-	  else if (j > 0)
-	    value = values[i][j-1] + 2;
-
-	  int temp_value = 10000;
-
-	  // down
-	  if (j == 0)
-	    temp_value = i * 2 + match;
-	  else if (i > 0)
-	    temp_value = values[i-1][j] + 2;
-
-	  if (temp_value < value)
-	    value = temp_value;
-
-	  // match
-	  if (i > 0 && j > 0)
-	    temp_value = values[i-1][j-1] + match;
-
-	  if (temp_value < value)
-	    value = temp_value;
-
-	  values[i][j] = value;
-	}
-   }
-}
-
-// Smith-Waterman Split alignment
-void SWSplitAlignment(seqan::String<char> read,
-		      seqan::String<char> leftReference,
-		      seqan::String<char> rightReference,
-		      vector<pair<int, int> >& insertPositions,
-		      int& mismatchCount)
-{
-#if 0
-  short values1[1024][1024] = {{0,},};
-  difference_with_values(read, leftReference, values1);
+  // find gap whose length >= read_len - 10
+  int start_in_align = -1, end_in_align = -1;
+  int start_in_ref = -1, end_in_ref = -1;
   
-  short values2[1024][1024] = {{0,},};
-  seqan::reverseInPlace(read);
-  seqan::reverseInPlace(rightReference);
-  difference_with_values(read, rightReference, values2);
-
-  const int len = length(read);
-  int min_value = 10000;
+  int temp_start = -1;
+  int ref_pos = 0;
+  
+  int gap = 0;
+  mismatchCount = 0;
+  
+  int len = length(row0);
   for (int i = 0; i < len; ++i)
     {
-      int min1 = 10000;
-      vector<int> pos1;
-      for (int j = 0; j < len; ++i)
+      if (row0[i] == '-')
 	{
-	  int value = values1[i][j];
-	  if (min1 > value)
+	  if (temp_start < 0)
+	    temp_start = i;
+	}
+      else if (row1[i] != '-')
+	{
+	  if (temp_start >= 0)
 	    {
-	      min1 = value;
-	      pos1.clear();
-	      pos1.push_back(j);
+	      if (i - temp_start > end_in_align - start_in_align)
+		{
+		  end_in_align = i;
+		  start_in_align = temp_start;
+
+		  end_in_ref = ref_pos;
+		  start_in_ref = ref_pos - (i - temp_start);
+		  temp_start = -1;
+		}
 	    }
-	  else if (min1 == value)
-	    pos1.push_back(j);
+	  
+	  if (row0[i] != row1[i])
+	    ++mismatchCount;	  
 	}
 
-      int min2 = 10000;
-      vector<int> pos2;
-      for (int j = 0; j < len; ++i)
-	{
-	  int value = values2[len-i-2][j];
-	  if (min2 > value)
-	    {
-	      min2 = value;
-	      pos2.clear();
-	      pos2.push_back(j);
-	    }
-	  else if (min2 == value)
-	    pos2.push_back(j);
-	}
+      if (row0[i] == '-' || row1[i] == '-')
+	++gap;
+      if (row1[i] != '-')
+	++ref_pos;
+    }
 
-      int value = min1 + min2;
-      if (value < min_value)
-	{
-	  min_value = value;
-	  insertPositions.clear();
-	  for (size_t a = 0; a < pos1.size(); ++a)
-	    for (size_t b = 0; b < pos2.size(); ++b)
-	      insertPositions.push_back(make_pair<int, int>(pos1[a], pos2[b]));
-	}
-      else if (value == min_value)
-	{
-	  for (size_t a = 0; a < pos1.size(); ++a)
-	    for (size_t b = 0; b < pos2.size(); ++b)
-	      insertPositions.push_back(make_pair<int, int>(pos1[a], pos2[b]));
-	}
-    }  
+  // assume the lengths of read, leftReference, and rightReference are all equal.
+  const int max_gap = end_in_align - start_in_align;
+  if (max_gap < length(read) - 10)
+    return;
 
+  if (start_in_ref < 0)
+    return;
+
+  insertLeftPositions.push_back(start_in_ref);
+  insertRightPositions.push_back(end_in_ref - length(leftReference));
+
+#if B_DEBUG
+  if (gap - max_gap >= 0)
+    {
+      cerr << "Score = " << score << endl;
+      cerr << row(align, 0) << endl
+	   << row(align, 1) << endl;
+      
+      cerr << "len: " << len
+	   << ", gap: " << gap
+	   << ", max_gap: " << max_gap
+	   << "(" << start_in_align << ", " << end_in_align
+	   << "), ref (" << start_in_ref << ", " << end_in_ref
+	   << "), mismatch: " << mismatchCount << endl;
+
+      if (gap - max_gap > 0)
+	cerr << "daehwan" << endl;
+    }
 #endif
 }
-
+  
 void detect_fusion(RefSequenceTable& rt,
 		   seqan::String<char>& read_sequence,
 		   BowtieHit& leftHit,
@@ -2846,66 +2767,127 @@ void detect_fusion(RefSequenceTable& rt,
   String<char> rightGenomicSequence;
   assign(rightGenomicSequence, rightGenomicSequence_temp);
 
-  vector<int> bestInsertPositions;
+  vector<int> bestLeftInsertPositions;
+  vector<int> bestRightInsertPositions;
   int minErrors = -1;
 
-#if 0
-  Align<String<char> > align;
-  appendValue(rows(align), read_sequence);
-  appendValue(rows(align), leftGenomicSequence);
-  // int score = globalAlignment(align, Score<int>(1, -1, -1, -1), Hirscheberg());
-  int score = localAlignment(align, Score<int>(0, -1, -2, -2), SmithWaterman());
-  unsigned cBeginPos = clippedBeginPosition(row(align, 0));
-  unsigned cEndPos = clippedEndPosition(row(align, 0)) - 1;
-  cerr << "Score = " << score << "[" << cBeginPos << ":" << cEndPos << "]" << endl;
-  cerr << align;
-#endif
-
-  int score2 = difference(read_sequence, leftGenomicSequence);
-  cerr << "my version: " << score2 << endl;
-
-  // todo - we need to do (efficient) Smith-Waterman Alignment.
+  // todo - we need to do (efficient) Smith-Waterman Alignment using SIMD like the way Bowtie2 does!
+  // too slow and too many false positives
   if (bowtie2)
-    simpleSplitAlignment(read_sequence, leftGenomicSequence, rightGenomicSequence, bestInsertPositions, minErrors);
+    gappedAlignment(read_sequence,
+		    leftGenomicSequence,
+		    rightGenomicSequence,
+		    bestLeftInsertPositions,
+		    bestRightInsertPositions,
+		    minErrors);
   else
-    simpleSplitAlignment(read_sequence, leftGenomicSequence, rightGenomicSequence, bestInsertPositions, minErrors);
+    simpleSplitAlignment(read_sequence,
+			 leftGenomicSequence,
+			 rightGenomicSequence,
+			 bestLeftInsertPositions,
+			 minErrors);
 
   uint32_t total_edit_dist = leftHit.edit_dist() + rightHit.edit_dist();
   if (minErrors > total_edit_dist)
     return;
 
-  if (bowtie2 && minErrors > 2)
+#if 1
+  if (minErrors > 2)
     return;
+  
+  for (size_t i = 0; i < bestLeftInsertPositions.size(); ++i)
+    {
+      const int left = bestLeftInsertPositions[i];
+      if (left < fusion_anchor_length)
+	return;
+      
+      const int right = bestRightInsertPositions.size() > i ? bestRightInsertPositions[i] : left;
+      if (length(rightGenomicSequence) - right < fusion_anchor_length)
+	return;
+    }
 
-  // daehwan
+  // daehwan - this is very slow - the older version of "difference" is way faster
+#else
   if (read_length <= 60)
     {
       /*
        * check if the two contig from two different chromosome are different enough
        */
-      int different_count = min(difference(leftGenomicSequence, read_sequence), difference(rightGenomicSequence, read_sequence));
-      // different_count = min(different_count, difference(leftGenomicSequence, rightGenomicSequence));
-      if (different_count < read_length / 6)
+      const Score<int> globalScore(0, -1, -2, -2);
+      Align<String<char> > align;
+      appendValue(rows(align), read_sequence);
+      appendValue(rows(align), leftGenomicSequence);
+
+      int score = globalAlignment(align, globalScore);
+      assignSource(row(align, 0), read_sequence);
+      assignSource(row(align, 1), rightGenomicSequence);
+
+      score = max(score, globalAlignment(align, globalScore));
+      if (abs(score) < read_length / 6)
 	return;
     }
+#endif
 
-  for (size_t i = 0; i < bestInsertPositions.size(); ++i)
+  for (size_t i = 0; i < bestLeftInsertPositions.size(); ++i)
     {
-      int bestInsertPosition = bestInsertPositions[i];
+      int bestLeftInsertPosition = bestLeftInsertPositions[i];
+      int bestRightInsertPosition = bestLeftInsertPosition;
+
+      if (bestRightInsertPositions.size() > i)
+	bestRightInsertPosition = bestRightInsertPositions[i];
       
       uint32_t left, right;
       if (dir == FUSION_FF || dir == FUSION_FR)
-	left = leftHit.left() + bestInsertPosition - 1;
+	left = leftHit.left() + bestLeftInsertPosition - 1;
       else
-	left = leftHit.right() - bestInsertPosition;
+	left = leftHit.right() - bestLeftInsertPosition;
       
       if (dir == FUSION_FF || dir == FUSION_RF)
-	right = rightHit.right() - (read_length - bestInsertPosition);
+	right = rightHit.right() - (read_length - bestRightInsertPosition);
       else
-	right = rightHit.left() + (read_length - bestInsertPosition) - 1;
+	right = rightHit.left() + (read_length - bestRightInsertPosition) - 1;
       
       uint32_t ref_id1 = leftHit.ref_id();
       uint32_t ref_id2 = rightHit.ref_id();
+
+     
+#if B_DEBUG
+      cerr << endl << endl
+	   << "read id: " << leftHit.insert_id() << endl
+	   << "dir: " << dir << ", sense: " << (leftHit.antisense_align() ? "-" : "+") << endl
+	   << "left ref_id: " << rt.get_name(leftHit.ref_id()) << "\tright ref_id: " << rt.get_name(rightHit.ref_id()) << endl
+	   << read_sequence << endl
+	   << leftGenomicSequence << "\t" << rightGenomicSequence << endl
+	   << "insertion pos: " << bestLeftInsertPosition << endl;
+
+      if (bowtie2)
+	{
+	  Dna5String left_sequence;
+	  if (dir == FUSION_FF || dir == FUSION_FR)
+	    left_sequence = seqan::infix(*left_ref_str, leftHit.left(), left + 1);
+	  else
+	    {
+	      left_sequence = seqan::infix(*left_ref_str, left, leftHit.right());
+	      seqan::reverseComplement(left_sequence);
+	    }
+
+	  Dna5String right_sequence;
+
+	  if (dir == FUSION_FF || dir == FUSION_RF)
+	    right_sequence = seqan::infix(*right_ref_str, right, rightHit.right());
+	  else
+	    {
+	      right_sequence = seqan::infix(*right_ref_str, rightHit.left(), right + 1);
+	      seqan::reverseComplement(right_sequence);
+	    }
+	  
+	  cerr << "right insertion pos: " << bestRightInsertPosition << endl
+	       << left_sequence << "\t" << right_sequence << endl;	  
+	}
+
+      cerr << left << ":" << right << endl
+	   << "errors: " << minErrors << endl;
+#endif
 
       uint32_t temp_dir = dir;
       if ((ref_id2 < ref_id1) ||
@@ -2922,20 +2904,6 @@ void detect_fusion(RefSequenceTable& rt,
 	  if (dir == FUSION_FF)
 	    temp_dir = FUSION_RR;
 	}
-      
-      // daehwan - check
-#if B_DEBUG
-      cout << endl << endl;
-      cout << "read id: " << leftHit.insert_id() << endl;
-      cout << "sense: " << (leftHit.antisense_align() ? "-" : "+") << endl;
-      // cout << "difference: " << different_count << endl;
-      cout << "left ref_id: " << rt.get_name(leftHit.ref_id()) << "\tright ref_id: " << rt.get_name(rightHit.ref_id()) << endl;
-      cout << read_sequence << endl;
-      cout << leftGenomicSequence << "\t" << rightGenomicSequence << endl;
-      cout << "insertion pos: " << bestInsertPosition << endl;
-      cout << left << ":" << right << endl;
-      cout << "errors: " << minErrors << endl;
-#endif
       
       Fusion fusion(ref_id1, ref_id2, left, right, temp_dir);
       FusionSimpleSet::iterator itr = fusions.find(fusion);
@@ -3366,7 +3334,7 @@ void find_fusions(RefSequenceTable& rt,
 
 	  if (bowtie2)
 	    {
-	      if (leftHit->edit_dist() + rightHit->edit_dist() >= ((segment_mismatches + 1) << 1))
+	      if (leftHit->edit_dist() + rightHit->edit_dist() > (segment_mismatches << 1))
 		continue;
 	    }
 
