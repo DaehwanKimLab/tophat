@@ -1313,8 +1313,13 @@ struct ReportWorker
 			       reads_format, false, begin_id, end_id,
 			       right_um_out.file, false);
 
+
+    // pclose (pipe close), which waits for a process to end, seems to conflict with boost::thread::join somehow,
+    // resulting in deadlock like behavior.
+#if 0
     left_um_out.close();
     right_um_out.close();
+#endif
 
     for (size_t i = 0; i < hit_factories.size(); ++i)
       delete hit_factories[i];
