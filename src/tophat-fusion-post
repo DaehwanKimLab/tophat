@@ -1138,7 +1138,6 @@ def read_dist(params):
     pids = [0 for i in range(params.num_threads)]
 
     for sample_name, list in check_list.items():
-        # daehwan - it's not necessary to convert bam into sam.
         bam_file_name = 'tophat_%s/accepted_hits.bam' % sample_name
         if not os.path.exists(bam_file_name):
             continue
