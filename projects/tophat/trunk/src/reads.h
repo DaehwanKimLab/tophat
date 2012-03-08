@@ -19,15 +19,14 @@
 
 using std::string;
 
-static const int max_read_bp = 256;
 
 // Note: qualities are not currently used by TopHat
 struct Read
 {
 	Read() 
 	{
-		seq.reserve(max_read_bp);
-		qual.reserve(max_read_bp);
+		seq.reserve(MAX_READ_LEN);
+		qual.reserve(MAX_READ_LEN);
 	}
 	
 	string name;

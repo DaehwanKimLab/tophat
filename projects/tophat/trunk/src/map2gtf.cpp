@@ -185,7 +185,7 @@ void Map2GTF::trans_to_genomic_coords(TranscriptomeHit& hit)
     int cur_intron_len = 0;
     int i = 0;
 
-    static const int MAX_CIGARS = 256;
+    static const int MAX_CIGARS = 1024;
     int cigars[MAX_CIGARS];
     int num_cigars = 0;
 

@@ -504,7 +504,7 @@ void BWA_decode(const string& color, const string& qual, const string& ref, stri
 {
   assert(color.length() == ref.length() - 1);
   
-  const size_t max_length = 256;
+  static const size_t max_length = MAX_READ_LEN;
   const unsigned int max_value = max_length * 0xff;
   size_t length = color.length();
   if (length < 1 || length + 1 > max_length)
