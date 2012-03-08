@@ -1412,8 +1412,6 @@ void driver(const string& bam_output_fname,
               uint32_t right_coord = atoi(scan_right_coord);
               bool antisense = *orientation == '-';
 
-	      // daehwan - check this out
-              // add 1 to left_coord to meet BED format ??
               gtf_junctions.insert(make_pair<Junction, JunctionStats>(Junction(ref_id, left_coord, right_coord, antisense), JunctionStats()));
             }
         }

@@ -40,8 +40,11 @@ bool calculate_offsets(const vector<string>& fnames,
     }
 
   // too small for blocking
-  if (index_list.front().size() < (size_t)num_threads)
-    return false;
+  for (size_t i = 0; i < index_list.size(); ++i)
+    {
+      if (index_list[i].size() < (size_t)num_threads)
+	return false;
+    }
 
   offsets.resize(num_threads - 1);
   for (int i = 1; i < num_threads; ++i)
