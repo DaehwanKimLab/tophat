@@ -371,8 +371,7 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
   tokenize(bwt_buf, "\t", sam_toks);
 
   string ref_name = sam_toks[2], ref_name2 = "";
-  char rebuf2[2048] = {0};
-  char cigar1[256] = {0}, cigar2[256] = {0};
+  char cigar1[1024] = {0}, cigar2[1024] = {0};
   string left_seq, right_seq, left_qual, right_qual;
   int left = -1, left1 = -1, left2 = -1;
   bool fusion_alignment = false;
@@ -506,8 +505,7 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
     flag |= 0x100;
 
   string ref_name = sam_toks[2], ref_name2 = "";
-  char rebuf2[2048] = {0};
-  char cigar1[256] = {0}, cigar2[256] = {0};
+  char cigar1[1024] = {0}, cigar2[1024] = {0};
   string left_seq, right_seq, left_qual, right_qual;
   int left = -1, left1 = -1, left2 = -1;
   bool fusion_alignment = false;
@@ -1385,7 +1383,7 @@ void driver(const string& bam_output_fname,
   JunctionSet gtf_junctions;
   if (!gtf_juncs.empty())
     {
-      char splice_buf[2048];
+      char splice_buf[4096];
       FILE* splice_coords = fopen(gtf_juncs.c_str(), "r");
       if (splice_coords)
         {

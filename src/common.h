@@ -19,6 +19,8 @@
 #include "bam/sam.h"
 
 
+#define MAX_READ_LEN 1024
+
 #define VMAXINT32 0xFFFFFFFF
 
 #ifdef MEM_DEBUG
@@ -241,7 +243,7 @@ class GBamRecord {
    bool novel;
 
    char tag[2];
-   uint8_t abuf[512];
+   uint8_t abuf[1024];
  public:
    GBamRecord(bam1_t* from_b=NULL) {
       if (from_b==NULL) {
