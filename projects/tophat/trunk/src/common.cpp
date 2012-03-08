@@ -878,13 +878,13 @@ GBamRecord::GBamRecord(const char* qname, int32_t gseq_tid,
                  int pos, bool reverse, const char* qseq, const char* cigar, const char* quals) {
    novel=true;
    b=bam_init1();
-   b->core.tid=gseq_tid;
-   if (pos<=0) {
+   if (pos<=0 || gseq_tid<0) {
                b->core.pos=-1; //unmapped
-               //if (gseq_tid<0)
                b->core.flag |= BAM_FUNMAP;
+               gseq_tid=-1;
                }
           else b->core.pos=pos-1; //BAM is 0-based
+   b->core.tid=gseq_tid;
    b->core.qual=255;
    int l_qseq=strlen(qseq);
    //this may not be accurate, setting CIGAR is the correct way
@@ -894,7 +894,7 @@ GBamRecord::GBamRecord(const char* qname, int32_t gseq_tid,
    set_cigar(cigar); //this will also set core.bin
    add_sequence(qseq, l_qseq);
    add_quals(quals); //quals must be given as Phred33
-   if (reverse) { b->core.flag |= BAM_FREVERSE ; }
+   if (reverse) { b->core.flag |= BAM_FREVERSE; }
    }
 
 GBamRecord::GBamRecord(const char* qname, int32_t flags, int32_t g_tid,
@@ -938,7 +938,7 @@ GBamRecord::GBamRecord(const char* qname, int32_t flags, int32_t g_tid,
    int i, op;
    long x;
    b->core.n_cigar = 0;
-   if (cigar != NULL && strcmp(cigar, "*") != 0) {
+   if (cigar && strcmp(cigar, "*")) {
         for (s = cigar; *s; ++s) {
             if (isalpha(*s)) b->core.n_cigar++;
             else if (!isdigit(*s)) {

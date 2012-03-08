@@ -307,7 +307,7 @@ possible splice
 		junctions while keeping the number of false positives low.
 
  		</td></tr></tbody></table> </div><br>
-	  <h2 id="algn">Using the <tt>tophat</tt> junction mapper</h2><br>
+	  <h2 id="algn">Using <tt>TopHat</tt></h2><br>
   	  
 	  <p>
 	  The following is a detailed description of the options used to control
@@ -585,23 +585,28 @@ the strand generated during second strand synthesis is sequenced.</td></tr>
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>-n/--transcriptome-mismatches</tt>
 	  </td><td valign="top">
-	  Maximum number of mismatches allowed when reads are aligned to the transcriptome.  The default is 2.
-	  In case Bowtie2 is used, this number is used to decide whether or not
-	  to re-align some of the mapped reads in the transcriptome mapping.
-	  If the alignment score of the best alignment among multiple candidates for a read is lower than "bowtie2-min-score",
-	  which is internally defined as (max_penalty - 1) * max_mismatches.  You can specify max_penalty via "--b2-mp" option.
+	  Maximum number of mismatches allowed when reads are aligned to the 
+transcriptome.  The default is 2.
+When Bowtie2 is used, this number is also used to decide whether or not
+	  to further re-align some of the transcriptome-mapped reads to the 
+genome.	If the alignment score of the best alignment among multiple 
+candidates for a read is lower than "bowtie2-min-score",
+	  which is internally defined as (<i>max_penalty</i> - 1) * <i>max_mismatches</i>, then the reads will be kept for re-alignment through the rest of the pipeline.&nbsp;  You can specify <i>max_penalty</i> via "--b2-mp" option.
 	  </td></tr>
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>--genome-read-mismatches</tt>
 	  </td><td valign="top">
-	  Reads are initially mapped against genome, allowing up to this many mismatches
-	  in each read alignment.  The default is 2.
-	  This number is also used to decide whether or not to re-align reads as in --transcriptome-mismatches case.
-	  </td></tr>
+	  When whole reads are first mapped on the genome, this many mismatches
+	  in each read alignment are allowed.  The default is 2.
+	  This number is also used to decide whether to further re-align some 
+of the reads (by splitting them into segments) with a similar scoring 
+threshold scheme as described for the --transcriptome-mismatches option 
+above.<br>
+</td></tr>
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>--read-mismatches</tt>
 	  </td><td valign="top">
-	  In the final step of the pipeline, alignments having more than these many mismatches are discarded.
+	  Final read alignments having more than these many mismatches are discarded.
 	  The default is 2.
 	  </td></tr>
 	  <tr><td nowrap="nowrap" valign="top">
@@ -667,16 +672,17 @@ the strand generated during second strand synthesis is sequenced.</td></tr>
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>--keep-tmp</tt>
 	  </td><td valign="top">
-	  Causes TopHat to preserve its intermediate files produced during the run. 
-	  By default, they are deleted upon exit.
-	  </td></tr>
+	  Causes TopHat to preserve its intermediate files produced during the 
+run (mostly useful for debugging). The default is to delete these 
+temporary files.<br>
+</td></tr>
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>--keep-fasta-odrer</tt>
 	  </td><td valign="top">
 	      In order to sort alignments in the same order in the genome fasta file,
 	      the option can be used.
 	      But this option will make the output SAM/BAM file incompatible with
-	      those from the previous verions of TopHat (1.4.1 or lower).
+	      those from the previous versions of TopHat (1.4.1 or lower).
 	  </td></tr>
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>--no-sort-bam</tt>
@@ -692,7 +698,7 @@ the strand generated during second strand synthesis is sequenced.</td></tr>
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>-z/--zpacker </tt>
 	  </td><td valign="top">
-	  manually specify the program used for compression of temporary files;
+	  Manually specify the program used for compression of temporary files;
 	  default is <tt>gzip</tt>; use <tt>-z0</tt> to disable compression altogether. 
 	  Any program that is option-compatible with gzip can be used (e.g. bzip2, pigz, 
 	  pbzip2).
@@ -700,63 +706,80 @@ the strand generated during second strand synthesis is sequenced.</td></tr>
 	
 	 </tbody></table><br>
 
-	  <b>Bowtie2 related options:</b>
+	  <b>Bowtie 2 specific options:</b>
 	  <a name="b2-option"></a>
-	  <p> Bowtie2 provides many options so that users can have more flexibilities as to how reads are mapped.
-	    TopHat2 does allow many these Bowtie2 options preceding with <strong>--b2-</strong>
-	    when mapping reads on transcriptome and genome.
-	    Please refer to the <a href="http://bowtie-bio.sourceforge.net/bowtie2/index.shtml">Bowtie2</a> website for detailed information.
-	  </p><table cellspacing="15">
-	  <tbody><tr><td valign="top">
-	      Preset options in --end-to-end mode (local alignment is not used in TopHat2)
-	      <table cellspacing="15">
-		<tbody><tr><td nowrap="nowrap" valign="top">
+	  <p> Bowtie 2 provides many options so that users can have more 
+flexibility as to how reads are mapped. TopHat 2 allows users to pass many 
+of these options to Bowtie 2 by preceding the Bowtie 2 
+option name with the<b> <strong>--b2-</strong></b>
+prefix.&nbsp;  Please refer to the <a href="http://bowtie-bio.sourceforge.net/bowtie2/index.shtml">Bowtie2</a> website for detailed information.
+	  </p><table cellspacing="12" width="100%">
+	  <tbody><tr>
+              <td valign="top">
+	      <b>Preset options </b>in --end-to-end mode&nbsp; (local alignment is not used in TopHat2):
+	      <table cellspacing="10">
+		<tbody><tr>
+    <td valign="top"><i>Tophat 2 option:</i><br>
+    </td>
+    <td valign="top"><i>Corresponding Bowtie 2 option:</i><br>
+    </td>
+  </tr>
+<tr><td nowrap="nowrap" valign="top">
 		    <tt>--b2-very-fast</tt>
-		</td></tr>
+		</td><td valign="top">--very-fast<br>
+</td>
+</tr>
 		<tr><td nowrap="nowrap" valign="top">
 		    <tt>--b2-fast</tt>
-		</td></tr>
+		</td><td valign="top">--fast<br>
+</td>
+</tr>
 		<tr><td nowrap="nowrap" valign="top">
 		    <tt>--b2-sensitive</tt>
-		</td></tr>
+		</td><td valign="top">--sensitive<br>
+</td>
+</tr>
 		<tr><td nowrap="nowrap" valign="top">
 		    <tt>--b2-very-sensitive</tt>
-		</td></tr>
+		</td><td valign="top">--very-sensitive<br>
+  </td>
+  </tr>
 	      </tbody></table>
-	  </td></tr>
-	  <tr><td valign="top">
-	      Alignment options
-	      <table cellspacing="15">
-		<tbody><tr><td nowrap="nowrap" valign="top">
-		    <tt>--b2-N</tt>
-		  </td><td>
-		    The default is 0.
-		</td></tr>
-		<tr><td nowrap="nowrap" valign="top">
-		    <tt>--b2-L</tt>
-		  </td><td>
-		    The default is 20.
-		</td></tr>
-		<tr><td nowrap="nowrap" valign="top">
-		    <tt>--b2-i</tt>
-		  </td><td>
-		    The default is S,1,1.25.
-		</td></tr>
-		<tr><td nowrap="nowrap" valign="top">
-		    <tt>--b2-n-ceil</tt>
-		  </td><td>
-		    The default is L,0,0.15.
-		</td></tr>
-		<tr><td nowrap="nowrap" valign="top">
-		    <tt>--b2-gbar</tt>
-		  </td><td>
-		    The default is 4.
-		</td></tr>
-	      </tbody></table>
-	  </td></tr>
-	  <tr><td valign="top">
-	      Scoring options
-	      <table cellspacing="15">
+ </td>
+</tr><tr>  <td valign="top">
+<b>Alignment options:
+</b><table cellspacing="10">
+<tbody><tr><td nowrap="nowrap" valign="top">
+<tt>--b2-N</tt>
+</td><td>
+The default is 0.
+</td></tr>
+<tr><td nowrap="nowrap" valign="top">
+<tt>--b2-L</tt>
+</td><td>
+The default is 20.
+</td></tr>
+<tr><td nowrap="nowrap" valign="top">
+<tt>--b2-i</tt>
+</td><td>
+The default is S,1,1.25.
+</td></tr>
+<tr><td nowrap="nowrap" valign="top">
+<tt>--b2-n-ceil</tt>
+</td><td>
+The default is L,0,0.15.
+</td></tr>
+<tr><td nowrap="nowrap" valign="top">
+<tt>--b2-gbar</tt>
+</td><td>
+The default is 4.
+</td></tr>
+</tbody></table>
+  </td>
+</tr>
+<tr><td valign="top">
+	      <b>Scoring options:
+	      </b><table border="0" cellspacing="10">
 		<tbody><tr><td nowrap="nowrap" valign="top">
 		    <tt>--b2-mp</tt>
 		  </td><td>
@@ -783,10 +806,13 @@ the strand generated during second strand synthesis is sequenced.</td></tr>
 		    The default is L,-0.6,-0.6.
 		</td></tr>
 	      </tbody></table>
-	  </td></tr>
-	  <tr><td valign="top">
-	      Effort options
-	      <table cellspacing="15">
+	  </td>
+</tr><tr>
+<td valign="top">
+          <b>Effort options:</b><br>
+
+  <table cellspacing="10">
+
 		<tbody><tr><td nowrap="nowrap" valign="top">
 		    <tt>--b2-D</tt>
 		  </td><td>
@@ -797,12 +823,16 @@ the strand generated during second strand synthesis is sequenced.</td></tr>
 		  </td><td>
 		    The default is 2.
 		</td></tr>
-	      </tbody></table>
-	  </td></tr>
+	      </tbody>
+  </table>
+
+</td>
+</tr>
+	  
 	  </tbody></table>
 
 	  <b>Fusion mapping options:</b><a name="fusion"></a>
-	  <p> Reads can align to fusion transcripts if you specify --fusion-search option.
+	  <p> Reads can be aligned to potential fusion transcripts if the --fusion-search option is specified.
 	    The fusion alignments are reported in SAM format using custom fields XF and XP (see the output format)
 	    and some additional information about fusions will be reported (see fusions.out).
 	    Once mapping is done, you can run tophat-fusion-post to filter out fusion transcripts
@@ -1059,7 +1089,5 @@ document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.
 var pageTracker = _gat._getTracker("UA-6101038-1");
 pageTracker._trackPageview();
 </script>
-
-
 
 </body></html>
