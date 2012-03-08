@@ -1,5 +1,5 @@
 # Directories to search for header files
-SEQAN = ./SeqAn-1.2
+SEQAN = ./SeqAn-1.3
 SEARCHDIRS := -I. -I${SEQAN} -I.. -I/opt/geo/include
 
 SYSTYPE :=     $(shell uname)
@@ -14,16 +14,16 @@ else
 endif    
 
 CC      := g++
-BASEFLAGS  = -Wall ${SEARCHDIRS} $(MARCH) -DHAVE_CONFIG_H \
+BASEFLAGS  = -Wall -pthread ${SEARCHDIRS} $(MARCH) -DHAVE_CONFIG_H \
 -fno-strict-aliasing -D_REENTRANT
 
 
-ifeq ($(findstring debug,$(MAKECMDGOALS)),)
-  CFLAGS = -O2 -DNDEBUG $(BASEFLAGS)
-  LDFLAGS = -L/opt/geo/lib
-else
+ifeq ($(findstring nodebug,$(MAKECMDGOALS)),)
   CFLAGS = -g -DMEM_DEBUG -DDEBUG $(BASEFLAGS)
   LDFLAGS = -g -L/opt/geo/lib
+else
+  CFLAGS = -O2 -DNDEBUG $(BASEFLAGS)
+  LDFLAGS = -L/opt/geo/lib
 endif
 
 %.o : %.c
@@ -44,25 +44,28 @@ endif
 # C/C++ linker
 
 LINKER    := g++
-LIBS = -lz -lbam
+LIBS = -lz -lbam 
+BLIBS = ${LIBS} -lpthread -lboost_thread
 
-COM_OBJS = common.o reads.o tokenize.o 
+COM_OBJS = common.o reads.o tokenize.o utils.o
 PREP_OBJS = ${COM_OBJS} qual.o
 GFF_OBJS  = GBase.o GStr.o codons.o gdna.o GFaSeqGet.o gff.o
-SEG_OBJS = ${COM_OBJS} bwt_map.o junctions.o
-LONGSR_OBJS = ${COM_OBJS} bwt_map.o junctions.o
+SEG_OBJS = ${COM_OBJS} bwt_map.o junctions.o insertions.o coverage.o \
+fragments.o align_status.o deletions.o fusions.o
 
 ALL_EXE = fix_map_ordering map2gtf gtf_to_fasta bam_merge bam2fastx \
-prep_reads extract_reads long_spanning_reads gtf_juncs segment_juncs \
+prep_reads extract_reads juncs_db long_spanning_reads gtf_juncs segment_juncs \
 tophat_reports
 
 .PHONY : all
-all: segment_juncs
-debug: segment_juncs
+#all: fix_map_ordering
+all: tophat_reports
+#.PHONY : nodebug
+nodebug : all
 #all: prep_reads
 #debug: prep_reads
 
-# all_exe: prep_reads extract_reads segment_juncs long_spanning_reads
+all_exe: $(ALL_EXE)
 #all: $(ALL_EXE)
 #debug: $(ALL_EXE)
 #all: segment_juncs
@@ -85,27 +88,31 @@ bam2bed: ./bam2bed.o
 	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
 bam2fastx: ./bam2fastx.o
 	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
-bam_merge: ./bam_merge.o ./GBase.o
+bam_merge: ./common.o ./GBase.o ./bam_merge.o
 	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
 bwt_map.o: bwt_map.h
-fix_map_ordering: ${COM_OBJS} bwt_map.o ./fix_map_ordering.o
+fix_map_ordering: ${COM_OBJS} bwt_map.o fix_map_ordering.o
 	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
-long_spanning_reads: ${SEG_OBJS} ./long_spanning_reads.o 
+long_spanning_reads: ${SEG_OBJS} fusions.o long_spanning_reads.o 
+	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${BLIBS}
+prep_reads: ${PREP_OBJS} prep_reads.o
 	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
-prep_reads: ${PREP_OBJS} ./prep_reads.o
+extract_reads: ${COM_OBJS} extract_reads.o
 	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
-extract_reads: ${COM_OBJS} ./extract_reads.o
+gtf_to_fasta: ${COM_OBJS} bwt_map.o ${GFF_OBJS} FastaTools.o GTFToFasta.o
 	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
-gtf_to_fasta: ${COM_OBJS} bwt_map.o ${GFF_OBJS} ./FastaTools.o ./GTFToFasta.o
+map2gtf: ${COM_OBJS} bwt_map.o ${GFF_OBJS} map2gtf.o
 	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
-map2gtf: ${COM_OBJS} bwt_map.o ${GFF_OBJS} ./map2gtf.o
+gtf_juncs: ${COM_OBJS} bwt_map.o ${GFF_OBJS} gtf_juncs.o
 	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
-gtf_juncs: ${COM_OBJS} bwt_map.o ${GFF_OBJS} ./gtf_juncs.o
+segment_juncs: ${SEG_OBJS} segment_juncs.o
+	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${BLIBS}
+juncs_db: ${SEG_OBJS} juncs_db.o
 	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
-segment_juncs: ${SEG_OBJS} ./segment_juncs.o
-	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
-tophat_reports: ${SEG_OBJS} bwt_map.o deletions.o insertions.o inserts.o fragments.o align_status.o tophat_reports.o 
-	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
+tophat_reports: ${SEG_OBJS} inserts.o tophat_reports.o 
+	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${BLIBS}
+tophat_reports.o prep_reads.o fix_map_ordering.o map2gtf.o bam_merge.o bam2fastx.o bwt_map.o common.o: common.h
+bwt_map.o: common.h bwt_map.h
 
 # target for removing all object files
 

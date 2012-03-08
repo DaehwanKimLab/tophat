@@ -419,17 +419,23 @@ class GBamWriter {
    //given pos must be 1-based (so it'll be stored as pos-1 because BAM is 0-based)
    GBamRecord* new_record(const char* qname, const char* gseqname,
             int pos, bool reverse, const char* qseq, const char* cigar=NULL, const char* qual=NULL) {
+	 if (gseqname==NULL || strcmp(gseqname, "*")==0) {
+	   //probably an unmapped read
+	   //if (pos>0) err_die("Error: genomic position given for unmapped read!\n");
+	   return (new GBamRecord(qname, -1, 0, false, qseq, cigar, qual));
+	  }
+	 else {
       int32_t gseq_tid=get_tid(gseqname);
-      if (gseq_tid < 0 && strcmp(gseqname, "*")) {
+      if (gseq_tid < 0) {
             if (bam_header->n_targets == 0) {
                err_die("Error: missing/invalid SAM header\n");
                } else
                    fprintf(stderr, "Warning: reference '%s' not found in header, will consider it '*'.\n",
                                    gseqname);
             }
-
       return (new GBamRecord(qname, gseq_tid, pos, reverse, qseq, cigar, qual));
-      }
+	  }
+     }
 
    GBamRecord* new_record(const char* qname, int32_t flags, const char* gseqname,
          int pos, int map_qual, const char* cigar, const char* mgseqname, int mate_pos,
