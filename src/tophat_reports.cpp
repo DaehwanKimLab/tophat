@@ -168,8 +168,8 @@ bool set_insert_alignment_grade(const BowtieHit& lh, const BowtieHit& rh, Insert
 	    inter_dist = lh.left() - rh.right();
 	  else
 	    inter_dist = rh.left() - lh.right();
-	  
-	  if (inter_dist < -(int)max_insertion_length || inter_dist > (int)fusion_min_dist)
+
+	  if (inter_dist < -1000 || inter_dist > (int)fusion_min_dist)
 	    fusion = true;
 	}
     }
