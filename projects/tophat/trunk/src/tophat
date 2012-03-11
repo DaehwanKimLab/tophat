@@ -3383,8 +3383,10 @@ def spliced_alignment(params,
 
                 merge_files = []
                 
-                if num_segs > 1 and bamExists_and_NonEmpty(maps[ri].unspliced_sam):
-                    merge_files += [maps[ri].unspliced_sam]
+                if num_segs > 1 and \
+                        unspl_samfile and \
+                        bamExists_and_NonEmpty(unspl_samfile):
+                    merge_files += [unspl_samfile]
 
                 if m2g_map:
                     merge_files += [m2g_map]
