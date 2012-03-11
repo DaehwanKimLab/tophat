@@ -5260,8 +5260,8 @@ void driver(istream& ref_stream,
 	      else
 		break;
 	    }
-	  
-	  if (itr->second.skip)
+
+	  if (itr->second.skip && !fusion_do_not_resolve_conflicts)
 	    continue;
 	  
 	  const char* ref_name1 = rt.get_name(fusion.refid1);

@@ -138,6 +138,8 @@ Fusion related options:
     --fusion-multireads            <int>       [ default: 2                ]
     --fusion-multipairs            <int>       [ default: 2                ]
     --fusion-ignore-chromosomes    <list>      [ e.g, <chrM,chrX>          ]
+    
+    --fusion-do-not-resolve-conflicts          [this is for test purposes  ]
 
 SAM Header Options (for embedding sequencing run metadata in output):
     --rg-id                        <string>    (read group ID)
@@ -663,6 +665,7 @@ class TopHatParams:
         self.fusion_multireads = 2
         self.fusion_multipairs = 2
         self.fusion_ignore_chromosomes = []
+        self.fusion_do_not_resolve_conflicts = False
 
     def check(self):
         self.splice_constraints.check()
@@ -748,6 +751,9 @@ class TopHatParams:
             if self.fusion_ignore_chromosomes:
                 cmd.extend(["--fusion-ignore-chromosomes", ",".join(self.fusion_ignore_chromosomes)])
 
+            if self.fusion_do_not_resolve_conflicts:
+                cmd.extend(["--fusion-do-not-resolve-conflicts"])
+
         cmd.extend(self.system_params.cmd())
 
         if self.read_params.mate_inner_dist != None:
@@ -819,6 +825,7 @@ class TopHatParams:
                                          "fusion-multireads=",
                                          "fusion-multipairs=",
                                          "fusion-ignore-chromosomes=",
+                                         "fusion-do-not-resolve-conflicts",
                                          "no-novel-indels",
                                          "no-gtf-juncs",
                                          "mate-inner-dist=",
@@ -947,6 +954,8 @@ class TopHatParams:
                 self.fusion_multipairs = int(value)
             if option == "--fusion-ignore-chromosomes":
                 self.fusion_ignore_chromosomes = value.split(",")
+            if option == "--fusion-do-not-resolve-conflicts":
+                self.fusion_do_not_resolve_conflicts = True
             if option == "--no-gtf-juncs":
                 self.find_GFF_juncs = False
             if option == "--no-coverage-search":
@@ -3298,6 +3307,9 @@ def spliced_alignment(params,
     # for reads in [left_reads, right_reads]:
     for ri in (0,1):
         reads = initial_reads[ri]
+        if not reads:
+            continue
+        
         spliced_seg_maps = []
         rfname=getFileBaseName(reads)
         rfdir=getFileDir(reads)
@@ -3368,20 +3380,22 @@ def spliced_alignment(params,
                              "--index-outfile", merged_map + ".index",
                              "--sam-header", sam_header_filename,
                              merged_map]
+
                 merge_files = []
                 
-                if num_segs > 1 and have_IUM:
-                    merge_files += [ maps[ri].unspliced_sam ]
+                if num_segs > 1 and bamExists_and_NonEmpty(maps[ri].unspliced_sam):
+                    merge_files += [maps[ri].unspliced_sam]
+
                 if m2g_map:
-                    merge_files += [ m2g_map ]
+                    merge_files += [m2g_map]
 
                 if os.path.exists(mapped_reads):
-                    merge_files += [ mapped_reads ]
+                    merge_files += [mapped_reads]
                 else:
                     for bam_i in range(0, params.system_params.num_threads):
                         temp_bam = mapped_reads[:-4] + str(bam_i) + ".bam"
                         if os.path.exists(temp_bam):
-                            merge_files += [ temp_bam ]
+                            merge_files += [temp_bam]
                         else:
                             break
 
