@@ -869,8 +869,10 @@ BowtieHit merge_chain(RefSequenceTable& rt,
 	  // daehwan
 	  if (bDebug)
 	    {
-	      cout << "curr left: " << curr_hit->left() << endl
-		   << "prev right: " << prev_hit->right() << endl
+	      cout << "prev: " << prev_hit->ref_id() << ":" << prev_hit->left() << ":" << (prev_hit->antisense_align() ? "-" : "+")
+		   << "\t" << prev_hit->ref_id2() << ":" << prev_hit->right() << ":" << (prev_hit->antisense_align2() ? "-" : "+") << endl
+		   << "curr: " << curr_hit->ref_id() << ":" << curr_hit->left() << ":" << (curr_hit->antisense_align() ? "-" : "+")
+		   << "\t" << curr_hit->ref_id2() << ":" << curr_hit->right() << ":" << (curr_hit->antisense_align2() ? "-" : "+") << endl
 		   << "gap: " << gap << endl;
 	    }
 	  
@@ -903,6 +905,8 @@ BowtieHit merge_chain(RefSequenceTable& rt,
   fusion_passed = false;
   while (curr_hit != hit_chain.end() && prev_hit != hit_chain.end())
     {
+      antisense = prev_hit->antisense_align();
+
       // daehwan
       if (bDebug)
 	{
@@ -1834,10 +1838,13 @@ BowtieHit merge_chain(RefSequenceTable& rt,
 	    {
 	      cout << "fusing of " << merged_hit.left() << " and " << merged_hit.right() << endl;
 	      cout << print_cigar(merged_hit.cigar()) << endl;
-	      if (!merged_hit.check_editdist_consistency(rt))
+	      if (!merged_hit.check_editdist_consistency(rt, bDebug))
 		{
+		  prev_hit->check_editdist_consistency(rt, bDebug);
+		  curr_hit->check_editdist_consistency(rt, bDebug);
 		  cout << "btw " << print_cigar(prev_hit->cigar()) << " and " << print_cigar(curr_hit->cigar()) << endl;
-		  cout << "this is malformed hit" << endl;
+		  cout << "this is a malformed hit" << endl;
+		  exit(1);
 		}
 	    }
 
@@ -2176,6 +2183,21 @@ void merge_segment_chain(RefSequenceTable& rt,
   else
     {
       bh = hits[0];
+      bool do_reverse = bh.ref_id() > bh.ref_id2();
+      if (bh.ref_id() == bh.ref_id2())
+	{
+	  vector<Fusion> fusions;
+	  bool auto_sort = false;
+	  fusions_from_spliced_hit(bh, fusions, auto_sort);
+	  if (fusions.size() > 0)
+	    {
+	      const Fusion& fusion = fusions[0];
+	      do_reverse = fusion.left > fusion.right;
+	    }
+	}
+      
+      if (do_reverse)
+	bh = bh.reverse();
     }
 
   if (valid_hit(bh))
@@ -2579,8 +2601,8 @@ bool join_segments_for_read(RefSequenceTable& rt,
       BowtieHit& bh = seg_hits_for_read[0].hits[i];
 
       // daehwan - remove this
-      //if (bh.insert_id() == 115617)
-      //bDebug = true;
+      //if (bh.insert_id() == 16487)
+      //	bDebug = true;
       
       if (bh.fusion_opcode() == FUSION_RR)
 	seg_hit_stack.push_back(bh.reverse());

@@ -1,0 +1,350 @@
+#!/usr/bin/env python
+
+"""
+"""
+
+import sys
+import random
+from cbcb import *
+
+use_message = '''
+'''
+
+def get_read(sequence, length, _range = None):
+    seq_len = len(sequence)
+    if _range:
+        pos = random.randrange(_range[0], _range[1])
+    else:
+        pos = random.randrange(0, seq_len - length)
+        
+    return sequence[pos:pos+length]
+
+def get_spliced_read(sequence, len1, len2, _range = None):
+    intron_len = 100
+    
+    if _range:
+        seq_len = _range[1]
+        pos = random.randrange(_range[0] + len1, seq_len - (len1 + len2) * 3)
+    else:
+        seq_len = len(sequence)
+        pos = random.randrange(len1, seq_len - (len1 + len2) * 3)
+    
+    result = ""
+    pos1, pos2 = 0, 0
+    for i in range(pos, seq_len):
+        if sequence[i:i+2] == "GT":
+            pos1 = i
+            break
+
+    for i in range(pos1 + intron_len, seq_len):
+        if sequence[i:i+2] == "AG":
+            pos2 = i+2
+            break
+
+    result = sequence[pos1-len1:pos1] + sequence[pos2:pos2+len2]
+    return result
+
+def get_insert_read(sequence, len1, len2, _range = None):
+    if _range:
+        seq_len = _range[1]
+        pos = random.randrange(_range[0] + len1, seq_len - (len1 + len2) * 3)
+    else:
+        seq_len = len(sequence)
+        pos = random.randrange(len1, seq_len - (len1 + len2) * 3)
+
+    result = ""
+    result = sequence[pos-len1:pos] + "AA" + sequence[pos:pos+len2]
+    return result
+
+
+def generate_fusion_indel(filename, inter):
+    seg_len = 25
+    half_seg_len = seg_len / 2
+
+    all_read_len = seg_len * 5
+    read_len = all_read_len - seg_len
+    num_segs = read_len / seg_len
+
+    sequences = get_sequences(filename)
+
+    if inter:
+        """
+        f1 = get_read(sequences[0], all_read_len)
+        f2 = get_insert_read(sequences[1], seg_len * 2 - 1, all_read_len - seg_len * 2 - 1)
+        r2 = get_insert_read(reverse_complement(sequences[1]), seg_len * 2 - 1, all_read_len - seg_len * 2 - 1)
+        """
+
+        f1 = get_read(sequences[1], all_read_len)
+        f2 = get_insert_read(sequences[0], seg_len * 2 - 1, all_read_len - seg_len * 2 - 1)
+        r2 = get_insert_read(reverse_complement(sequences[0]), seg_len * 2 - 1, all_read_len - seg_len * 2 - 1)
+    else:
+        sequence_len = len(sequences[0])
+
+        """
+        f1 = get_read(sequences[0], all_read_len, [0, sequence_len / 2])
+        f2 = get_insert_read(sequences[0], seg_len * 2, all_read_len - seg_len * 2, [sequence_len / 2, sequence_len])
+        r2 = get_insert_read(reverse_complement(sequences[0]), seg_len * 2, all_read_len - seg_len * 2, [0, sequence_len / 2])
+        """
+
+        f1 = get_read(sequences[0], all_read_len, [sequence_len / 2, sequence_len])
+        f2 = get_insert_read(sequences[0], seg_len * 2, all_read_len - seg_len * 2, [0, sequence_len / 2])
+        r2 = get_insert_read(reverse_complement(sequences[0]), seg_len * 2, all_read_len - seg_len * 2, [sequence_len / 2, sequence_len])
+
+    r1 = reverse_complement(f1)
+
+    out_lines = []
+    count = 1
+
+    out_lines.append(">%d.%d(%s)" % (count, 0, "f1"))
+    out_lines.append(f1[seg_len:])
+    out_lines.append(">%d.%d(%s)" % (count, 1, "r1"))
+    out_lines.append(r1[:-seg_len])
+    count += 1
+
+    out_lines.append(">%d.%d(%s)" % (count, 0, "f2"))
+    out_lines.append(f2[seg_len:])
+    out_lines.append(">%d.%d(%s)" % (count, 1, "r2"))
+    out_lines.append(r2[0:-seg_len])
+    count += 1
+
+    for type in [[f1 + f2, "ff"], [f1 + r2, "fr"], [r1 + f2, "rf"]]:
+        f = type[0]
+        for i in range(1):
+            out_lines.append(">%d.0(%s|%d)" % (count, type[1], i + 1))
+            pos = seg_len * 4 + half_seg_len
+            seq = f[pos:pos+read_len]
+            out_lines.append(seq)
+            
+            out_lines.append(">%d.1(support)" % count)
+            pos1 = seg_len * 3
+            support = f[pos1:pos1+read_len]
+            out_lines.append(support)
+
+            out_lines.append(">%d.2(support)" % count)
+            support = f[all_read_len:all_read_len+read_len]
+            out_lines.append(support)
+            
+            out_lines.append(">%d.3(reverse_complement)" % count)
+            out_lines.append(reverse_complement(seq))
+            count += 1
+
+        for i in range(1):
+            out_lines.append(">%d.1(support)" % count)
+            pos = seg_len * 3
+            support = f[pos:pos+read_len]
+            out_lines.append(support)
+
+            out_lines.append(">%d.2(support)" % count)
+            support = f[all_read_len:all_read_len+read_len]
+            out_lines.append(support)
+
+            for diff in range(-4, 5):
+                out_lines.append(">%d.0.%d(%s)" % (count, diff, type[1]))
+                pos = seg_len * 4 + diff                
+                seq = f[pos:pos+read_len]
+                out_lines.append(seq)
+
+                out_lines.append(">%d.3.%d(reverse_complement)" % (count, diff))
+                out_lines.append(reverse_complement(seq))
+            
+                count += 1
+
+    for line in out_lines:
+        print line
+
+
+def generate_fusion_junction(filename, inter):
+    seg_len = 25
+    half_seg_len = seg_len / 2
+
+    all_read_len = seg_len * 5
+    read_len = all_read_len - seg_len
+    num_segs = read_len / seg_len
+
+    sequences = get_sequences(filename)
+
+    if inter:
+        """
+        f1 = get_read(sequences[0], all_read_len)
+        f2 = get_spliced_read(sequences[1], seg_len * 2, all_read_len - seg_len * 2)
+        r2 = get_spliced_read(reverse_complement(sequences[1]), seg_len * 2, all_read_len - seg_len * 2)
+        """
+
+        f1 = get_read(sequences[1], all_read_len)
+        f2 = get_spliced_read(sequences[0], seg_len * 2, all_read_len - seg_len * 2)
+        r2 = get_spliced_read(reverse_complement(sequences[0]), seg_len * 2, all_read_len - seg_len * 2)
+
+    else:
+        sequence_len = len(sequences[0])
+
+        """
+        f1 = get_read(sequences[0], all_read_len, [0, sequence_len / 2])
+        f2 = get_spliced_read(sequences[0], seg_len * 2, all_read_len - seg_len * 2, [sequence_len / 2, sequence_len])
+        r2 = get_spliced_read(reverse_complement(sequences[0]), seg_len * 2, all_read_len - seg_len * 2, [0, sequence_len / 2])
+        """
+
+        f1 = get_read(sequences[0], all_read_len, [sequence_len / 2, sequence_len])
+        f2 = get_spliced_read(sequences[0], seg_len * 2, all_read_len - seg_len * 2, [0, sequence_len / 2])
+        r2 = get_spliced_read(reverse_complement(sequences[0]), seg_len * 2, all_read_len - seg_len * 2, [sequence_len / 2, sequence_len])
+
+    r1 = reverse_complement(f1)
+
+    out_lines = []
+    count = 1
+
+    out_lines.append(">%d.%d(%s)" % (count, 0, "f1"))
+    out_lines.append(f1[seg_len:])
+    out_lines.append(">%d.%d(%s)" % (count, 1, "r1"))
+    out_lines.append(r1[:-seg_len])
+    count += 1
+
+    out_lines.append(">%d.%d(%s)" % (count, 0, "f2"))
+    out_lines.append(f2[seg_len:])
+    out_lines.append(">%d.%d(%s)" % (count, 1, "r2"))
+    out_lines.append(r2[0:-seg_len])
+    count += 1
+
+    for type in [[f1 + f2, "ff"], [f1 + r2, "fr"], [r1 + f2, "rf"]]:
+        f = type[0]
+        for i in range(1):
+            out_lines.append(">%d.0(%s|%d)" % (count, type[1], i + 1))
+            pos = seg_len * 4 + half_seg_len
+            seq = f[pos:pos+read_len]
+            out_lines.append(seq)
+            
+            out_lines.append(">%d.1(support)" % count)
+            pos1 = seg_len * 3
+            support = f[pos1:pos1+read_len]
+            out_lines.append(support)
+
+            out_lines.append(">%d.2(support)" % count)
+            support = f[all_read_len:all_read_len+read_len]
+            out_lines.append(support)
+            
+            out_lines.append(">%d.3(reverse_complement)" % count)
+            out_lines.append(reverse_complement(seq))
+            count += 1
+
+        for i in range(1):
+            out_lines.append(">%d.1(support)" % count)
+            pos = seg_len * 3
+            support = f[pos:pos+read_len]
+            out_lines.append(support)
+
+            out_lines.append(">%d.2(support)" % count)
+            support = f[all_read_len:all_read_len+read_len]
+            out_lines.append(support)
+
+            for diff in range(-4, 5):
+                out_lines.append(">%d.0.%d(%s)" % (count, diff, type[1]))
+                pos = seg_len * 4 + diff                
+                seq = f[pos:pos+read_len]
+                out_lines.append(seq)
+
+                out_lines.append(">%d.3.%d(reverse_complement)" % (count, diff))
+                out_lines.append(reverse_complement(seq))
+            
+                count += 1
+
+    for line in out_lines:
+        print line
+
+    
+def generate_fusion(filename, inter):
+    seg_len = 25
+    half_seg_len = seg_len / 2
+
+    all_read_len = seg_len * 5
+    read_len = all_read_len - seg_len
+    num_segs = read_len / seg_len
+
+    sequences = get_sequences(filename)
+
+    if inter:
+        """
+        f1 = get_read(sequences[0], all_read_len)
+        f2 = get_read(sequences[1], all_read_len)
+        """
+
+        f1 = get_read(sequences[1], all_read_len)
+        f2 = get_read(sequences[0], all_read_len)
+    else:
+        sequence_len = len(sequences[0])
+
+        """
+        f1 = get_read(sequences[0], all_read_len, [0, sequence_len / 2])
+        f2 = get_read(sequences[0], all_read_len, [sequence_len / 2, sequence_len])
+        """
+
+        f1 = get_read(sequences[0], all_read_len, [sequence_len / 2, sequence_len])
+        f2 = get_read(sequences[0], all_read_len, [0, sequence_len / 2])
+
+    r1 = reverse_complement(f1)
+    r2 = reverse_complement(f2)
+
+    out_lines = []
+
+    count = 1
+
+    out_lines.append(">%d.%d(%s)" % (count, 0, "f1"))
+    out_lines.append(f1[seg_len:])
+    out_lines.append(">%d.%d(%s)" % (count, 1, "r1"))
+    out_lines.append(reverse_complement(f1[seg_len:]))
+    count += 1
+
+    out_lines.append(">%d.%d(%s)" % (count, 0, "f2"))
+    out_lines.append(f2[:-seg_len])
+    out_lines.append(">%d.%d(%s)" % (count, 1, "r2"))
+    out_lines.append(reverse_complement(f2[:-seg_len]))
+    count += 1
+
+    for type in [[f1, f2, "ff"], [f1, r2, "fr"], [r1, f2, "rf"]]:
+        f, s = type[0], type[1]
+        for i in range(num_segs):
+            out_lines.append(">%d.0(%s|%d)" % (count, type[2], i + 1))
+            seq = f[seg_len:seg_len * (i+1) + half_seg_len] + s[half_seg_len:seg_len * (num_segs - i)]
+            out_lines.append(seq)
+            
+            out_lines.append(">%d.1(support)" % count)
+            if i < num_segs - 2:
+                support = f[:seg_len * (i+1) + half_seg_len] + s[half_seg_len:seg_len * (num_segs - i - 1)]
+            else:
+                support = f[seg_len * 2:seg_len * (i+1) + half_seg_len] + s[half_seg_len:seg_len * (num_segs - i + 1)]
+            out_lines.append(support)
+            
+            out_lines.append(">%d.2(reverse_complement)" % count)
+            out_lines.append(reverse_complement(seq))
+            count += 1
+
+        for i in range(num_segs - 1):
+            out_lines.append(">%d.1(support)" % count)
+            if i < num_segs - 2:
+                support = f[half_seg_len:seg_len * (i+2)] + s[:seg_len * (num_segs - i - 2) + half_seg_len]
+            else:
+                support = f[half_seg_len + seg_len:seg_len * (i+2)] + s[:seg_len * (num_segs - i - 1) + half_seg_len]
+            out_lines.append(support)
+
+            for diff in range(-4, 5):
+                out_lines.append(">%d.0.%d(%s|%d-%d)" % (count, diff, type[2], i + 1, i + 2))
+                seq = f[seg_len + diff:seg_len * (i+2)] + s[:seg_len * (num_segs - i - 1) + diff]
+                out_lines.append(seq)
+
+                out_lines.append(">%d.2.%d(reverse_complement)" % (count, diff))
+                out_lines.append(reverse_complement(seq))
+            
+                count += 1
+
+    for line in out_lines:
+        print line
+
+    
+if __name__ == "__main__":
+    if len(sys.argv) == 2:
+        random.seed(0)
+        inter = False
+
+        # daehwan - this will gives fusion points that are close to each other,
+        #           some of which will be eliminated by TopHat-Fusion.
+        generate_fusion_indel(sys.argv[-1], inter)
+    else:
+        print use_message;

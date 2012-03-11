@@ -163,6 +163,7 @@ size_t fusion_read_mismatches = 2;
 size_t fusion_multireads = 2;
 size_t fusion_multipairs = 2;
 std::vector<std::string> fusion_ignore_chromosomes;
+bool fusion_do_not_resolve_conflicts = false;
 
 eLIBRARY_TYPE library_type = LIBRARY_TYPE_NONE;
 
@@ -310,6 +311,7 @@ enum
     OPT_FUSION_MULTIREADS,
     OPT_FUSION_MULTIPAIRS,
     OPT_FUSION_IGNORE_CHROMOSOMES,
+    OPT_FUSION_DO_NOT_RESOLVE_CONFLICTS,
     OPT_BOWTIE1,
     OPT_BOWTIE2_MIN_SCORE,
     OPT_BOWTIE2_MAX_PENALTY,
@@ -379,6 +381,7 @@ static struct option long_options[] = {
 {"fusion-multireads", required_argument, 0, OPT_FUSION_MULTIREADS},
 {"fusion-multipairs", required_argument, 0, OPT_FUSION_MULTIPAIRS},
 {"fusion-ignore-chromosomes", required_argument, 0, OPT_FUSION_IGNORE_CHROMOSOMES},
+{"fusion-do-not-resolve-conflicts", no_argument, 0, OPT_FUSION_DO_NOT_RESOLVE_CONFLICTS},
 {"bowtie1", no_argument, 0, OPT_BOWTIE1},
 {"bowtie2-min-score", required_argument, 0, OPT_BOWTIE2_MIN_SCORE},
 {"bowtie2-max-penalty", required_argument, 0, OPT_BOWTIE2_MAX_PENALTY},
@@ -601,6 +604,9 @@ int parse_options(int argc, char** argv, void (*print_usage)())
       break;
     case OPT_FUSION_IGNORE_CHROMOSOMES:
       tokenize(optarg, ",", fusion_ignore_chromosomes);
+      break;
+    case OPT_FUSION_DO_NOT_RESOLVE_CONFLICTS:
+      fusion_do_not_resolve_conflicts = true;
       break;
     case OPT_BOWTIE1:
       bowtie2 = false;
@@ -875,7 +881,7 @@ uint8_t* dupalloc_bdata(bam1_t *b, int size) {
 extern unsigned short bam_char2flag_table[];
 
 GBamRecord::GBamRecord(const char* qname, int32_t gseq_tid,
-                 int pos, bool reverse, const char* qseq, const char* cigar, const char* quals) {
+		       int pos, bool reverse, const char* qseq, const char* cigar, const char* quals) {
    novel=true;
    b=bam_init1();
    if (pos<=0 || gseq_tid<0) {
@@ -891,6 +897,7 @@ GBamRecord::GBamRecord(const char* qname, int32_t gseq_tid,
    //b->core.bin = bam_reg2bin(b->core.pos, b->core.pos+l_qseq-1);
    b->core.l_qname=strlen(qname)+1; //includes the \0 at the end
    memcpy(realloc_bdata(b, b->core.l_qname), qname, b->core.l_qname);
+   
    set_cigar(cigar); //this will also set core.bin
    add_sequence(qseq, l_qseq);
    add_quals(quals); //quals must be given as Phred33
@@ -898,9 +905,9 @@ GBamRecord::GBamRecord(const char* qname, int32_t gseq_tid,
    }
 
 GBamRecord::GBamRecord(const char* qname, int32_t flags, int32_t g_tid,
-             int pos, int map_qual, const char* cigar, int32_t mg_tid, int mate_pos,
-             int insert_size, const char* qseq, const char* quals,
-             const vector<string>* aux_strings) {
+		       int pos, int map_qual, const char* cigar, int32_t mg_tid, int mate_pos,
+		       int insert_size, const char* qseq, const char* quals,
+		       const vector<string>* aux_strings) {
   novel=true;
   b=bam_init1();
   b->core.tid=g_tid;
@@ -909,6 +916,7 @@ GBamRecord::GBamRecord(const char* qname, int32_t flags, int32_t g_tid,
   int l_qseq=strlen(qseq);
   b->core.l_qname=strlen(qname)+1; //includes the \0 at the end
   memcpy(realloc_bdata(b, b->core.l_qname), qname, b->core.l_qname);
+   
   set_cigar(cigar); //this will also set core.bin
   add_sequence(qseq, l_qseq);
   add_quals(quals); //quals must be given as Phred33
@@ -967,7 +975,7 @@ GBamRecord::GBamRecord(const char* qname, int32_t flags, int32_t g_tid,
             s = t + 1;
             bam1_cigar(b)[i] = x << BAM_CIGAR_SHIFT | op;
         }
-        if (*s) err_die("Error: unmatched CIGAR operation (%s)\n",cigar);
+        if (*s) err_die("Error: unmatched CIGAR operation (%s)\n", cigar);
         b->core.bin = bam_reg2bin(b->core.pos, bam_calend(&b->core, bam1_cigar(b)));
     } else {//no CIGAR string given
         if (!(b->core.flag&BAM_FUNMAP)) {
