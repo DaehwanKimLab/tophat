@@ -3207,10 +3207,16 @@ def spliced_alignment(params,
     # XXX: At this point if using M2G, have three sets of reads:
     # mapped to transcriptome, mapped to genome, and unmapped (potentially
     # spliced or poly-A tails) - hp
-    left_reads_map = maps[0].unspliced_sam
-    left_seg_maps = maps[0].seg_maps
-    unmapped_reads = maps[0].unmapped_segs
-    if right_reads:
+    unmapped_reads = []
+    if maps[0]:
+        left_reads_map = maps[0].unspliced_sam
+        left_seg_maps = maps[0].seg_maps
+        unmapped_reads = maps[0].unmapped_segs
+    else:
+        left_reads_map = None
+        left_seg_maps = None
+
+    if right_reads and maps[1]:
         right_reads_map = maps[1].unspliced_sam
         right_seg_maps = maps[1].seg_maps
         unmapped_reads.extend(maps[1].unmapped_segs)
@@ -3293,52 +3299,60 @@ def spliced_alignment(params,
     for ri in (0,1):
         reads = initial_reads[ri]
         spliced_seg_maps = []
-
-        if reads == None or os.path.getsize(reads)<25:
-            continue
-
-        m2g_map = m2g_maps[ri]
-
-        if junc_idx_prefix :
-            i = 0
-            for seg in maps[ri].segs:
-                #search each segment
-                fsegname = getFileBaseName(seg)
-                seg_out = tmp_dir + fsegname + ".to_spliced"
-                #if use_zpacker: seg_out += ".z"
-                extra_output = "(%d/%d)" % (i+1, len(maps[ri].segs))
-                (seg_map, unmapped) = bowtie(params,
-                                             tmp_dir + junc_idx_prefix,
-                                             [seg],
-                                             "fastq",
-                                             params.segment_mismatches,
-                                             seg_out,
-                                             None,
-                                             extra_output,
-                                             _segs_vs_J)
-                spliced_seg_maps.append(seg_map)
-                i += 1
-
-        # Join the contigous and spliced segment hits into full length
-        #   read alignments
         rfname=getFileBaseName(reads)
         rfdir=getFileDir(reads)
+
+        m2g_map = m2g_maps[ri]
         mapped_reads = rfdir + rfname + ".candidates.bam"
-        # -- spliced mappings built from all segment mappings vs genome and junc_db
-        merged_map =rfdir + rfname + ".candidates_and_unspl.bam"
-        #unspl_bwtfile = maps[ri].unspliced_bwt
-        unspl_samfile = maps[ri].unspliced_sam
-        join_mapped_segments(params,
-                             sam_header_filename,
-                             reads,
-                             ref_fasta,
-                             possible_juncs,
-                             possible_insertions,
-                             possible_deletions,
-                             possible_fusions,
-                             maps[ri].seg_maps,
-                             spliced_seg_maps,
-                             mapped_reads)
+        merged_map = rfdir + rfname + ".candidates_and_unspl.bam"
+
+        if maps[ri]:
+            unspl_samfile = maps[ri].unspliced_sam
+        else:
+            unspl_samfile = None
+
+        have_IUM = True
+        if reads == None or \
+                not fileExists(reads, 25)  or \
+                (reads[-3:] == "bam" and not bamExists_and_NonEmpty(reads)):
+            have_IUM = False
+
+        if have_IUM:
+            if junc_idx_prefix:
+                i = 0
+                for seg in maps[ri].segs:
+                    #search each segment
+                    fsegname = getFileBaseName(seg)
+                    seg_out = tmp_dir + fsegname + ".to_spliced"
+                    #if use_zpacker: seg_out += ".z"
+                    extra_output = "(%d/%d)" % (i+1, len(maps[ri].segs))
+                    (seg_map, unmapped) = bowtie(params,
+                                                 tmp_dir + junc_idx_prefix,
+                                                 [seg],
+                                                 "fastq",
+                                                 params.segment_mismatches,
+                                                 seg_out,
+                                                 None,
+                                                 extra_output,
+                                                 _segs_vs_J)
+                    spliced_seg_maps.append(seg_map)
+                    i += 1
+
+
+            # Join the contigous and spliced segment hits into full length
+            #   read alignments
+            # -- spliced mappings built from all segment mappings vs genome and junc_db
+            join_mapped_segments(params,
+                                 sam_header_filename,
+                                 reads,
+                                 ref_fasta,
+                                 possible_juncs,
+                                 possible_insertions,
+                                 possible_deletions,
+                                 possible_fusions,
+                                 maps[ri].seg_maps,
+                                 spliced_seg_maps,
+                                 mapped_reads)
 
         if num_segs > 1 or m2g_map:
             # Merge the spliced and unspliced full length alignments into
@@ -3354,29 +3368,38 @@ def spliced_alignment(params,
                              "--index-outfile", merged_map + ".index",
                              "--sam-header", sam_header_filename,
                              merged_map]
-
-                if num_segs > 1:
-                    merge_cmd += [ maps[ri].unspliced_sam ]
+                merge_files = []
+                
+                if num_segs > 1 and have_IUM:
+                    merge_files += [ maps[ri].unspliced_sam ]
                 if m2g_map:
-                    merge_cmd += [ m2g_map ]
+                    merge_files += [ m2g_map ]
 
                 if os.path.exists(mapped_reads):
-                    merge_cmd += [ mapped_reads ]
+                    merge_files += [ mapped_reads ]
                 else:
                     for bam_i in range(0, params.system_params.num_threads):
                         temp_bam = mapped_reads[:-4] + str(bam_i) + ".bam"
                         if os.path.exists(temp_bam):
-                            merge_cmd += [ temp_bam ]
+                            merge_files += [ temp_bam ]
                         else:
                             break
 
-                print >> run_log, " ".join(merge_cmd)
-                ret = subprocess.call( merge_cmd,
-                                   stderr=open(logging_dir + "bam_merge.log", "w") )
-                if ret != 0:
-                    die(fail_str+"Error executing: "+" ".join(merge_cmd))
+                if len(merge_files) >= 2:
+                    merge_cmd += merge_files
+                    print >> run_log, " ".join(merge_cmd)
+                    ret = subprocess.call( merge_cmd,
+                                           stderr=open(logging_dir + "bam_merge.log", "w") )
+
+                    if ret != 0:
+                        die(fail_str+"Error executing: "+" ".join(merge_cmd))
+                    
+                elif len(merge_files) == 1:
+                    os.rename(merge_files[0], merged_map)
+                   
             except OSError, o:
                 die(fail_str+"Error: "+str(o))
+                
             maps[ri] = [merged_map]
 
             if not params.system_params.keep_tmp:
@@ -3386,6 +3409,7 @@ def spliced_alignment(params,
             #  because join_mapped_segments() produced the final BAM already
             os.rename(mapped_reads, merged_map)
             maps[ri] = [merged_map]
+            
         if not params.system_params.keep_tmp:
                 os.remove(unspl_samfile)
 
