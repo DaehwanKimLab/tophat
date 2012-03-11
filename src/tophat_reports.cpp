@@ -163,13 +163,15 @@ bool set_insert_alignment_grade(const BowtieHit& lh, const BowtieHit& rh, Insert
 	fusion = true;
       else
 	{
-	  int inter_dist = 0;
+	  int inner_dist = 0;
 	  if (lh.antisense_align())
-	    inter_dist = lh.left() - rh.right();
+	    // used rh.left() instead of rh.right() for the cases,
+	    // where reads overlap with each other or reads span introns
+	    inner_dist = lh.left() - rh.left(); 
 	  else
-	    inter_dist = rh.left() - lh.right();
-
-	  if (inter_dist < -1000 || inter_dist > (int)fusion_min_dist)
+	    inner_dist = rh.left() - lh.left();
+	  
+	  if (inner_dist < 0 || inner_dist > (int)fusion_min_dist)
 	    fusion = true;
 	}
     }
