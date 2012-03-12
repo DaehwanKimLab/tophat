@@ -1022,7 +1022,7 @@ class TopHatParams:
 
 def bamExists_and_NonEmpty(filepath):
   if os.path.exists(filepath):
-      output = os.popen("samtools view %s | wc -l" % filepath).read()[:-1]
+      output = os.popen("samtools view %s | head | wc -l" % filepath).read()[:-1]
       if int(output) > 0:
           return True
 
