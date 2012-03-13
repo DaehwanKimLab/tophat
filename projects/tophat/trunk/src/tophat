@@ -3419,7 +3419,8 @@ def spliced_alignment(params,
             maps[ri] = [merged_map]
 
             if not params.system_params.keep_tmp:
-                os.remove(mapped_reads)
+                if mapped_reads and os.path.exists(mapped_reads):
+                    os.remove(mapped_reads)
         else:
             # no segments or transcriptome mappings, so no merge is needed
             #  because join_mapped_segments() produced the final BAM already
@@ -3427,6 +3428,7 @@ def spliced_alignment(params,
             maps[ri] = [merged_map]
             
         if not params.system_params.keep_tmp:
+            if unspl_samfile and os.path.exists(unspl_samfile):
                 os.remove(unspl_samfile)
 
     return maps
