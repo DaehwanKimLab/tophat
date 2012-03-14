@@ -2,35 +2,54 @@
 #include <cstdio>
 #include <cstring>
 #include <getopt.h>
+#include <string>
 
 #include "bam/bam.h"
 #include "bam/sam.h"
+
+using namespace std;
 
 bool is_fastq=true; //default is fastq
 bool sam_input=false; //default is BAM
 bool all_reads=false;
 bool mapped_only=false;
-char outfname[1024];
+bool pairs=false;
+string outfname;
 
-#define USAGE "Usage: bam2fastx [--fasta|-a|--fastq|-q] [--sam|-s|-t] \n\
-        [-M|--mapped-only|-A|--all] [-o <outfile>] <in.bam>|<in.sam> \n"
+#define USAGE "Usage: bam2fastx [--fasta|-a|--fastq|-q] [--sam|-s|-t]\n\
+   [-M|--mapped-only|-A|--all] [-o <outfile>] [-P|--paired] <in.bam>|<in.sam>\n"
 
-char qseq[2048];
+//char qseq[2048];
 
-const char *short_options = "o:aqstMUA";
+const char *short_options = "o:ac:qstMAP";
 
 enum {
    OPT_FASTA = 127,
    OPT_FASTQ,
    OPT_SAM,
+   OPT_PAIRED,
    OPT_MAPPED_ONLY,
    OPT_ALL
    };
    
+struct Read {
+	string name;
+	int mate;
+	string seq;
+	string qual;
+	void clear() {
+	  name.clear();
+	  mate=0;
+	  seq.clear();
+	  qual.clear();
+	  }
+};
+
 struct option long_options[] = {
   {"fasta", no_argument, 0, OPT_FASTA},
   {"fastq", no_argument, 0, OPT_FASTQ},
   {"sam", no_argument, 0, OPT_SAM},
+  {"paired", no_argument, 0, OPT_PAIRED},
   {"mapped-only", no_argument, 0, OPT_MAPPED_ONLY},
   {"all", no_argument, 0, OPT_ALL},
   {0, 0, 0, 0} // terminator
@@ -66,8 +85,12 @@ int parse_options(int argc, char** argv)
        case OPT_ALL:
          all_reads = true;
          break;
+       case 'P':
+       case OPT_PAIRED:
+         pairs = true;
+         break;
        case 'o':
-         strcpy(outfname, optarg);
+         outfname=optarg;
          break;
        default:
          return 1;
@@ -80,67 +103,14 @@ int parse_options(int argc, char** argv)
   return 0;
 }
 
-void showfastq(const bam1_t *b, samfile_t* fp, FILE* fout) {
+void getRead(const bam1_t *b, samfile_t* fp, Read& rd) {
+  static const int8_t seq_comp_table[16] = { 0, 8, 4, 12, 2, 10, 9, 14, 1, 6, 5, 13, 3, 11, 7, 15 };
+  rd.clear();
   char *name  = bam1_qname(b);
+  rd.name=name;
   char *qual  = (char*)bam1_qual(b);
   char *s    = (char*)bam1_seq(b);
   int i;
-  bool ismapped=((b->core.flag & BAM_FUNMAP) == 0);
-  if (ismapped && !all_reads) return;
-  if (mapped_only && !ismapped) return;
-
-  bool isreversed=((b->core.flag & BAM_FREVERSE) != 0);
-  bool is_paired = ((b->core.flag & BAM_FPAIRED) != 0);
-  int mate_num=0;
-  if (is_paired) {
-     if ((b->core.flag & BAM_FREAD1) != 0) 
-         mate_num=1;
-     else if ((b->core.flag & BAM_FREAD2) != 0) 
-         mate_num=2;
-     }
-  for(i=0;i<(b->core.l_qseq);i++)
-    qseq[i] = bam1_seqi(s,i);
-  qseq[i] = 0;
-   
-  // copied from sam_view.c in samtools.
-  static const int8_t seq_comp_table[16] = { 0, 8, 4, 12, 2, 10, 9, 14, 1, 6, 5, 13, 3, 11, 7, 15 };
-  if (isreversed) {
-    int qlen = b->core.l_qseq;
-    for(i=0;i<qlen>>1;i++) {
-      int8_t t = seq_comp_table[qseq[qlen - 1 - i]];
-      qseq[qlen - 1 - i] = seq_comp_table[qseq[i]];
-      qseq[i] = t;
-    }
-    if(qlen&1) qseq[i] = seq_comp_table[qseq[i]];
-  }
-
-  for(i=0;i<(b->core.l_qseq);i++) {
-    qseq[i] = bam_nt16_rev_table[qseq[i]];
-  }
-  if (mate_num>0) fprintf(fout, "@%s/%d\n%s\n",name, mate_num, qseq);
-             else fprintf(fout, "@%s\n%s\n",name, qseq);
-   
-  for(i=0;i<(b->core.l_qseq);i++) {
-    qseq[i]=qual[i]+33;
-    }
-  qseq[i]=0;
-
-  if(isreversed) {
-    int qlen = b->core.l_qseq;
-    for(i= 0;i<qlen>>1;i++) {
-      int8_t t = qseq[qlen - 1 - i];
-      qseq[qlen - 1 - i] = qseq[i];
-      qseq[i] = t;
-    }
-  }
-  
-  fprintf(fout, "+\n%s\n",qseq);
-}
-
-void showfasta(const bam1_t *b, samfile_t* fp, FILE* fout) {
-  char *name  = bam1_qname(b);
-  char *s    = (char*)bam1_seq(b);
-  int i;
 
   bool ismapped=((b->core.flag & BAM_FUNMAP) == 0);
   if (ismapped && !all_reads) return;
@@ -148,47 +118,146 @@ void showfasta(const bam1_t *b, samfile_t* fp, FILE* fout) {
 
   bool isreversed=((b->core.flag & BAM_FREVERSE) != 0);
   bool is_paired = ((b->core.flag & BAM_FPAIRED) != 0);
-  int mate_num=0;
   if (is_paired) {
-     if ((b->core.flag & BAM_FREAD1) != 0) 
-         mate_num=1;
-     else if ((b->core.flag & BAM_FREAD2) != 0) 
-         mate_num=2;
+     if (b->core.flag & BAM_FREAD1)
+         rd.mate=1;
+     else if (b->core.flag & BAM_FREAD2)
+         rd.mate=2;
      }
+  int seqlen = b->core.l_qseq;
+  if (seqlen>0) {
+	rd.seq.resize(seqlen);
+	for(i=0;i<seqlen;i++) {
+	  rd.seq[i] = bam1_seqi(s,i);
+	}
+	// copied from sam_view.c in samtools.
+	if (isreversed) {
+	   int l=0;
+	   int r=seqlen-1;
+	   while (l<r) {
+		  char c=rd.seq[l];
+		  rd.seq[l]=rd.seq[r];
+		  rd.seq[r]=c;
+		  l++;r--;
+		  }
+	   for (i=0;i<seqlen;i++) {
+		 rd.seq[i]=seq_comp_table[(int)rd.seq[i]];
+	   }
+	}
 
-  for(i=0;i<(b->core.l_qseq);i++)
-    qseq[i] = bam1_seqi(s,i);
-  qseq[i] = 0;
-   
-  // copied from sam_view.c in samtools.
-  static const int8_t seq_comp_table[16] = { 0, 8, 4, 12, 2, 10, 9, 14, 1, 6, 5, 13, 3, 11, 7, 15 };
-  if (isreversed) {
-    int qlen = b->core.l_qseq;
-    for(i=0;i<qlen>>1;i++) {
-      int8_t t = seq_comp_table[qseq[qlen - 1 - i]];
-      qseq[qlen - 1 - i] = seq_comp_table[qseq[i]];
-      qseq[i] = t;
-    }
-    if(qlen&1) qseq[i] = seq_comp_table[qseq[i]];
-  }
+	for(i=0;i<seqlen;i++) {
+	  rd.seq[i] = bam_nt16_rev_table[(int)rd.seq[i]];
+	}
 
-  for(i=0;i<(b->core.l_qseq);i++) {
-    qseq[i] = bam_nt16_rev_table[qseq[i]];
+	if (!is_fastq) return;
+
+	rd.qual.resize(seqlen);
+	for(i=0;i<seqlen;i++) {
+	  if (qual[i]==0xFF)
+		rd.qual[i]='I';
+	  else rd.qual[i]=qual[i]+33;
+	  }
+
+	if (isreversed) {
+	  int l=0;
+	  int r=seqlen-1;
+	  while (l<r) {
+		int8_t t = rd.qual[l];
+		rd.qual[l] = rd.qual[r];
+		rd.qual[r] = t;
+		l++;r--;
+	  }
+	}
   }
-  qseq[i] = 0;
-  if (mate_num>0) fprintf(fout, ">%s/%d\n%s\n",name, mate_num, qseq);
-             else fprintf(fout, ">%s\n%s\n",name, qseq);
-  
 }
 
+void writeRead(Read& rd, int& wpair, FILE* fout) {
+  // shouldn't get an empty sequence here
+  //if (rd.seq.empty()) {
+  //	    return;
+  //      }
+  if (is_fastq) {
+    if (rd.mate>0) {
+      fprintf(fout, "@%s/%d\n%s\n",rd.name.c_str(), rd.mate, rd.seq.c_str());
+      wpair|=rd.mate;
+    }
+     else {
+       fprintf(fout, "@%s\n%s\n",rd.name.c_str(), rd.seq.c_str());
+	   wpair|=4;
+     }
+    fprintf(fout, "+\n%s\n",rd.qual.c_str());
+  }
+  else {
+    if (rd.mate>0) {
+      fprintf(fout, ">%s/%d\n%s\n",rd.name.c_str(), rd.mate, rd.seq.c_str());
+      wpair|=rd.mate;
+    }
+	 else {
+	   fprintf(fout, ">%s\n%s\n",rd.name.c_str(), rd.seq.c_str());
+	   wpair|=4;
+	 }
+  }
+}
+
+void writePaired(Read& rd, int& wpair, FILE* fout, FILE* fout2) {
+  if (rd.mate==1) {
+	 writeRead(rd, wpair, fout);
+	  //if (write_mapped && last1>rd.name)
+	  //err_order(last1, rd.name);
+  }
+  else if (rd.mate==2) {
+	writeRead(rd, wpair, fout2);
+	//if (write_mapped && last2>rd.name)
+	  //      err_order(last2, rd.name);
+  }
+  else {
+	fprintf(stderr, "Error: unpaired read encountered (%s)\n", rd.name.c_str());
+	exit(1);
+  }
+}
+
+
+void err_order(string& last) {
+  fprintf(stderr, "Error: couldn't retrieve both reads for pair %s. "
+	  "Perhaps the input file is not sorted by name?\n"
+	  "(using 'samtools sort -n' might fix this)\n", last.c_str());
+  exit(1);
+}
+
+
+string getFBase(const string& s, string& ext, string& pocmd) {
+   string fbase(s);
+   ext="";
+   pocmd="";
+   if (s.empty() || s=="-") return fbase;
+   //size_t slen=s.length();
+   size_t p=s.rfind('.');
+   size_t d=s.rfind('/');
+   if (p==string::npos || (d!=string::npos && p<d)) return fbase;
+   fbase=s.substr(0,p);
+   ext=s.substr(p+1);
+   string fext(ext);
+   if (fext.length()>2) fext=fext.substr(0,2);
+   for(size_t i=0; i!=fext.length(); i++)
+        fext[i] = std::tolower(fext[i]);
+   if (fext=="gz" || fext=="z") pocmd="gzip -c ";
+           else if (fext=="bz") pocmd="bzip2 -c ";
+   if (!pocmd.empty()) {
+	 p=fbase.rfind('.');
+	 d=fbase.rfind('/');
+     if (p==string::npos || (d!=string::npos && p<d)) return fbase;
+     ext=fbase.substr(p+1)+"."+ext;
+     return fbase.substr(0,p);
+     }
+   return fbase;
+   }
 
 
 int main(int argc, char *argv[])
 {
     samfile_t *fp;
-    outfname[0]=0;
     char* fname=NULL;
-
+    bool use_pclose=false;
     if (parse_options(argc, argv) || optind>=argc) {
        fprintf(stderr, USAGE);
        return -1;
@@ -208,21 +277,80 @@ int main(int argc, char *argv[])
         return 1;
         }
     FILE* fout=stdout;
-    if (outfname[0]) {
-       fout=fopen(outfname, "w");
+    FILE* fout2=NULL;
+    if (pairs && outfname.empty()) {
+      fprintf(stderr, "Error: paired output requires -o option.\n");
+      return 1;
+      }
+    if (!outfname.empty()) {
+ 	   string fext;
+ 	   string pocmd;
+ 	   string fbase=getFBase(outfname, fext, pocmd);
+       if (pairs) {
+    	 outfname=fbase+".1."+fext;
+    	 string out2=fbase+".2."+fext;
+         if (!pocmd.empty()) {
+               out2=pocmd+">"+out2;
+               fout2=popen(out2.c_str(),"w");
+               }
+            else {
+               fout2=fopen(out2.c_str(),"w");
+               }
+         if (fout2==NULL) {
+      	    fprintf(stderr, "Error opening file stream: %s\n", out2.c_str());
+      	    return 1;
+            }
+         }
+  	   string out1(outfname);
+       if (!pocmd.empty()) {
+             out1=pocmd+">"+out1;
+             fout=popen(out1.c_str(),"w");
+             use_pclose=true;
+             }
+          else {
+             fout=fopen(out1.c_str(),"w");
+             }
        if (fout==NULL) {
-           fprintf(stderr, "Error creating output file %s\n", outfname);
-           return 2;
-           }
+    	    fprintf(stderr, "Error opening file stream: %s\n", out1.c_str());
+    	    return 1;
+          }
        }
+
     bam1_t *b = bam_init1();
-    if (is_fastq) {
-        while (samread(fp, b) >= 0) showfastq(b, fp, fout);
-        }
-      else {
-        while (samread(fp, b) >= 0) showfasta(b, fp, fout);
-        }
-    
+    Read rd;
+    //bool write_mapped=(all_reads || mapped_only);
+    string last;
+    int wpair=0; //writing pair status bitmask (bit 1 set mate 1 was written,
+                //      bit 2 set if mate 2 was written, bit 3 set if unpaired read was written)
+    while (samread(fp, b) >= 0) {
+       getRead(b, fp, rd);
+       if (rd.seq.empty())
+    	 continue; //skip secondary alignments with no sequence
+       int pstatus=rd.mate;
+       if (rd.mate==0) pstatus=4;
+       if (last!=rd.name) {
+   	      if (pairs && !last.empty() && wpair!=3)
+   	    	 err_order(last);
+    	  wpair=0;
+    	  last=rd.name;
+          }
+       if ( (pstatus & wpair)==0) {
+    	    if (pairs) {
+    	       writePaired(rd, wpair, fout, fout2);
+    	     } //paired
+    	     else  { //single reads
+    		   writeRead(rd, wpair, fout);
+    	     }
+		   } //new pair
+      }
+    if (fout!=stdout) {
+      if (use_pclose) pclose(fout);
+      else fclose(fout);
+    }
+    if (fout2) {
+      if (use_pclose) pclose(fout2);
+      else fclose(fout2);
+    }
     bam_destroy1(b);
     
     samclose(fp);

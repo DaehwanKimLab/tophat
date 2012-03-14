@@ -103,6 +103,7 @@ extern std::string sam_header;
 extern std::string sam_readgroup_id;
 extern std::string zpacker; //path to program to use for de/compression (gzip, pigz, bzip2, pbzip2)
 extern std::string samtools_path; //path to samtools executable
+extern std::string std_outfile; //main output file that some modules can use instead of stdout
 extern std::string aux_outfile; //auxiliary output file name
 extern std::string index_outfile; //index output file name
 extern bool solexa_quals;
@@ -162,7 +163,7 @@ int parse_options(int argc, char** argv, void (*print_usage)());
 void err_exit(const char* format,...); // exit with an error
 
 char* get_token(char** str, const char* delims);
-std::string guess_packer(const std::string& fname, bool use_all_cpus);
+std::string guess_packer(const std::string& fname, bool use_all_cpus=false);
 std::string getUnpackCmd(const std::string& fname, bool use_all_cpus=false);
 
 void checkSamHeader();
@@ -170,29 +171,56 @@ void writeSamHeader(FILE* fout);
 
 class FZPipe {
  public:
-	 FILE* file;
+	 union {
+	   FILE* file;
+	   samfile_t* bam_file;
+	 };
 	 std::string filename;
 	 std::string pipecmd;
 	 bool is_bam;
-	 FZPipe(const std::string& fname, bool is_mapping):filename(fname),pipecmd() {
+	 FZPipe(const std::string& fname, bool guess=false):filename(fname),pipecmd() {
 	   //this constructor is only to use FZPipe as a READER
-       //also accepts/recognizes BAM files
-	   //for which it only stores the filename, other fields/methods are unused
-	   openRead(fname, is_mapping);
+       //also accepts/recognizes BAM files (without needing pipes)
+	   //for which it only stores the filename
+	   openRead(fname, guess);
 	   }
 
-   void openRead(const std::string& fname, bool is_mapping) {
+   FILE* openRead(const std::string& fname, bool guess=false) {
      filename=fname;
      pipecmd="";
      is_bam=false;
-     if (is_mapping && getFext(fname) == "bam") {
-           file=(FILE*)this;
+     if (getFext(fname) == "bam") {
+           //file=(FILE*)this; //just to be non-NULL;
            is_bam=true;
-           return;
+           bam_file=samopen(filename.c_str(), "rb", 0);
+           return file;
            }
-     pipecmd=getUnpackCmd(fname); //also bam2fastx
-     this->openRead(fname.c_str(), pipecmd);
+     if (guess) {
+       pipecmd=guess_packer(fname);
+       if (!pipecmd.empty()) pipecmd.append(" -cd");
      }
+     else {
+       pipecmd=getUnpackCmd(fname);
+     }
+     if (pipecmd.empty()) {
+           //this->openRead(fname.c_str());
+           file=fopen(filename.c_str(), "r");
+           return file;
+           }
+     this->openRead(fname.c_str(), pipecmd);
+     return file;
+     }
+
+     FILE* openRead(const char* fname, std::string& popencmd);
+
+	 FILE* openRead(const char* fname) {
+	       std::string s(fname);
+	       return openRead(s);
+	       }
+	 FILE* openRead(const std::string fname, std::string& popencmd) {
+	   return this->openRead(fname.c_str(),popencmd);
+	   }
+
 
 	 FZPipe():filename(),pipecmd() {
 	   is_bam=false;
@@ -200,28 +228,31 @@ class FZPipe {
 	   }
 	 FZPipe(std::string& fname, std::string& pcmd):filename(fname),pipecmd(pcmd) {
 	   //open as a compressed file reader
+	   if (pipecmd.empty()) {
+		 this->openRead(fname);
+		 return;
+	   }
 	   is_bam=false;
 	   file=NULL;
 	   this->openRead(fname.c_str(), pipecmd);
 	   }
+
 	 void close() {
 	   if (file!=NULL) {
-		 if (pipecmd.empty()) fclose(file);
+		 if (is_bam) {
+	        samclose(bam_file);
+	        bam_file=NULL;
+		 }
+		 else {
+		   if (pipecmd.empty()) fclose(file);
 						 else pclose(file);
+		   }
 		 file=NULL;
 		 }
 	   }
 	 FILE* openWrite(const char* fname, std::string& popencmd);
 	 FILE* openWrite(const char* fname);
-	 FILE* openRead(const char* fname, std::string& popencmd);
 
-	 FILE* openRead(const char* fname);
-	 FILE* openRead(const std::string fname, std::string& popencmd) {
-	   return this->openRead(fname.c_str(),popencmd);
-	   }
-	 FILE* openRead(const std::string fname) {
-	   return this->openRead(fname.c_str());
-	   }
 	 void rewind();
 
 	 void seek(int64_t offset)
@@ -312,6 +343,19 @@ class GBamRecord {
       b->data[ori_len + 2] = atype;
       memcpy(b->data + ori_len + 3, data, len);
       }
+   //--reading back aux tags:
+	 int find_tag(const char tag[2], uint8_t* & s, char& tag_type);
+	 //position s at the beginning of tag data, tag_type is set to the found tag type
+	 //returns length of tag data, or 0 if tag not found
+
+	 std::string tag_str(const char tag[2]); //return tag value for tag type 'Z'
+	 int tag_int(const char tag[2]); //return numeric value of tag (for numeric types)
+	 char tag_char(const char tag[2]); //return char value of tag (for type 'A')
+	 char spliceStrand(); // '+', '-' from the XS tag, or '.' if no XS tag
+	//--
+	 std::string qualities(); //return quality string, as is (ignores BAM_FREVERSE)
+	 std::string sequence();  //return read sequence as is (ignores BAM_FREVERSE)
+	 std::string seqData(std::string* readquals=NULL); //return seq and qv, reversed if BAM_FREVERSE
 };
 
 class GBamWriter {

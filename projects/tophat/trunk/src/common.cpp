@@ -133,6 +133,7 @@ int num_threads = 1;
 float min_isoform_fraction = 0.15f;
 
 string output_dir = "tophat_out";
+string std_outfile = "";
 string aux_outfile = ""; //auxiliary output file name (e.g. prep_reads read stats)
 string index_outfile = "";
 string gene_filter = "";
@@ -250,7 +251,7 @@ char* get_token(char** str, const char* delims)
   return token;
 }
 
-const char *short_options = "QCp:z:N:";
+const char *short_options = "QCp:z:N:w:";
 
 enum
   {
@@ -298,6 +299,7 @@ enum
     OPT_ZPACKER,
     OPT_SAMTOOLS,
     OPT_AUX_OUT,
+    OPT_STD_OUT,
     OPT_INDEX_OUT,
     OPT_GTF_JUNCS,
     OPT_FILTER_READS,
@@ -368,6 +370,7 @@ static struct option long_options[] = {
 {"zpacker", required_argument, 0, OPT_ZPACKER},
 {"samtools", required_argument, 0, OPT_SAMTOOLS},
 {"aux-outfile", required_argument, 0, OPT_AUX_OUT},
+{"outfile", required_argument, 0, OPT_STD_OUT},
 {"index-outfile", required_argument, 0, OPT_INDEX_OUT},
 {"gtf-juncs", required_argument, 0, OPT_GTF_JUNCS},
 {"flt-reads",required_argument, 0, OPT_FILTER_READS},
@@ -562,6 +565,10 @@ int parse_options(int argc, char** argv, void (*print_usage)())
     case OPT_AUX_OUT:
       aux_outfile =  optarg;
       break;
+    case 'w':
+    case OPT_STD_OUT:
+      std_outfile =  optarg;
+      break;
     case OPT_INDEX_OUT:
       index_outfile =  optarg;
       break;
@@ -663,6 +670,7 @@ FILE* FZPipe::openRead(const char* fname, string& popencmd) {
   filename=fname;
   if (pipecmd.empty()) {
        file=fopen(filename.c_str(), "r");
+	   return file;
        }
      else {
        string pcmd(pipecmd);
@@ -672,11 +680,6 @@ FILE* FZPipe::openRead(const char* fname, string& popencmd) {
        file=popen(pcmd.c_str(), "r");
        }
   return file;
-}
-
-FILE* FZPipe::openRead(const char* fname) {
-  string pcmd;
-  return this->openRead(fname,pcmd);
 }
 
 FILE* FZPipe::openWrite(const char* fname, string& popencmd) {
@@ -702,6 +705,14 @@ FILE* FZPipe::openWrite(const char* fname) {
   }
 
 void FZPipe::rewind() {
+  if (is_bam && !filename.empty()) {
+	if (bam_file) {
+	        samclose(bam_file);
+	        bam_file=NULL;
+	        }
+	bam_file=samopen(filename.c_str(), "rb", 0);
+	return;
+  }
   if (pipecmd.empty()) {
       if (file!=NULL) {
            ::rewind(file);
@@ -713,7 +724,7 @@ void FZPipe::rewind() {
           }
       }
   if (filename.empty())
-      err_die("Error: FZStream::rewind() failed (missing filename)!\n");
+      err_die("Error: FZPipe::rewind() failed (missing filename)!\n");
   this->close();
   string pcmd(pipecmd);
   pcmd.append(" '");
@@ -721,7 +732,7 @@ void FZPipe::rewind() {
   pcmd.append("'");
   file=popen(pcmd.c_str(), "r");
   if (file==NULL) {
-    err_die("Error: FZStream::rewind() popen(%s) failed!\n",pcmd.c_str());
+    err_die("Error: FZPipe::rewind() popen(%s) failed!\n",pcmd.c_str());
     }
  }
 
@@ -741,14 +752,30 @@ string getFext(const string& s) {
    return r;
    }
 
+void err_die(const char* format,...) { // Error exit
+  va_list arguments;
+  va_start(arguments,format);
+  vfprintf(stderr,format,arguments);
+  va_end(arguments);
+  exit(1);
+}
+
+void warn_msg(const char* format,...) {
+  // print message to stderr
+  va_list arguments;
+  va_start(arguments,format);
+  vfprintf(stderr,format,arguments);
+  va_end(arguments);
+}
+
 string guess_packer(const string& fname, bool use_all_cpus) {
    //only needed for the primary input files (given by user)
    string picmd("");
    string fext=getFext(fname);
-   if (fext=="bam") {
-     picmd="bam2fastx";
-     return picmd;
-     }
+   //if (fext=="bam") {
+   //  picmd="bam2fastx";
+   //  return picmd;
+   //  }
    if (fext=="gz" || fext=="gzip" || fext=="z") {
       if (use_all_cpus && str_endsWith(zpacker,"pigz")) {
            picmd=zpacker;
@@ -776,45 +803,16 @@ string guess_packer(const string& fname, bool use_all_cpus) {
   return picmd;
 }
 
-/*
-string getBam2SamCmd(const string& fname) {
-   string pipecmd("");
-   string fext=getFext(fname);
-   if (fext=="bam") {
-      pipecmd=samtools_path;
-      pipecmd.append(" view");
-      }
-  return pipecmd;
-}
-*/
-
-void err_die(const char* format,...) { // Error exit
-  va_list arguments;
-  va_start(arguments,format);
-  vfprintf(stderr,format,arguments);
-  va_end(arguments);
-  exit(1);
-}
-
-void warn_msg(const char* format,...) {
-  // print message to stderr
-  va_list arguments;
-  va_start(arguments,format);
-  vfprintf(stderr,format,arguments);
-  va_end(arguments);
-}
-
-
 string getUnpackCmd(const string& fname, bool use_all_cpus) {
  //prep_reads should use guess_packer() instead
   //otherwise compressed files MUST have the .z extension,
   //as they are all internally generated
  string pipecmd("");
  string fext=getFext(fname);
- if (fext=="bam") {
-    pipecmd="bam2fastx --all";
-    return pipecmd;
-    }
+ //if (fext=="bam") {
+ //   pipecmd="bam2fastx --all";
+ //   return pipecmd;
+ //   }
  if (zpacker.empty() || fext!="z") {
       return pipecmd; //no packer used
       }
@@ -1099,3 +1097,197 @@ GBamRecord::GBamRecord(const char* qname, int32_t flags, int32_t g_tid,
              } else parse_error("unrecognized aux type");
   this->add_aux(tag, atype, alen, adata);
   }//add_aux()
+
+
+ int GBamRecord::find_tag(const char tag[2], uint8_t* & s, char& tag_type) {
+   //position s at the beginning of tag's "data" (after the type char)
+   //returns the length of tag data, and tag type in tag_type
+   uint8_t* aux_start=bam1_aux(b);
+   s=aux_start;
+   while (s < aux_start + b->l_aux - 1) {
+     char key[2];
+     key[0] = (char)s[0]; key[1] = (char)s[1];
+     s += 2; tag_type = (char)*s; ++s;
+     int inc=0;
+     int m_inc=0;       //for 'B' case
+     uint8_t sub_type=0; // --,,--
+     switch (tag_type) {
+       case 'A':
+       case 'C':
+       case 'c':
+         inc=1;
+         break;
+       case 'S':
+       case 's':
+         inc=2;
+         break;
+       case 'I':
+       case 'i':
+       case 'f':
+         inc=4;
+         break;
+       case 'd':
+         inc=8;
+         break;
+       case 'B':
+           sub_type = *(s+1);
+           int32_t n;
+           memcpy(&n, s+1, 4);
+           inc += 5;
+           //kputc(type, &str); kputc(':', &str); kputc(sub_type, &str);
+           m_inc=0;
+           if (sub_type == 'c' || sub_type == 'C')
+                        { m_inc=1; }
+           else if (sub_type == 's' || sub_type == 'S')
+                         { m_inc = 2; }
+           else if ('i' == sub_type || 'I' == sub_type || 'f' == sub_type)
+                         { m_inc = 4; }
+           if (m_inc==0) {
+        	 fprintf(stderr, "Error: invalid 'B' array subtype (%c)!\n",sub_type);
+        	 abort();
+        	 err_die("Error: invalid 'B' array subtype (%c)!\n",sub_type);
+           }
+           inc += m_inc*n;
+           break;
+       case 'H':
+       case 'Z':
+         while (*(s+inc)) ++inc;
+         break;
+       } //switch (tag_type)
+     if (tag[0]==key[0] && tag[1]==key[1])
+        return inc;
+     s+=inc;
+     }//while aux data
+   return 0;
+   }
+
+ char GBamRecord::tag_char(const char tag[2]) { //retrieve tag data as single char
+   uint8_t *s;
+   char tag_type=0;
+   int vlen=find_tag(tag, s, tag_type);
+   if (vlen==0) return 0;
+   //if (vlen>1) GWarning("Warning: tag %c%c value has length %d, but char was expected.\n",
+   //        tag[0],tag[1],vlen);
+   return (char)s[0];
+  }
+
+ int GBamRecord::tag_int(const char tag[2]) { //get the numeric value of tag
+   uint8_t *s;
+   char tag_type=0;
+   int vlen=find_tag(tag, s, tag_type);
+   if (vlen==0) return 0;
+   if (vlen==1) return (int)(*(int8_t*)s);
+    else if (vlen==2) return (int)(*(int16_t*)s);
+     else if (vlen==4) return (int)(*(int32_t*)s);
+     else fprintf(stderr, "Warning: tag %c%c value has length %d, but int type was expected.\n",
+           tag[0],tag[1], vlen);
+   return 0;
+   }
+
+ string GBamRecord::tag_str(const char tag[2]) { //return string value for a tag
+   string r("");
+   uint8_t *s=NULL;
+   char tag_type=0;
+   int vlen=find_tag(tag, s, tag_type);
+   if (vlen==0) return r; //not found
+   r.resize(vlen);
+   for (int i=0;i<vlen;++i,++s) {
+	 r[i]=*s;
+   }
+   return r;
+   }
+
+ char GBamRecord::spliceStrand() { // '+', '-' from the XS tag, or 0 if no XS tag
+   uint8_t *s;
+   char tag_type=0;
+   int vlen=find_tag("XS", s, tag_type);
+   if (vlen==0) return '.';
+   return (char)s[0];
+   }
+
+ string GBamRecord::sequence() {
+   char *s = (char*)bam1_seq(b);
+   string qseq;
+   qseq.resize(b->core.l_qseq);
+   for (int i=0;i<(b->core.l_qseq);i++) {
+     int8_t v = bam1_seqi(s,i);
+     qseq[i] = bam_nt16_rev_table[v];
+     }
+   return qseq;
+   }
+
+ string GBamRecord::qualities() {
+   char *qual  = (char*)bam1_qual(b);
+   string qv;
+   qv.resize(b->core.l_qseq);
+   for(int i=0;i<(b->core.l_qseq);++i) {
+     qv[i]=qual[i]+33;
+     }
+   return qv;
+   }
+
+ string GBamRecord::seqData(string* readquals) {
+   static const int8_t seq_comp_table[16] = { 0, 8, 4, 12, 2, 10, 9, 14, 1, 6, 5, 13, 3, 11, 7, 15 };
+   string seq;
+   string squal;
+   char *qual  = (char*)bam1_qual(b);
+   char *s    = (char*)bam1_seq(b);
+   int i;
+   //bool ismapped=((b->core.flag & BAM_FUNMAP) == 0);
+   bool isreversed=((b->core.flag & BAM_FREVERSE) != 0);
+   bool is_paired = ((b->core.flag & BAM_FPAIRED) != 0);
+   int mate_num=0;
+   if (is_paired) {
+      if (b->core.flag & BAM_FREAD1)
+          mate_num=1;
+      else if (b->core.flag & BAM_FREAD2)
+          mate_num=2;
+      }
+   int seqlen = b->core.l_qseq;
+   if (seqlen>0) {
+ 	seq.resize(seqlen);
+ 	for(i=0;i<seqlen;i++) {
+ 	  seq[i] = bam1_seqi(s,i);
+ 	}
+ 	// copied from sam_view.c in samtools.
+ 	if (isreversed) {
+ 	   int l=0;
+ 	   int r=seqlen-1;
+ 	   while (l<r) {
+ 		  char c=seq[l];
+ 		  seq[l]=seq[r];
+ 		  seq[r]=c;
+ 		  l++;r--;
+ 		  }
+ 	   for (i=0;i<seqlen;i++) {
+ 		 seq[i]=seq_comp_table[(int)seq[i]];
+ 	   }
+ 	}
+
+ 	for(i=0;i<seqlen;i++) {
+ 	  seq[i] = bam_nt16_rev_table[(int)seq[i]];
+ 	}
+  if (readquals) {
+  	squal.resize(seqlen);
+ 	  for(i=0;i<seqlen;i++) {
+ 	    if (qual[i]==0xFF)
+ 		  squal[i]='I';
+ 	    else squal[i]=qual[i]+33;
+ 	    }
+
+ 	  if (isreversed) {
+ 	    int l=0;
+ 	    int r=seqlen-1;
+ 	    while (l<r) {
+ 		   int8_t t = squal[l];
+ 		   squal[l] = squal[r];
+ 		   squal[r] = t;
+ 		   l++;r--;
+ 	    }
+ 	  }
+ 	 *readquals = squal;
+   }
+  }//seqlen>0
+ return seq;
+ }
+

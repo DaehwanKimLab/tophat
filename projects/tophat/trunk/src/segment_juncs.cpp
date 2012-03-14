@@ -443,14 +443,17 @@ void count_read_extensions(MerExtensionCounts& ext_counts,
 }
 
 //void count_read_mers(FILE* reads_file, size_t half_splice_mer_len)
-void count_read_mers(FZPipe& reads_file, size_t half_splice_mer_len)
+void count_read_mers(string& reads_file, size_t half_splice_mer_len)
 {
 	Read read;
 	size_t splice_mer_len = 2 * half_splice_mer_len;
 	size_t mer_table_size = 1 << ((splice_mer_len)<<1);
 	extension_counts.resize(mer_table_size);
-    FLineReader fr(reads_file);
+	ReadStream readstream(reads_file);
+    //FLineReader fr(reads_file);
 	//while(!feof(reads_file))
+	while (readstream.get_direct(read, reads_format)) {
+	/*
     while (!fr.isEof())
 	{
 		read.clear();
@@ -463,8 +466,8 @@ void count_read_mers(FZPipe& reads_file, size_t half_splice_mer_len)
 		  if (!next_fastq_record(fr, read.seq, read.alt_name, read.qual, reads_format))
 		    break;
 		}
-
-		if (color)
+      */
+		if (color && !readstream.isBam())
 		  // erase the primer and the adjacent color
 		  read.seq.erase(0, 2);
 
@@ -477,8 +480,7 @@ void count_read_mers(FZPipe& reads_file, size_t half_splice_mer_len)
 							  read.seq);
 	}	
 	
-	//rewind(reads_file);
-    reads_file.rewind();
+    //reads_file.rewind();
 }
 
 void compact_extension_table()
@@ -519,7 +521,7 @@ void prune_extension_table(uint8_t max_extension_bp)
 }
 
 //void store_read_mers(FILE* reads_file, size_t half_splice_mer_len)
-void store_read_mers(FZPipe& reads_file, size_t half_splice_mer_len)
+void store_read_mers(string& reads_file, size_t half_splice_mer_len)
 {
 	Read read;
 	size_t splice_mer_len = 2 * half_splice_mer_len;
@@ -528,6 +530,9 @@ void store_read_mers(FZPipe& reads_file, size_t half_splice_mer_len)
 	extensions.resize(mer_table_size);
 	
 	size_t num_indexed_reads = 0;
+	ReadStream readstream(reads_file);
+	while (readstream.get_direct(read, reads_format)) {
+	/*
 	FLineReader fr(reads_file);
 	//while(!feof(reads_file))
 	while(!fr.isEof())
@@ -542,8 +547,8 @@ void store_read_mers(FZPipe& reads_file, size_t half_splice_mer_len)
 		  if (!next_fastq_record(fr, read.seq, read.alt_name, read.qual, reads_format))
 		    break;
 		}
-
-		if (color)
+     */
+		if (color && !readstream.isBam())
 		  // erase the primer and the adjacent color
 		  read.seq.erase(0, 2);
 		
@@ -567,18 +572,17 @@ void store_read_mers(FZPipe& reads_file, size_t half_splice_mer_len)
 	}	
 	
 	//fprintf(stderr, "Indexed %lu reads, compacting extension table\n", num_indexed_reads)
-	
 	uint64_t num_extensions = 0;
 	for (size_t i = 0; i < extensions.size(); ++i)
 	{
 		num_extensions += extensions[i].size();
 	}
 	//fprintf (stderr, "Total extensions: %lu\n", (long unsigned int)num_extensions);
-  reads_file.rewind();
+    //reads_file.rewind();
 }
 
 //void index_read_mers(vector<FILE*> reads_files,
-void index_read_mers(vector<FZPipe>& reads_files,
+void index_read_mers(vector<string>& reads_files,
 					 size_t half_splice_mer_len)
 {
 	extensions.clear();
@@ -2954,11 +2958,6 @@ void find_insertions_and_deletions(RefSequenceTable& rt,
 	 * Need to identify the appropriate insert id for this group of reads
 	 */
   Read read;
-	/*bool got_read = get_read_from_stream(hits_for_read.back().insert_id,
-			reads_file,
-			FASTQ,
-			false,
-      read);*/
   bool got_read  = reads_file.getRead(hits_for_read.back().insert_id, read);
 	if(!got_read){
 	  err_die("Error: could not get read# %d from stream!",
@@ -3447,12 +3446,6 @@ void find_gaps(RefSequenceTable& rt,
     }
   
   Read read;
-  /*
-  bool got_read = get_read_from_stream(hits_for_read[last_segment].insert_id, 
-				       reads_file,
-				       FASTQ,
-				       false,
-				       read); */
   bool got_read = reads_file.getRead(hits_for_read[last_segment].insert_id, read);
   if (!got_read) {
     err_die("Error: could not get read# %d from stream!",
@@ -3993,11 +3986,6 @@ void look_for_hit_group(RefSequenceTable& rt,
 	  // The hits are missing for the leftmost segment, which means
 	  // we should try looking for junctions via seed and extend
 	  // using it (helps find junctions to microexons).
-	  /* bool got_read = get_read_from_stream(insert_id,
-	     readstream.file,
-	     FASTQ,
-	     false,
-	     read); */
 	  bool got_read = readstream.getRead(insert_id, read);
 	  if (!got_read) {
 	    //fprintf(stderr, "Warning: could not get read with insert_id=%d\n", (int)insert_id);
@@ -5066,6 +5054,7 @@ void driver(istream& ref_stream,
 	  {
 	    vector<string> ium_read_files;
 	    tokenize(ium_reads,",", ium_read_files);
+	    /*
 	    vector<FZPipe> iums;
 	  string unzcmd=getUnpackCmd(ium_read_files[0],false); //could be BAM file
 	    for (size_t ium = 0; ium < ium_read_files.size(); ++ium)
@@ -5079,8 +5068,8 @@ void driver(istream& ref_stream,
 		  }
 	        iums.push_back(ium_file);
 	      }
-
-	    index_read_mers(iums, 5);
+        */
+	    index_read_mers(ium_read_files, 5);
 	  }
       else
 	  { //no unmapped reads
