@@ -157,20 +157,19 @@ void process_reads(vector<FZPipe>& reads_files, vector<FZPipe>& quals_files)
   for (size_t fi = 0; fi < reads_files.size(); ++fi)
     {
       Read read;
-      FLineReader fr(reads_files[fi]);
-      skip_lines(fr);
-      FZPipe fq;
+      //FLineReader fr(reads_files[fi]);
+      //skip_lines(fr);
+      FZPipe* fq=NULL;
       if (quals)
-	fq = quals_files[fi];
-
-      FLineReader frq(fq);
-      skip_lines(frq);
+         fq = & quals_files[fi];
+      ReadStream reads;
+      reads.init(reads_files[fi], fq);
       
-      while (!fr.isEof()) {
-	    //read.clear();
+      while (reads.get_direct(read, reads_format)) {
+	    // read.clear();
 	    // Get the next read from the file
-        if (!next_fastx_read(fr, read, reads_format, ((quals) ? &frq : NULL)))
-            break;
+        //if (!next_fastx_read(fr, read, reads_format, ((quals) ? &frq : NULL)))
+        //    break;
 
         ++next_id;
         //IMPORTANT: to keep paired reads in sync, this must be
@@ -196,7 +195,7 @@ void process_reads(vector<FZPipe>& reads_files, vector<FZPipe>& quals_files)
           ++multimap_chucked;
           continue;
           }
-	format_qual_string(read.qual);
+        format_qual_string(read.qual);
         std::transform(read.seq.begin(), read.seq.end(), read.seq.begin(), ::toupper);
         char counts[256];
         memset(counts, 0, sizeof(counts));
@@ -280,8 +279,8 @@ void process_reads(vector<FZPipe>& reads_files, vector<FZPipe>& quals_files)
 	    file_offset += strlen(buf);
           }
       } //while !fr.isEof()
-    fr.close();
-    frq.close();
+    //fr.close();
+    //frq.close();
     } //for each input file
   fprintf(stderr, "%u out of %u reads have been filtered out\n",
 	  num_reads_chucked, next_id);
@@ -331,9 +330,7 @@ int main(int argc, char *argv[])
   for (size_t i = 0; i < reads_file_names.size(); ++i)
     {
       string fname=reads_file_names[i];
-      string pipecmd=guess_packer(fname, true);
-      if (!pipecmd.empty()) pipecmd.append(" -cd");
-      FZPipe seg_file(fname,pipecmd);
+      FZPipe seg_file(fname, true); //guess unpacker
       if (seg_file.file == NULL) {
 	  fprintf(stderr, "Error: cannot open reads file %s for reading\n",
 	      reads_file_names[i].c_str());
@@ -350,9 +347,7 @@ int main(int argc, char *argv[])
       tokenize(quals_file_list, ",", quals_file_names);
       for (size_t i = 0; i < quals_file_names.size(); ++i)
 	{
-      string fname(quals_file_names[i]);
-      string pipecmd=guess_packer(fname, true);
-      FZPipe seg_file(fname, pipecmd);
+      FZPipe seg_file(quals_file_names[i], true);
 	  if (seg_file.file == NULL)
 	    {
 	      fprintf(stderr, "Error: cannot open reads file %s for reading\n",

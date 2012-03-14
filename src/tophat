@@ -138,7 +138,7 @@ Fusion related options:
     --fusion-multireads            <int>       [ default: 2                ]
     --fusion-multipairs            <int>       [ default: 2                ]
     --fusion-ignore-chromosomes    <list>      [ e.g, <chrM,chrX>          ]
-    
+
     --fusion-do-not-resolve-conflicts          [this is for test purposes  ]
 
 SAM Header Options (for embedding sequencing run metadata in output):
@@ -1333,19 +1333,24 @@ def get_index_sam_header(params, idx_prefix):
 def check_bowtie(params):
     bowtie_req=""
     if params.bowtie2:
-        bowtie_req="2"
-    log_msg = "Checking for Bowtie" + bowtie_req
+        bowtie_req="2-align"
+    log_msg = "Checking for Bowtie"
     th_log(log_msg)
 
     bowtie_bin = "bowtie"+bowtie_req
 
     global bowtie_path
-    bowtie_path=prog_path(bowtie_bin)
-    bowtie_version = get_bowtie_version(params.bowtie2)
+    bowtie_version = None
+    bowtie_path=which(bowtie_bin)
+    if bowtie_path:
+      bowtie_version = get_bowtie_version(params.bowtie2)
     if params.bowtie2 and bowtie_version == None:
+        th_logp("  Bowtie 2 not found, checking for older version..")
         #try to fallback on bowtie 1
         params.bowtie2=False
-        bowtie_version=get_bowtie_version(params.bowtie2)
+        bowtie_path=which('bowtie')
+        if bowtie_path:
+           bowtie_version=get_bowtie_version(params.bowtie2)
     if bowtie_version == None:
            die("Error: Bowtie not found on this system.")
     if params.bowtie2:
@@ -2111,7 +2116,8 @@ def bowtie(params,
                    shellcmd=' '.join(unzip_cmd) + "|"
                else:
                    bowtie_cmd += [reads_file]
-               bowtie_proc = subprocess.Popen(bowtie_cmd,
+                   if not unzip_proc:
+                        bowtie_proc = subprocess.Popen(bowtie_cmd,
                                      stdout=subprocess.PIPE,
                                      stderr=bwt_log)
         if unzip_proc:
@@ -2370,11 +2376,11 @@ def compile_reports(params, sam_header_filename, ref_fasta, mappings, readfiles,
     left_reads, right_reads = readfiles
     left_maps = [x for x in left_maps if (os.path.exists(x) and os.path.getsize(x) > 25)]
     left_maps = ','.join(left_maps)
-    
+
     if len(right_maps) > 0:
         right_maps = [x for x in right_maps if (os.path.exists(x) and os.path.getsize(x) > 25)]
         right_maps = ','.join(right_maps)
-        
+
     log_fname = logging_dir + "reports.log"
     report_log = open(log_fname, "w")
     junctions = output_dir + "junctions.bed"
@@ -2474,7 +2480,7 @@ def compile_reports(params, sam_header_filename, ref_fasta, mappings, readfiles,
                 if num_bam_parts > 1:
                     bammerge_cmd = [samtools_path,
                                     "merge",
-                                    "-h",
+                                    "-f","-h",
                                     sam_header_filename,
                                     "%s.bam" % accepted_hits]
                     bammerge_cmd += sorted_bam_parts
@@ -3087,7 +3093,7 @@ def spliced_alignment(params,
             maps[0] = [m2g_left_maps]
             if right_reads:
                 maps[1] = [m2g_right_maps]
-                
+
             return maps
         # Feed the unmapped reads into spliced_alignment()
         initial_reads = unmapped_gtf_list[:]
@@ -3144,7 +3150,7 @@ def spliced_alignment(params,
                 not fileExists(reads, 25) or \
                 (reads[-3:] == "bam" and not bamExists_and_NonEmpty(reads)):
             continue
-        
+
         fbasename=getFileBaseName(reads)
         unspliced_out = tmp_dir + fbasename + ".mapped"
         unspliced_sam = None
@@ -3169,7 +3175,7 @@ def spliced_alignment(params,
         seg_maps = []
         unmapped_segs = []
         segs = []
-        
+
         have_IUM = bamExists_and_NonEmpty(unmapped_reads)
         if ri==0 and have_IUM:
            have_left_IUM = True
@@ -3309,7 +3315,7 @@ def spliced_alignment(params,
         reads = initial_reads[ri]
         if not reads:
             continue
-        
+
         spliced_seg_maps = []
         rfname=getFileBaseName(reads)
         rfdir=getFileDir(reads)
@@ -3382,7 +3388,7 @@ def spliced_alignment(params,
                              merged_map]
 
                 merge_files = []
-                
+
                 if num_segs > 1 and \
                         unspl_samfile and \
                         bamExists_and_NonEmpty(unspl_samfile):
@@ -3409,24 +3415,24 @@ def spliced_alignment(params,
 
                     if ret != 0:
                         die(fail_str+"Error executing: "+" ".join(merge_cmd))
-                    
+
                 elif len(merge_files) == 1:
                     os.rename(merge_files[0], merged_map)
-                   
+
             except OSError, o:
                 die(fail_str+"Error: "+str(o))
-                
+
             maps[ri] = [merged_map]
 
             if not params.system_params.keep_tmp:
                 if mapped_reads and os.path.exists(mapped_reads):
-                    os.remove(mapped_reads)
+                     os.remove(mapped_reads)
         else:
             # no segments or transcriptome mappings, so no merge is needed
             #  because join_mapped_segments() produced the final BAM already
             os.rename(mapped_reads, merged_map)
             maps[ri] = [merged_map]
-            
+
         if not params.system_params.keep_tmp:
             if unspl_samfile and os.path.exists(unspl_samfile):
                 os.remove(unspl_samfile)

@@ -173,13 +173,14 @@ bool next_fastq_record(FLineReader& fr,
 
 bool next_fastx_read(FLineReader& fr, Read& read, ReadFormat reads_format, 
                         FLineReader* frq) {
+  /*
   if (fr.pushed_read)
     {
       read = fr.last_read;
       fr.pushed_read = false;
       return true;
     }
-  
+  */
   read.clear();
   char* buf=NULL;
   while ((buf=fr.nextLine())!=NULL) {
@@ -262,7 +263,7 @@ bool next_fastx_read(FLineReader& fr, Read& read, ReadFormat reads_format,
            }
     }
 
-  fr.last_read = read;  
+  //fr.last_read = read;
   return !(read.seq.empty());
 }
 
@@ -594,16 +595,33 @@ void BWA_decode(const string& color, const string& qual, const string& ref, stri
 }
 
 
+void bam2Read(bam1_t *b, Read& rd, bool alt_name=false) {
+  GBamRecord bamrec(b);
+  rd.clear();
+  rd.seq=bamrec.seqData(&rd.qual);
+  rd.name=bam1_qname(b);
+  if (alt_name)
+    rd.alt_name=bamrec.tag_str("XA");
+}
+
+
 bool ReadStream::next_read(Read& r, ReadFormat read_format) {
-  FLineReader fr(fstream.file);
-  while (read_pq.size()<500000 && !r_eof) {
+  while (read_pq.size()<ReadBufSize && !r_eof) {
     //keep the queue topped off
     Read rf;
-    if (!next_fastx_read(fr, rf, read_format)) {
+    if (fstream.is_bam) {
+      if (samread(fstream.bam_file, b) < 0) {
         r_eof=true;
         break;
         }
-    //Read read=Read(rf);
+      bam2Read(b, rf, bam_alt_name);
+      }
+    else {
+      if (!next_fastx_read(*flseqs, rf, read_format, flquals)) {
+        r_eof=true;
+        break;
+        }
+    }
     uint64_t id = (uint64_t)atol(rf.name.c_str());
     read_pq.push(make_pair(id, rf));
     }
@@ -613,6 +631,23 @@ bool ReadStream::next_read(Read& r, ReadFormat read_format) {
   r=t.second; //copy strings
   //free(t.second);
   read_pq.pop();
+  return true;
+}
+
+bool ReadStream::get_direct(Read& r, ReadFormat read_format) {
+  if (fstream.file==NULL) return false;
+   if (fstream.is_bam) {
+     if (samread(fstream.bam_file, b) < 0) {
+       r_eof=true;
+       return false;
+       }
+     bam2Read(b, r, bam_alt_name);
+     return true;
+     }
+   if (!next_fastx_read(*flseqs, r, read_format, flquals)) {
+        r_eof=true;
+        return false;
+        }
   return true;
 }
 
@@ -666,51 +701,6 @@ bool ReadStream::getRead(uint64_t r_id,
       fprintf(um_out, "@%s\n%s\n+\n%s\n", read.alt_name.c_str(),
                               read.seq.c_str(), read.qual.c_str());
       }
-    } //while reads
-  return found;
-}
-
-
-bool get_read_from_stream(uint64_t insert_id,
-			  FLineReader& fr,
-			  ReadFormat reads_format,
-			  bool strip_slash,
-			  Read& read,
-			  FILE* um_out,
-			  bool um_write_found)
-{
-  bool found=false;
-  while(!found && !fr.isEof())
-    {
-    read.clear();
-
-      // Get the next read from the file
-    if (!next_fastx_read(fr, read, reads_format))
-        break;
-    if (strip_slash)
-      {
-        string::size_type slash = read.name.rfind("/");
-        if (slash != string::npos)
-          read.name.resize(slash);
-      }
-    uint64_t id = (uint64_t)atoi(read.name.c_str());
-    if (id == insert_id)
-      {
-	found=true;
-      }
-    else if (id > insert_id)
-      {
-	  fr.pushBack_read();
-	  break;
-      }
-
-    if (um_out && ((um_write_found && found) ||
-    	           (!um_write_found && !found))) {
-     //write unmapped reads
-      fprintf(um_out, "@%s\n%s\n+\n%s\n", read.alt_name.c_str(),
-                              read.seq.c_str(), read.qual.c_str());
-      }
-    //rt.get_id(read.name, ref_str);
     } //while reads
   return found;
 }

@@ -25,8 +25,8 @@ struct Read
 {
 	Read() 
 	{
-		seq.reserve(MAX_READ_LEN);
-		qual.reserve(MAX_READ_LEN);
+		//seq.reserve(MAX_READ_LEN);
+		//qual.reserve(MAX_READ_LEN);
 	}
 	
 	string name;
@@ -80,11 +80,6 @@ class FLineReader { //simple text line reader class, buffering last line read
   bool is_pipe;
   bool pushed; //pushed back
   int lcount; //counting all lines read by the object
-
- public:
-  // daehwan - this is not a good place to store the last read ...
-  Read last_read;
-  bool pushed_read;
   
 public:
   char* chars() { return buf; }
@@ -96,7 +91,6 @@ public:
   FILE* fhandle() { return file; }
   void pushBack() { if (lcount>0) pushed=true; } // "undo" the last getLine request
            // so the next call will in fact return the same line
-  void pushBack_read() { if(!last_read.name.empty()) pushed_read=true;}
   FLineReader(FILE* stream=NULL) {
     len=0;
     isEOF=false;
@@ -107,7 +101,6 @@ public:
     buf[0]=0;
     file=stream;
     pushed=false;
-    pushed_read=false;
     }
   FLineReader(FZPipe& fzpipe) {
     len=0;
@@ -119,8 +112,16 @@ public:
     file=fzpipe.file;
     is_pipe=!fzpipe.pipecmd.empty();
     pushed=false;
-    pushed_read=false;
     }
+
+  void reset(FZPipe& fzpipe) {
+    lcount=0;
+    buf[0]=0;
+    file=fzpipe.file;
+    is_pipe=!fzpipe.pipecmd.empty();
+    pushed=false;
+    }
+
   void close() {
     if (file==NULL) return;
     if (is_pipe) pclose(file);
@@ -132,14 +133,6 @@ public:
     }
 };
 
-bool get_read_from_stream(uint64_t insert_id,
-			  FLineReader& fr,
-			  ReadFormat reads_format,
-			  bool strip_slash,
-			  Read& read,
-			  FILE* um_out=NULL, //unmapped reads output
-			  bool um_write_found=false);
-
 void skip_lines(FLineReader& fr);
 bool next_fasta_record(FLineReader& fr, string& defline, string& seq, ReadFormat reads_format);
 bool next_fastq_record(FLineReader& fr, const string& seq, string& alt_name, string& qual, ReadFormat reads_format);
@@ -147,6 +140,11 @@ bool next_fastx_read(FLineReader& fr, Read& read, ReadFormat reads_format=FASTQ,
                         FLineReader* frq=NULL);
 
 class ReadStream {
+	FLineReader* flquals;
+	FLineReader* flseqs;
+	bool stream_copy;
+	bam1_t* b;
+	bool bam_alt_name; //in BAM files, look for alt_name tag to retrieve the original read name
   protected:
     struct ReadOrdering
     {
@@ -156,22 +154,87 @@ class ReadStream {
       }
     };
     FZPipe fstream;
+    FZPipe* fquals;
+    size_t ReadBufSize;
     std::priority_queue< std::pair<uint64_t, Read>,
          std::vector<std::pair<uint64_t, Read> >,
          ReadOrdering > read_pq;
     uint64_t last_id; //keep track of last requested ID, for consistency check
     bool r_eof;
-    bool next_read(Read& read, ReadFormat read_format); //get top read from the queue
+    bool next_read(Read& read, ReadFormat read_format=FASTQ); //get top read from the queue
 
   public:
-    ReadStream():fstream(), read_pq(), last_id(0), r_eof(false) {   }
+    ReadStream(int bufsize=500000):flquals(NULL), flseqs(NULL), stream_copy(false), b(NULL),
+       bam_alt_name(false), fstream(), fquals(NULL),ReadBufSize(bufsize), read_pq(),
+       last_id(0), r_eof(false) {   }
 
-    ReadStream(const string& fname):fstream(fname, false),
-       read_pq(), last_id(0), r_eof(false) {   }
-
-    void init(string& fname) {
-        fstream.openRead(fname, false);
+    ReadStream(const string& fname, FZPipe* pquals=NULL, int bufsize=500000):flquals(NULL),
+    	flseqs(NULL), stream_copy(false), b(NULL), bam_alt_name(false), fstream(),
+    	fquals(pquals), ReadBufSize(bufsize), read_pq(), last_id(0), r_eof(false) {
+      init(fname, pquals);
+    }
+    ReadStream(FZPipe& f_stream, FZPipe* pquals=NULL):flquals(NULL),
+    	 flseqs(NULL), stream_copy(true), b(NULL), bam_alt_name(false), fstream(f_stream),
+    	 fquals(pquals), ReadBufSize(500000), read_pq(), last_id(0), r_eof(false) {
+      //init(f_stream, pquals);
+      if (fstream.is_bam) {
+        b = bam_init1();
+      }
+      else  {
+        flseqs=new FLineReader(fstream.file);
+        skip_lines(*flseqs);
+      }
+      fquals=pquals;
+      if (fquals) {
+        flquals=new FLineReader(fquals->file);
+        skip_lines(*flquals);
         }
+    }
+    void use_alt_name(bool v=true) {
+      bam_alt_name=v;
+    }
+    void init(const string& fname, FZPipe* pquals=NULL) {
+        if (fstream.openRead(fname)==NULL) {
+          fprintf(stderr, "Warning: couldn't open file %s\n",fname.c_str());
+          return;
+        }
+        if (fstream.is_bam && b==NULL) {
+          b = bam_init1();
+        }
+        else  {
+          flseqs=new FLineReader(fstream.file);
+          skip_lines(*flseqs);
+        }
+        fquals=pquals;
+        if (fquals) {
+          flquals=new FLineReader(fquals->file);
+          skip_lines(*flquals);
+          }
+        }
+    void init(FZPipe& f_stream, FZPipe* pquals=NULL) {
+        fstream=f_stream; //Warning - original copy may end up with invalid (closed) file handle
+        stream_copy=true;
+        if (fstream.file==NULL) {
+          fprintf(stderr, "Warning: ReadStream not open.\n");
+          return;
+        }
+        if (fstream.is_bam && b==NULL) {
+          b = bam_init1();
+        }
+        else  {
+          flseqs=new FLineReader(fstream.file);
+          skip_lines(*flseqs);
+        }
+        fquals=pquals;
+        if (fquals) {
+          flquals=new FLineReader(fquals->file);
+          skip_lines(*flquals);
+          }
+        }
+
+    //unbuffered reading from stream
+    bool get_direct(Read& read, ReadFormat read_format=FASTQ);
+    bool isBam() { return fstream.is_bam; }
     const char* filename() {
         return fstream.filename.c_str();
         }
@@ -188,6 +251,13 @@ class ReadStream {
     void rewind() {
       fstream.rewind();
       clear();
+      if (flseqs) {
+        flseqs->reset(fstream);
+        skip_lines(*flseqs);
+        }
+      if (flquals) {
+    	flquals->reset(*fquals);
+        }
       }
     void seek(int64_t offset) {
       clear();
@@ -195,23 +265,21 @@ class ReadStream {
     }
     FILE* file() {
       return fstream.file;
-      }
+    }
     void clear() {
-      /* while (read_pq.size()) {
-        const std::pair<uint64_t, Read>& t = read_pq.top();
-        //free(t.second);
-        read_pq.pop();
-        } */
       read_pq=std::priority_queue< std::pair<uint64_t, Read>,
           std::vector<std::pair<uint64_t, Read> >,
           ReadOrdering > ();
-      }
+    }
     void close() {
       clear();
       fstream.close();
-      }
+    }
     ~ReadStream() {
       close();
-      }
+      if (b) { bam_destroy1(b); }
+      if (flquals) delete flquals;
+      if (flseqs) delete flseqs;
+    }
 };
 #endif
