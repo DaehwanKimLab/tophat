@@ -53,6 +53,7 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 		      <li><a href="tutorial.html">Getting started</a></li>
 		      <li><a href="manual.html">Manual</a></li>
 		      <li><a href="igenomes.html">Index and annotation downloads</a></li>
+		      <li><a href="http://www.nature.com/nprot/journal/v7/n3/full/nprot.2012.016.html">Protocol</a></li>
 		      <li><a href="fusion_index.html">Fusion mapping</a></li>
 		    </ul>
 		  </div>
@@ -103,6 +104,8 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 		      <li><a href="http://cufflinks.cbcb.umd.edu/">Cufflinks</a>: Isoform assembly and quantitation for RNA-Seq</li>
 		      <li><a href="http://bowtie.cbcb.umd.edu">Bowtie</a>: Ultrafast short read alignment</li>
 		      <li><a href="http://tophat-fusion.sourceforge.net">TopHat-Fusion</a>: An algorithm for Discovery of Novel Fusion Transcripts</li>
+		      <li><a href="http://compbio.mit.edu/cummeRbund/">CummeRbund</a>:
+	                Visualization of RNA-Seq differential analysis</li>
 		    </ul>
 		  </div>
 
@@ -118,10 +121,10 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 		  <div class="box">
 		    <ul>
 		      <li><a href="http://www.cs.umd.edu/%7Ecole/">Cole Trapnell</a></li>
-			  <li><a href="http://www.umiacs.umd.edu/%7Einfphilo/">Daehwan Kim</a></li>
-			  <li>Geo Pertea</li>
-			  <li><a href="http://cs.berkeley.edu/%7Epimentel">Harold Pimentel</a></li>
-			  <li>Ryan Kelley</li>
+		      <li><a href="http://www.umiacs.umd.edu/%7Einfphilo/">Daehwan Kim</a></li>
+		      <li>Geo Pertea</li>
+		      <li><a href="http://cs.berkeley.edu/%7Epimentel">Harold Pimentel</a></li>
+		      <li>Ryan Kelley</li>
 		      <li><a href="http://www.math.berkeley.edu/%7Elpachter/">Lior Pachter</a></li>
 		      <li><a href="http://www.cbcb.umd.edu/%7Esalzberg/">Steven Salzberg</a></li>
 		    </ul>
@@ -141,7 +144,7 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 		
 	</div> <!-- End of "rightside" -->
 	<div id="leftside">
-	  <h2>TopHat 2.0.0 release 2/23/2012</h2>
+	  <h2>TopHat 2.0.0 release 3/XX/2012</h2>
 	  <p> Version 2.0.0 is a major release adding&nbsp; <a href="http://bowtie-bio.sourceforge.net/bowtie2/index.shtml">Bowtie 2</a> support,&nbsp; better parallelization and the ability to align RNA-Seq reads across potential fusion points.<br>
 </p><ul>
 	  <li> TopHat now uses Bowtie2 by default (if found in the system) 
@@ -208,6 +211,15 @@ sequences in the genome fasta file) <br>
 
 	</ul>
 	  <p></p><br>
+
+	    <h2>TopHat and Cufflinks protocol published at Nature Protocols - 3/12/2012</h2>
+	  <p>A complete <a href="http://www.nature.com/nprot/journal/v7/n3/full/nprot.2012.016.html">bioinformatic protocol</a> for analysis of RNA-Seq data using our tools 
+	    has been published at <em>Nature Protocols</em>.  The protocol covers read alignment with TopHat, 
+	    gene and transcript discovery with Cufflinks, annotation analysis with Cuffmerge and Cuffcompare, 
+	    differential expression analysis with Cuffdiff, and visualization with CummeRbund.  
+	    Several variants of the protocol are included for those who wish to forgo certain analysis steps, such as gene discovery.
+	  </p>
+	  <br/>
 
 	  <h2>TopHat 1.4.1 release 2/2/2012</h2>
 	  <p> Version 1.4.1 is a maintenance release addressing some issues found in the 1.4.0 release:
