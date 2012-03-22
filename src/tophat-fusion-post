@@ -1677,7 +1677,9 @@ def generate_html(params):
 
     def generate_html_impl(fusion_list, cluster_list):
         html_file_name = output_dir + 'result.html'
+        txt_file_name = output_dir + 'result.txt'
         html_file = open(html_file_name, 'w')
+        txt_file = open(txt_file_name, 'w')
 
         if params.tex_table:
             tex_table_file_name = output_dir + 'table.tex'
@@ -1775,6 +1777,18 @@ def generate_html(params):
                          stats[0],
                          stats[1] + stats[2])
 
+                print >> txt_file, '%s\t%s\t%s\t%d\t%s\t%s\t%d\t%d\t%d\t%d' % \
+                      (sample_name,
+                       fusion["gene1"],
+                       chr1,
+                       fusion["left_coord"],
+                       fusion["gene2"],
+                       chr2,
+                       fusion["right_coord"],
+                       stats[0],
+                       stats[1],
+                       stats[2])
+
                 print >> html_file, r'<TR><TD ALIGN="LEFT"><a href="#fusion_%d">%s</a></TD>' % (i, sample_name)
                 print >> html_file, r'<TD ALIGN="LEFT">%s</TD>' % fusion["gene1"]
                 print >> html_file, r'<TD ALIGN="LEFT">%s</TD>' % chr1
@@ -1786,6 +1800,7 @@ def generate_html(params):
                 print >> html_file, r'<TD ALIGN="RIGHT"><a href="#pair_%d">%d</a></TD>' % (i, stats[1])
                 print >> html_file, r'<TD ALIGN="RIGHT">%d</TD>' % stats[2]
                 # print >> html_file, r'<TD ALIGN="RIGHT">%.2f</TD></TR>' % fusion["score"]
+                
                 
             print >> html_file, r'</TABLE>'
 
@@ -1897,6 +1912,7 @@ def generate_html(params):
         print >> html_file, r'</BODY>'
         print >> html_file, r'</HTML>'
         html_file.close()
+        txt_file.close()
         
         if params.tex_table:
             print >> tex_table_file, r"\hline"
