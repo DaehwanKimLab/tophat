@@ -1751,7 +1751,7 @@ def generate_html(params):
             for i in indices:
                 fusion = fusion_list[i]
                 sample_name = fusion["sample_name"]
-                sample_name = string.split(sample_name, '_')[0]
+                # sample_name = string.split(sample_name, '_')[0]
 
                 output = ""
                 stats = fusion["stats"]
