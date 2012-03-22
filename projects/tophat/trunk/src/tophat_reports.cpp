@@ -99,6 +99,10 @@ void read_best_alignments(const HitsForRead& hits_for_read,
 			  bool final_report = false)
 {
   const vector<BowtieHit>& hits = hits_for_read.hits;
+
+  if (hits.size() >= max_multihits * 5)
+    return;
+
   for (size_t i = 0; i < hits.size(); ++i)
     {
       if (hits[i].edit_dist() > max_read_mismatches)
@@ -217,12 +221,16 @@ void pair_best_alignments(const HitsForRead& left_hits,
 {
   const vector<BowtieHit>& left = left_hits.hits;
   const vector<BowtieHit>& right = right_hits.hits;
-  
+
+  if (left.size() >= max_multihits * 5 || right.size() >= max_multihits * 5)
+    return;
+
   for (size_t i = 0; i < left.size(); ++i)
     {
       if (left[i].edit_dist() > max_read_mismatches) continue;
-      
+
       BowtieHit lh = left[i];
+
       AlignStatus align_status(lh, gtf_junctions,
 			       junctions, insertions, deletions, fusions, coverage);
       lh.alignment_score(align_status._alignment_score);
@@ -232,9 +240,11 @@ void pair_best_alignments(const HitsForRead& left_hits,
 	  if (right[j].edit_dist() > max_read_mismatches) continue;
 	  
 	  BowtieHit rh = right[j];
+
 	  AlignStatus align_status(rh, gtf_junctions,
 				   junctions, insertions, deletions, fusions, coverage);
 	  rh.alignment_score(align_status._alignment_score);
+
 	  InsertAlignmentGrade g;
 	  bool allowed = set_insert_alignment_grade(lh, rh, g);
 
@@ -261,7 +271,7 @@ void pair_best_alignments(const HitsForRead& left_hits,
 	    }
 	}
     }
-
+ 
   if ((report_secondary_alignments || !final_report) && best_hits.size() > 0)
     {
       cmp_pair_alignment cmp(gtf_junctions);
@@ -823,6 +833,9 @@ void update_fusions(const HitsForRead& hits,
 		    FusionSet& fusions,
 		    const FusionSet& fusions_ref = empty_fusions)
 {
+  if (!fusion_search)
+    return;
+  
   if (hits.hits.size() > fusion_multireads)
     return;
 
@@ -932,7 +945,7 @@ struct ConsensusEventsWorker
 	    update_junctions(best_hits, *junctions);
 	    update_insertions_and_deletions(best_hits, *insertions, *deletions);
 	    update_fusions(best_hits, *rt, *fusions);
-            
+	                
 	    // Get next hit group
 	    l_hs.next_read_hits(curr_left_hit_group);
 	    curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);

@@ -215,12 +215,13 @@ bool BAMHitFactory::next_record(HitStream& hs, const char*& buf, size_t& buf_siz
   if (_next_hit.data) {
       free(_next_hit.data);
       _next_hit.data = NULL;
-      }
+  }
+  
   _sam_header=((samfile_t*)(hs._hit_file))->header; //needed by get_hit_from_buf later on
   if (hs.eof() || !hs.ready()) return false;
-
+  
   //mark_curr_pos();
-
+  
   memset(&_next_hit, 0, sizeof(_next_hit));
 
   int bytes_read = samread((samfile_t*)(hs._hit_file), &_next_hit);
