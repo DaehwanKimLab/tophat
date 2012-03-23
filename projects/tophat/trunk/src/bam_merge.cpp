@@ -8,7 +8,7 @@
 
 using namespace std;
 
-#define USAGE "Usage: bam_merge <out.bam> <in1.bam> <in2.bam> [...]\n"
+#define USAGE "Usage: bam_merge [-Q] <out.bam> <in1.bam> <in2.bam> [...]\n"
 
 #define ERR_BAM_OPEN "Error: bam_merge failed to open BAM file %s\n"
 
@@ -17,28 +17,32 @@ void print_usage()
   fprintf(stderr, USAGE);
 }
 
+
+bool raw_merge = false;
+
 vector <samfile_t*> srcfiles; //array of SAM file handles
 
-class CBamLine {
- public:
+struct CBamLine {
   int fileno;
   uint64_t read_id;
   bam1_t* b;
 
-  CBamLine(int fno=-1, bam1_t* br=NULL) {
-    fileno=fno;
-    read_id=0;
-    b=br;
+  CBamLine(int fno=-1, bam1_t* br=NULL): fileno(fno),
+    read_id(0), b(br) {
     b_init();
   }
 
   void b_init() {
     if (b) {
       char *name  = bam1_qname(b);
+      if (raw_merge) {
+    	read_id=0;
+    	return;
+      }
       read_id=(uint64_t)atol(name);
       if (read_id<1) {
-      char* samline=bam_format1(srcfiles[0]->header, b);
-      err_die("Error: invalid read Id (must be numeric) for BAM record:\n%s\n",
+        char* samline=bam_format1(srcfiles[0]->header, b);
+        err_die("Error: invalid read Id (must be numeric) for BAM record:\n%s\n",
                   samline);
       }
     }
@@ -54,6 +58,7 @@ class CBamLine {
 
 struct equal_bam {
   bool operator() (const CBamLine& first, const CBamLine& second) const {
+	if (raw_merge) return false;
     if (first.read_id != second.read_id)
       return false;
 
@@ -85,6 +90,7 @@ struct less_bam {
      rev_cmp=reverse_cmp;
      }
   bool operator() (const CBamLine& f, const CBamLine& s) const {
+	 if (raw_merge) return false;
 	 const CBamLine* first = &f;
 	 const CBamLine* second = &s;
      if (rev_cmp) {
@@ -183,7 +189,7 @@ int main(int argc, char *argv[])
   int parse_ret = parse_options(argc, argv, print_usage);
   if (parse_ret)
     return parse_ret;
-
+  if (quals) raw_merge=true; //hijack the -Q flag for this specific merging option
   char* outfname=NULL;
   if (argc-optind<3) {
     print_usage();

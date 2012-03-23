@@ -4817,7 +4817,7 @@ void driver(istream& ref_stream,
   // turn off parallelization in case of the following search methods
   if (!no_coverage_search || !no_microexon_search || butterfly_search)
     num_threads = 1;
-  
+  //fprintf(stderr, ">>>>>>>>>> num_threads = %d\n",num_threads);
   assert (num_threads > 0);
   if (left_segmap_fnames.size() == 0)
     {
@@ -4906,6 +4906,8 @@ void driver(istream& ref_stream,
 	    }
 	  
 	  worker.end_id = (i+1 < num_threads) ? read_ids[i] : std::numeric_limits<uint64_t>::max();
+      //Geo debug:
+      //fprintf(stderr, "Worker %d: begin_id=%lu, end_id=%lu\n", i, worker.begin_id, worker.end_id);
 	  
 	  if (num_threads > 1)
 	    threads.push_back(new boost::thread(worker));

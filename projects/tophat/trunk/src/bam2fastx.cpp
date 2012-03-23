@@ -13,15 +13,21 @@ bool is_fastq=true; //default is fastq
 bool sam_input=false; //default is BAM
 bool all_reads=false;
 bool mapped_only=false;
+bool add_matenum=false;
 bool pairs=false;
+bool ignoreQC; // ignore qc fail flag 0x400
+
 string outfname;
 
-#define USAGE "Usage: bam2fastx [--fasta|-a|--fastq|-q] [--sam|-s|-t]\n\
-   [-M|--mapped-only|-A|--all] [-o <outfile>] [-P|--paired] <in.bam>|<in.sam>\n"
+#define USAGE "Usage: bam2fastx [--fasta|-a|--fastq|-q] [-Q] [--sam|-s|-t]\n\
+   [-M|--mapped-only|-A|--all] [-o <outfile>] [-P|--paired] [-N] <in.bam>\n\
+   \nNote: By default, reads flagged as not passing quality controls are\n\
+   discarded; the -Q option can be used to ignore the QC flag.\n\
+   \nUse the -N option if the /1 and /2 suffixes should be applied to\n\
+   read names according to the SAM flags (otherwise these suffixes\n\
+   are not added unless the -P option is used)\n"
 
-//char qseq[2048];
-
-const char *short_options = "o:ac:qstMAP";
+const char *short_options = "o:ac:qstQMAPN";
 
 enum {
    OPT_FASTA = 127,
@@ -88,10 +94,17 @@ int parse_options(int argc, char** argv)
        case 'P':
        case OPT_PAIRED:
          pairs = true;
+         add_matenum=true;
          break;
+       case 'Q':
+    	 ignoreQC = true;
+    	 break;
        case 'o':
          outfname=optarg;
          break;
+       case 'N':
+    	 add_matenum=true;
+    	 break;
        default:
          return 1;
        }
@@ -112,13 +125,14 @@ void getRead(const bam1_t *b, samfile_t* fp, Read& rd) {
   char *s    = (char*)bam1_seq(b);
   int i;
 
+  if ((b->core.flag & BAM_FQCFAIL) && !ignoreQC) return;
   bool ismapped=((b->core.flag & BAM_FUNMAP) == 0);
   if (ismapped && !all_reads) return;
   if (mapped_only && !ismapped) return;
 
   bool isreversed=((b->core.flag & BAM_FREVERSE) != 0);
   bool is_paired = ((b->core.flag & BAM_FPAIRED) != 0);
-  if (is_paired) {
+  if (is_paired || add_matenum) {
      if (b->core.flag & BAM_FREAD1)
          rd.mate=1;
      else if (b->core.flag & BAM_FREAD2)
@@ -279,7 +293,7 @@ int main(int argc, char *argv[])
     FILE* fout=stdout;
     FILE* fout2=NULL;
     if (pairs && outfname.empty()) {
-      fprintf(stderr, "Error: paired output requires -o option.\n");
+      fprintf(stderr, "Error: paired output (-P) requires the -o option.\n");
       return 1;
       }
     if (!outfname.empty()) {

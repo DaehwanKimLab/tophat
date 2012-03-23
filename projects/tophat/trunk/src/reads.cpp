@@ -601,49 +601,45 @@ void bam2Read(bam1_t *b, Read& rd, bool alt_name=false) {
   rd.seq=bamrec.seqData(&rd.qual);
   rd.name=bam1_qname(b);
   if (alt_name)
-    rd.alt_name=bamrec.tag_str("XA");
+    rd.alt_name=bamrec.tag_str("ZN");
 }
 
 
-bool ReadStream::next_read(Read& r, ReadFormat read_format) {
+bool ReadStream::next_read(QReadData& rdata, ReadFormat read_format) {
   while (read_pq.size()<ReadBufSize && !r_eof) {
     //keep the queue topped off
     Read rf;
-    if (fstream.is_bam) {
-      if (samread(fstream.bam_file, b) < 0) {
-        r_eof=true;
-        break;
-        }
-      bam2Read(b, rf, bam_alt_name);
+    if (get_direct(rf, read_format)) {
+      uint64_t id = (uint64_t)atol(rf.name.c_str());
+      QReadData rdata(id, rf, last_b());
+      read_pq.push(rdata);
       }
-    else {
-      if (!next_fastx_read(*flseqs, rf, read_format, flquals)) {
-        r_eof=true;
-        break;
-        }
-    }
-    uint64_t id = (uint64_t)atol(rf.name.c_str());
-    read_pq.push(make_pair(id, rf));
     }
   if (read_pq.size()==0)
      return false;
-  const pair<uint64_t, Read>& t = read_pq.top();
-  r=t.second; //copy strings
-  //free(t.second);
+  const QReadData& t = read_pq.top();
+  rdata=t; //copy strings and duplicate b pointer!
   read_pq.pop();
   return true;
 }
 
 bool ReadStream::get_direct(Read& r, ReadFormat read_format) {
   if (fstream.file==NULL) return false;
-   if (fstream.is_bam) {
-     if (samread(fstream.bam_file, b) < 0) {
-       r_eof=true;
-       return false;
+  if (fstream.is_bam) {
+	 bool got_read=false;
+	 while (!got_read) {
+       if (samread(fstream.bam_file, b) < 0) {
+          r_eof=true;
+          return false;
        }
+       else {
+    	if (bam_ignoreQC || (b->core.flag & BAM_FQCFAIL)==0)
+            got_read=true;
+       }
+	 }
      bam2Read(b, r, bam_alt_name);
      return true;
-     }
+   }
    if (!next_fastx_read(*flseqs, r, read_format, flquals)) {
         r_eof=true;
         return false;
@@ -651,14 +647,14 @@ bool ReadStream::get_direct(Read& r, ReadFormat read_format) {
   return true;
 }
 
-// reads must ALWAYS requested in increasing order of their ID
+// reads must ALWAYS be requested in increasing order of their ID
 bool ReadStream::getRead(uint64_t r_id,
 			 Read& read,
 			 ReadFormat read_format,
 			 bool strip_slash,
 			 uint64_t begin_id,
 			 uint64_t end_id,
-			 FILE* um_out, //unmapped reads output
+			 GBamWriter* um_out, //unmapped reads output
 			 bool um_write_found //write the found ones
 			 ) {
   if (!fstream.file)
@@ -667,39 +663,59 @@ bool ReadStream::getRead(uint64_t r_id,
       err_die("Error: ReadStream::getRead() called with out-of-order id#!");
   last_id=r_id;
   bool found=false;
+  read.clear();
   while (!found) {
-    read.clear();
-      // Get the next read from the file
-    if (!next_read(read, read_format))
+    QReadData rdata;
+    if (!next_read(rdata, read_format))
         break;
-
+    /*
     if (strip_slash) {
-       string::size_type slash = read.name.rfind("/");
+       string::size_type slash = rdata.read.name.rfind("/");
        if (slash != string::npos)
-          read.name.resize(slash);
+          rdata.read.name.resize(slash);
        }
     uint64_t id = (uint64_t)atol(read.name.c_str());
-    if (id >= end_id)
+    */
+    if (rdata.id >= end_id)
       return false;
 
-    if (id < begin_id)
+    if (rdata.id < begin_id)
       continue;
 
-    if (id == r_id)
+    if (rdata.id == r_id)
       {
+      read=rdata.read;
 	  found=true;
       }
-    else if (id > r_id)
+    else if (rdata.id > r_id)
       { //can't find it, went too far
       //only happens when reads [mates] were removed for some reason
-      read_pq.push(make_pair(id, read));
+      //read_pq.push(make_pair(id, read));
+      read_pq.push(rdata);
       break;
       }
     if (um_out && ((um_write_found && found) ||
     	           (!um_write_found && !found))) {
-     //write unmapped reads
-      fprintf(um_out, "@%s\n%s\n+\n%s\n", read.alt_name.c_str(),
-                              read.seq.c_str(), read.qual.c_str());
+       //write unmapped reads
+       //fprintf(um_out, "@%s\n%s\n+\n%s\n", read.alt_name.c_str(),
+       //                        read.seq.c_str(), read.qual.c_str());
+    	string rname(rdata.read.alt_name);
+
+    	GBamRecord bamrec(rname.c_str(), -1, 0, false, rdata.read.seq.c_str(),
+    		NULL, rdata.read.qual.c_str());
+    	if (rdata.matenum) {
+    	  bamrec.set_flag(BAM_FPAIRED);
+    	  if (rdata.matenum==1) bamrec.set_flag(BAM_FREAD1);
+    	  else bamrec.set_flag(BAM_FREAD2);
+    	}
+    	if (rdata.trashCode) {
+    	  if (rdata.trashCode!='M') {
+    		   //multi-mapped reads did not really QC-fail
+  		       bamrec.set_flag(BAM_FQCFAIL);
+    	  }
+    	  bamrec.add_aux("ZT", 'A', 1, (uint8_t*)&rdata.trashCode);
+    	}
+        um_out->write(&bamrec);
       }
     } //while reads
   return found;
