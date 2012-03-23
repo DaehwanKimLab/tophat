@@ -398,7 +398,13 @@ static struct option long_options[] = {
 };
 
 
-void str_appendInt(string& str, int v) {
+void str_appendInt(string& str, int64_t v) {
+ stringstream ss;
+ ss << v;
+ str.append(ss.str());
+}
+
+void str_appendUInt(string& str, uint64_t v) {
  stringstream ss;
  ss << v;
  str.append(ss.str());
@@ -742,13 +748,25 @@ string getFext(const string& s) {
    //if (xpos!=NULL) *xpos=0;
    if (s.empty() || s=="-") return r;
    int slen=(int)s.length();
-   int p=s.rfind('.');
+   size_t pos=s.rfind('.');
+   if (pos==string::npos) return r;
+   int p=(int)pos;
    int d=s.rfind('/');
    if (p<=0 || p>slen-2 || p<slen-7 || p<d) return r;
    r=s.substr(p+1);
    //if (xpos!=NULL) *xpos=p+1;
    for(size_t i=0; i!=r.length(); i++)
         r[i] = std::tolower(r[i]);
+   return r;
+   }
+
+string getFdir(const string& s) {
+   string r("");
+   //if (xpos!=NULL) *xpos=0;
+   if (s.empty() || s=="-") return r;
+   size_t p=s.rfind('/');
+   if (p==string::npos) return r;
+   r=s.substr(0,p+1);
    return r;
    }
 
@@ -889,6 +907,8 @@ GBamRecord::GBamRecord(const char* qname, int32_t gseq_tid,
                }
           else b->core.pos=pos-1; //BAM is 0-based
    b->core.tid=gseq_tid;
+   b->core.mtid=-1;
+   b->core.mpos=-1;
    b->core.qual=255;
    int l_qseq=strlen(qseq);
    //this may not be accurate, setting CIGAR is the correct way
@@ -1050,7 +1070,7 @@ GBamRecord::GBamRecord(const char* qname, int32_t flags, int32_t g_tid,
                  *(int32_t*)abuf = (int32_t)x;
                  alen=4;
                  if (x < -2147483648ll)
-                     fprintf(stderr, "Parse warning: integer %lld is out of range.",
+                     fprintf(stderr, "Parse warning: integer %lld is out of range.\n",
                              x);
                  }
              } else { //x >=0
@@ -1069,7 +1089,7 @@ GBamRecord::GBamRecord(const char* qname, int32_t flags, int32_t g_tid,
                  *(uint32_t*)abuf = (uint32_t)x;
                  alen=4;
                  if (x > 4294967295ll)
-                     fprintf(stderr, "Parse warning: integer %lld is out of range.",
+                     fprintf(stderr, "Parse warning: integer %lld is out of range.\n",
                              x);
                  }
              }
@@ -1093,7 +1113,7 @@ GBamRecord::GBamRecord(const char* qname, int32_t flags, int32_t g_tid,
                  }
              memcpy(abuf, str + 5, strl - 5);
              abuf[strl-5] = 0;
-             alen=strl-4;
+             alen=strl-4; //making sure the len includes the terminal \0
              } else parse_error("unrecognized aux type");
   this->add_aux(tag, atype, alen, adata);
   }//add_aux()

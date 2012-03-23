@@ -58,7 +58,7 @@ bool calculate_offsets(const vector<string>& fnames,
       offsets[i-1].push_back(offset);
 
       // daehwan - print index
-      fprintf(stderr, "%lu)read %lu - offset %ld\n", index_list.size() - 1, id, offset);
+      //fprintf(stderr, "%lu)read %lu - offset %ld\n", index_list.size() - 1, id, offset);
   
       for (int j = index_list.size() - 2; j >= 0; --j)
 	{
@@ -89,7 +89,7 @@ bool calculate_offsets(const vector<string>& fnames,
 	  offsets[i-1].push_back(other_offset);
 
 	  // daehwan - print index
-	  fprintf(stderr, "\t%d)read %lu - offset %lu\n", j, other_id, other_offset);
+	  //fprintf(stderr, "\t%d)read %lu - offset %lu\n", j, other_id, other_offset);
 	}
 
       reverse(offsets[i-1].begin(), offsets[i-1].end());
@@ -124,8 +124,8 @@ void calculate_offsets_from_ids(const string& fname,
 	      offsets.push_back(last_offset);
 
 	      // daehwan - print index
-	      fprintf(stderr, "ref read: %lu\n", ref_id);
-	      fprintf(stderr, "\tread %lu - offset %lu\n", last_id, last_offset);
+	      //fprintf(stderr, "ref read: %lu\n", ref_id);
+	      //fprintf(stderr, "\tread %lu - offset %lu\n", last_id, last_offset);
 	    }
 
 	  last_id = read_id;

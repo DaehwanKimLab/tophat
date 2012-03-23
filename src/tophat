@@ -589,7 +589,7 @@ class TopHatParams:
                                                          0.15)  # min_isoform_frac
 
         self.preflt_data = [ BowtieOutputFiles(), BowtieOutputFiles() ]
-
+        self.sam_header = None
         self.read_params = self.ReadParams(False,               # solexa_scale
                                            False,
                                            False,               # quals
@@ -1778,9 +1778,10 @@ class PrepReadsInfo:
                th_logp("Warning: short reads (<20bp) will make TopHat quite slow and take large amount of memory because they are likely to be mapped to too many places")
 
 
-def prep_reads_cmd(params, reads_list, quals_list=None, aux_file=None, index_file=None, filter_reads=None, hits_to_filter=None):
+def prep_reads_cmd(params, reads_list, quals_list=None, out_file=None, aux_file=None, index_file=None, filter_reads=None, hits_to_filter=None):
   #generate a prep_reads cmd arguments
   filter_cmd = [prog_path("prep_reads")]
+
   filter_cmd.extend(params.cmd())
 
   if params.read_params.reads_format == "fastq":
@@ -1795,6 +1796,10 @@ def prep_reads_cmd(params, reads_list, quals_list=None, aux_file=None, index_fil
       filter_cmd += ["--index-outfile="+index_file]
   if filter_reads:
     filter_cmd += ["--flt-reads="+filter_reads]
+  if params.sam_header:
+    filter_cmd += ["--sam-header="+params.sam_header]
+  if out_file:
+    filter_cmd += ["--outfile="+out_file]
   filter_cmd.append(reads_list)
   if quals_list:
         filter_cmd.append(quals_list)
@@ -1806,11 +1811,15 @@ def prep_reads_cmd(params, reads_list, quals_list=None, aux_file=None, index_fil
 # polyA reads.
 #--> returns the tuple (internal_read_library_file, read_info)
 def prep_reads(params, reads_list, quals_list, side="left", prefilter_reads=None):
-    reads_suffix = ".fq"
+    reads_suffix = ".bam"
+    use_bam = True
+    if params.read_params.color:
+       reads_suffix = ".fq"
+       use_bam = False
 
     # for parallelization, we don't compress the read files
-    do_use_zpacker = use_zpacker
-    if params.system_params.num_threads > 1:
+    do_use_zpacker = use_zpacker and not use_bam
+    if do_use_zpacker and params.system_params.num_threads > 1:
         do_use_zpacker = False
 
     if do_use_zpacker: reads_suffix += ".z"
@@ -1820,14 +1829,19 @@ def prep_reads(params, reads_list, quals_list, side="left", prefilter_reads=None
 
     if os.path.exists(kept_reads_filename):
         os.remove(kept_reads_filename)
-    kept_reads = open(kept_reads_filename, "wb")
+    out_file=None
+    kept_reads=None
+    if use_bam:
+      out_file=kept_reads_filename
+    else:
+      kept_reads = open(kept_reads_filename, "wb")
     log_fname=logging_dir + "prep_reads.log"
     filter_log = open(log_fname,"w")
 
     info_file=output_dir+output_name+".info"
     index_file=kept_reads_filename+".index"
 
-    filter_cmd=prep_reads_cmd(params, reads_list, quals_list, info_file, index_file, prefilter_reads)
+    filter_cmd=prep_reads_cmd(params, reads_list, quals_list, out_file, info_file, index_file, prefilter_reads)
     shell_cmd = ' '.join(filter_cmd)
     #finally, add the compression pipe
     zip_cmd=[]
@@ -1836,7 +1850,7 @@ def prep_reads(params, reads_list, quals_list, side="left", prefilter_reads=None
        zip_cmd.extend(params.system_params.zipper_opts)
        zip_cmd.extend(['-c','-'])
        shell_cmd +=' | '+' '.join(zip_cmd)
-    shell_cmd += ' >' +kept_reads_filename
+    if not use_bam: shell_cmd += ' >' +kept_reads_filename
     retcode=0
     try:
         print >> run_log, shell_cmd
@@ -1854,9 +1868,11 @@ def prep_reads(params, reads_list, quals_list, side="left", prefilter_reads=None
             if retcode==0:
               retcode=zip_proc.poll()
         else:
-            retcode = subprocess.call(filter_cmd,
-                                 stdout=kept_reads,
-                                 stderr=filter_log)
+            if use_bam:
+              retcode = subprocess.call(filter_cmd, stderr=filter_log)
+            else:
+              retcode = subprocess.call(filter_cmd,
+                                 stdout=kept_reads, stderr=filter_log)
         if retcode:
             die(fail_str+"Error running 'prep_reads'\n"+log_tail(log_fname))
 
@@ -1864,7 +1880,7 @@ def prep_reads(params, reads_list, quals_list, side="left", prefilter_reads=None
         errmsg=fail_str+str(o)
         die(errmsg+"\n"+log_tail(log_fname))
 
-    kept_reads.close()
+    if kept_reads: kept_reads.close()
     return kept_reads_filename, PrepReadsInfo(info_file, side)
 
 
@@ -2094,6 +2110,7 @@ def bowtie(params,
         if multihits_out:
            #special prefilter bowtie run: we use prep_reads on the fly
            #in order to get multi-mapped reads to exclude later
+           # WARNING: for now this does NOT support separate qual files
            prep_cmd = prep_reads_cmd(params, ",".join(reads_list))
            preplog_fname=logging_dir + "prep_reads_prefilter.log"
            prepfilter_log = open(preplog_fname,"w")
@@ -2519,6 +2536,35 @@ def compile_reports(params, sam_header_filename, ref_fasta, mappings, readfiles,
             tmp_sam_file.close()
             os.remove(accepted_hits)
 
+    except OSError, o:
+          die(fail_str+"Error: "+str(o)+"\n"+log_tail(log_fname))
+
+    try:
+    # -- merge the unmapped files
+      um_parts = []
+      um_merged = output_dir + "unmapped.bam"
+      for i in range(params.system_params.num_threads):
+          left_um_file =  tmp_dir + "unmapped_left_%d.bam" % i
+          right_um_file = tmp_dir + "unmapped_right_%d.bam" % i
+          um_len = len(um_parts)
+          if os.path.exists(left_um_file):
+             um_parts.append(left_um_file)
+          if right_reads and os.path.exists(right_um_file):
+             um_parts.append(right_um_file)
+          if um_len == len(um_parts):
+             break
+      if len(um_parts) > 0:
+          if len(um_parts)==1:
+            os.rename(um_pars[0], um_merged)
+          else:
+            merge_cmd=[prog_path("bam_merge"), "-Q",
+              "--sam-header", sam_header_filename, um_merged]
+            merge_cmd += um_parts
+            print >> run_log, " ".join(merge_cmd)
+            ret = subprocess.call( merge_cmd,
+                                   stderr=open(logging_dir + "bam_merge_um.log", "w") )
+            if ret != 0:
+                die(fail_str+"Error executing: "+" ".join(merge_cmd))
     except OSError, o:
           die(fail_str+"Error: "+str(o)+"\n"+log_tail(log_fname))
 
@@ -3002,28 +3048,37 @@ def get_preflt_data(params, ri, target_reads, out_mappings, out_unmapped):
  ## extract mappings and unmapped reads from prefilter mappings and preflt_ium
  ##
  #this is accomplished by a special prep_reads usage (triggered by --flt-hits)
-
+ use_bam=None
+ if params.read_params.color:
+   out_unmapped += ".fq"
+   if use_zpacker: out_unmapped += ".z"
+ else:
+   out_unmapped += ".bam"
+   use_bam = out_unmapped
+ do_use_zpacker = use_zpacker and not use_bam
  prep_cmd=prep_reads_cmd(params, params.preflt_data[ri].unmapped_reads, None,
+                     use_bam, # stdout file
                      out_mappings,
                      target_reads,
                      params.preflt_data[ri].mappings)
- um_reads = open(out_unmapped, "wb")
+ if not use_bam: um_reads = open(out_unmapped, "wb")
  log_fname=logging_dir + "prep_reads.from_preflt."+str(ri)+".log"
  filter_log = open(log_fname,"w")
 
  shell_cmd = " ".join(prep_cmd)
  #add the compression pipe
  zip_cmd=[]
- if use_zpacker:
+ if do_use_zpacker:
     zip_cmd=[ params.system_params.zipper ]
     zip_cmd.extend(params.system_params.zipper_opts)
     zip_cmd.extend(['-c','-'])
     shell_cmd +=' | '+' '.join(zip_cmd)
- shell_cmd += ' >' + out_unmapped
+ if not use_bam:
+    shell_cmd += ' >' + out_unmapped
  retcode=0
  try:
      print >> run_log, shell_cmd
-     if use_zpacker:
+     if do_use_zpacker:
          prep_proc = subprocess.Popen(prep_cmd,
                                stdout=subprocess.PIPE,
                                stderr=filter_log)
@@ -3037,8 +3092,10 @@ def get_preflt_data(params, ri, target_reads, out_mappings, out_unmapped):
          if retcode==0:
            retcode=zip_proc.poll()
      else:
-         retcode = subprocess.call(prep_cmd,
-                              stdout=um_reads,
+         if use_bam:
+             retcode = subprocess.call(prep_cmd, stderr=filter_log)
+         else:
+             retcode = subprocess.call(prep_cmd, stdout=um_reads,
                               stderr=filter_log)
      if retcode:
          die(fail_str+"Error running 'prep_reads'\n"+log_tail(log_fname))
@@ -3046,7 +3103,7 @@ def get_preflt_data(params, ri, target_reads, out_mappings, out_unmapped):
  except OSError, o:
      errmsg=fail_str+str(o)
      die(errmsg+"\n"+log_tail(log_fname))
- um_reads.close()
+ if not use_bam: um_reads.close()
 
  return (out_mappings, out_unmapped)
 
@@ -3568,6 +3625,7 @@ def main(argv=None):
 
         th_log("Generating SAM header for "+bwt_idx_prefix)
         sam_header_filename = get_index_sam_header(params, bwt_idx_prefix)
+        params.sam_header = sam_header_filename
         #if not params.skip_check_reads:
         reads_list = left_reads_list
         if right_reads_list:

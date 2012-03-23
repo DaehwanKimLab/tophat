@@ -230,7 +230,6 @@ void pair_best_alignments(const HitsForRead& left_hits,
       if (left[i].edit_dist() > max_read_mismatches) continue;
 
       BowtieHit lh = left[i];
-
       AlignStatus align_status(lh, gtf_junctions,
 			       junctions, insertions, deletions, fusions, coverage);
       lh.alignment_score(align_status._alignment_score);
@@ -240,11 +239,9 @@ void pair_best_alignments(const HitsForRead& left_hits,
 	  if (right[j].edit_dist() > max_read_mismatches) continue;
 	  
 	  BowtieHit rh = right[j];
-
 	  AlignStatus align_status(rh, gtf_junctions,
 				   junctions, insertions, deletions, fusions, coverage);
 	  rh.alignment_score(align_status._alignment_score);
-
 	  InsertAlignmentGrade g;
 	  bool allowed = set_insert_alignment_grade(lh, rh, g);
 
@@ -651,7 +648,7 @@ void print_sam_for_single(const RefSequenceTable& rt,
 			  FragmentType frag_type,
 			  Read& read,
 			  GBamWriter& bam_writer,
-			  FILE* um_out //write unmapped reads here
+			  GBamWriter* um_out //write unmapped reads here
 			  )
 {
     assert(!read.alt_name.empty());
@@ -695,8 +692,8 @@ void print_sam_for_pair(const RefSequenceTable& rt,
                         ReadStream& left_reads_file,
                         ReadStream& right_reads_file,
                         GBamWriter& bam_writer,
-                        FILE* left_um_out,
-                        FILE* right_um_out,
+                        GBamWriter* left_um_out,
+                        GBamWriter* right_um_out,
 			uint64_t begin_id = 0,
                         uint64_t end_id = std::numeric_limits<uint64_t>::max())
 {
@@ -1051,25 +1048,34 @@ struct ReportWorker
     ReadStream left_reads_file(left_reads_fname);
     if (left_reads_file.file() == NULL)
       err_die("Error: cannot open %s for reading\n", left_reads_fname.c_str());
-
+    if (left_reads_file.isBam()) {
+        left_reads_file.use_alt_name();
+        left_reads_file.ignoreQC();
+        }
     if (left_reads_offset > 0)
       left_reads_file.seek(left_reads_offset);
     
-    if (!zpacker.empty()) left_um_fname+=".z";
-    FZPipe left_um_out;
-    if (left_um_out.openWrite(left_um_fname.c_str(), zpacker)==NULL)
-      err_die("Error: cannot open file %s for writing!\n",left_um_fname.c_str());
+    //if (!zpacker.empty()) left_um_fname+=".z";
+    GBamWriter* left_um_out=new GBamWriter(left_um_fname.c_str(), sam_header.c_str());
+    GBamWriter* right_um_out=NULL;
     
+    //if (left_um_out.openWrite(left_um_fname.c_str(), zpacker)==NULL)
+    //  err_die("Error: cannot open file %s for writing!\n",left_um_fname.c_str());
     ReadStream right_reads_file(right_reads_fname);
     if (right_reads_offset > 0)
       right_reads_file.seek(right_reads_offset);
     
-    FZPipe right_um_out;
-    if (right_reads_fname != "")
+    //FZPipe right_um_out;
+    if (!right_reads_fname.empty())
       {
-	if (!zpacker.empty()) right_um_fname+=".z";
-	if (right_um_out.openWrite(right_um_fname.c_str(), zpacker)==NULL)
-	  err_die("Error: cannot open file %s for writing!\n",right_um_fname.c_str());
+      if (right_reads_file.isBam()) {
+    	right_reads_file.use_alt_name();
+    	right_reads_file.ignoreQC();
+    	right_um_out=new GBamWriter(right_um_fname.c_str(), sam_header.c_str());
+      }
+	//if (!zpacker.empty()) right_um_fname+=".z";
+	//if (right_um_out.openWrite(right_um_fname.c_str(), zpacker)==NULL)
+	//  err_die("Error: cannot open file %s for writing!\n",right_um_fname.c_str());
       }
 
     vector<BAMHitFactory*> hit_factories;
@@ -1109,13 +1115,13 @@ struct ReportWorker
 	    best_hits.insert_id = curr_left_obs_order;
 	    bool got_read=left_reads_file.getRead(curr_left_obs_order, l_read,
 						  reads_format, false, begin_id, end_id,
-						  left_um_out.file, false);
+						  left_um_out, false);
 	    //assert(got_read);
 
 	    if (right_reads_file.file()) {
 	      got_read=right_reads_file.getRead(curr_left_obs_order, r_read,
 						reads_format, false, begin_id, end_id,
-						right_um_out.file, true);
+						right_um_out, true);
 	      //assert(got_read);
 	    }
     
@@ -1137,7 +1143,7 @@ struct ReportWorker
 				     (right_map_fname.empty() ? FRAG_UNPAIRED : FRAG_LEFT),
 				     l_read,
 				     bam_writer,
-				     left_um_out.file);
+				     left_um_out);
 	      }
 	    // Get next hit group
 	    left_hs.next_read_hits(curr_left_hit_group);
@@ -1156,7 +1162,7 @@ struct ReportWorker
 	      {
 		bool got_read=right_reads_file.getRead(curr_right_obs_order, r_read,
 						       reads_format, false, begin_id, end_id,
-						       right_um_out.file, false);
+						       right_um_out, false);
 
 		//assert(got_read);
 		/*
@@ -1165,7 +1171,7 @@ struct ReportWorker
 		*/
 		got_read=left_reads_file.getRead(curr_right_obs_order, l_read,
 						 reads_format, false, begin_id, end_id,
-						 left_um_out.file, true);
+						 left_um_out, true);
 		//assert(got_read);
 
 		exclude_hits_on_filtered_junctions(*junctions, curr_right_hit_group);
@@ -1186,7 +1192,7 @@ struct ReportWorker
 					 FRAG_RIGHT,
 					 r_read,
 					 bam_writer,
-					 right_um_out.file);
+					 right_um_out);
 		  }
 	      }
 
@@ -1209,7 +1215,7 @@ struct ReportWorker
 		
 		bool got_read=right_reads_file.getRead(curr_left_obs_order, r_read,
 						       reads_format, false, begin_id, end_id,
-						       right_um_out.file, false);
+						       right_um_out, false);
 		//assert(got_read);
 		/*
 		fprintf(right_um_out.file, "@%s #MAPPED#\n%s\n+\n%s\n", r_read.alt_name.c_str(),
@@ -1233,7 +1239,7 @@ struct ReportWorker
 					 FRAG_RIGHT,
 					 r_read,
 					 bam_writer,
-					 right_um_out.file);
+					 right_um_out);
 		  }
 	      }
 	    else if (curr_right_hit_group.hits.empty())
@@ -1243,7 +1249,7 @@ struct ReportWorker
 		//only left read mapped
 		bool got_read=left_reads_file.getRead(curr_left_obs_order, l_read,
 						      reads_format, false, begin_id, end_id,
-						      left_um_out.file, false);
+						      left_um_out, false);
 
 		// Process hits for left singleton, select best alignments
 		read_best_alignments(curr_left_hit_group, left_best_hits, *gtf_junctions,
@@ -1261,7 +1267,7 @@ struct ReportWorker
 					 FRAG_LEFT,
 					 l_read,
 					 bam_writer,
-					 left_um_out.file);
+					 left_um_out);
 		  }
 	      }
 	    else
@@ -1302,8 +1308,8 @@ struct ReportWorker
 				       left_reads_file,
 				       right_reads_file,
 				       bam_writer,
-				       left_um_out.file,
-				       right_um_out.file,
+				       left_um_out,
+				       right_um_out,
 				       begin_id,
 				       end_id);
 		  }
@@ -1320,19 +1326,18 @@ struct ReportWorker
 
     left_reads_file.getRead(VMAXINT32, l_read,
 			    reads_format, false, begin_id, end_id,
-			    left_um_out.file, false);
+			    left_um_out, false);
     if (right_reads_file.file())
       right_reads_file.getRead(VMAXINT32, r_read,
 			       reads_format, false, begin_id, end_id,
-			       right_um_out.file, false);
+			       right_um_out, false);
 
 
     // pclose (pipe close), which waits for a process to end, seems to conflict with boost::thread::join somehow,
     // resulting in deadlock like behavior.
-#if 0
-    left_um_out.close();
-    right_um_out.close();
-#endif
+    delete left_um_out;
+    delete right_um_out;
+
 
     for (size_t i = 0; i < hit_factories.size(); ++i)
       delete hit_factories[i];
@@ -1562,17 +1567,20 @@ void driver(const string& bam_output_fname,
     {
       ReportWorker worker;
 
+      worker.sam_header_fname = sam_header;
       char filename[1024] = {0};
       sprintf(filename, "%s%d.bam", bam_output_fname.c_str(), i);
       worker.bam_output_fname = filename;
-      worker.sam_header_fname = sam_header;
-      sprintf(filename, "%s/unmapped_left%d.fq", output_dir.c_str(), i);
-      worker.left_um_fname = filename;
+      string tmpoutdir=getFdir(worker.bam_output_fname);
+      worker.left_um_fname = tmpoutdir;
+      sprintf(filename, "unmapped_left_%d.bam", i);
+      worker.left_um_fname+=filename;
       
       if (right_reads_fname != "")
 	{
-	  sprintf(filename, "%s/unmapped_right%d.fq", output_dir.c_str(), i);
-	  worker.right_um_fname = filename;
+	  sprintf(filename, "unmapped_right_%d.bam", i);
+	  worker.right_um_fname = tmpoutdir;
+	  worker.right_um_fname += filename;
 	}
       
       worker.left_reads_fname = left_reads_fname;

@@ -21,6 +21,9 @@
 
 #define MAX_READ_LEN 1024
 
+//for fastq and bam indexing by read# (multi-threading)
+#define INDEX_REC_COUNT 1000
+
 #define VMAXINT32 0xFFFFFFFF
 
 #ifdef MEM_DEBUG
@@ -153,8 +156,10 @@ enum eLIBRARY_TYPE
 
 extern eLIBRARY_TYPE library_type;
 std::string getFext(const std::string& s); //returns file extension converted to lowercase
+std::string getFdir(const std::string& s); //returns file extension converted to lowercase
 bool str_endsWith(std::string& str, const char* suffix);
-void str_appendInt(std::string& str, int v);
+void str_appendInt(std::string& str, int64_t v);
+void str_appendUInt(std::string& str, uint64_t v);
 FILE* fzOpen(std::string& fname, const char* mode);
 
 int parseIntOpt(int lower, const char *errmsg, void (*print_usage)());
@@ -255,9 +260,14 @@ class FZPipe {
 
 	 void rewind();
 
-	 void seek(int64_t offset)
+	 void seek(int64_t foffset)
 	 {
-	   fseek(this->file, offset, SEEK_SET);
+	   if (is_bam) {
+		 bgzf_seek(bam_file->x.bam, foffset, SEEK_SET);
+	   }
+	   else {
+		 fseek(this->file, foffset, SEEK_SET);
+	   }
 	 }
 };
 
@@ -317,6 +327,14 @@ class GBamRecord {
       b->core.flag=flags;
       }
 
+    void set_flag(uint16_t flag) { //use BAM_F* constants
+      b->core.flag |= flag;
+    }
+
+    void unset_flag(uint16_t flag) { //use BAM_F* constants
+      b->core.flag &= ~flag;
+    }
+
     //creates a new record from 1-based alignment coordinate
     //quals should be given as Phred33
     //Warning: pos and mate_pos must be given 1-based!
@@ -331,9 +349,14 @@ class GBamRecord {
     void add_quals(const char* quals); //quality values string in Phred33 format
     void add_aux(const char* str); //adds one aux field in plain SAM text format (e.g. "NM:i:1")
     void add_aux(const char tag[2], char atype, int len, uint8_t *data) {
+      //IMPORTANT:  strings (Z,H) should include the terminal \0
+      int addz=0;
+      if ((atype=='Z' || atype=='H') && data[len-1]!=0) {
+    	addz=1;
+        }
       int ori_len = b->data_len;
-      b->data_len += 3 + len;
-      b->l_aux += 3 + len;
+      b->data_len += 3 + len + addz;
+      b->l_aux += 3 + len + addz;
       if (b->m_data < b->data_len) {
         b->m_data = b->data_len;
         kroundup32(b->m_data);
@@ -341,6 +364,9 @@ class GBamRecord {
       }
       b->data[ori_len] = tag[0]; b->data[ori_len + 1] = tag[1];
       b->data[ori_len + 2] = atype;
+      if (addz) {
+    	b->data[ori_len+len+3]=0;
+        }
       memcpy(b->data + ori_len + 3, data, len);
       }
    //--reading back aux tags:
@@ -386,7 +412,7 @@ class GBamWriter {
       //do we need to call bam_header_write() ?
       }
 
-   void create(const char* fname, std::string idxfile) {
+   void create(const char* fname, std::string& idxfile) {
 	  findex=NULL;
 	  wcount=0;
 	  idxcount=0;
@@ -419,12 +445,18 @@ class GBamWriter {
       external_header=true;
       }
 
-   GBamWriter(const char* fname, bam_header_t* bh, std::string idxfile) {
+   GBamWriter(const char* fname, bam_header_t* bh, std::string& idxfile) {
 	  bam_header=bh;
       create(fname, idxfile);
       external_header=true;
       }
 
+   GBamWriter(std::string& fname, std::string& idxfile) {
+	 //create BAM with empty header
+     external_header=false;
+	 bam_header=bam_header_init();
+	 create(fname.c_str());
+     }
 
    GBamWriter(const char* fname, const char* samfname, bool uncompressed=false) {
       tamFile samf_in=sam_open(samfname);
@@ -526,7 +558,7 @@ class GBamWriter {
      int64_t pre_pos=0;
      bool write_index=false;
      if (findex && read_id) {
-       if (idxcount >= 1000 && read_id != idx_last_id) {
+       if (idxcount >= INDEX_REC_COUNT && read_id != idx_last_id) {
 	 pre_pos = this->tell();
 	 pre_block_offs = pre_pos & 0xFFFF;
 	 pre_block_addr = (pre_pos >> 16) & 0xFFFFFFFFFFFFLL;

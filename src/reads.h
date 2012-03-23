@@ -139,43 +139,100 @@ bool next_fastq_record(FLineReader& fr, const string& seq, string& alt_name, str
 bool next_fastx_read(FLineReader& fr, Read& read, ReadFormat reads_format=FASTQ,
                         FLineReader* frq=NULL);
 
+#define READSTREAM_BUF_SIZE 500000
+
+
+struct QReadData { //read data for the priority queue
+  uint64_t id;
+  Read read;
+  char trashCode; //ZT tag value
+  int8_t matenum; //mate number (1,2) 0 if unpaired
+  QReadData():id(0),read(),trashCode(0) { }
+  QReadData(uint64_t rid, Read& rd, bam1_t* bd=NULL):
+	 id(rid), read(rd), trashCode(0), matenum(0) {
+     if (bd) {
+       if (bd->core.flag & BAM_FREAD1) {
+    	 matenum=1;
+       }
+       else if (bd->core.flag & BAM_FREAD2) matenum=2;
+       GBamRecord bamrec(bd);
+       trashCode=bamrec.tag_char("ZT");
+     }
+  }
+
+  /*
+  bam1_t* b;
+
+  QReadData(uint64_t rid=0, Read* rd=NULL, bam1_t* bd=NULL):
+	 id(rid), read(*rd), b(NULL) {
+     if (bd) {
+       b=bam_dup1(bd);
+     }
+  }
+
+  QReadData(const QReadData& rdata):id(rdata.id),
+	  read(rdata.read), b(NULL) {
+	if (rdata.b) {
+	  b=bam_dup1(rdata.b);
+	}
+  }
+
+  QReadData& operator=(QReadData& rdata) {
+	id=rdata.id;
+	read=rdata.read;
+	if (rdata.b) {
+	  if (b==NULL) { bam_init1(); }
+	  bam_copy1(b, rdata.b);
+	}
+	return *this;
+  }
+
+  ~QReadData() {
+	if (b) {
+	  bam_destroy1(b);
+	}
+  }
+  */
+};
+
 class ReadStream {
 	FLineReader* flquals;
 	FLineReader* flseqs;
 	bool stream_copy;
 	bam1_t* b;
-	bool bam_alt_name; //in BAM files, look for alt_name tag to retrieve the original read name
+	bool bam_alt_name; //from BAM files, look for alt_name tag to retrieve the original read name
+	bool bam_ignoreQC; //from BAM files, ignore QC flag (return the next read even if it has QC fail)
   protected:
     struct ReadOrdering
     {
-      bool operator()(std::pair<uint64_t, Read>& lhs, std::pair<uint64_t, Read>& rhs)
+      bool operator()(QReadData& lhs, QReadData& rhs)
       {
-        return (lhs.first > rhs.first);
+        return (lhs.id > rhs.id);
       }
     };
     FZPipe fstream;
     FZPipe* fquals;
     size_t ReadBufSize;
-    std::priority_queue< std::pair<uint64_t, Read>,
-         std::vector<std::pair<uint64_t, Read> >,
+    std::priority_queue< QReadData,
+         std::vector<QReadData>,
          ReadOrdering > read_pq;
     uint64_t last_id; //keep track of last requested ID, for consistency check
     bool r_eof;
-    bool next_read(Read& read, ReadFormat read_format=FASTQ); //get top read from the queue
+    bool next_read(QReadData& rdata, ReadFormat read_format=FASTQ); //get top read from the queue
 
   public:
-    ReadStream(int bufsize=500000):flquals(NULL), flseqs(NULL), stream_copy(false), b(NULL),
-       bam_alt_name(false), fstream(), fquals(NULL),ReadBufSize(bufsize), read_pq(),
+    ReadStream(int bufsize=READSTREAM_BUF_SIZE):flquals(NULL), flseqs(NULL), stream_copy(false), b(NULL),
+       bam_alt_name(false), bam_ignoreQC(false), fstream(), fquals(NULL),ReadBufSize(bufsize), read_pq(),
        last_id(0), r_eof(false) {   }
 
-    ReadStream(const string& fname, FZPipe* pquals=NULL, int bufsize=500000):flquals(NULL),
-    	flseqs(NULL), stream_copy(false), b(NULL), bam_alt_name(false), fstream(),
-    	fquals(pquals), ReadBufSize(bufsize), read_pq(), last_id(0), r_eof(false) {
-      init(fname, pquals);
+    ReadStream(const string& fname, FZPipe* pquals=NULL, bool guess_packer=false):flquals(NULL),
+    	flseqs(NULL), stream_copy(false), b(NULL), bam_alt_name(false), bam_ignoreQC(false), fstream(),
+    	fquals(pquals), ReadBufSize(READSTREAM_BUF_SIZE), read_pq(), last_id(0), r_eof(false) {
+      init(fname, pquals, guess_packer);
     }
     ReadStream(FZPipe& f_stream, FZPipe* pquals=NULL):flquals(NULL),
-    	 flseqs(NULL), stream_copy(true), b(NULL), bam_alt_name(false), fstream(f_stream),
-    	 fquals(pquals), ReadBufSize(500000), read_pq(), last_id(0), r_eof(false) {
+    	 flseqs(NULL), stream_copy(true), b(NULL), bam_alt_name(false), bam_ignoreQC(false), fstream(f_stream),
+    	 fquals(pquals), ReadBufSize(READSTREAM_BUF_SIZE), read_pq(), last_id(0), r_eof(false) {
       //init(f_stream, pquals);
       if (fstream.is_bam) {
         b = bam_init1();
@@ -193,15 +250,23 @@ class ReadStream {
     void use_alt_name(bool v=true) {
       bam_alt_name=v;
     }
-    void init(const string& fname, FZPipe* pquals=NULL) {
-        if (fstream.openRead(fname)==NULL) {
+
+    void ignoreQC(bool v=true) {
+      bam_ignoreQC=v;
+    }
+
+    void init(const string& fname, FZPipe* pquals=NULL, bool guess_packer=false) {
+        if (fstream.openRead(fname, guess_packer)==NULL) {
           fprintf(stderr, "Warning: couldn't open file %s\n",fname.c_str());
           return;
         }
-        if (fstream.is_bam && b==NULL) {
-          b = bam_init1();
+        if (fstream.is_bam) {
+          if (b==NULL) {
+        	b = bam_init1();
+           }
         }
         else  {
+          if (b) { bam_destroy1(b); b=NULL; }
           flseqs=new FLineReader(fstream.file);
           skip_lines(*flseqs);
         }
@@ -218,10 +283,13 @@ class ReadStream {
           fprintf(stderr, "Warning: ReadStream not open.\n");
           return;
         }
-        if (fstream.is_bam && b==NULL) {
-          b = bam_init1();
+        if (fstream.is_bam) {
+          if (b==NULL) {
+            b = bam_init1();
+            }
         }
         else  {
+          if (b) { bam_destroy1(b); b=NULL; }
           flseqs=new FLineReader(fstream.file);
           skip_lines(*flseqs);
         }
@@ -235,6 +303,11 @@ class ReadStream {
     //unbuffered reading from stream
     bool get_direct(Read& read, ReadFormat read_format=FASTQ);
     bool isBam() { return fstream.is_bam; }
+    bam1_t* last_b() {//return the latest SAM record data fetched by get_direct()
+      //must only be called after get_direct()
+      return b;
+      }
+
     const char* filename() {
         return fstream.filename.c_str();
         }
@@ -244,7 +317,7 @@ class ReadStream {
 		 bool strip_slash=false,
 		 uint64_t begin_id = 0,
 		 uint64_t end_id=std::numeric_limits<uint64_t>::max(),
-		 FILE* um_out=NULL, //unmapped reads output
+		 GBamWriter* um_out=NULL, //unmapped reads output
 		 bool um_write_found=false
 		 );
 
@@ -267,8 +340,8 @@ class ReadStream {
       return fstream.file;
     }
     void clear() {
-      read_pq=std::priority_queue< std::pair<uint64_t, Read>,
-          std::vector<std::pair<uint64_t, Read> >,
+      read_pq=std::priority_queue< QReadData,
+          std::vector<QReadData>,
           ReadOrdering > ();
     }
     void close() {
