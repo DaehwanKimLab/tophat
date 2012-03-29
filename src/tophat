@@ -680,7 +680,7 @@ class TopHatParams:
 
         if self.read_params.color:
             if self.bowtie2:
-                th_log("Warning: bowtie2 in colorspace is not yet supported; --bowtie1 option assumed.")
+                th_log("Warning: bowtie2 in colorspace is not supported; --bowtie1 option assumed.")
                 self.bowtie2=False
             if self.fusion_search:
                 die("Error: fusion-search in colorspace is not yet supported")
@@ -2008,7 +2008,7 @@ def bowtie(params,
                fix_map_cmd += [unmapped_reads_out]
         else:
            #mapping on segment_juncs (spliced potential junctions)
-           # don't use SAM headers, could be slow -- better use compressed SAM directly
+           # SAM headers could be huge
            mapped_reads += ".sam"
            fix_map_cmd += ["-"]
            if use_zpacker:
@@ -2021,6 +2021,11 @@ def bowtie(params,
               fix_map_cmd += [mapped_reads]
 
         fix_map_cmd += ["--index-outfile", mapped_reads + ".index"]
+        if not params.bowtie2:
+           fix_map_cmd += ["--bowtie1"]
+        if multihits_out:
+           fix_map_cmd += ["--aux-outfile", multihits_out]
+           fix_map_cmd += ["--max-multihits", str(params.max_hits)]
 
         if t_mapping:
             max_hits = params.t_max_hits
@@ -2033,8 +2038,8 @@ def bowtie(params,
            num_mismatches = 3
 
         if params.bowtie2:
-            if seg_mapping:
-                # since bowtie2 does not suppress reads that map to many places,
+            if seg_mapping or multihits_out:
+                # since bowtie2 does not suppress reads that map to too many places,
                 # we suppress those in segment_juncs and long_spanning_reads.
                 bowtie_cmd += ["-k", str(max_hits + 1)]
             else:
@@ -2044,7 +2049,7 @@ def bowtie(params,
             if seg_mapping:
                 # after intensive testing,
                 # the following parameters seem to work faster than Bowtie1 and as sensitive as Bowtie1,
-                # but a chance for further improvements remains.
+                # but room for further improvements remains.
                 bowtie_cmd += ["-N", str(min(num_mismatches, 1))]
                 bowtie_cmd += ["-i", "C,2,0"]
                 bowtie_cmd += ["-L", "20"]
@@ -3059,6 +3064,7 @@ def get_preflt_data(params, ri, target_reads, out_mappings, out_unmapped):
  prep_cmd=prep_reads_cmd(params, params.preflt_data[ri].unmapped_reads, None,
                      use_bam, # stdout file
                      out_mappings,
+                     None,
                      target_reads,
                      params.preflt_data[ri].mappings)
  if not use_bam: um_reads = open(out_unmapped, "wb")
@@ -3250,10 +3256,7 @@ def spliced_alignment(params,
                 seg = read_segments[i]
                 fbasename=getFileBaseName(seg)
                 seg_out =  tmp_dir + fbasename
-                #if use_zpacker: seg_out += ".z"
-                unmapped_seg = tmp_dir + fbasename + "_unmapped.fq"
-                if use_BWT_FIFO:
-                    unmapped_seg += ".z"
+                unmapped_seg = tmp_dir + fbasename + "_unmapped"
                 extra_output = "(%d/%d)" % (i+1, len(read_segments))
                 (seg_map, unmapped) = bowtie(params,
                                              bwt_idx_prefix,
@@ -3670,12 +3673,15 @@ def main(argv=None):
                reads_list=read_lists[ri]
                if not reads_list:
                   continue
-               params.preflt_data[ri].multihit_reads = tmp_dir + sides[ri]+"_multimapped.fq"
+               fmulti_ext="bam"
+               if not params.bowtie2:
+                 fmulti_ext="fq"
+               params.preflt_data[ri].multihit_reads = tmp_dir + sides[ri]+"_multimapped."+fmulti_ext
                side_imap = tmp_dir + sides[ri]+"_im"
                #if use_zpacker: side_imap+=".z"
-               side_ium = tmp_dir + sides[ri]+"_ium.fq"
-               if use_BWT_FIFO:
-                  side_ium += ".z"
+               side_ium = tmp_dir + sides[ri]+"_ium"
+               #if use_BWT_FIFO and not params.bowtie2:
+               #   side_ium += ".z"
                th_log("Pre-filtering multi-mapped "+sides[ri]+" reads")
                rdlist=reads_list.split(',')
                bwt=bowtie(params, bwt_idx_prefix, rdlist,

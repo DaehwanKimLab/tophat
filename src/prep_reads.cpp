@@ -134,6 +134,31 @@ void flt_reads_and_hits(vector<string>& reads_files) {
 	hitsfile.close();
 	}
   // -- now filter reads
+  //FILE* findex = NULL;
+  GBamWriter* wbam=NULL;
+  FILE* fout=NULL;
+  if (std_outfile.empty()) {
+    fout=stdout;
+  }
+  else { //output file name explicitely given
+	if (getFext(std_outfile)=="bam") {
+	  if (sam_header.empty()) err_die("Error: sam header file not provided.\n");
+	  wbam = new GBamWriter(std_outfile.c_str(), sam_header.c_str(), index_outfile);
+	  //wbam = new GBamWriter(std_outfile, index_outfile);
+	}
+	else {
+	  fout = fopen(std_outfile.c_str(), "w");
+	  if (fout==NULL)
+	       err_die("Error: cannot create file %s\n", std_outfile.c_str());
+	}
+  }
+  /*
+  if (wbam==NULL && !index_outfile.empty()) {
+    findex = fopen(index_outfile.c_str(), "w");
+    if (findex == NULL)
+       err_die("Error: cannot create file %s\n", index_outfile.c_str());
+    }
+    */
   for (size_t fi = 0; fi < reads_files.size(); ++fi) {
       //only one file expected here, this is not the initial prep_reads
       Read read;
@@ -141,14 +166,24 @@ void flt_reads_and_hits(vector<string>& reads_files) {
       //skip_lines(fr);
       while (readstream.get_direct(read)) {
         uint32_t rnum=(uint32_t)atol(read.name.c_str());
-        if (check_readmap(rnum))
-          printf("@%s\n%s\n+%s\n%s\n",
-             read.name.c_str(),
-             read.seq.c_str(),
-             read.alt_name.c_str(),
-             read.qual.c_str());
+        if (check_readmap(rnum)) {
+          if (wbam) {
+        	GBamRecord bamrec(read.name.c_str(), -1, 0, false,
+        		read.seq.c_str(), NULL, read.qual.c_str());
+        	wbam->write(bamrec.get_b(), rnum);
+          }
+          else {
+        	fprintf(fout, "@%s\n%s\n+%s\n%s\n",
+                read.name.c_str(),
+                read.seq.c_str(),
+                read.alt_name.c_str(),
+                read.qual.c_str());
+          }
         }
-    }
+      }
+  }
+ if (wbam) delete wbam;
+ if (fout && fout!=stdout) fclose(fout);
 }
 
 

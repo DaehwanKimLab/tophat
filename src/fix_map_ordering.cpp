@@ -145,10 +145,13 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
  priority_queue< pair<uint64_t,bam1_t*>,
 					vector<pair<uint64_t, bam1_t*> >,
 					BamMapOrdering > map_pq;
-
+ GBamWriter* wmulti=NULL; //for multi-mapped prefiltering
+ if (!aux_outfile.empty() && max_multihits>0) {
+    wmulti=new GBamWriter(aux_outfile.c_str(), sam_header.c_str());
+ }
  tamFile fp=sam_open(fname.c_str());
  bam1_t *b = bam_init1();
- uint64_t last_id = 0;
+ //uint64_t last_id = 0;
  do {
    bool new_record = (sam_read1(fp, header, b) >= 0);
    if (new_record) {
@@ -157,44 +160,75 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
      bam1_t* bamrec=bam_dup1(b);
      map_pq.push(make_pair(qid, bamrec));
    }
-   
+
    while (map_pq.size() > 1000000 || (!new_record && map_pq.size() > 0)) {
-     const pair<uint64_t, bam1_t*>& t = map_pq.top();
-     bam1_t* tb=t.second;
-
+     uint64_t rid=map_pq.top().first;
+     bam1_t* tb=map_pq.top().second;
      bool unmapped = (tb->core.flag & BAM_FUNMAP) != 0;
-     if (!unmapped) {
-       // mapped reads, write with index
-       bam_writer.write(tb, t.first);
-
+     if (unmapped) { //unmapped read
+       if (umbam!=NULL)
+    	 umbam->write(tb);
+       bam_destroy1(tb);
+       map_pq.pop();
+       }
+     else { //mapped read
+       vector<pair<uint64_t, bam1_t*> > read_hits;
+      //all mappings of a read are dealt with here
+      //if (!unmapped) {
+       // mapped read
+       //collect all hits for this read
+       read_hits.push_back(map_pq.top());
+       map_pq.pop();
+       while (map_pq.size()>0 && map_pq.top().first==rid) {
+    	 read_hits.push_back(map_pq.top());
+    	 map_pq.pop();
+       }
+       int32_t num_hits=read_hits.size();
+       if (wmulti && read_hits.size()>max_multihits) {
+    	 if (num_hits>1)
+    	   bam_aux_append(tb, "NH", 'i', 4, (uint8_t*)&num_hits);
+    	 wmulti->write(tb);
+       }
+       else { //keep these mappings
        // In case of Bowtie2, some of the mapped reads against either transcriptome or genome
        // may have low alignment scores due to gaps, in which case we will remap those.
        // Later, we may have better alignments that usually involve splice junctions.
-       if (bowtie2 && t.first != last_id) {
-		   uint8_t* ptr = bam_aux_get(tb, "AS");
-		   if (ptr) {
-			 int score = bam_aux2i(ptr);
-			 if (score < bowtie2_min_score)
-			   {
-				 unmapped = true;
-			   }
-		   }
+         if (bowtie2) { //&& t.first != last_id) {
+  		   uint8_t* ptr = bam_aux_get(tb, "AS");
+  		   if (ptr) {
+  			 int score = bam_aux2i(ptr);
+  			 if (score < bowtie2_min_score)
+  			   {
+  			   //low score for best mapping, we want to map this read later as well
+ 			   //unmapped = true;
+  		       if (umbam!=NULL) {
+  		    	 umbam->write(tb);
+  		         }
+  			   }
+  		   }
+         }
+        //-- write all hits for this read:
+         for (vector<pair<uint64_t, bam1_t*> >::size_type i=0;i<read_hits.size();++i)
+         {
+           const pair<uint64_t, bam1_t*>& v = read_hits[i];
+           if (num_hits>1)
+	    	 bam_aux_append(v.second, "NH", 'i', 4, (uint8_t*)&num_hits);
+           bam_writer.write(v.second, v.first);
+         }
        }
-       last_id = t.first;
-     } // mapped reads
-
-     if (unmapped) { //unmapped reads or those we might want to map later
-       if (umbam!=NULL)
-    	 umbam->write(tb);
-     }
-     bam_destroy1(tb);
-     map_pq.pop();
+       //free the read hits
+       for (vector<pair<uint64_t, bam1_t*> >::size_type i=0;i<read_hits.size();++i)
+       {
+         const pair<uint64_t, bam1_t*>& v = read_hits[i];
+         bam_destroy1(v.second);
+       }
+      } // mapped reads
    }
  } while (map_pq.size() > 0); //while SAM records
 
  bam_destroy1(b);
  bam_header_destroy(header);
-
+ if (wmulti) delete wmulti;
 }
 
 void driver_headerless(FILE* map_file, FILE* f_out)
