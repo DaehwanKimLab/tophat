@@ -2560,7 +2560,7 @@ def compile_reports(params, sam_header_filename, ref_fasta, mappings, readfiles,
              break
       if len(um_parts) > 0:
           if len(um_parts)==1:
-            os.rename(um_pars[0], um_merged)
+            os.rename(um_parts[0], um_merged)
           else:
             merge_cmd=[prog_path("bam_merge"), "-Q",
               "--sam-header", sam_header_filename, um_merged]

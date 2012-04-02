@@ -209,9 +209,20 @@ sequences in the genome fasta file) <br>
     make sure that your system PATH includes the new version but does not include the other ones.
   </li>
 	</ul>
-	  <p></p><br>
+	  </p><br/>
 
-	    <h2>TopHat and Cufflinks protocol published at Nature Protocols - 3/12/2012</h2>
+	    <h2>Important notes - 3/26/2012</h2>
+	  <p> For those who want to follow our <em>Nature Protocols</em>, we suggest users use TopHat 1.3.2 (see the download links below)
+	    because TopHat 1.4.1 has some problems with running the protocols when mapping some of the simulated reads (e.g., C2_R2).
+	    These problems do not happen with real data, so reverting back to TopHat 1.3.2 is not necessary.
+	    <ul>
+	      <li> <a href="./downloads/tophat-1.3.2.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code (version 1.3.2) </a> </li>
+	      <li> <a href="./downloads/tophat-1.3.2.Linux_x86_64.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary (version 1.3.2) </a> </li>
+	      <li> <a href="./downloads/tophat-1.3.2.OSX_x86_64.tar.gz" onClick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary (version 1.3.2) </a> </li>
+	    </ul>
+	  </p>
+	  <br/>
+	  <h2>TopHat and Cufflinks protocol published at Nature Protocols - 3/12/2012</h2>
 	  <p>A complete <a href="http://www.nature.com/nprot/journal/v7/n3/full/nprot.2012.016.html">bioinformatic protocol</a> for analysis of RNA-Seq data using our tools 
 	    has been published at <em>Nature Protocols</em>.  The protocol covers read alignment with TopHat, 
 	    gene and transcript discovery with Cufflinks, annotation analysis with Cuffmerge and Cuffcompare, 

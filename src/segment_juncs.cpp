@@ -3220,6 +3220,8 @@ void find_fusions(RefSequenceTable& rt,
 	}
     }
 
+  const int minus_dist = -(int)max_insertion_length * 2;
+
   if (check_partner && has_partner)
     {
       for (size_t l = 0; l < left_segment_hits.hits.size(); ++l)
@@ -3239,7 +3241,7 @@ void find_fusions(RefSequenceTable& rt,
 		      else
 			dist = rightHit.left() - leftHit.right();
 		      
-		      if (dist > (int)inner_dist_mean - (int)inner_dist_std_dev && dist <= (int)fusion_min_dist)
+		      if (dist > minus_dist && dist <= (int)fusion_min_dist)
 			continue;
 		    }
 		}
@@ -3364,7 +3366,7 @@ void find_fusions(RefSequenceTable& rt,
 		  else
 		    dist = rightHit->left() - leftHit->right();
 
-		  if (dist >= 0 && dist <= (int)fusion_min_dist)
+		  if (dist > minus_dist && dist <= (int)fusion_min_dist)
 		    continue;
 		}
 	    }
