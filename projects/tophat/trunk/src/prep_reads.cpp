@@ -330,6 +330,14 @@ void process_reads(vector<string>& reads_files, vector<FZPipe>& quals_files)
         }
 
         if (wbam) {
+	  if (reads_format == FASTA)
+	    {
+	      if (color)
+		read.qual = string(read.seq.length()-1, 'I').c_str();
+	      else
+		read.qual = string(read.seq.length(), 'I').c_str();
+	    }
+
           writePrepBam(wbam, read, next_id);
         }
         else {
