@@ -217,6 +217,7 @@ int main(int argc, char *argv[])
   }
   if (lines.size()==0) {
     warn_msg("Warning: no input BAM records found.\n");
+    return 0;
   }
 
   vector<CBamLine> bam_lines;
