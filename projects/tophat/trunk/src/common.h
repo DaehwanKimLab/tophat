@@ -288,10 +288,10 @@ class GBamRecord {
    uint8_t abuf[1024];
  public:
    GBamRecord(bam1_t* from_b=NULL) {
-      if (from_b==NULL) {
-           b=bam_init1();
-           novel=true;
-           }
+     if (from_b==NULL) {
+       b=bam_init1();
+       novel=true;
+     }
         else {
            b=from_b;
            novel=false;
