@@ -178,34 +178,50 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
        // mapped read
        //collect all hits for this read
        read_hits.push_back(map_pq.top());
+       unsigned int mcount=0; //number of good scoring multi-hits
+       int tbscore=0;
+       if (bowtie2) {
+          uint8_t* ptr = bam_aux_get(tb, "AS");
+          if (ptr) {
+        	    tbscore=bam_aux2i(ptr);
+        	    if (tbscore>=bowtie2_min_score) {
+        	       ++mcount;
+        	       }
+                }
+          }
+       else mcount++; //bowtie 1
        map_pq.pop();
        while (map_pq.size()>0 && map_pq.top().first==rid) {
     	 read_hits.push_back(map_pq.top());
+    	 if (bowtie2) {
+           uint8_t* ptr = bam_aux_get(map_pq.top().second, "AS");
+           if (ptr) {
+         	    int score=bam_aux2i(ptr);
+         	    if (score>=bowtie2_min_score) {
+         	       ++mcount;
+         	       }
+                 }
+    	    }
+    	 else mcount++;
     	 map_pq.pop();
        }
        int32_t num_hits=read_hits.size();
-       if (wmulti && read_hits.size()>max_multihits) {
-    	 if (num_hits>1)
+       if (wmulti && mcount>max_multihits) {
+    	 if (num_hits>1) {
     	   bam_aux_append(tb, "NH", 'i', 4, (uint8_t*)&num_hits);
+    	   }
     	 wmulti->write(tb);
        }
        else { //keep these mappings
        // In case of Bowtie2, some of the mapped reads against either transcriptome or genome
        // may have low alignment scores due to gaps, in which case we will remap those.
        // Later, we may have better alignments that usually involve splice junctions.
-         if (bowtie2) { //&& t.first != last_id) {
-  		   uint8_t* ptr = bam_aux_get(tb, "AS");
-  		   if (ptr) {
-  			 int score = bam_aux2i(ptr);
-  			 if (score < bowtie2_min_score)
-  			   {
-  			   //low score for best mapping, we want to map this read later as well
- 			   //unmapped = true;
-  		       if (umbam!=NULL) {
-  		    	 umbam->write(tb);
-  		         }
-  			   }
-  		   }
+         if (bowtie2 && tbscore<bowtie2_min_score) {
+			 //low score for best mapping, we want to map this read later as well
+			 //unmapped = true;
+			 if (umbam!=NULL) {
+			   umbam->write(tb);
+			   }
          }
         //-- write all hits for this read:
          for (vector<pair<uint64_t, bam1_t*> >::size_type i=0;i<read_hits.size();++i)
