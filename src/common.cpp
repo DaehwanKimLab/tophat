@@ -1172,6 +1172,7 @@ GBamRecord::GBamRecord(const char* qname, int32_t flags, int32_t g_tid,
        case 'H':
        case 'Z':
          while (*(s+inc)) ++inc;
+	 ++inc; // for null char
          break;
        } //switch (tag_type)
      if (tag[0]==key[0] && tag[1]==key[1])
