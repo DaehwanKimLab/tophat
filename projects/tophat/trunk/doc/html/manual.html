@@ -518,19 +518,8 @@ possible splice
 	      This option will allow mate pairs to map to different chromosomes,
 	      distant places on the same chromosome, or on the same strand.
 	  </td></tr>
-	  <tr><td nowrap="nowrap" valign="top">
-	  <tt>--no-closure-search</tt>
-	  </td><td valign="top">
-	  Disables the mate pair closure-based search for junctions.  Currently, 
-	  has no effect - closure search is off by default.
-	  </td></tr>
-	  <tr><td nowrap="nowrap" valign="top">
-	  <tt>--closure-search</tt>
-	  </td><td valign="top">
-	  Enables the mate pair closure-based search for junctions.  Closure-based
-	  search should only be used when the expected inner distance between mates
-	  is small (&lt;= 50bp)
-	  </td></tr>
+	  
+	  
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>--no-coverage-search</tt>
 	  </td><td valign="top">
@@ -548,14 +537,7 @@ possible splice
 	  With this option, the pipeline will attempt to find alignments incident 
 	  to microexons.  Works only for reads 50bp or longer.
 	  </td></tr>
-	  <tr><td valign="top">
-	  <tt>--butterfly-search</tt>
-	  </td><td valign="top">
-	  TopHat will use a slower but potentially more sensitive algorithm to find
-	  junctions <strong>in addition</strong> to its standard search.  Consider
-	  using this if you expect that your experiment produced a lot of reads from 
-	  pre-mRNA, that fall within the introns of your transcripts.
-	  </td></tr>
+	  
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>--library-type</tt>
 	  </td><td valign="top">
@@ -634,24 +616,9 @@ above.<br>
 	  Each read is cut up into segments, each at least this long.  These segments
 	  are mapped independently. The default is 25.
 	  </td></tr>
-	  <tr><td nowrap="nowrap" valign="top">
-	  <tt>--min-closure-exon</tt>
-	  </td><td valign="top">
-	  During closure search for paired end reads, exonic hops in the potential 
-	  splice graph must be at least this long.  The default is 50.
-	  </td></tr>
-	  <tr><td nowrap="nowrap" valign="top">
-	  <tt>--min-closure-intron</tt>
-	  </td><td valign="top">
-	  The minimum intron length that may be found during closure search.  
-	  The default is 50.
-	  </td></tr>
-	  <tr><td nowrap="nowrap" valign="top">
-	  <tt>--max-closure-intron</tt>
-	  </td><td valign="top">
-	  The maximum intron length that may be found during closure search.  
-	  The default is 5000.
-	  </td></tr>
+	  
+	  
+	  
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>--min-coverage-intron</tt>
 	  </td><td valign="top">
@@ -1096,5 +1063,6 @@ document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.
 var pageTracker = _gat._getTracker("UA-6101038-1");
 pageTracker._trackPageview();
 </script>
+
 
 </body></html>

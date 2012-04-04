@@ -72,11 +72,7 @@ Options:
     --no-gtf-juncs
     --no-coverage-search
     --coverage-search
-    --no-closure-search
-    --closure-search
     --microexon-search
-    --butterfly-search
-    --no-butterfly-search
     --keep-tmp
     --tmp-dir                      <dirname>   [ default: <output_dir>/tmp ]
     -z/--zpacker                   <program>   [ default: gzip             ]
@@ -91,9 +87,6 @@ Advanced Options:
     --segment-mismatches           <int>       [ default: 2                ]
     --segment-length               <int>       [ default: 25               ]
     --bowtie-n                                 [ default: bowtie -v        ]
-    --min-closure-exon             <int>       [ default: 100              ]
-    --min-closure-intron           <int>       [ default: 50               ]
-    --max-closure-intron           <int>       [ default: 5000             ]
     --min-coverage-intron          <int>       [ default: 50               ]
     --max-coverage-intron          <int>       [ default: 20000            ]
     --min-segment-intron           <int>       [ default: 50               ]
@@ -152,8 +145,15 @@ SAM Header Options (for embedding sequencing run metadata in output):
     --rg-platform                  <string>    (Sequencing platform descriptor)
 '''
 
+# Deprecated:
+#    --min-closure-exon             <int>       [ default: 100              ]
+#    --min-closure-intron           <int>       [ default: 50               ]
+#    --max-closure-intron           <int>       [ default: 5000             ]
+#    --no-closure-search
+#    --closure-search
+#    --butterfly-search
+#    --no-butterfly-search
 #    -F/--min-isoform-fraction      <float>     [ default: 0.15             ]
-#    (obsolete)
 
 class Usage(Exception):
     def __init__(self, msg):
@@ -650,8 +650,9 @@ class TopHatParams:
         self.raw_deletions = None
         self.coverage_search = None
         self.closure_search = False
+        #self.butterfly_search = None
+        self.butterfly_search = False
         self.microexon_search = False
-        self.butterfly_search = None
         self.report_secondary_alignments = False
         self.report_discordant_pair_alignments = False
 
@@ -830,15 +831,17 @@ class TopHatParams:
                                          "no-gtf-juncs",
                                          "mate-inner-dist=",
                                          "mate-std-dev=",
-                                         "no-closure-search",
                                          "no-coverage-search",
-                                         "closure-search",
                                          "coverage-search",
+                                         #"no-closure-search",
+                                         #"closure-search",
+                                         #"min-closure-exon=",
+                                         #"min-closure-intron=",
+                                         #"max-closure-intron=",
+                                         #"butterfly-search",
+                                         #"no-butterfly-search",
                                          "prefilter-multihits",
                                          "microexon-search",
-                                         "min-closure-exon=",
-                                         "min-closure-intron=",
-                                         "max-closure-intron=",
                                          "min-coverage-intron=",
                                          "max-coverage-intron=",
                                          "min-segment-intron=",
@@ -851,8 +854,6 @@ class TopHatParams:
                                          "segment-length=",
                                          "segment-mismatches=",
                                          "bowtie-n",
-                                         "butterfly-search",
-                                         "no-butterfly-search",
                                          "keep-tmp",
                                          "rg-id=",
                                          "rg-sample=",
@@ -962,16 +963,20 @@ class TopHatParams:
                 self.coverage_search = False
             if option == "--coverage-search":
                 self.coverage_search = True
-            if option == "--no-closure-search":
-                self.closure_search = False
-            if option == "--closure-search":
-                self.closure_search = True
+
+            self.closure_search = False
+            #if option == "--no-closure-search":
+            #    self.closure_search = False
+            #if option == "--closure-search":
+            #    self.closure_search = True
             if option == "--microexon-search":
                 self.microexon_search = True
-            if option == "--butterfly-search":
-                self.butterfly_search = True
-            if option == "--no-butterfly-search":
-                self.butterfly_search = False
+
+            self.butterfly_search = False
+            #if option == "--butterfly-search":
+            #    self.butterfly_search = True
+            #if option == "--no-butterfly-search":
+            #    self.butterfly_search = False
             if option == "--genome-read-mismatches":
                 self.genome_read_mismatches = int(value)
             if option in ("-N", "--read-mismatches", "--max-read-mismatches"):
