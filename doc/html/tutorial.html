@@ -173,44 +173,23 @@
 		<br>
 		<ol>
 		  <li><a href="http://www.boost.org/users/download/">Download</a>
-		    Boost and the <tt>bjam</tt> build engine.</li>
-		  <li>Unpack bjam and add it to your PATH.</li>
-		  <li>Unpack the Boost tarball and <tt>cd</tt> to the
-		    Boost source directory. This directory is called
-		    the BOOST_ROOT in some Boost installation
-		    instructions.</li>
-		  <li>Build Boost. Note that you can specify where to
+a recent		    Boost source tarball, unpack it and <tt>cd</tt> to the newly unpacked Boost source directory.</li>
+		  <li>Prepare the build: <br>
+<tt>./bootstrap.sh</tt><br>
+</li>
+		  
+<li>Build Boost. Note that you can specify where to
 		    put Boost with the --prefix option. The default
 		    Boost installation directory is <tt>/usr/local</tt>.
 		    Take note of the boost installation directory,
 		    because you will need to tell the Cufflinks
-		    installer where to find Boost later on.
-		    <p>If you are on Mac OS X, type (all on one line):
-                      <br>
+		    installer where to find Boost later on. Run the build and install command:<br>
 		    </p>
-		    <blockquote>bjam
-                      --prefix=&lt;YOUR_BOOST_INSTALL_DIRECTORY&gt;
-                      --toolset=darwin architecture=x86
-                      address_model=32_64 link=static
-                      runtime-link=static --layout=versioned stage
-                      install</blockquote>
+		    <blockquote><tt>./bjam
+		              --prefix=&lt;YOUR_BOOST_INSTALL_DIRECTORY&gt; link=static \<br>
+&nbsp;runtime-link=static stage install</tt></blockquote>
 		  </li>
-		  <p>If you are on a 32-bit Linux system, type (all on
-		    one line): <br>
-		  </p>
-		  <blockquote>bjam
-		    --prefix=&lt;YOUR_BOOST_INSTALL_DIRECTORY&gt;
-		    --toolset=gcc architecture=x86 address_model=32
-		    link=static runtime-link=static stage install</blockquote>
-		  <p>If you are on a 64-bit Linux system, type (all on
-		    one line): <br>
-		  </p>
-		  <blockquote>bjam
-		    --prefix=&lt;YOUR_BOOST_INSTALL_DIRECTORY&gt;
-		    --toolset=gcc architecture=x86 address_model=64
-		    link=static runtime-link=static stage install</blockquote>
-		</ol>
-		<br>
+</ol><br>
 		<h3 id="samtools">Installing the SAM tools</h3>
 		<br>
 		<ol>
@@ -243,7 +222,7 @@
 		    <blockquote>tar zxvf tophat-2.0.0.tar.gz</blockquote>
 		  </li>
 		  <li>Change to the TopHat directory:
-		    <blockquote>cd tophat-0.7.0</blockquote>
+		    <blockquote>cd tophat-2.0.0</blockquote>
 		  </li>
 		  <li>Configure TopHat. If Boost is installed
 		    somewhere other than <tt>/usr/local</tt>, you
@@ -430,4 +409,5 @@ pageTracker._trackPageview();
 
 
 
-</td></tr></tbody></table></div></div></div></body></html>
+</td></tr></tbody></table></div></div></div>
+</body></html>
