@@ -1,0 +1,4 @@
+#!/bin/sh
+prefix="__PREFIX__"
+export PATH=$prefix/bin:$PATH
+$prefix/bin/tophat "$@"

@@ -7,7 +7,9 @@
 # Generated with 
 # find SeqAn-1.3 -type f -print | grep -v ".svn" | sed 's/$/ \\/g'
 # run from src
+# - and tophat2.in added
 EXTRA_DIST = \
+tophat2.in \
 SeqAn-1.3/COPYING \
 SeqAn-1.3/README \
 SeqAn-1.3/seqan/chaining/chain_generic.h \
@@ -533,6 +535,9 @@ bin_PROGRAMS = \
 	tophat_reports \
 	sam_juncs
 
+bin_SCRIPTS = \
+	tophat2
+
 #-- scripts to be installed in $prefix/bin
 dist_bin_SCRIPTS = \
 	contig_to_chr_coords \
@@ -540,6 +545,10 @@ dist_bin_SCRIPTS = \
 	bed_to_juncs \
 	sra_to_solid \
 	tophat-fusion-post
+
+
+tophat2: tophat2.in
+	sed -e 's|__PREFIX__|$(prefix)|' tophat2.in > tophat2
 
 #SUFFIXES = .py
 #.py:
@@ -581,7 +590,6 @@ noinst_HEADERS = \
 	qual.h \
 	utils.h \
 	coverage.h
-
 
 libtophat_a_SOURCES = \
 	reads.cpp \
