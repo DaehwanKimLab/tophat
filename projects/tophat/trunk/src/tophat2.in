@@ -1,4 +1,11 @@
 #!/bin/sh
 prefix="__PREFIX__"
-export PATH=$prefix/bin:$PATH
-$prefix/bin/tophat "$@"
+pbin=""
+if [[ -z $prefix ]]; then
+   fl=$(readlink $0)
+   pbin=$(dirname $fl)
+else
+ pbin=$prefix/bin
+fi
+export PATH=$pbin:$PATH
+$pbin/tophat "$@"

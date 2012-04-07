@@ -278,33 +278,46 @@ possible splice
   <li><tt>samtools</tt></li>
 
       </ul>
-	  <p>Because TopHat outputs alignments in BAM format, you will need to download and install the <a href="http://samtools.sourceforge.net/">SAM tools</a>. The Boost You may want to take a look at the <a href="tutorial.html">Getting started</a> guide for more detailed installation instructions, 
+	  <p>Because TopHat outputs and handles alignments in BAM format, you will need to download and install the <a href="http://samtools.sourceforge.net/">SAM tools</a>. You may want to take a look at the <a href="tutorial.html">Getting started</a> guide for more detailed installation instructions, 
       including installation of SAM tools and Boost.
 	  </p><p>You will also need Python <strong>version 2.4 or higher</strong>.
       </p>
   	  <br>
   	  <h2 id="bins">Obtaining and installing TopHat</h2><br>
-	  <p> You can download the latest source release <a href="./downloads/">here</a>. </p>
-	  <p> To install TopHat, unpack the tarball and change to the package 
+	  <p> You can download the latest source release and precompiled binaries for Linux and Mac OSX <a href="./downloads/">here</a>. See the <a href="tutorial.html">Getting started</a>
+ guide for detailed instructions about installing TopHat from the binary
+ package or building TopHat and its dependencies from source.<br>
+</p>
+	  <p> To install TopHat from source package, unpack the tarball and change directory to the package 
 		directory as follows: </p> <p>
 		</p><blockquote>tar zxvf tophat-2.0.0.tar.gz</blockquote> 
 		<blockquote>cd tophat-2.0.0/</blockquote>
-	  <p>Now build the package: </p> <p> 
-		</p><blockquote>./configure --prefix=&lt;install_prefix&gt;                       --with-boost=&lt;boost_install_prefix&gt;
-		      --with-bam=&lt;samtools_install_prefix&gt;</blockquote>
-		<blockquote>make</blockquote>
-	  <p>Finally, install TopHat:</p><p>
-		</p><blockquote>make install</blockquote>
+	  <p>Configure the package, specifying the install path and the library dependencies as needed (see the&nbsp; <a href="tutorial.html">Getting started</a> guide for details):<br>
+</p> <p> 
+		</p>
+		<blockquote>./configure --prefix=&lt;install_prefix&gt;                       --with-boost=&lt;boost_install_prefix&gt;
+		      --with-bam=&lt;samtools_install_prefix&gt;<br>
+</blockquote>
+	  <p>Finally, build and install TopHat:</p><p>
+		</p><blockquote>make<br>
+make install</blockquote>
   	  
 
-	  <p>Below, you will find a detailed list of command-line options you can
+	  <p>As detailed in the <a href="tutorial.html">Getting started</a>
+ guide, if you want to install TopHat 2 without overwriting a previous 
+version of TopHat already installed on your system you should specify a 
+new, separate &lt;install_prefix&gt; for the ./configure command above, 
+and after 
+the 'make install' step just copy the tophat2 script from 
+&lt;install_prefix&gt;/bin to a directory that is in your shell's PATH, 
+so you can invoke this new version of TopHat with the command 'tophat2'.</p>
+<p>Below you will find a detailed list of command-line options you can
 		use to control TopHat.  Beginning users should take a look at the 
 		<a href="tutorial.html">Getting started</a> guide for a tutorial on
-		installing and running TopHat.
-
-	  <br>
+		installing and running TopHat and its prerequisites.<br>
   	  
-	  </p><div id="subheader">
+	  </p>
+<div id="subheader">
 	  <table width="100%"><tbody><tr> <td> <strong>Please Note</strong> TopHat has a number
 		of parameters and options, and their default values are tuned for processing
 		<strong>mammalian</strong> RNA-Seq reads. If you would like to use TopHat for
@@ -1063,6 +1076,7 @@ document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.
 var pageTracker = _gat._getTracker("UA-6101038-1");
 pageTracker._trackPageview();
 </script>
+
 
 
 </body></html>
