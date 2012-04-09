@@ -70,8 +70,6 @@ InsertAlignmentGrade(const BowtieHit& h1, bool fusion = false) :
   
 InsertAlignmentGrade(const BowtieHit& h1, 
 		     const BowtieHit& h2, 
-		     int min_inner_distance,
-		     int max_inner_distance,
 		     bool fusion = false) :
   too_close(false),
     too_far(false),
@@ -84,6 +82,9 @@ InsertAlignmentGrade(const BowtieHit& h1,
     num_alignments(0),
     alignment_score(std::numeric_limits<int>::min())
   {
+    int min_inner_distance = inner_dist_mean - inner_dist_std_dev;
+    int max_inner_distance = inner_dist_mean + inner_dist_std_dev;
+  
     pair<int, int> distances = pair_distances(h1, h2);
     inner_dist = distances.second;
     
@@ -111,9 +112,21 @@ InsertAlignmentGrade(const BowtieHit& h1,
     if (!fusion)
       {
 	if (too_far)
-	  alignment_score -= penalty_for_long_inner_dist;
+	  {
+	    int penalty = penalty_for_long_inner_dist;
+	    if (inner_dist - max_inner_distance < inner_dist_std_dev)
+	      {
+		penalty = penalty_for_long_inner_dist / 2;
+	      }
+	      
+	    alignment_score -= penalty;
+	  }
 	else if (too_close)
-	  alignment_score -= (penalty_for_long_inner_dist / 2);
+	  {
+	    int penalty = min(penalty_for_long_inner_dist/2,
+			      (min_inner_distance - inner_dist) / inner_dist_std_dev + 1);
+	    alignment_score -= penalty;
+	  }
 	
 	static const int penalty_for_same_strand = bowtie2_max_penalty;
 	if (!opposite_strands)

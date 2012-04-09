@@ -154,14 +154,7 @@ void best_insert_mappings(uint64_t refid,
 	  
 	  if (h1.insert_id() == h2.insert_id())
 	    {
-	      // max mate inner distance (genomic)
-	      int min_mate_inner_dist = inner_dist_mean - inner_dist_std_dev;
-	      if (max_mate_inner_dist == -1)
-		{
-		  max_mate_inner_dist = inner_dist_mean + inner_dist_std_dev;
-		}
-	      
-	      InsertAlignmentGrade s(h1, h2, min_mate_inner_dist, max_mate_inner_dist);
+	      InsertAlignmentGrade s(h1, h2);
 	      
 	      pair<InsertAlignmentGrade, vector<InsertAlignment> >& insert_best
 		= best_status_for_inserts[obs_order];

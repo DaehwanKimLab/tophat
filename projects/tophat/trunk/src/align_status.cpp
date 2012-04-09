@@ -43,7 +43,11 @@ AlignStatus::AlignStatus(const BowtieHit& bh,
 			 const InsertionSet& insertions,
 			 const DeletionSet& deletions,
 			 const FusionSet& fusions,
-			 const Coverage& coverage) {
+			 const Coverage& coverage)
+{
+  // it seems like we need to test this more
+  const bool recalculate_indel_score = false;
+  
   const vector<CigarOp>& cigar = bh.cigar();
   _alignment_score = bh.alignment_score();
 
@@ -144,7 +148,7 @@ AlignStatus::AlignStatus(const BowtieHit& bh,
 		j -= length;
 	      }
 
-	    if (recalculate_score)
+	    if (recalculate_score && recalculate_indel_score)
 	      {
 		DeletionSet::const_iterator itr = deletions.find(junc);
 		if (itr != deletions.end())
@@ -176,7 +180,7 @@ AlignStatus::AlignStatus(const BowtieHit& bh,
 	case INS:
 	case iNS:
 	  {
-	    if (recalculate_score)
+	    if (recalculate_score && recalculate_indel_score)
 	      {
 		string seq = bh.seq().substr(r, length);
 		Insertion ins(ref_id, j, seq);

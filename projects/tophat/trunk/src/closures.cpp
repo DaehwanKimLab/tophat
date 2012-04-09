@@ -32,13 +32,8 @@ bool possible_cotranscript(const BowtieHit& h1, const BowtieHit& h2, bool check_
 {
   if (h1.insert_id() != h2.insert_id()) 
     return false;
-  int min_mate_inner_dist = inner_dist_mean - inner_dist_std_dev;
-  if (max_mate_inner_dist == -1)
-    {
-      max_mate_inner_dist = inner_dist_mean + inner_dist_std_dev;
-    }
   
-  InsertAlignmentGrade grade(h1,h2, min_mate_inner_dist, max_mate_inner_dist);
+  InsertAlignmentGrade grade(h1, h2);
   return (!grade.too_far && !grade.too_close && grade.opposite_strands);
 }
 
@@ -179,13 +174,7 @@ void visit_best_pairing(HitsForRead& left_hit_group,
 	    continue;
 	  
 	  uint32_t refid = h1.ref_id();
-	  
-	  int min_mate_inner_dist = inner_dist_mean - inner_dist_std_dev;
-	  if (max_mate_inner_dist == -1)
-	    {
-	      max_mate_inner_dist = inner_dist_mean + inner_dist_std_dev;
-	    }
-	  InsertAlignmentGrade s(h1, h2, min_mate_inner_dist, max_mate_inner_dist);
+	  InsertAlignmentGrade s(h1, h2);
 	  
 	  //pair<InsertAlignmentGrade, vector<InsertAlignment> >& insert_best
 	  //					= best_status_for_inserts[curr_left_obs_order];
