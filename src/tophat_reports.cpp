@@ -146,11 +146,6 @@ void read_best_alignments(const HitsForRead& hits_for_read,
 
 bool set_insert_alignment_grade(const BowtieHit& lh, const BowtieHit& rh, InsertAlignmentGrade& grade)
 {
-  // max mate inner distance (genomic)
-  int min_mate_inner_dist = inner_dist_mean - inner_dist_std_dev;
-  if (max_mate_inner_dist == -1)
-    max_mate_inner_dist = inner_dist_mean + inner_dist_std_dev;
-  
   bool fusion = false;
   bool left_fusion = lh.fusion_opcode() != FUSION_NOTHING;
   bool right_fusion = rh.fusion_opcode() != FUSION_NOTHING;
@@ -180,7 +175,7 @@ bool set_insert_alignment_grade(const BowtieHit& lh, const BowtieHit& rh, Insert
 	}
     }
 
-  grade = InsertAlignmentGrade(lh, rh, min_mate_inner_dist, max_mate_inner_dist, fusion);
+  grade = InsertAlignmentGrade(lh, rh, fusion);
   
   return true;
 }
