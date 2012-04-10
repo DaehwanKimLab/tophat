@@ -2,10 +2,11 @@
 
 #simple script to pack up a precompiled binary package
 
-echo "packing up $1.tar.gz, using BAM installation in $2"
+echo "packing up $1.tar.gz, using BAM installation in $2, BOOST installation in $3"
 mkdir $1
 make clean
-./configure --prefix=`pwd`/$1 --with-bam=$2
+./configure --prefix=`pwd`/$1 --with-bam=$2 --with-boost=$3
+sed -e 's|__PREFIX__||' src/tophat2.in > src/tophat2
 make
 make install
 cp $1/bin/* $1
