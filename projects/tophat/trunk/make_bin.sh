@@ -1,7 +1,10 @@
 #!/bin/bash
 
 #simple script to pack up a precompiled binary package
-
+if [[ -z "$1" ]]; then
+ echo -e "Usage:\n./make_bin.sh <binary_package_name> [<bam_prefix> <boost_prefix>]"
+ exit 1
+fi
 echo "packing up $1.tar.gz, using BAM installation in $2, BOOST installation in $3"
 mkdir $1
 make clean
