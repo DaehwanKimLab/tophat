@@ -546,6 +546,8 @@ dist_bin_SCRIPTS = \
 	sra_to_solid \
 	tophat-fusion-post
 
+CLEANFILES = \
+	tophat2
 
 tophat2: tophat2.in
 	sed -e 's|__PREFIX__|$(prefix)|' tophat2.in > tophat2
