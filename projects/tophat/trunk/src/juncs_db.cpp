@@ -80,14 +80,16 @@ void print_insertion(const Insertion& insertion,
   
   size_t left_start, right_start;
   size_t left_end, right_end;
-  if (insertion.left >= 0 && insertion.left <= length(ref_str))
+
+  size_t ref_len = length(ref_str);
+  if (insertion.left >= 0 && insertion.left <= ref_len)
     {
       left_start = (int)insertion.left - half_splice_len + 1 >= 0 ? (int)insertion.left - half_splice_len + 1 : 0;
       left_end = left_start + half_splice_len;
       
       right_start = (int)left_end; 
-      right_end = right_start + half_splice_len  < length(ref_str) ? right_start + half_splice_len : length(ref_str);
-      
+      right_end = right_start + half_splice_len  < ref_len ? right_start + half_splice_len : ref_len;
+
       Infix<RefSequenceTable::Sequence>::Type left_splice = infix(ref_str, left_start, left_end);
       Infix<RefSequenceTable::Sequence>::Type right_splice = infix(ref_str, right_start, right_end); 
       
@@ -112,16 +114,18 @@ void print_splice(const Junction& junction,
   int half_splice_len = read_len;
   size_t left_start, right_start;
   size_t left_end, right_end;
+
+  size_t ref_len = length(ref_str);
   
-  if (junction.left >= 0 && junction.left <= length(ref_str) &&
-      junction.right >= 0 && junction.right <= length(ref_str))
+  if (junction.left >= 0 && junction.left <= ref_len &&
+      junction.right >= 0 && junction.right <= ref_len)
     {
       left_start = (int)junction.left - half_splice_len + 1 >= 0 ? (int)junction.left - half_splice_len + 1 : 0;
       left_end = left_start + half_splice_len;
       
       right_start = junction.right;
-      right_end = right_start + half_splice_len < length(ref_str) ? right_start + half_splice_len : length(ref_str) - right_start;
-      
+      right_end = right_start + half_splice_len < ref_len ? right_start + half_splice_len : ref_len;
+
       Infix<RefSequenceTable::Sequence>::Type left_splice = infix(ref_str,
 								  left_start, 
 								  left_end);
