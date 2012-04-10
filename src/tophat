@@ -1154,7 +1154,7 @@ def check_bowtie_index(idx_prefix, is_bowtie2):
 
 # Reconstructs the multifasta file from which the Bowtie index was created, if
 # it's not already there.
-def bowtie_idx_to_fa(idx_prefix):
+def bowtie_idx_to_fa(idx_prefix, is_bowtie2):
     idx_name = idx_prefix.split('/')[-1]
     th_log("Reconstituting reference FASTA file from Bowtie index")
 
@@ -1164,8 +1164,12 @@ def bowtie_idx_to_fa(idx_prefix):
 
         inspect_log = open(logging_dir + "bowtie_inspect_recons.log", "w")
 
-        inspect_cmd = [prog_path("bowtie-inspect"),
-                       idx_prefix]
+        if is_bowtie2:
+            inspect_cmd = [prog_path("bowtie2-inspect")]
+        else:
+            inspect_cmd = [prog_path("bowtie-inspect")]
+
+        inspect_cmd += [idx_prefix]
 
         th_logp("  Executing: " + " ".join(inspect_cmd) + " > " + tmp_fasta_file_name)
         ret = subprocess.call(inspect_cmd,
@@ -1185,7 +1189,7 @@ def bowtie_idx_to_fa(idx_prefix):
 
 # Checks whether the multifasta file for the genome is present alongside the
 # Bowtie index files for it.
-def check_fasta(idx_prefix):
+def check_fasta(idx_prefix, is_bowtie2):
     th_log("Checking for reference FASTA file")
     idx_fasta = idx_prefix + ".fa"
     if os.path.exists(idx_fasta):
@@ -1198,13 +1202,13 @@ def check_fasta(idx_prefix):
                 return idx_fasta
 
         th_logp("\tWarning: Could not find FASTA file " + idx_fasta)
-        idx_fa = bowtie_idx_to_fa(idx_prefix)
+        idx_fa = bowtie_idx_to_fa(idx_prefix, is_bowtie2)
         return idx_fa
 
 # Check that both the Bowtie index and the genome's fasta file are present
 def check_index(idx_prefix, is_bowtie2):
     check_bowtie_index(idx_prefix, is_bowtie2)
-    ref_fasta_file = check_fasta(idx_prefix)
+    ref_fasta_file = check_fasta(idx_prefix, is_bowtie2)
 
     return (ref_fasta_file, None)
 
