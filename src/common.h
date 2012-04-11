@@ -370,9 +370,9 @@ class GBamRecord {
       memcpy(b->data + ori_len + 3, data, len);
       }
    //--reading back aux tags:
-	 int find_tag(const char tag[2], uint8_t* & s, char& tag_type);
-	 //position s at the beginning of tag data, tag_type is set to the found tag type
-	 //returns length of tag data, or 0 if tag not found
+	 uint8_t* find_tag(const char tag[2]);
+	 //returns pointer at the beginning of tag data, or NULL if tag not found
+	 //the returned pointer can then be used by bam_aux2*() functions
 
 	 std::string tag_str(const char tag[2]); //return tag value for tag type 'Z'
 	 int tag_int(const char tag[2]); //return numeric value of tag (for numeric types)
