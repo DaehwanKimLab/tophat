@@ -1119,111 +1119,35 @@ GBamRecord::GBamRecord(const char* qname, int32_t flags, int32_t g_tid,
   }//add_aux()
 
 
- int GBamRecord::find_tag(const char tag[2], uint8_t* & s, char& tag_type) {
-   //position s at the beginning of tag's "data" (after the type char)
-   //returns the length of tag data, and tag type in tag_type
-   uint8_t* aux_start=bam1_aux(b);
-   s=aux_start;
-   while (s < aux_start + b->l_aux - 1) {
-     char key[2];
-     key[0] = (char)s[0]; key[1] = (char)s[1];
-     s += 2; tag_type = (char)*s; ++s;
-     int inc=0;
-     int m_inc=0;       //for 'B' case
-     uint8_t sub_type=0; // --,,--
-     switch (tag_type) {
-       case 'A':
-       case 'C':
-       case 'c':
-         inc=1;
-         break;
-       case 'S':
-       case 's':
-         inc=2;
-         break;
-       case 'I':
-       case 'i':
-       case 'f':
-         inc=4;
-         break;
-       case 'd':
-         inc=8;
-         break;
-       case 'B':
-           sub_type = *(s+1);
-           int32_t n;
-           memcpy(&n, s+1, 4);
-           inc += 5;
-           //kputc(type, &str); kputc(':', &str); kputc(sub_type, &str);
-           m_inc=0;
-           if (sub_type == 'c' || sub_type == 'C')
-                        { m_inc=1; }
-           else if (sub_type == 's' || sub_type == 'S')
-                         { m_inc = 2; }
-           else if ('i' == sub_type || 'I' == sub_type || 'f' == sub_type)
-                         { m_inc = 4; }
-           if (m_inc==0) {
-        	 fprintf(stderr, "Error: invalid 'B' array subtype (%c)!\n",sub_type);
-        	 abort();
-        	 err_die("Error: invalid 'B' array subtype (%c)!\n",sub_type);
-           }
-           inc += m_inc*n;
-           break;
-       case 'H':
-       case 'Z':
-         while (*(s+inc)) ++inc;
-	 ++inc; // for null char
-         break;
-       } //switch (tag_type)
-     if (tag[0]==key[0] && tag[1]==key[1])
-        return inc;
-     s+=inc;
-     }//while aux data
-   return 0;
-   }
+ uint8_t* GBamRecord::find_tag(const char tag[2]) {
+   return bam_aux_get(this->b, tag);
+ }
 
  char GBamRecord::tag_char(const char tag[2]) { //retrieve tag data as single char
-   uint8_t *s;
-   char tag_type=0;
-   int vlen=find_tag(tag, s, tag_type);
-   if (vlen==0) return 0;
-   //if (vlen>1) GWarning("Warning: tag %c%c value has length %d, but char was expected.\n",
-   //        tag[0],tag[1],vlen);
-   return (char)s[0];
+   uint8_t* s=find_tag(tag);
+   if (s) return ( bam_aux2A(s) );
+   return 0;
   }
 
  int GBamRecord::tag_int(const char tag[2]) { //get the numeric value of tag
-   uint8_t *s;
-   char tag_type=0;
-   int vlen=find_tag(tag, s, tag_type);
-   if (vlen==0) return 0;
-   if (vlen==1) return (int)(*(int8_t*)s);
-    else if (vlen==2) return (int)(*(int16_t*)s);
-     else if (vlen==4) return (int)(*(int32_t*)s);
-     else fprintf(stderr, "Warning: tag %c%c value has length %d, but int type was expected.\n",
-           tag[0],tag[1], vlen);
+   uint8_t *s=find_tag(tag);
+   if (s) return ( bam_aux2i(s) );
    return 0;
    }
 
  string GBamRecord::tag_str(const char tag[2]) { //return string value for a tag
    string r("");
-   uint8_t *s=NULL;
-   char tag_type=0;
-   int vlen=find_tag(tag, s, tag_type);
-   if (vlen==0) return r; //not found
-   r.resize(vlen);
-   for (int i=0;i<vlen;++i,++s) {
-	 r[i]=*s;
+   uint8_t *sz=find_tag(tag);
+   if (sz) {
+	 r = bam_aux2Z(sz);
    }
    return r;
    }
 
  char GBamRecord::spliceStrand() { // '+', '-' from the XS tag, or 0 if no XS tag
-   uint8_t *s;
-   char tag_type=0;
-   int vlen=find_tag("XS", s, tag_type);
-   if (vlen==0) return '.';
-   return (char)s[0];
+   char c=tag_char("XS");
+   if (c) return c;
+     else return '.';
    }
 
  string GBamRecord::sequence() {
