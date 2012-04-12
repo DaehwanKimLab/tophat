@@ -207,7 +207,7 @@ void writePrepBam(GBamWriter* wbam, Read& read, uint32_t rid, char trashcode=0) 
 		if (matenum) rname.resize(pl-1);
 	}
 
-  bamrec.add_aux("ZN", 'Z',read.name.length(),(uint8_t*)rname.c_str());
+  bamrec.add_aux("ZN", 'Z',rname.length(),(uint8_t*)rname.c_str());
   if (trashcode) {
 	 bamrec.set_flag(BAM_FQCFAIL);
      bamrec.add_aux("ZT", 'A', 1, (uint8_t*)&trashcode);
