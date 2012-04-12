@@ -79,17 +79,17 @@ class FLineReader { //simple text line reader class, buffering last line read
   FILE* file;
   bool is_pipe;
   bool pushed; //pushed back
-  int lcount; //counting all lines read by the object
+  uint64_t lcount; //counting all lines read by the object
   
 public:
   char* chars() { return buf; }
   char* line() { return buf; }
-  int readcount() { return lcount; } //number of lines read
+  uint64_t readcount() { return lcount; } //number of lines read
   int length() { return len; } //length of the last line read
   bool isEof() {return isEOF; }
   char* nextLine();
   FILE* fhandle() { return file; }
-  void pushBack() { if (lcount>0) pushed=true; } // "undo" the last getLine request
+  void pushBack() { if (lcount) pushed=true; } // "undo" the last getLine request
            // so the next call will in fact return the same line
   FLineReader(FILE* stream=NULL) {
     len=0;
