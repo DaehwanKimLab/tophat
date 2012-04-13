@@ -196,18 +196,19 @@ void writePrepBam(GBamWriter* wbam, Read& read, uint32_t rid, char trashcode=0) 
   GBamRecord bamrec(rnum.c_str(), -1, 0, false, read.seq.c_str(), NULL, read.qual.c_str());
   int matenum=0;
   if (rname[pl-1]=='/') {
-		if (rname[pl]=='1') {
-		    bamrec.set_flag(BAM_FREAD1);
-			matenum=1;
-		}
-		else if (rname[pl]=='2') {
-		    bamrec.set_flag(BAM_FREAD2);
-			matenum=2;
-		}
-		if (matenum) rname.resize(pl-1);
-	}
+    if (rname[pl]=='1') {
+      bamrec.set_flag(BAM_FREAD1);
+      matenum=1;
+    }
+    else if (rname[pl]=='2') {
+      bamrec.set_flag(BAM_FREAD2);
+      matenum=2;
+    }
+    if (matenum) rname.resize(pl-1);
+  }
 
-  bamrec.add_aux("ZN", 'Z',rname.length(),(uint8_t*)rname.c_str());
+  bamrec.add_aux("ZN", 'Z', rname.length(), (uint8_t*)rname.c_str());
+
   if (trashcode) {
 	 bamrec.set_flag(BAM_FQCFAIL);
      bamrec.add_aux("ZT", 'A', 1, (uint8_t*)&trashcode);

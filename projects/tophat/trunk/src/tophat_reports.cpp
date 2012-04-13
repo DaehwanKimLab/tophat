@@ -436,7 +436,7 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
     flag |= 0x100;
   
   int gpos=isdigit(sam_toks[3][0]) ? atoi(sam_toks[3].c_str()) : 0;
-  int mapQ=255;
+  int mapQ = 50;
   if (num_hits > 1)  {
     double err_prob = 1 - (1.0 / num_hits);
     mapQ = (int)(-10.0 * log(err_prob) / log(10.0));
@@ -547,7 +547,7 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
     }
   
   int gpos=isdigit(sam_toks[3][0]) ? atoi(sam_toks[3].c_str()) : 0;
-  int mapQ=255;
+  int mapQ = 50;
   if (grade.num_alignments > 1) {
     double err_prob = 1 - (1.0 / grade.num_alignments);
     mapQ = (int)(-10.0 * log(err_prob) / log(10.0));
