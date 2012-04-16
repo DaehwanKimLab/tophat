@@ -256,6 +256,7 @@ class ReadStream {
     }
 
     void init(const string& fname, FZPipe* pquals=NULL, bool guess_packer=false) {
+        if (fname.empty()) return;
         if (fstream.openRead(fname, guess_packer)==NULL) {
           fprintf(stderr, "Warning: couldn't open file %s\n",fname.c_str());
           return;

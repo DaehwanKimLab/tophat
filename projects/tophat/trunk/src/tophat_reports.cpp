@@ -1054,8 +1054,6 @@ struct ReportWorker
     GBamWriter* left_um_out=new GBamWriter(left_um_fname.c_str(), sam_header.c_str());
     GBamWriter* right_um_out=NULL;
     
-    //if (left_um_out.openWrite(left_um_fname.c_str(), zpacker)==NULL)
-    //  err_die("Error: cannot open file %s for writing!\n",left_um_fname.c_str());
     ReadStream right_reads_file(right_reads_fname);
     if (right_reads_offset > 0)
       right_reads_file.seek(right_reads_offset);
@@ -1775,7 +1773,6 @@ int main(int argc, char** argv)
   
   string left_reads_filename = argv[optind++];
   string unzcmd=getUnpackCmd(left_reads_filename, false);
-  
   string right_map_filename;
   string right_reads_filename;
   
