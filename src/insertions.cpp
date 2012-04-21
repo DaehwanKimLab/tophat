@@ -49,23 +49,24 @@
  * @param bh The bowtie hit to be used to specify alignment infromation.
  * @param insertions The InsertionSet that will be updated with the insertion information from teh alignment.
  */
-void insertions_from_alignment(const BowtieHit& bh, InsertionSet& insertions){
+void insertions_from_alignment(const BowtieHit& bh, InsertionSet& insertions) {
+  vector<pair<Insertion, InsertionStats> > new_insertions;
+  insertions_from_spliced_hit(bh, new_insertions);
 
-	vector<Insertion> new_insertions;
-	insertions_from_spliced_hit(bh, new_insertions);
-
-	for(size_t i = 0; i < new_insertions.size(); ++i){
-		Insertion insertion = new_insertions[i];
-		InsertionSet::iterator itr = insertions.find(insertion);
-		if (itr != insertions.end()){
-			itr->second += 1;
-		}
-		else{
-			assert(insertion.refid != VMAXINT32);
-			insertions[insertion] = 1;
-		}
-	}
-	return;
+  for(size_t i = 0; i < new_insertions.size(); ++i) {
+    const pair<Insertion, InsertionStats>& insertion = new_insertions[i];
+    InsertionSet::iterator itr = insertions.find(insertion.first);
+    if (itr != insertions.end()) {
+      itr->second.supporting_hits += 1;
+      itr->second.left_extent = max(itr->second.left_extent, insertion.second.left_extent);
+      itr->second.right_extent = max(itr->second.right_extent, insertion.second.right_extent);
+    }
+    else {
+      assert(insertion.refid != VMAXINT32);
+      insertions[insertion.first] = insertion.second;
+    }
+  }
+  return;
 }
 
 /**
@@ -83,19 +84,19 @@ void insertions_from_alignment(const BowtieHit& bh, InsertionSet& insertions){
  * @param insertions Maps from insertions to number of supporting reads
  * @param ref_sequences The table of reference sequences 
  */
-void print_insertions(FILE* insertions_out, const InsertionSet& insertions, RefSequenceTable& ref_sequences){
+void print_insertions(FILE* insertions_out, const InsertionSet& insertions, RefSequenceTable& ref_sequences) {
 	fprintf(insertions_out, "track name=insertions description=\"TopHat insertions\"\n");
 	for(InsertionSet::const_iterator i = insertions.begin(); i != insertions.end(); ++i){
-		int counts = i->second;
-		if(counts > 1000){
-			counts = 1000;
-		}
-		fprintf(insertions_out, "%s\t%d\t%d\t%s\t%d\n",
-			ref_sequences.get_name(i->first.refid),
-			i->first.left,
-			i->first.left,
-			(i->first.sequence).c_str(),
-			counts);
+	  int counts = i->second.supporting_hits;
+	  if(counts > 1000){
+	    counts = 1000;
+	  }
+	  fprintf(insertions_out, "%s\t%d\t%d\t%s\t%d\n",
+		  ref_sequences.get_name(i->first.refid),
+		  i->first.left,
+		  i->first.left,
+		  (i->first.sequence).c_str(),
+		  counts);
 	}
 }
 
@@ -105,14 +106,13 @@ void print_insertions(FILE* insertions_out, const InsertionSet& insertions, RefS
  * @param bh The bowtie hit to use for alignment information.
  * @param insertions Used to store the resultant vector of insertions.
  */
-void insertions_from_spliced_hit(const BowtieHit& bh, vector<Insertion>& insertions){
+void insertions_from_spliced_hit(const BowtieHit& bh, vector<pair<Insertion, InsertionStats> >& insertions){
 	const vector<CigarOp>& cigar = bh.cigar();
 	unsigned int positionInGenome = bh.left();
 	unsigned int positionInRead = 0;
 
 	bool bSawFusion = false;
 	for(size_t c = 0; c < cigar.size(); ++c){
-	  Insertion insertion;
 	  switch(cigar[c].opcode){
 	  case REF_SKIP:
 	    positionInGenome += cigar[c].length;
@@ -136,25 +136,35 @@ void insertions_from_spliced_hit(const BowtieHit& bh, vector<Insertion>& inserti
 	    break;
 	  case INS:
 	  case iNS:
-	    /*
-	     * Note that the reported position in the genome from the SAM
-	     * alignment is 1-based, since the insertion object is expecting
-	     * a 0-based co-ordinate, we need to subtract 1
-	     */
-	    if (bSawFusion)
-	      insertion.refid = bh.ref_id2();
-	    else
-	      insertion.refid = bh.ref_id();
-
-	    if (cigar[c].opcode == INS)
-	      insertion.left = positionInGenome - 1;
-	    else
-	      insertion.left = positionInGenome + 1;
+	    {
+	      Insertion insertion;
+	      InsertionStats stats;
 	      
-	    insertion.sequence = bh.seq().substr(positionInRead, cigar[c].length);
-	    
-	    insertions.push_back(insertion);
-	    positionInRead += cigar[c].length;
+	      /*
+	       * Note that the reported position in the genome from the SAM
+	       * alignment is 1-based, since the insertion object is expecting
+	       * a 0-based co-ordinate, we need to subtract 1
+	       */
+	      if (bSawFusion)
+		insertion.refid = bh.ref_id2();
+	      else
+		insertion.refid = bh.ref_id();
+	      
+	      if (cigar[c].opcode == INS)
+		insertion.left = positionInGenome - 1;
+	      else
+		insertion.left = positionInGenome + 1;
+	      
+	      insertion.sequence = bh.seq().substr(positionInRead, cigar[c].length);
+	      stats.supporting_hits = 1;
+	      if (c > 0)
+		stats.left_extent = cigar[c-1].length;
+	      if (c + 1 < cigar.size())
+		stats.right_extent = cigar[c+1].length;
+	      
+	      insertions.push_back(make_pair(insertion, stats));
+	      positionInRead += cigar[c].length;
+	    }
 	    break;
 	  case FUSION_FF:
 	  case FUSION_FR:
@@ -176,7 +186,7 @@ void merge_with(InsertionSet& insertions, const InsertionSet& other)
       InsertionSet::iterator itr = insertions.find(insertion->first);
       if (itr != insertions.end())
 	{
-	  itr->second += insertion->second;
+	  itr->second.merge_with(insertion->second);
 	}
       else
 	{

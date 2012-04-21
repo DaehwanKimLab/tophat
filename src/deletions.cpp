@@ -53,21 +53,23 @@ void print_deletions(FILE* deletions_out, const DeletionSet& deletions, RefSeque
  * @param bh The bowtie hit to be used to specify alignment infromation.
  * @param deletions The DeletionSet that will be updated with the deletion information from teh alignment.
  */
-void deletions_from_alignment(const BowtieHit& bh, DeletionSet& deletions){
-	vector<Deletion> new_deletions;
-	deletions_from_spliced_hit(bh, new_deletions);
-	
-	for(size_t i = 0; i < new_deletions.size(); ++i){
-		Deletion deletion = new_deletions[i];
-		DeletionSet::iterator itr = deletions.find(deletion);
-		if (itr != deletions.end()){
-			itr->second += 1;
-		}
-		else{
-			deletions[deletion] = 1;
-		}
-	}
-	return;
+void deletions_from_alignment(const BowtieHit& bh, DeletionSet& deletions) {
+  vector<pair<Deletion, DeletionStats> > new_deletions;
+  deletions_from_spliced_hit(bh, new_deletions);
+  
+  for(size_t i = 0; i < new_deletions.size(); ++i){
+    const pair<Deletion, DeletionStats>& deletion = new_deletions[i];
+    DeletionSet::iterator itr = deletions.find(deletion.first);
+    if (itr != deletions.end()) {
+      itr->second.supporting_hits += 1;
+      itr->second.left_extent = max(itr->second.left_extent, deletion.second.left_extent);
+      itr->second.right_extent = max(itr->second.right_extent, deletion.second.right_extent);
+    }
+    else {
+      deletions[deletion.first] = deletion.second;
+    }
+  }
+  return;
 }
 
 
@@ -79,14 +81,13 @@ void deletions_from_alignment(const BowtieHit& bh, DeletionSet& deletions){
  * @param bh The bowtie hit to use for alignment information.
  * @param insertions Used to store the resultant vector of deletions.
  */
-void deletions_from_spliced_hit(const BowtieHit& bh, vector<Deletion>& deletions){
+  void deletions_from_spliced_hit(const BowtieHit& bh, vector<pair<Deletion, DeletionStats> >& deletions){
   const vector<CigarOp>& cigar = bh.cigar();
   unsigned int positionInGenome = bh.left();
   unsigned int positionInRead = 0;
 
   bool bSawFusion = false;
   for(size_t c = 0; c < cigar.size(); ++c){
-    Junction deletion;
     switch(cigar[c].opcode){
     case REF_SKIP:
       positionInGenome += cigar[c].length;
@@ -104,24 +105,34 @@ void deletions_from_spliced_hit(const BowtieHit& bh, vector<Deletion>& deletions
       break;
     case DEL:
     case dEL:
-      if (bSawFusion)
-	deletion.refid = bh.ref_id2();
-      else
-	deletion.refid = bh.ref_id();
+      {
+	Deletion deletion;
+	DeletionStats stats;
+	if (bSawFusion)
+	  deletion.refid = bh.ref_id2();
+	else
+	  deletion.refid = bh.ref_id();
+	
+	if (cigar[c].opcode == DEL)
+	  {
+	    deletion.left = positionInGenome - 1;
+	    deletion.right = positionInGenome + cigar[c].length;
+	  }
+	else
+	  {
+	    deletion.left = positionInGenome - cigar[c].length;
+	    deletion.right = positionInGenome + 1;
+	  }
 
-      if (cigar[c].opcode == DEL)
-	{
-	  deletion.left = positionInGenome - 1;
-	  deletion.right = positionInGenome + cigar[c].length;
-	}
-      else
-	{
-	  deletion.left = positionInGenome - cigar[c].length;
-	  deletion.right = positionInGenome + 1;
-	}
-      
-      deletions.push_back(deletion);
-      positionInGenome += cigar[c].length;
+	stats.supporting_hits = 1;
+	if (c > 0)
+	  stats.left_extent = cigar[c-1].length;
+	if (c + 1 < cigar.size())
+	  stats.right_extent = cigar[c+1].length;
+	  
+	deletions.push_back(make_pair(deletion, stats));
+	positionInGenome += cigar[c].length;
+      }
       break;
     case INS:
     case iNS:
@@ -147,7 +158,7 @@ void merge_with(DeletionSet& deletions, const DeletionSet& other)
       DeletionSet::iterator itr = deletions.find(deletion->first);
       if (itr != deletions.end())
 	{
-	  itr->second += deletion->second;
+	  itr->second.merge_with(deletion->second);
 	}
       else
 	{

@@ -240,6 +240,18 @@ void pair_best_alignments(const HitsForRead& left_hits,
 	  InsertAlignmentGrade g;
 	  bool allowed = set_insert_alignment_grade(lh, rh, g);
 
+	  // daehwan - for debugging purposes
+	  if (lh.insert_id() == 325708 && !g.is_fusion() && false)
+	    {
+	      fprintf(stderr, "lh %d:%d %s score: %d (from %d) NM: %d\n",
+		      lh.ref_id(), lh.left(), print_cigar(lh.cigar()).c_str(),
+		      lh.alignment_score(), left[i].alignment_score(), lh.edit_dist());
+	      fprintf(stderr, "rh %d:%d %s score: %d (from %d) NM: %d\n",
+		      rh.ref_id(), rh.left(), print_cigar(rh.cigar()).c_str(),
+		      rh.alignment_score(), right[j].alignment_score(), rh.edit_dist());
+	      fprintf(stderr, "combined score: %d is_fusion(%d)\n", g.align_score(), g.is_fusion());
+	    }
+
 	  if (!allowed) continue;
 	  if (!fusion_search && !report_discordant_pair_alignments && g.is_fusion()) continue;
 
