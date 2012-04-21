@@ -46,11 +46,14 @@ AlignStatus::AlignStatus(const BowtieHit& bh,
 			 const Coverage& coverage)
 {
   // it seems like we need to test this more
+  // daehwan - it doesn't seem to work.
   const bool recalculate_indel_score = false;
   
   const vector<CigarOp>& cigar = bh.cigar();
   _alignment_score = bh.alignment_score();
 
+  const int read_len = bh.read_len();
+  const int min_extent = min(read_len / 4, 10);
   bool recalculate_score = !junctions.empty();
 
   int j = bh.left();
@@ -100,18 +103,29 @@ AlignStatus::AlignStatus(const BowtieHit& bh,
 			
 			int penalty = bowtie2_max_penalty;
 			const int supporting_hits = itr->second.supporting_hits;
-			if (supporting_hits > 0)
-			  penalty *= min((float)avg_cov/supporting_hits, 1.f);
+			const int left_extent = itr->second.left_extent;
+			const int right_extent = itr->second.right_extent;
+			float extent_penalty = 0.0f;
+			if (left_extent < min_extent || right_extent < min_extent)
+			  extent_penalty = 0.5f;
 			
+			if (supporting_hits >= 5)
+			  penalty *= min((float)avg_cov/supporting_hits + extent_penalty, 1.f);
+
+			int prev_alignment_score = _alignment_score;
 			_alignment_score -= penalty;
 			_alignment_score = min(0, _alignment_score);
-			
-			/*
-			  fprintf(stderr, "junc(%d:%d-%d) %d / (%d + %d) = %d => %d\n",
-			  junc.refid, junc.left, junc.right,
-			  itr->second.supporting_hits, left_cov, right_cov,
-			  _alignment_score + penalty, _alignment_score);
-			*/
+
+			// daehwan - for debugging purposes
+			if (bh.insert_id() == 325708 && false)
+			  {
+			    fprintf(stderr, "junc(%d:%d-%d) %d / (%d + %d) = %d => %d\n",
+				    junc.refid, junc.left, junc.right,
+				    itr->second.supporting_hits, left_cov, right_cov,
+				    prev_alignment_score, _alignment_score);
+			    fprintf(stderr, "\textent: %d-%d\n",
+				left_extent, right_extent);
+			  }
 		      }
 		  }
 	      }
@@ -133,45 +147,62 @@ AlignStatus::AlignStatus(const BowtieHit& bh,
 	case DEL:
 	case dEL:
 	  {
-	    Junction junc;
-	    junc.refid = bh.ref_id();
+	    Deletion deletion;
+	    deletion.refid = bh.ref_id();
 	    if (opcode == DEL)
 	      {
-		junc.left = j - 1;
-		junc.right = j + length;
+		deletion.left = j - 1;
+		deletion.right = j + length;
 		j += length;
 	      }
 	    else
 	      {
-		junc.right = j + 1;
-		junc.left = j - length;
+		deletion.right = j + 1;
+		deletion.left = j - length;
 		j -= length;
 	      }
 
 	    if (recalculate_score && recalculate_indel_score)
 	      {
-		DeletionSet::const_iterator itr = deletions.find(junc);
+		DeletionSet::const_iterator itr = deletions.find(deletion);
 		if (itr != deletions.end())
 		  {
-		    const int left_cov = coverage.get_coverage(ref_id, junc.left + 1);
-		    const int right_cov = (length == 1 ? left_cov : coverage.get_coverage(ref_id, junc.right - 1));
+		    const int left_cov = coverage.get_coverage(ref_id, deletion.left + 1);
+		    const int right_cov = (length == 1 ? left_cov : coverage.get_coverage(ref_id, deletion.right - 1));
 		    const int avg_cov = (left_cov + right_cov) / 2;
 		    const int del_penalty = bowtie2_ref_gap_open + bowtie2_ref_gap_cont * length;
 		    int addition = del_penalty;
 		    
-		    const int supporting_hits = itr->second;
-		    if (avg_cov > 0)
-		      addition *= min((float)supporting_hits/avg_cov * 2.f, 1.f);
-		    
+		    const int supporting_hits = itr->second.supporting_hits;
+		    const int left_extent = itr->second.left_extent;
+		    const int right_extent = itr->second.right_extent;
+		    int penalty = 0;
+		    if (left_extent < min_extent || right_extent < min_extent)
+			  penalty = del_penalty * 0.5f;
+			
+		    if (avg_cov > 0 && supporting_hits >= 5)
+		      addition *= min((float)supporting_hits/avg_cov, 1.f);
+		    else
+		      addition = 0;
+
+		    addition -= penalty;
+		    if (addition < 0)
+		      addition = 0;
+
+		    int prev_alignment_score = _alignment_score;
 		    _alignment_score += addition;
 		    _alignment_score = min(0, _alignment_score);
-		    
-		    /*
-		      fprintf(stderr, "del(%d:%d-%d) %d / (%d + %d) = %d => %d (%d)\n",
-		      junc.refid, junc.left, junc.right,
-		      itr->second, left_cov, right_cov,
-		      _alignment_score - addition, _alignment_score, del_penalty);
-		    */
+
+		    // daehwan - for debug purposes
+		    if (bh.insert_id() == 325708 && false)
+		      {
+			fprintf(stderr, "del(%d:%d-%d) %d / (%d + %d) = %d => %d\n",
+				deletion.refid, deletion.left, deletion.right,
+				supporting_hits, left_cov, right_cov,
+				prev_alignment_score, _alignment_score);
+			fprintf(stderr, "\textent: %d-%d\n",
+				left_extent, right_extent);
+		      }
 		  }
 	      }
 	  }
@@ -187,16 +218,29 @@ AlignStatus::AlignStatus(const BowtieHit& bh,
 		InsertionSet::const_iterator itr = insertions.find(ins);
 		if (itr != insertions.end())
 		  {
-		    const int supporting_hits = itr->second;
+		    const int supporting_hits = itr->second.supporting_hits;
+		    const int left_extent = itr->second.left_extent;
+		    const int right_extent = itr->second.right_extent;
+		    
 		    const int left_cov = coverage.get_coverage(ref_id, j);
 		    const int right_cov = coverage.get_coverage(ref_id, j + (opcode == INS ? 1 : -1));
 		    const int avg_cov = (left_cov + right_cov) / 2 - supporting_hits;
 		    const int ins_penalty = bowtie2_read_gap_open + bowtie2_read_gap_cont * length;
 		    int addition = ins_penalty;
+		    int extent_penalty = 0.0f;
+		    if (left_extent < min_extent || right_extent < min_extent)
+		      extent_penalty = ins_penalty * 0.5f;
 		    
-		    if (avg_cov > 0)
-		      addition *= min((float)supporting_hits/avg_cov * 2.f, 1.f);
-		    
+		    if (avg_cov > 0 && supporting_hits >= 5)
+		      addition *= min((float)supporting_hits/avg_cov, 1.f);
+		    else
+		      addition = 0;
+
+		    addition -= extent_penalty;
+		    if (addition < 0)
+		      addition = 0;
+
+		    int prev_alignment_score = _alignment_score;
 		    _alignment_score += addition;
 		    _alignment_score = min(0, _alignment_score);
 		    
@@ -204,7 +248,9 @@ AlignStatus::AlignStatus(const BowtieHit& bh,
 		      fprintf(stderr, "ins(%d:%d:%s) %d / (%d - %d) = %d => %d (%d)\n",
 		      ref_id, ins.left, seq.c_str(),
 		      supporting_hits, avg_cov, supporting_hits,
-		      _alignment_score - addition, _alignment_score, ins_penalty);
+		      prev_alignment_score, _alignment_score, ins_penalty);
+		      fprintf(stderr, "\textent: %d-%d\n",
+		      left_extent, right_extent);
 		    */
 		  }
 	      }

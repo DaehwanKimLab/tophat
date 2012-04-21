@@ -71,8 +71,29 @@ Insertion() : refid(0), left(0), sequence("") {}
   {
     return  (refid == rhs.refid && left == rhs.left && sequence == rhs.sequence);
   }
-  
 };
+
+struct InsertionStats
+{
+InsertionStats() : left_extent(0), right_extent(0), supporting_hits(0) {}
+
+  InsertionStats& merge_with(const InsertionStats& other)
+  {
+    if (this == &other)
+      return *this;
+
+    left_extent = max(left_extent, other.left_extent);
+    right_extent = max(right_extent, other.right_extent);
+    supporting_hits += other.supporting_hits;
+
+    return *this;
+  }
+  
+  int left_extent;
+  int right_extent;
+  int supporting_hits;
+};
+
 
 /**
  * A function used to compare Insertions, specifically for use
@@ -88,11 +109,11 @@ struct insertion_comparison
   }
 };
 
-typedef std::map<Insertion, uint32_t> InsertionSet;
+typedef std::map<Insertion, InsertionStats> InsertionSet;
 
 void insertions_from_alignment(const BowtieHit& bh, InsertionSet& insertions);
 void print_insertions(FILE* insertions_out, const InsertionSet& insertions, RefSequenceTable& ref_sequences);
-void insertions_from_spliced_hit(const BowtieHit& bh, vector<Insertion>& insertions);
+void insertions_from_spliced_hit(const BowtieHit& bh, vector<pair<Insertion, InsertionStats> >& insertions);
 void merge_with(InsertionSet& insertions, const InsertionSet& other);
 
 #endif
