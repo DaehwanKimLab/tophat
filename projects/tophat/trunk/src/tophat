@@ -929,7 +929,7 @@ class TopHatParams:
                 self.t_max_hits = int(value)
             if option in ("-G", "--GTF"):
                 self.gff_annotation = value
-            if option in ("-T", "--transcriptome"):
+            if option in ("-T", "--transcriptome-only"):
                 self.transcriptome_only = True
             if option == "--transcriptome-index":
                 self.transcriptome_index = value

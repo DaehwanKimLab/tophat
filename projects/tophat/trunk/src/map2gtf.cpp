@@ -239,7 +239,7 @@ void Map2GTF::trans_to_genomic_coords(TranscriptomeHit& hit)
 		// XXX: DEBUG
 		if (i + 1 >= exon_list.Count())
 		  {
-		    std::cerr << "trying to access: " << i + 1 << " when size is: "
+		    std::cerr << "trying to access: " << i + 2 << " when size is: "
 			      << exon_list.Count() << std::endl;
 		    print_trans(hit.trans, hit.hit, remaining_length, match_length, cur_pos,
 				read_start);
