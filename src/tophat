@@ -1053,6 +1053,13 @@ def fileExists(filepath, minfsize=1):
   else:
      return False
 
+def removeFileWithIndex(filepath):
+    if os.path.exists(filepath):
+        os.remove(filepath)
+
+        fileindexpath = filepath + ".index"
+        if os.path.exists(fileindexpath):
+            os.remove(fileindexpath)
 
 def getFileDir(filepath):
    #if fullpath given, returns path including the ending /
@@ -2819,8 +2826,8 @@ def junctions_from_segments(params,
                             unmapped_reads,
                             reads_format,
                             ref_fasta):
-    if left_reads_map != left_seg_maps[0]:
-       th_log("Searching for junctions via segment mapping")
+    # if left_reads_map != left_seg_maps[0]:
+    th_log("Searching for junctions via segment mapping")
     out_path=getFileDir(left_seg_maps[0])
     juncs_out=out_path+"segment.juncs"
     insertions_out=out_path+"segment.insertions"
@@ -3066,22 +3073,25 @@ def map2gtf(params, genome_sam_header_filename, ref_fasta, left_reads, right_rea
         mapped_gtf_list.append(mapped_gtf_map)
         unmapped_gtf_list.append(unmapped)
 
-    sam_gtf_list = []
+    bam_gtf_list = []
     for reads in mapped_gtf_list:
         fbasename = getFileBaseName(reads)
-        sam_out_fname = tmp_dir + fbasename + "_converted.bam"
+        bam_out_fname = tmp_dir + fbasename + "_converted.bam"
         m2g_convert_coords(params,
                            genome_sam_header_filename,
                            params.gff_annotation,
                            reads,
-                           sam_out_fname)
-        sam_gtf_list.append(sam_out_fname)
+                           bam_out_fname)
+        
+        bam_gtf_list.append(bam_out_fname)
+        if not params.system_params.keep_tmp:
+            removeFileWithIndex(reads)
 
-    if len(sam_gtf_list) < 2:
-        sam_gtf_list.append(None)
+    if len(bam_gtf_list) < 2:
+        bam_gtf_list.append(None)
         unmapped_gtf_list.append(None)
 
-    return (sam_gtf_list, unmapped_gtf_list)
+    return (bam_gtf_list, unmapped_gtf_list)
 # end Map2GTF
 
 def get_preflt_data(params, ri, target_reads, out_mappings, out_unmapped):
@@ -3284,6 +3294,9 @@ def spliced_alignment(params,
                                         params,
                                         segment_len)
 
+            if not params.system_params.keep_tmp:
+                removeFileWithIndex(unmapped_reads)
+
             # Map each segment file independently with Bowtie
             for i in range(len(read_segments)):
                 seg = read_segments[i]
@@ -3350,8 +3363,13 @@ def spliced_alignment(params,
                                         unmapped_reads,
                                         "fastq",
                                         ref_fasta)
+
+        if not params.system_params.keep_tmp:
+            for unmapped_seg in unmapped_reads:
+                removeFileWithIndex(unmapped_seg)
+
         if os.path.getsize(juncs[0]) != 0:
-                    possible_juncs.append(juncs[0])
+            possible_juncs.append(juncs[0])
         if params.find_novel_indels:
             if os.path.getsize(juncs[1]) != 0:
                 possible_insertions.append(juncs[1])
@@ -3447,21 +3465,32 @@ def spliced_alignment(params,
                     spliced_seg_maps.append(seg_map)
                     i += 1
 
+                    if not params.system_params.keep_tmp:
+                        removeFileWithIndex(seg)
 
-            # Join the contigous and spliced segment hits into full length
-            #   read alignments
-            # -- spliced mappings built from all segment mappings vs genome and junc_db
-            join_mapped_segments(params,
-                                 sam_header_filename,
-                                 reads,
-                                 ref_fasta,
-                                 possible_juncs,
-                                 possible_insertions,
-                                 possible_deletions,
-                                 possible_fusions,
-                                 maps[ri].seg_maps,
-                                 spliced_seg_maps,
-                                 mapped_reads)
+
+                # Join the contigous and spliced segment hits into full length
+                #   read alignments
+                # -- spliced mappings built from all segment mappings vs genome and junc_db
+                join_mapped_segments(params,
+                                     sam_header_filename,
+                                     reads,
+                                     ref_fasta,
+                                     possible_juncs,
+                                     possible_insertions,
+                                     possible_deletions,
+                                     possible_fusions,
+                                     maps[ri].seg_maps,
+                                     spliced_seg_maps,
+                                     mapped_reads)
+
+                if not params.system_params.keep_tmp:
+                    for seg_map in maps[ri].seg_maps:
+                        removeFileWithIndex(seg_map)
+
+                    for spliced_seg_map in spliced_seg_maps:
+                        removeFileWithIndex(spliced_seg_map)
+                   
 
         if num_segs > 1 or m2g_map:
             # Merge the spliced and unspliced full length alignments into
@@ -3506,6 +3535,10 @@ def spliced_alignment(params,
 
                     if ret != 0:
                         die(fail_str+"Error executing: "+" ".join(merge_cmd))
+
+                    if not params.system_params.keep_tmp:
+                        for merge_file in merge_files:
+                            removeFileWithIndex(merge_file)
 
                 elif len(merge_files) == 1:
                     os.rename(merge_files[0], merged_map)
