@@ -143,8 +143,9 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
  bam_header_t* header=sam_header_read(fh);
  sam_close(fh);
  priority_queue< pair<uint64_t,bam1_t*>,
-					vector<pair<uint64_t, bam1_t*> >,
-					BamMapOrdering > map_pq;
+    vector<pair<uint64_t, bam1_t*> >,
+    BamMapOrdering > map_pq;
+ 
  GBamWriter* wmulti=NULL; //for multi-mapped prefiltering
  if (!aux_outfile.empty() && max_multihits>0) {
     wmulti=new GBamWriter(aux_outfile.c_str(), sam_header.c_str());
@@ -217,18 +218,39 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
        // may have low alignment scores due to gaps, in which case we will remap those.
        // Later, we may have better alignments that usually involve splice junctions.
          if (bowtie2 && tbscore<bowtie2_min_score) {
-			 //low score for best mapping, we want to map this read later as well
-			 //unmapped = true;
-			 if (umbam!=NULL) {
-			   umbam->write(tb);
-			   }
+	   //low score for best mapping, we want to map this read later as well
+	   //unmapped = true;
+	   if (umbam!=NULL) {
+	     umbam->write(tb);
+	   }
          }
+
         //-- write all hits for this read:
          for (vector<pair<uint64_t, bam1_t*> >::size_type i=0;i<read_hits.size();++i)
          {
-           const pair<uint64_t, bam1_t*>& v = read_hits[i];
+           pair<uint64_t, bam1_t*>& v = read_hits[i];
+
+	   // restore quality values
+	   if (bowtie2 && num_hits > 1) {
+	     if (i > 0) {
+	       const bam1_t& base_bam = *(read_hits[0].second);
+	       bam1_t& this_bam = *(v.second);
+
+	       const char *base_bq = (char*)bam1_qual(&base_bam);
+	       char *this_bq = (char*)bam1_qual(&this_bam);
+
+	       if ((base_bam.core.flag & BAM_FREVERSE) == (this_bam.core.flag & BAM_FREVERSE)) {
+		 memcpy(this_bq, base_bq, this_bam.core.l_qseq);
+	       } else {
+		 for(int i=0;i<(this_bam.core.l_qseq);i++) {
+		   this_bq[this_bam.core.l_qseq - i - 1] = base_bq[i];
+		 }
+	       }
+	     }
+	   }
+	   
            if (num_hits>1)
-	    	 bam_aux_append(v.second, "NH", 'i', 4, (uint8_t*)&num_hits);
+	     bam_aux_append(v.second, "NH", 'i', 4, (uint8_t*)&num_hits);
            bam_writer.write(v.second, v.first);
          }
        }
