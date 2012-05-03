@@ -216,8 +216,38 @@ def prepare_output_dir():
         except OSError, o:
           die("\nError creating directory %s (%s)" % (tmp_dir, o))
 
+
+def check_samples():
+    sample_list_filename = output_dir + 'sample_list.txt'
+
+    prev_list, curr_list = [], []
+    if os.path.exists(sample_list_filename):
+        sample_list = open(sample_list_filename, 'r')
+        for line in sample_list:
+            prev_list.append(line[:-1])
+        sample_list.close()
+
+    for dir in sorted(os.listdir('.')):
+        if string.find(dir, "tophat_") != 0:
+            continue
+
+        fusion = dir + "/fusions.out"
+        if not os.path.exists(fusion):
+            continue
+
+        curr_list.append(dir[7:])
+
+    if prev_list != curr_list:
+        sample_list = open(sample_list_filename, 'w')
+        for sample in curr_list:
+            print >> sample_list, sample            
+        sample_list.close()
+        return True
+    else:
+        return False
+    
           
-def map_fusion_kmer(bwt_idx_prefix, params):
+def map_fusion_kmer(bwt_idx_prefix, params, sample_update = False):
     def get_fusion_seq():
         seq_dic = {}
         for dir in sorted(os.listdir('.')):
@@ -269,10 +299,13 @@ def map_fusion_kmer(bwt_idx_prefix, params):
         kmer_map.close()
 
     print >> sys.stderr, "[%s] Extracting 23-mer around fusions and mapping them using Bowtie" % right_now()
+    if sample_update:
+        print >> sys.stderr, "\tsamples updated"
 
     fusion_kmer_file_name = output_dir + "fusion_seq.map"
 
-    if not os.path.exists(fusion_kmer_file_name):
+    if not os.path.exists(fusion_kmer_file_name) or \
+           sample_update:
         get_fusion_seq()
         cmd = ['bowtie', '-p', '8', '-a', '-n', '3', '-m', '100', bwt_idx_prefix, '-f', '%sfusion_seq.fa' % output_dir]
         subprocess.call(cmd, stdout=open(output_dir + 'fusion_seq.bwtout', 'w'), stderr=open('/dev/null', 'w'))
@@ -1991,7 +2024,7 @@ def prog_path(program):
 
 
 def get_version():
-   return "2.0.0"
+   return "2.0.1"
 
 
 def main(argv=None):
@@ -2012,9 +2045,10 @@ def main(argv=None):
         
         start_time = datetime.now()
         prepare_output_dir()
+        sample_updated = check_samples()
 
         if not params.skip_fusion_kmer:
-            map_fusion_kmer(bwt_idx_prefix, params)
+            map_fusion_kmer(bwt_idx_prefix, params, sample_updated)
 
         if not params.skip_filter_fusion:
             filter_fusion(bwt_idx_prefix, params)
