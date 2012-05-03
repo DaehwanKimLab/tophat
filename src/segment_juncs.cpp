@@ -2777,7 +2777,8 @@ void detect_fusion(RefSequenceTable& rt,
 
   // todo - we need to do (efficient) Smith-Waterman Alignment using SIMD like the way Bowtie2 does!
   // too slow and too many false positives
-  if (bowtie2)
+  // daehwan - turn off this for now.
+  if (bowtie2 && false)
     gappedAlignment(read_sequence,
 		    leftGenomicSequence,
 		    rightGenomicSequence,
@@ -3188,7 +3189,6 @@ void find_fusions(RefSequenceTable& rt,
 
   size_t read_length = seqan::length(fullRead);
 
-  // daehwan
   bool check_partner = true;
   if (first_segment != last_segment)
     {
