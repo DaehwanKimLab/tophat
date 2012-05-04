@@ -31,6 +31,7 @@
 #include <getopt.h>
 
 #include <boost/thread.hpp>
+#include <boost/random/mersenne_twister.hpp>
 
 #include "common.h"
 #include "utils.h"
@@ -655,7 +656,8 @@ void print_sam_for_single(const RefSequenceTable& rt,
 			  FragmentType frag_type,
 			  Read& read,
 			  GBamWriter& bam_writer,
-			  GBamWriter* um_out //write unmapped reads here
+			  GBamWriter* um_out, //write unmapped reads here,
+			  boost::random::mt19937& rng
 			  )
 {
     assert(!read.alt_name.empty());
@@ -673,7 +675,7 @@ void print_sam_for_single(const RefSequenceTable& rt,
 
     size_t primaryHit = 0;
     if (!report_secondary_alignments)
-      primaryHit = random() % hits.hits.size();
+      primaryHit = rng() % hits.hits.size();
     
     bool multipleHits = (hits.hits.size() > 1);
     for (i = 0; i < hits.hits.size(); ++i)
@@ -701,6 +703,7 @@ void print_sam_for_pair(const RefSequenceTable& rt,
                         GBamWriter& bam_writer,
                         GBamWriter* left_um_out,
                         GBamWriter* right_um_out,
+			boost::random::mt19937& rng,
 			uint64_t begin_id = 0,
                         uint64_t end_id = std::numeric_limits<uint64_t>::max())
 {
@@ -723,7 +726,7 @@ void print_sam_for_pair(const RefSequenceTable& rt,
     sort(index_vector.begin(), index_vector.end(), s);
 
     if (!report_secondary_alignments)
-      primaryHit = random() % right_hits.hits.size();
+      primaryHit = rng() % right_hits.hits.size();
     
     bool got_left_read = left_reads_file.getRead(best_hits[0].first.insert_id(), left_read,
 						 reads_format, false, begin_id, end_id,
@@ -1049,6 +1052,8 @@ struct ReportWorker
 {
   void operator()()
   {
+    rng.seed(1);
+    
     ReadTable it;
     GBamWriter bam_writer(bam_output_fname.c_str(), sam_header.c_str());
 
@@ -1148,7 +1153,8 @@ struct ReportWorker
 				     (right_map_fname.empty() ? FRAG_UNPAIRED : FRAG_LEFT),
 				     l_read,
 				     bam_writer,
-				     left_um_out);
+				     left_um_out,
+				     rng);
 	      }
 	    else
 	      {
@@ -1201,7 +1207,8 @@ struct ReportWorker
 					 FRAG_RIGHT,
 					 r_read,
 					 bam_writer,
-					 right_um_out);
+					 right_um_out,
+					 rng);
 		  }
 		else
 		  {
@@ -1251,7 +1258,8 @@ struct ReportWorker
 					 FRAG_RIGHT,
 					 r_read,
 					 bam_writer,
-					 right_um_out);
+					 right_um_out,
+					 rng);
 		  }
 	      }
 	    else if (curr_right_hit_group.hits.empty())
@@ -1279,7 +1287,8 @@ struct ReportWorker
 					 FRAG_LEFT,
 					 l_read,
 					 bam_writer,
-					 left_um_out);
+					 left_um_out,
+					 rng);
 		  }
 	      }
 	    else
@@ -1322,6 +1331,7 @@ struct ReportWorker
 				       bam_writer,
 				       left_um_out,
 				       right_um_out,
+				       rng,
 				       begin_id,
 				       end_id);
 		  }
@@ -1392,6 +1402,8 @@ struct ReportWorker
   int64_t left_map_offset;
   int64_t right_reads_offset;
   int64_t right_map_offset;
+
+  boost::random::mt19937 rng;
 };
 
 void driver(const string& bam_output_fname,
