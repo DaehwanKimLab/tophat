@@ -145,9 +145,10 @@ void Map2GTF::convert_coords(const std::string& out_fname, const std::string& sa
 	    
 	  p_trans = gtfReader_.gflst.Get(trans_idx);
 	  TranscriptomeHit converted_out(hit, p_trans);
-	  trans_to_genomic_coords(converted_out);
-	  
-	  read_list.push_back(converted_out);
+	  bool success = trans_to_genomic_coords(converted_out);
+
+	  if (success)
+	    read_list.push_back(converted_out);
         }
       
       // XXX: Fine for now... should come up with a more efficient way though
@@ -170,7 +171,7 @@ void Map2GTF::convert_coords(const std::string& out_fname, const std::string& sa
   samclose(bam_writer);
 }
 
-void Map2GTF::trans_to_genomic_coords(TranscriptomeHit& hit)
+bool Map2GTF::trans_to_genomic_coords(TranscriptomeHit& hit)
 //out.trans must already have the corresponding GffObj*
 {
     // read start in genomic coords
@@ -243,7 +244,7 @@ void Map2GTF::trans_to_genomic_coords(TranscriptomeHit& hit)
 			      << exon_list.Count() << std::endl;
 		    print_trans(hit.trans, hit.hit, remaining_length, match_length, cur_pos,
 				read_start);
-		    exit(1);
+		    return false;
 		  }
 		
 		else
@@ -300,6 +301,8 @@ void Map2GTF::trans_to_genomic_coords(TranscriptomeHit& hit)
 
     if (strand == '+' || strand == '-')
       bam_aux_append(hit.hit, "XS", 'A', 1, (uint8_t*)&strand);
+
+    return true;
 }
 
 void print_trans(GffObj* trans, const bam1_t* in, size_t rem_len,

@@ -47,7 +47,7 @@ public:
     // Write out to a BAM file
     bool next_read_hits(std::vector<bam1_t*>& hits, size_t& num_hits);
     void convert_coords(const std::string& out_fname, const std::string& sam_header);
-    void trans_to_genomic_coords(TranscriptomeHit& hit);
+    bool trans_to_genomic_coords(TranscriptomeHit& hit);
 
 private:
     GffReader gtfReader_;
