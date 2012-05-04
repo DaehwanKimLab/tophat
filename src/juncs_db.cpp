@@ -90,13 +90,17 @@ void print_insertion(const Insertion& insertion,
       right_start = (int)left_end; 
       right_end = right_start + half_splice_len  < ref_len ? right_start + half_splice_len : ref_len;
 
-      Infix<RefSequenceTable::Sequence>::Type left_splice = infix(ref_str, left_start, left_end);
-      Infix<RefSequenceTable::Sequence>::Type right_splice = infix(ref_str, right_start, right_end); 
-      
-      splice_db << ">" << ref_name << "|" << left_start << "|" << insertion.left << "-" << insertion.sequence 
-		<< "|" << right_end << "|ins|" << ("fwd")  << endl;
-      
-      splice_db << left_splice << insertion.sequence << right_splice << endl;
+      if (left_start < left_end && left_end <= ref_len &&
+	  right_start < right_end && right_end <= ref_len)
+	{
+	  Infix<RefSequenceTable::Sequence>::Type left_splice = infix(ref_str, left_start, left_end);
+	  Infix<RefSequenceTable::Sequence>::Type right_splice = infix(ref_str, right_start, right_end); 
+	  
+	  splice_db << ">" << ref_name << "|" << left_start << "|" << insertion.left << "-" << insertion.sequence 
+		    << "|" << right_end << "|ins|" << ("fwd")  << endl;
+	  
+	  splice_db << left_splice << insertion.sequence << right_splice << endl;
+	}
     }
 }
 
@@ -125,18 +129,22 @@ void print_splice(const Junction& junction,
       
       right_start = junction.right;
       right_end = right_start + half_splice_len < ref_len ? right_start + half_splice_len : ref_len;
-
-      Infix<RefSequenceTable::Sequence>::Type left_splice = infix(ref_str,
-								  left_start, 
-								  left_end);
-      Infix<RefSequenceTable::Sequence>::Type right_splice = infix(ref_str, 
-								   right_start, 
-								   right_end);
       
-      splice_db << ">" << ref_name << "|" << left_start << "|" << junction.left <<
-	"-" << junction.right << "|" << right_end << "|" << tag << endl;
+      if (left_start < left_end && left_end <= ref_len &&
+	  right_start < right_end && right_end <= ref_len)
+	{
+	  Infix<RefSequenceTable::Sequence>::Type left_splice = infix(ref_str,
+								      left_start, 
+								      left_end);
+	  Infix<RefSequenceTable::Sequence>::Type right_splice = infix(ref_str, 
+								       right_start, 
+								       right_end);
       
-      splice_db << left_splice << right_splice << endl;
+	  splice_db << ">" << ref_name << "|" << left_start << "|" << junction.left <<
+	    "-" << junction.right << "|" << right_end << "|" << tag << endl;
+	  
+	  splice_db << left_splice << right_splice << endl;
+	}
     }
 }
 
@@ -153,9 +161,12 @@ void print_fusion(const Fusion& fusion,
   
   size_t left_start, right_start;
   size_t left_end, right_end;
+
+  size_t left_ref_len = length(left_ref_str);
+  size_t right_ref_len = length(right_ref_str);
   
-  if (fusion.left >= 0 && fusion.left < length(left_ref_str) &&
-      fusion.right >= 0 && fusion.right < length(right_ref_str))
+  if (fusion.left >= 0 && fusion.left < left_ref_len &&
+      fusion.right >= 0 && fusion.right < right_ref_len)
     {
       if (fusion.dir == FUSION_FF || fusion.dir == FUSION_FR)
 	{
@@ -165,13 +176,13 @@ void print_fusion(const Fusion& fusion,
       else
 	{
 	  left_start = fusion.left;
-	  left_end = left_start + half_splice_len < length(left_ref_str) ? left_start + half_splice_len : length(left_ref_str);
+	  left_end = left_start + half_splice_len < left_ref_len ? left_start + half_splice_len : left_ref_len;
 	}
 
       if (fusion.dir == FUSION_FF || fusion.dir == FUSION_RF)
 	{
 	  right_start = fusion.right;
-	  right_end = right_start + half_splice_len < length(right_ref_str) ? right_start + half_splice_len : length(right_ref_str);
+	  right_end = right_start + half_splice_len < right_ref_len ? right_start + half_splice_len : right_ref_len;
 	}
       else
 	{
@@ -179,35 +190,39 @@ void print_fusion(const Fusion& fusion,
 	  right_start = right_end >= half_splice_len ? right_end - half_splice_len : 0;
 	}
 
-      seqan::Dna5String left_splice = infix(left_ref_str, left_start, left_end);
-      seqan::Dna5String right_splice = infix(right_ref_str, right_start, right_end);
-
-      if (fusion.dir == FUSION_RF || fusion.dir == FUSION_RR)
+      if (left_start < left_end && left_end <= left_ref_len &&
+	  right_start < right_end && right_end <= right_ref_len)
 	{
-	  seqan::reverseComplement(left_splice);
-	  left_start = left_end - 1;
+	  seqan::Dna5String left_splice = infix(left_ref_str, left_start, left_end);
+	  seqan::Dna5String right_splice = infix(right_ref_str, right_start, right_end);
+	  
+	  if (fusion.dir == FUSION_RF || fusion.dir == FUSION_RR)
+	    {
+	      seqan::reverseComplement(left_splice);
+	      left_start = left_end - 1;
+	    }
+	  
+	  if (fusion.dir == FUSION_FR || fusion.dir == FUSION_RR)
+	    {
+	      seqan::reverseComplement(right_splice);
+	      right_end = right_start - 1;
+	    }
+	  
+	  const char* dir = "ff";
+	  if (fusion.dir == FUSION_FR)
+	    dir = "fr";
+	  else if (fusion.dir == FUSION_RF)
+	    dir = "rf";
+	  else if (fusion.dir == FUSION_RR)
+	    dir = "rr";
+	  
+	  fusion_db << ">" << left_ref_name << "-" << right_ref_name << "|"
+		    << left_start << "|"
+		    << fusion.left << "-" << fusion.right << "|"
+		    << right_end << "|fus|" << dir <<  endl;
+	  
+	  fusion_db << left_splice << right_splice << endl;
 	}
-
-      if (fusion.dir == FUSION_FR || fusion.dir == FUSION_RR)
-	{
-	  seqan::reverseComplement(right_splice);
-	  right_end = right_start - 1;
-	}
-
-      const char* dir = "ff";
-      if (fusion.dir == FUSION_FR)
-	dir = "fr";
-      else if (fusion.dir == FUSION_RF)
-	dir = "rf";
-      else if (fusion.dir == FUSION_RR)
-	dir = "rr";
-      
-      fusion_db << ">" << left_ref_name << "-" << right_ref_name << "|"
-		<< left_start << "|"
-		<< fusion.left << "-" << fusion.right << "|"
-		<< right_end << "|fus|" << dir <<  endl;
-      
-      fusion_db << left_splice << right_splice << endl;
     }
 }
 
