@@ -1150,6 +1150,10 @@ struct ReportWorker
 				     bam_writer,
 				     left_um_out);
 	      }
+	    else
+	      {
+	      }
+	    
 	    // Get next hit group
 	    left_hs.next_read_hits(curr_left_hit_group);
 	    curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
@@ -1198,6 +1202,9 @@ struct ReportWorker
 					 r_read,
 					 bam_writer,
 					 right_um_out);
+		  }
+		else
+		  {
 		  }
 	      }
 
@@ -1317,6 +1324,9 @@ struct ReportWorker
 				       right_um_out,
 				       begin_id,
 				       end_id);
+		  }
+		else
+		  {
 		  }
 	      }
 	    

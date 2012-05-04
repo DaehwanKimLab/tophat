@@ -2828,6 +2828,11 @@ def junctions_from_segments(params,
                             ref_fasta):
     # if left_reads_map != left_seg_maps[0]:
     th_log("Searching for junctions via segment mapping")
+
+    if params.coverage_search == True:
+        print >> sys.stderr, "\tCoverage-search algorithm is turned on, making this step very slow"
+        print >> sys.stderr, "\tPlease try running TopHat again without using the option (--no-coverage-search) if it takes too much time."
+    
     out_path=getFileDir(left_seg_maps[0])
     juncs_out=out_path+"segment.juncs"
     insertions_out=out_path+"segment.insertions"
