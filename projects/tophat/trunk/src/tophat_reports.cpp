@@ -654,11 +654,9 @@ struct lex_hit_sort
 void print_sam_for_single(const RefSequenceTable& rt,
 			  const HitsForRead& hits,
 			  FragmentType frag_type,
-			  Read& read,
+			  const string& alt_name,
 			  GBamWriter& bam_writer,
-			  GBamWriter* um_out, //write unmapped reads here,
-			  boost::random::mt19937& rng
-			  )
+			  boost::random::mt19937& rng)
 {
     assert(!read.alt_name.empty());
     if (hits.hits.empty())
@@ -686,7 +684,7 @@ void print_sam_for_single(const RefSequenceTable& rt,
 	rewrite_sam_record(bam_writer, rt,
 			   bh,
 			   bh.hitfile_rec().c_str(),
-			   read.alt_name.c_str(),
+			   alt_name.c_str(),
 			   frag_type,
 			   hits.hits.size(),
 			   (i < hits.hits.size()-1) ? &(hits.hits[index_vector[i+1]]) : NULL,
@@ -698,11 +696,9 @@ void print_sam_for_single(const RefSequenceTable& rt,
 void print_sam_for_pair(const RefSequenceTable& rt,
 			const vector<pair<BowtieHit, BowtieHit> >& best_hits,
                         const InsertAlignmentGrade& grade,
-                        ReadStream& left_reads_file,
-                        ReadStream& right_reads_file,
                         GBamWriter& bam_writer,
-                        GBamWriter* left_um_out,
-                        GBamWriter* right_um_out,
+                        const string& left_alt_name,
+                        const string& right_alt_name,
 			boost::random::mt19937& rng,
 			uint64_t begin_id = 0,
                         uint64_t end_id = std::numeric_limits<uint64_t>::max())
@@ -728,14 +724,6 @@ void print_sam_for_pair(const RefSequenceTable& rt,
     if (!report_secondary_alignments)
       primaryHit = rng() % right_hits.hits.size();
     
-    bool got_left_read = left_reads_file.getRead(best_hits[0].first.insert_id(), left_read,
-						 reads_format, false, begin_id, end_id,
-						 left_um_out, false);
-    
-    bool got_right_read = right_reads_file.getRead(best_hits[0].first.insert_id(), right_read,
-						   reads_format, false, begin_id, end_id,
-						   right_um_out, false);
-    
     assert (got_left_read && got_right_read);
     bool multipleHits = (best_hits.size() > 1);
     for (i = 0; i < best_hits.size(); ++i)
@@ -748,7 +736,7 @@ void print_sam_for_pair(const RefSequenceTable& rt,
 	rewrite_sam_record(bam_writer, rt,
 			   right_bh,
 			   right_bh.hitfile_rec().c_str(),
-			   right_read.alt_name.c_str(),
+			   right_alt_name.c_str(),
 			   grade,
 			   FRAG_RIGHT,
 			   &left_bh,
@@ -759,7 +747,7 @@ void print_sam_for_pair(const RefSequenceTable& rt,
 	rewrite_sam_record(bam_writer, rt,
 			   left_bh,
 			   left_bh.hitfile_rec().c_str(),
-			   left_read.alt_name.c_str(),
+			   left_alt_name.c_str(),
 			   grade,
 			   FRAG_LEFT,
 			   &right_bh,
@@ -1123,18 +1111,6 @@ struct ReportWorker
 	  {
 	    HitsForRead best_hits;
 	    best_hits.insert_id = curr_left_obs_order;
-	    bool got_read=left_reads_file.getRead(curr_left_obs_order, l_read,
-						  reads_format, false, begin_id, end_id,
-						  left_um_out, false);
-	    //assert(got_read);
-
-	    if (right_reads_file.file()) {
-	      got_read=right_reads_file.getRead(curr_left_obs_order, r_read,
-						reads_format, false, begin_id, end_id,
-						right_um_out, true);
-	      //assert(got_read);
-	    }
-    
 	    exclude_hits_on_filtered_junctions(*junctions, curr_left_hit_group);
 
 	    // Process hits for left singleton, select best alignments
@@ -1144,20 +1120,24 @@ struct ReportWorker
 
 	    if (best_hits.hits.size() > 0)
 	      {
-		update_junctions(best_hits, *final_junctions);
-		update_insertions_and_deletions(best_hits, *final_insertions, *final_deletions);
-		update_fusions(best_hits, *rt, *final_fusions, *fusions);
+		bool got_read = left_reads_file.getRead(curr_left_obs_order, l_read,
+							reads_format, false, begin_id, end_id,
+							left_um_out, false);
+		assert (got_read);
 
-		print_sam_for_single(*rt,
-				     best_hits,
-				     (right_map_fname.empty() ? FRAG_UNPAIRED : FRAG_LEFT),
-				     l_read,
-				     bam_writer,
-				     left_um_out,
-				     rng);
-	      }
-	    else
-	      {
+		if (got_read)
+		  {
+		    update_junctions(best_hits, *final_junctions);
+		    update_insertions_and_deletions(best_hits, *final_insertions, *final_deletions);
+		    update_fusions(best_hits, *rt, *final_fusions, *fusions);
+		    
+		    print_sam_for_single(*rt,
+					 best_hits,
+					 (right_map_fname.empty() ? FRAG_UNPAIRED : FRAG_LEFT),
+					 l_read.alt_name,
+					 bam_writer,
+					 rng);
+		  }
 	      }
 	    
 	    // Get next hit group
@@ -1175,20 +1155,6 @@ struct ReportWorker
 
 	    if (curr_right_obs_order >=  begin_id)
 	      {
-		bool got_read=right_reads_file.getRead(curr_right_obs_order, r_read,
-						       reads_format, false, begin_id, end_id,
-						       right_um_out, false);
-
-		//assert(got_read);
-		/*
-		fprintf(right_um_out.file, "@%s #MAPPED#\n%s\n+\n%s\n", r_read.alt_name.c_str(),
-			r_read.seq.c_str(), r_read.qual.c_str());
-		*/
-		got_read=left_reads_file.getRead(curr_right_obs_order, l_read,
-						 reads_format, false, begin_id, end_id,
-						 left_um_out, true);
-		//assert(got_read);
-
 		exclude_hits_on_filtered_junctions(*junctions, curr_right_hit_group);
 
 		// Process hit for right singleton, select best alignments
@@ -1198,20 +1164,24 @@ struct ReportWorker
 
 		if (best_hits.hits.size() > 0)
 		  {
-		    update_junctions(best_hits, *final_junctions);
-		    update_insertions_and_deletions(best_hits, *final_insertions, *final_deletions);
-		    update_fusions(best_hits, *rt, *final_fusions, *fusions);
-		    
-		    print_sam_for_single(*rt,
-					 best_hits,
-					 FRAG_RIGHT,
-					 r_read,
-					 bam_writer,
-					 right_um_out,
-					 rng);
-		  }
-		else
-		  {
+		    bool got_read =right_reads_file.getRead(curr_right_obs_order, r_read,
+							    reads_format, false, begin_id, end_id,
+							    right_um_out, false);
+		    assert (got_read);
+
+		    if (got_read)
+		      {
+			update_junctions(best_hits, *final_junctions);
+			update_insertions_and_deletions(best_hits, *final_insertions, *final_deletions);
+			update_fusions(best_hits, *rt, *final_fusions, *fusions);
+			
+			print_sam_for_single(*rt,
+					     best_hits,
+					     FRAG_RIGHT,
+					     r_read.alt_name,
+					     bam_writer,
+					     rng);
+		      }
 		  }
 	      }
 
@@ -1228,18 +1198,10 @@ struct ReportWorker
 	  {
 	    exclude_hits_on_filtered_junctions(*junctions, curr_left_hit_group);
 	    exclude_hits_on_filtered_junctions(*junctions, curr_right_hit_group);
+	    
 	    if (curr_left_hit_group.hits.empty())
 	      {   //only right read mapped
                 //write it in the mapped file with the #MAPPED# flag
-		
-		bool got_read=right_reads_file.getRead(curr_left_obs_order, r_read,
-						       reads_format, false, begin_id, end_id,
-						       right_um_out, false);
-		//assert(got_read);
-		/*
-		fprintf(right_um_out.file, "@%s #MAPPED#\n%s\n+\n%s\n", r_read.alt_name.c_str(),
-			r_read.seq.c_str(), r_read.qual.c_str());
-		*/
 		HitsForRead right_best_hits;
 		right_best_hits.insert_id = curr_right_obs_order;
 		
@@ -1249,17 +1211,24 @@ struct ReportWorker
 
 		if (right_best_hits.hits.size() > 0)
 		  {
-		    update_junctions(right_best_hits, *final_junctions);
-		    update_insertions_and_deletions(right_best_hits, *final_insertions, *final_deletions);
-		    update_fusions(right_best_hits, *rt, *final_fusions, *fusions);
-		    
-		    print_sam_for_single(*rt,
-					 right_best_hits,
-					 FRAG_RIGHT,
-					 r_read,
-					 bam_writer,
-					 right_um_out,
-					 rng);
+		    bool got_read = right_reads_file.getRead(curr_left_obs_order, r_read,
+							     reads_format, false, begin_id, end_id,
+							     right_um_out, false);
+		    assert (got_read);
+
+		    if (got_read)
+		      {
+			update_junctions(right_best_hits, *final_junctions);
+			update_insertions_and_deletions(right_best_hits, *final_insertions, *final_deletions);
+			update_fusions(right_best_hits, *rt, *final_fusions, *fusions);
+			
+			print_sam_for_single(*rt,
+					     right_best_hits,
+					     FRAG_RIGHT,
+					     r_read.alt_name,
+					     bam_writer,
+					     rng);
+		      }
 		  }
 	      }
 	    else if (curr_right_hit_group.hits.empty())
@@ -1267,10 +1236,6 @@ struct ReportWorker
 		HitsForRead left_best_hits;
 		left_best_hits.insert_id = curr_left_obs_order;
 		//only left read mapped
-		bool got_read=left_reads_file.getRead(curr_left_obs_order, l_read,
-						      reads_format, false, begin_id, end_id,
-						      left_um_out, false);
-
 		// Process hits for left singleton, select best alignments
 		read_best_alignments(curr_left_hit_group, left_best_hits, *gtf_junctions,
 				     *junctions, *insertions, *deletions, *fusions, *coverage,
@@ -1278,17 +1243,24 @@ struct ReportWorker
 		
 		if (left_best_hits.hits.size() > 0)
 		  {
-		    update_junctions(left_best_hits, *final_junctions);
-		    update_insertions_and_deletions(left_best_hits, *final_insertions, *final_deletions);
-		    update_fusions(left_best_hits, *rt, *final_fusions, *fusions);
-		    
-		    print_sam_for_single(*rt,
-					 left_best_hits,
-					 FRAG_LEFT,
-					 l_read,
-					 bam_writer,
-					 left_um_out,
-					 rng);
+		    bool got_read =left_reads_file.getRead(curr_left_obs_order, l_read,
+							   reads_format, false, begin_id, end_id,
+							   left_um_out, false);
+		    assert (got_read);
+
+		    if (got_read)
+		      {
+			update_junctions(left_best_hits, *final_junctions);
+			update_insertions_and_deletions(left_best_hits, *final_insertions, *final_deletions);
+			update_fusions(left_best_hits, *rt, *final_fusions, *fusions);
+			
+			print_sam_for_single(*rt,
+					     left_best_hits,
+					     FRAG_LEFT,
+					     l_read.alt_name,
+					     bam_writer,
+					     rng);
+		      }
 		  }
 	      }
 	    else
@@ -1313,30 +1285,38 @@ struct ReportWorker
 
 		if (best_hits.size() > 0)
 		  {
-		    update_junctions(best_left_hit_group, *final_junctions);
-		    update_insertions_and_deletions(best_left_hit_group, *final_insertions, *final_deletions);
-		    update_fusions(best_left_hit_group, *rt, *final_fusions, *fusions);
+		    bool got_left_read = left_reads_file.getRead(best_hits[0].first.insert_id(), l_read,
+								 reads_format, false, begin_id, end_id,
+								 left_um_out, false);
+		    
+		    bool got_right_read = right_reads_file.getRead(best_hits[0].first.insert_id(), r_read,
+								   reads_format, false, begin_id, end_id,
+								   right_um_out, false);
 
-		    update_junctions(best_right_hit_group, *final_junctions);
-		    update_insertions_and_deletions(best_right_hit_group, *final_insertions, *final_deletions);
-		    update_fusions(best_right_hit_group, *rt, *final_fusions, *fusions);
+		    assert (got_left_read && got_right_read);
 
-		    pair_support(best_hits, *final_fusions, *fusions);
-
-		    print_sam_for_pair(*rt,
-				       best_hits,
-				       grade,
-				       left_reads_file,
-				       right_reads_file,
-				       bam_writer,
-				       left_um_out,
-				       right_um_out,
-				       rng,
-				       begin_id,
-				       end_id);
-		  }
-		else
-		  {
+		    if (got_left_read && got_right_read)
+		      {
+			update_junctions(best_left_hit_group, *final_junctions);
+			update_insertions_and_deletions(best_left_hit_group, *final_insertions, *final_deletions);
+			update_fusions(best_left_hit_group, *rt, *final_fusions, *fusions);
+			
+			update_junctions(best_right_hit_group, *final_junctions);
+			update_insertions_and_deletions(best_right_hit_group, *final_insertions, *final_deletions);
+			update_fusions(best_right_hit_group, *rt, *final_fusions, *fusions);
+			
+			pair_support(best_hits, *final_fusions, *fusions);
+			
+			print_sam_for_pair(*rt,
+					   best_hits,
+					   grade,
+					   bam_writer,
+					   l_read.alt_name,
+					   r_read.alt_name,
+					   rng,
+					   begin_id,
+					   end_id);
+		      }
 		  }
 	      }
 	    
