@@ -22,8 +22,6 @@
 #include "tokenize.h"
 #include "qual.h"
 
-//bool fastq_db = true;
-
 using namespace std;
 
 void format_qual_string(string& qual_str)
@@ -471,4 +469,3 @@ int main(int argc, char *argv[])
     
   return 0;
 }
-
