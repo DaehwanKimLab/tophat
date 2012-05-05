@@ -1841,6 +1841,7 @@ def prep_reads_cmd(params, reads_list, quals_list=None, out_file=None, aux_file=
 def prep_reads(params, reads_list, quals_list, side="left", prefilter_reads=None):
     reads_suffix = ".bam"
     use_bam = True
+    
     if params.read_params.color:
        reads_suffix = ".fq"
        use_bam = False
