@@ -122,13 +122,22 @@ struct less_bam {
     ptr = bam_aux_get(second->b, "XS");
     if (ptr) strand2 = bam_aux2A(ptr);
 
-    if (strand1 == strand2)
-      return false;
+    if (strand1 != strand2)
+      {
+	if (strand1 == '+' || strand2 == 0)
+	  return true;
+	else
+	  return false;
+      }
 
-    if (strand1 == '+' || strand2 == 0)
-      return true;
-    else
-      return false;
+    // prefer more aux fields.
+    if (bowtie2)
+      {
+	if (first->b->data_len != second->b->data_len)
+	  return first->b->data_len > second->b->data_len;
+      }
+    
+    return false;
   }
 };
 
