@@ -158,17 +158,68 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
    if (new_record) {
      char *qname  = bam1_qname(b);
      uint64_t qid=(uint64_t)atol(qname);
+
+     if (color)
+       qid = qid << 8 | (uint64_t)qname[strlen(qname)-1];
+     
      bam1_t* bamrec=bam_dup1(b);
      map_pq.push(make_pair(qid, bamrec));
    }
 
    while (map_pq.size() > 1000000 || (!new_record && map_pq.size() > 0)) {
      uint64_t rid=map_pq.top().first;
+     char primer_tag;
+     if (color) {
+       primer_tag = (char)(rid & 0xff);
+       rid >>= 8;
+     }
+     
      bam1_t* tb=map_pq.top().second;
      bool unmapped = (tb->core.flag & BAM_FUNMAP) != 0;
      if (unmapped) { //unmapped read
        if (umbam!=NULL)
-    	 umbam->write(tb);
+	 {
+	   // add a primer tag with the corresponding dummy quality value '!'
+	   if (color)
+	     {
+	       int l_qseq = tb->core.l_qseq + 1;
+	       int data_len = tb->data_len + 1 + (l_qseq & 0x1);
+	       int m_data = data_len;
+	       kroundup32(m_data);
+	       
+	       uint8_t* data = (uint8_t*)calloc(m_data, 1);
+	       memset(data, 0, m_data);
+	       
+	       int copy_len = tb->core.l_qname + tb->core.n_cigar * 4;
+	       memcpy(data, tb->data, copy_len);
+	       
+	       uint8_t* data_seq = data + copy_len;
+	       uint8_t* source_seq = bam1_seq(tb);
+	       data_seq[0] = bam_nt16_table[(int)primer_tag] << 4;
+	       for (int i = 0; i < tb->core.l_qseq; ++i)
+		 {
+		   uint8_t base = bam1_seqi(source_seq, i);
+		   data_seq[(i+1)/2] |= (base << 4 * (1 - ((i+1) & 0x1)));
+		 }
+
+	       uint8_t* data_qual = data_seq + ((l_qseq + 1) >> 1);
+	       data_qual[0] = '!';
+	       memcpy(data_qual + 1, bam1_qual(tb), tb->core.l_qseq);
+
+	       uint8_t* data_aux = data_qual + l_qseq;
+	       memcpy(data_aux, bam1_aux(tb), data_len - (data_aux - data));
+
+	       tb->core.l_qseq = l_qseq;
+	       
+	       free(tb->data);
+	       tb->data = data;
+	       tb->data_len = data_len;
+	       tb->m_data = m_data;
+	     }
+	   
+	   umbam->write(tb);
+	 }
+       
        bam_destroy1(tb);
        map_pq.pop();
        }

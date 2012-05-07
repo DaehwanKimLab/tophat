@@ -188,8 +188,13 @@ void flt_reads_and_hits(vector<string>& reads_files) {
 void writePrepBam(GBamWriter* wbam, Read& read, uint32_t rid, char trashcode=0) {
   if (wbam==NULL) return;
   string rnum;
-  str_appendUInt(rnum,rid);
+  str_appendUInt(rnum, rid);
   string rname(read.name);
+
+  // attach a primer tag to the end of the read name for colorspace reads
+  if (color)
+    rnum.push_back(read.seq[0]);
+    
   size_t pl=rname.length()-1;
   GBamRecord bamrec(rnum.c_str(), -1, 0, false, read.seq.c_str(), NULL, read.qual.c_str());
   int matenum=0;
@@ -206,7 +211,6 @@ void writePrepBam(GBamWriter* wbam, Read& read, uint32_t rid, char trashcode=0) 
   }
 
   bamrec.add_aux("ZN", 'Z', rname.length(), (uint8_t*)rname.c_str());
-
   if (trashcode) {
 	 bamrec.set_flag(BAM_FQCFAIL);
      bamrec.add_aux("ZT", 'A', 1, (uint8_t*)&trashcode);
@@ -269,19 +273,19 @@ void process_reads(vector<string>& reads_files, vector<FZPipe>& quals_files)
         //    break;
 
         ++next_id;
+	
         //IMPORTANT: to keep paired reads in sync, this must be
         //incremented BEFORE any reads are chucked !
-        if (read.seq.length()<12) {
+        if (read.seq.length() < 20) {
             ++num_reads_chucked;
             writePrepBam(wbam, read, next_id, 'S');
             continue;
-            }
+	}
         if ((int)read.seq.length()<min_read_len)
              min_read_len=read.seq.length();
         if ((int)read.seq.length()>max_read_len)
              max_read_len=read.seq.length();
 
-        // daehwan - check this later, it's due to bowtie
         if (color && read.seq[1] == '4') {
           ++num_reads_chucked;
           writePrepBam(wbam, read, next_id, 'c');
@@ -329,14 +333,11 @@ void process_reads(vector<string>& reads_files, vector<FZPipe>& quals_files)
         }
 
         if (wbam) {
-	  if (reads_format == FASTA)
-	    {
-	      if (color)
-		read.qual = string(read.seq.length()-1, 'I').c_str();
-	      else
-		read.qual = string(read.seq.length(), 'I').c_str();
-	    }
-
+	  if (reads_format == FASTA && !quals)
+	    read.qual = string(read.seq.length(), 'I').c_str();
+	  else if (color && quals)
+	    read.qual = "!" + read.qual;
+	  
           writePrepBam(wbam, read, next_id);
         }
         else {
