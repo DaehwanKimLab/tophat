@@ -1601,16 +1601,19 @@ def fa_write(fhandle, seq_id, seq):
         fhandle.write( seq[ start:end ] + "\n")
 
 class ZReader:
-    def __init__(self, filename, sysparams, guess=True):
+    def __init__(self, filename, params, guess=True):
         self.fname=filename
         self.file=None
         self.fsrc=None
         self.popen=None
+        sys_params = params.system_params
         pipecmd=[]
         s=filename.lower()
         if s.endswith(".bam"):
-           # daehwan - want to ouptut mapped reads as well
-           pipecmd=[prog_path("bam2fastx"), "--all", "-"]
+           pipecmd=[prog_path("bam2fastx")]
+           if params.read_params.color:
+               pipecmd+=["--color"]
+           pipecmd+=["--all", "-"]
         else:
           if guess:
              if s.endswith(".z") or s.endswith(".gz") or s.endswith(".gzip"):
@@ -1621,8 +1624,8 @@ class ZReader:
              if len(pipecmd)>0 and which(pipecmd[0]) is None:
                  die("Error: cannot find %s to decompress input file %s " % (pipecmd, filename))
              if len(pipecmd)>0:
-                if pipecmd[0]=='gzip' and sysparams.zipper.endswith('pigz'):
-                   pipecmd[0]=sysparams.zipper
+                if pipecmd[0]=='gzip' and sys_params.zipper.endswith('pigz'):
+                   pipecmd[0]=sys_params.zipper
                    pipecmd.extend(sysparams.zipper_opts)
                 elif pipecmd[0]=='bzip2' and sysparams.zipper.endswith('pbzip2'):
                    pipecmd[0]=sysparams.zipper
@@ -1692,7 +1695,7 @@ def check_reads_format(params, reads_files):
 
     for f_name in files:
         #try:
-        zf = ZReader(f_name, params.system_params)
+        zf = ZReader(f_name, params)
         #except IOError:
         #   die("Error: could not open file "+f_name)
         freader=FastxReader(zf.file, params.read_params.color, zf.fname)
@@ -1842,10 +1845,6 @@ def prep_reads(params, reads_list, quals_list, side="left", prefilter_reads=None
     reads_suffix = ".bam"
     use_bam = True
     
-    if params.read_params.color:
-       reads_suffix = ".fq"
-       use_bam = False
-
     # for parallelization, we don't compress the read files
     do_use_zpacker = use_zpacker and not use_bam
     if do_use_zpacker and params.system_params.num_threads > 1:
@@ -1980,14 +1979,14 @@ def bowtie(params,
 
         if params.read_params.color:
             bowtie_cmd += ["-C", "--col-keepends"]
-            if unmapped_reads:
-               bowtie_cmd += ["--un", unmapped_reads_out]
 
         unzip_cmd=None
         bam_input=False
         if len(reads_list) > 0 and reads_list[0].endswith('.bam'):
            bam_input=True
            unzip_cmd=[ prog_path('bam2fastx'), "--all" ]
+           if params.read_params.color:
+               unzip_cmd.append("--color")
            if reads_format:
               unzip_cmd.append("--" + reads_format)
            unzip_cmd+=[reads_list[0]]
@@ -2015,6 +2014,8 @@ def bowtie(params,
                  os._exit(os.EX_OK)
 
         fix_map_cmd = [prog_path('fix_map_ordering')]
+        if params.read_params.color:
+            fix_map_cmd += ["--color"]
 
         if params.bowtie2:
             if t_mapping or g_mapping:
@@ -2025,7 +2026,6 @@ def bowtie(params,
 
         samzip_cmd=None
 
-        # daehwan - just use bam format for multi-threading.
         if unmapped_reads or params.system_params.num_threads >= 1:
            #mapping on the genome
            #fix_map_ordering will write BAM file directly, and unmapped_reads as BAM file too
@@ -2033,8 +2033,8 @@ def bowtie(params,
 
            temp_sam_header = tmp_dir + bwt_idx_prefix.split('/')[-1] + ".bwt.samheader.sam"
            fix_map_cmd += ["--sam-header", temp_sam_header, "-", mapped_reads]
-           if not params.read_params.color and unmapped_reads:
-               unmapped_reads_out = unmapped_reads+".bam"
+           if unmapped_reads:
+               unmapped_reads_out = unmapped_reads + ".bam"
                fix_map_cmd += [unmapped_reads_out]
         else:
            #mapping on segment_juncs (spliced potential junctions)
@@ -2634,7 +2634,7 @@ def split_reads(reads_filename,
                 params,
                 segment_length):
     #reads_file = open(reads_filename)
-    zreads = ZReader(reads_filename, params.system_params, False)
+    zreads = ZReader(reads_filename, params, False)
     out_segfiles = []
 
     if fasta:

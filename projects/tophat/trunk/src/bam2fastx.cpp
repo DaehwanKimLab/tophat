@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <cstring>
 #include <getopt.h>
+#include <assert.h>
 #include <string>
 
 #include "bam/bam.h"
@@ -15,11 +16,12 @@ bool all_reads=false;
 bool mapped_only=false;
 bool add_matenum=false;
 bool pairs=false;
+bool color=false;
 bool ignoreQC; // ignore qc fail flag 0x400
 
 string outfname;
 
-#define USAGE "Usage: bam2fastx [--fasta|-a|--fastq|-q] [-Q] [--sam|-s|-t]\n\
+#define USAGE "Usage: bam2fastx [--fasta|-a|--fastq|-q] [--color] [-Q] [--sam|-s|-t]\n\
    [-M|--mapped-only|-A|--all] [-o <outfile>] [-P|--paired] [-N] <in.bam>\n\
    \nNote: By default, reads flagged as not passing quality controls are\n\
    discarded; the -Q option can be used to ignore the QC flag.\n\
@@ -35,7 +37,8 @@ enum {
    OPT_SAM,
    OPT_PAIRED,
    OPT_MAPPED_ONLY,
-   OPT_ALL
+   OPT_ALL,
+   OPT_COLOR
    };
    
 struct Read {
@@ -58,6 +61,7 @@ struct option long_options[] = {
   {"paired", no_argument, 0, OPT_PAIRED},
   {"mapped-only", no_argument, 0, OPT_MAPPED_ONLY},
   {"all", no_argument, 0, OPT_ALL},
+  {"color", no_argument, 0, OPT_COLOR},
   {0, 0, 0, 0} // terminator
   };
 
@@ -91,6 +95,9 @@ int parse_options(int argc, char** argv)
        case OPT_ALL:
          all_reads = true;
          break;
+     case OPT_COLOR:
+       color = true;
+       break;
        case 'P':
        case OPT_PAIRED:
          pairs = true;
@@ -146,6 +153,10 @@ void getRead(const bam1_t *b, samfile_t* fp, Read& rd) {
 	}
 	// copied from sam_view.c in samtools.
 	if (isreversed) {
+
+	  // didn't implement this for colorspace reads
+	  assert (!color);
+	  
 	   int l=0;
 	   int r=seqlen-1;
 	   while (l<r) {
@@ -154,27 +165,52 @@ void getRead(const bam1_t *b, samfile_t* fp, Read& rd) {
 		  rd.seq[r]=c;
 		  l++;r--;
 		  }
-	   for (i=0;i<seqlen;i++) {
-		 rd.seq[i]=seq_comp_table[(int)rd.seq[i]];
+
+	   if (!color) {
+	     for (i=0;i<seqlen;i++) {
+	       rd.seq[i]=seq_comp_table[(int)rd.seq[i]];
+	     }
 	   }
 	}
 
-	for(i=0;i<seqlen;i++) {
-	  rd.seq[i] = bam_nt16_rev_table[(int)rd.seq[i]];
+  	if (color) {
+	  const static char *color_bam_nt16_rev_table = "4014244434444444";
+	  rd.seq[0] = bam_nt16_rev_table[(int)rd.seq[0]];
+	  for(i=1;i<seqlen;i++) {
+	    rd.seq[i] = color_bam_nt16_rev_table[(int)rd.seq[i]];
+	  }
+	}
+	else {
+	  for(i=0;i<seqlen;i++) {
+	    rd.seq[i] = bam_nt16_rev_table[(int)rd.seq[i]];
+	  }
 	}
 
 	if (!is_fastq) return;
 
-	rd.qual.resize(seqlen);
-	for(i=0;i<seqlen;i++) {
-	  if (qual[i]==0xFF)
-		rd.qual[i]='I';
-	  else rd.qual[i]=qual[i]+33;
+	if (color) {
+	  rd.qual.resize(seqlen-1);
+	  for(i=1;i<seqlen;i++) {
+	    if (qual[i]==0xFF)
+	      rd.qual[i]='I';
+	    else rd.qual[i-1]=qual[i]+33;
 	  }
+	}
+	else {
+	  rd.qual.resize(seqlen);
+	  for(i=0;i<seqlen;i++) {
+	    if (qual[i]==0xFF)
+	      rd.qual[i]='I';
+	    else rd.qual[i]=qual[i]+33;
+	  }
+	}
 
 	if (isreversed) {
 	  int l=0;
 	  int r=seqlen-1;
+	  if (color)
+	    r -= 1;
+	  
 	  while (l<r) {
 		int8_t t = rd.qual[l];
 		rd.qual[l] = rd.qual[r];
