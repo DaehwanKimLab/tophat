@@ -2577,13 +2577,6 @@ void print_bamhit(GBamWriter& wbam,
   vector<string> auxdata;
   if (extra_fields)
     auxdata.insert(auxdata.end(), extra_fields->begin(), extra_fields->end());
-
-  if (!sam_readgroup_id.empty())
-    {
-      string nm("RG:Z:");
-      nm += sam_readgroup_id;
-      auxdata.push_back(nm);
-    }
   
   string nm("NM:i:");
   str_appendInt(nm, bh.edit_dist() + indel_distance);

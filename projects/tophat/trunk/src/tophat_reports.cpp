@@ -457,10 +457,16 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
   int tlen =atoi(sam_toks[8].c_str()); //TLEN
   int mate_pos=atoi(sam_toks[7].c_str());
 
+  string rg_aux = "";
+  if (!sam_readgroup_id.empty())
+      rg_aux = string("RG:Z:") + sam_readgroup_id;
+
   GBamRecord* bamrec=NULL;
   if (fusion_alignment) {
     vector<string> auxdata;
     add_auxData(auxdata, sam_toks, rt, bh, insert_side, num_hits, next_hit, hitIndex);
+    if (rg_aux != "")
+      auxdata.push_back(rg_aux);
     bamrec=bam_writer.new_record(qname.c_str(), flag, ref_name.c_str(), left1 + 1, mapQ,
 				 cigar1, sam_toks[6].c_str(), mate_pos,
 				 tlen, left_seq.c_str(), left_qual.c_str(), &auxdata);
@@ -470,6 +476,8 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
     auxdata.clear();
     sam_toks[XF_index][5] = '2';
     add_auxData(auxdata, sam_toks, rt, bh, insert_side, num_hits, next_hit, hitIndex);
+    if (rg_aux != "")
+      auxdata.push_back(rg_aux);
     bamrec=bam_writer.new_record(qname.c_str(), flag, ref_name2.c_str(), left2 + 1, mapQ,
 				 cigar2, sam_toks[6].c_str(), mate_pos,
 				 tlen, right_seq.c_str(), right_qual.c_str(), &auxdata);
@@ -478,6 +486,8 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
   } else {
     vector<string> auxdata;
     add_auxData(auxdata, sam_toks, rt, bh, insert_side, num_hits, next_hit, hitIndex);
+    if (rg_aux != "")
+      auxdata.push_back(rg_aux);
     bamrec=bam_writer.new_record(qname.c_str(), flag, sam_toks[2].c_str(), gpos, mapQ,
 				 sam_toks[5].c_str(), sam_toks[6].c_str(), mate_pos,
 				 tlen, sam_toks[9].c_str(), sam_toks[10].c_str(), &auxdata);
@@ -597,10 +607,16 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
     flag |= 0x0008;
   }
 
+  string rg_aux = "";
+  if (!sam_readgroup_id.empty())
+    rg_aux = string("RG:Z:") + sam_readgroup_id;
+
   GBamRecord* bamrec=NULL;
   if (fusion_alignment) {
     vector<string> auxdata;
     add_auxData(auxdata, sam_toks, rt, bh, insert_side, num_hits, next_hit, hitIndex);
+    if (rg_aux != "")
+      auxdata.push_back(rg_aux);
     bamrec=bam_writer.new_record(qname.c_str(), flag, ref_name.c_str(), left1 + 1, mapQ,
 				 cigar1, sam_toks[6].c_str(), mate_pos,
 				 tlen, left_seq.c_str(), left_qual.c_str(), &auxdata);
@@ -610,6 +626,8 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
     auxdata.clear();
     sam_toks[XF_tok_idx][5] = '2';
     add_auxData(auxdata, sam_toks, rt, bh, insert_side, num_hits, next_hit, hitIndex);
+    if (rg_aux != "")
+      auxdata.push_back(rg_aux);
     bamrec=bam_writer.new_record(qname.c_str(), flag, ref_name2.c_str(), left2 + 1, mapQ,
 				 cigar2, sam_toks[6].c_str(), mate_pos,
 				 tlen, right_seq.c_str(), right_qual.c_str(), &auxdata);
@@ -618,6 +636,8 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
   } else {
     vector<string> auxdata;
     add_auxData(auxdata, sam_toks, rt, bh, insert_side, num_hits, next_hit, hitIndex);
+    if (rg_aux != "")
+      auxdata.push_back(rg_aux);
     bamrec=bam_writer.new_record(qname.c_str(), flag, sam_toks[2].c_str(), gpos, mapQ,
 				 sam_toks[5].c_str(), sam_toks[6].c_str(), mate_pos,
 				 tlen, sam_toks[9].c_str(), sam_toks[10].c_str(), &auxdata);
