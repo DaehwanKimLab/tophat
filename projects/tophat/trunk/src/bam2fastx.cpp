@@ -128,8 +128,8 @@ void getRead(const bam1_t *b, samfile_t* fp, Read& rd) {
   rd.clear();
   char *name  = bam1_qname(b);
   rd.name=name;
-  char *qual  = (char*)bam1_qual(b);
-  char *s    = (char*)bam1_seq(b);
+  unsigned char *qual  = (unsigned char*)bam1_qual(b);
+  unsigned char *s    = (unsigned char*)bam1_seq(b);
   int i;
 
   if ((b->core.flag & BAM_FQCFAIL) && !ignoreQC) return;

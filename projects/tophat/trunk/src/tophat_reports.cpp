@@ -390,7 +390,7 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
   string ref_name = sam_toks[2], ref_name2 = "";
   char cigar1[1024] = {0}, cigar2[1024] = {0};
   string left_seq, right_seq, left_qual, right_qual;
-  int left = -1, left1 = -1, left2 = -1;
+  int left1 = -1, left2 = -1;
   bool fusion_alignment = false;
   size_t XF_index = 0;
   for (size_t i = 11; i < sam_toks.size(); ++i)
@@ -534,7 +534,7 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
   string ref_name = sam_toks[2], ref_name2 = "";
   char cigar1[1024] = {0}, cigar2[1024] = {0};
   string left_seq, right_seq, left_qual, right_qual;
-  int left = -1, left1 = -1, left2 = -1;
+  int left1 = -1, left2 = -1;
   bool fusion_alignment = false;
   size_t XF_tok_idx = 11;
   for (; XF_tok_idx < sam_toks.size(); ++XF_tok_idx)
@@ -1540,7 +1540,7 @@ void driver(const string& bam_output_fname,
   DeletionSet& deletions = vdeletions[0];
   FusionSet& fusions = vfusions[0];
   Coverage& coverage = vcoverages[0];
-  for (size_t i = 1; i < num_threads; ++i)
+  for (int i = 1; i < num_threads; ++i)
     {
       merge_with(junctions, vjunctions[i]);
       vjunctions[i].clear();
@@ -1671,7 +1671,7 @@ void driver(const string& bam_output_fname,
   InsertionSet final_insertions = vfinal_insertions[0];
   DeletionSet final_deletions = vfinal_deletions[0];
   FusionSet final_fusions = vfinal_fusions[0];
-  for (size_t i = 1; i < num_threads; ++i)
+  for (int i = 1; i < num_threads; ++i)
     {
       merge_with(final_junctions, vfinal_junctions[i]);
       vfinal_junctions[i].clear();

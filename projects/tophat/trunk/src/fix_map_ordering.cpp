@@ -175,7 +175,7 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
 
    while (map_pq.size() > 1000000 || (!new_record && map_pq.size() > 0)) {
      uint64_t rid=map_pq.top().first;
-     char primer_tag, first_color, first_qual;
+     char primer_tag = 0, first_color = 0, first_qual = 0;
      if (color) {
        primer_tag = (char)((rid >> 16) & 0xff);
        first_color = (char)((rid >> 8) & 0xff);

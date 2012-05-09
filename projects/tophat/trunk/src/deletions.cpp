@@ -34,15 +34,14 @@
  *	
  */
 void print_deletions(FILE* deletions_out, const DeletionSet& deletions, RefSequenceTable& ref_sequences){
-	fprintf(deletions_out, "track name=deletions description=\"TopHat deletions\"\n");
-	for(DeletionSet::const_iterator i = deletions.begin(); i != deletions.end(); ++i){
-		fprintf(deletions_out, "%s\t%d\t%d\t%s\t%d\n",
-			ref_sequences.get_name(i->first.refid),
-			i->first.left + 1,
-			i->first.right,
-			"-",
-			i->second);
-	}
+  fprintf(deletions_out, "track name=deletions description=\"TopHat deletions\"\n");
+  for(DeletionSet::const_iterator i = deletions.begin(); i != deletions.end(); ++i){
+    fprintf(deletions_out, "%s\t%d\t%d\t-\t%d\n",
+	    ref_sequences.get_name(i->first.refid),
+	    i->first.left + 1,
+	    i->first.right,
+	    i->second.supporting_hits);
+  }
 }
 
 /**

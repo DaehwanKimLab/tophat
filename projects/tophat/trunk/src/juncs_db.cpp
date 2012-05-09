@@ -170,7 +170,7 @@ void print_fusion(const Fusion& fusion,
     {
       if (fusion.dir == FUSION_FF || fusion.dir == FUSION_FR)
 	{
-	  left_start = fusion.left + 1 >= half_splice_len ? fusion.left - half_splice_len + 1 : 0;
+	  left_start = fusion.left + 1 >= (size_t)half_splice_len ? fusion.left - half_splice_len + 1 : 0;
 	  left_end = left_start + half_splice_len;
 	}
       else
@@ -187,7 +187,7 @@ void print_fusion(const Fusion& fusion,
       else
 	{
 	  right_end = fusion.right + 1;
-	  right_start = right_end >= half_splice_len ? right_end - half_splice_len : 0;
+	  right_start = right_end >= (size_t)half_splice_len ? right_end - half_splice_len : 0;
 	}
 
       if (left_start < left_end && left_end <= left_ref_len &&

@@ -1004,7 +1004,7 @@ BowtieHit merge_chain(RefSequenceTable& rt,
 	  else
 	    dist_btw_two = curr_hit->left() - prev_hit->right();
 
-	  if (dist_btw_two < 0 && dist_btw_two >= -max_insertion_length && prev_hit->antisense_align2() == curr_hit->antisense_align())
+	  if (dist_btw_two < 0 && dist_btw_two >= -(int)max_insertion_length && prev_hit->antisense_align2() == curr_hit->antisense_align())
 	    {
 	      std::set<Insertion>::iterator lb, ub;
 	      
@@ -2327,7 +2327,7 @@ bool dfs_seg_hits(RefSequenceTable& rt,
 	   * Switch prevHit and currHit in FUSION_NOTHING and FUSION_FF cases
 	   * to make it easier to check the distance in the gap between the two segments.
 	   */
-	  else if ((num_fusions == 0 && prevHit->antisense_align() && currHit->antisense_align() && prevHit->ref_id() == currHit->ref_id() && prevHit->left() <= currHit->right() + max_report_intron_length && prevHit->left() + max_insertion_length >= currHit->right()) ||
+	  else if ((num_fusions == 0 && prevHit->antisense_align() && currHit->antisense_align() && prevHit->ref_id() == currHit->ref_id() && prevHit->left() <= currHit->right() + (int)max_report_intron_length && prevHit->left() + (int)max_insertion_length >= currHit->right()) ||
 		   (num_fusions == 1 && (dir == FUSION_FF || dir == FUSION_RR)&&
 		    ((!prevHit_fused && prevHit->antisense_align()) || (!currHit_fused && currHit->antisense_align())))
 		   )

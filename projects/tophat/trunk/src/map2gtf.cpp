@@ -192,6 +192,10 @@ bool Map2GTF::trans_to_genomic_coords(TranscriptomeHit& hit)
 
     // TODO: Check this return value
     bool ret_val = get_read_start(&exon_list, hit.hit->core.pos, read_start, i);
+    if (!ret_val)
+      {
+      }
+    
     cur_pos = read_start;
     for (int c = 0; c < hit.hit->core.n_cigar; ++c)
       {
