@@ -3451,10 +3451,10 @@ void find_gaps(RefSequenceTable& rt,
   bool got_read = reads_file.getRead(hits_for_read[last_segment].insert_id, read);
   if (!got_read) {
     err_die("Error: could not get read# %d from stream!",
-        (int)hits_for_read[last_segment].insert_id);
+	    (int)hits_for_read[last_segment].insert_id);
     return;
-    }
-
+  }
+  
   HitsForRead partner_hits_for_read;
   if (first_segment != last_segment)
     partner_hits_for_read = hits_for_read[last_segment];
@@ -4353,7 +4353,6 @@ void pair_covered_sites(ReadTable& it,
   fprintf(stderr, "Found %ld potential intra-island junctions\n", (long int)cov_juncs.size());
 }
 
-// daehwan
 struct ReadInfo
 {
   ReadID read_id;

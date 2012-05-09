@@ -1718,7 +1718,7 @@ bool BAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
     char *bseq = (char*)bam1_seq(hit_buf);
     for(int i=0;i<(hit_buf->core.l_qseq);i++) {
       char v = bam1_seqi(bseq,i);
-      seq[i]=bam_nt16_rev_table[v];
+      seq[i]=bam_nt16_rev_table[(int)v];
     }
     seq[hit_buf->core.l_qseq]=0;
   }
@@ -2030,7 +2030,7 @@ bool SplicedBAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
     char *bseq = (char*)bam1_seq(hit_buf);
     for(int i=0;i<(hit_buf->core.l_qseq);i++) {
       char v = bam1_seqi(bseq,i);
-      seq[i]=bam_nt16_rev_table[v];
+      seq[i]=bam_nt16_rev_table[(int)v];
     }
     seq[hit_buf->core.l_qseq]=0;
   }
