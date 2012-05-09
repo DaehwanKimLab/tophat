@@ -1204,21 +1204,47 @@ GBamRecord::GBamRecord(const char* qname, int32_t flags, int32_t g_tid,
  		  seq[r]=c;
  		  l++;r--;
  		  }
- 	   for (i=0;i<seqlen;i++) {
- 		 seq[i]=seq_comp_table[(int)seq[i]];
- 	   }
+	   
+	   for (i=0;i<seqlen;i++) {
+	     seq[i]=seq_comp_table[(int)seq[i]];
+	   }
  	}
 
- 	for(i=0;i<seqlen;i++) {
+   if (color)
+     {
+       const static char *color_bam_nt16_rev_table = "4014244434444444";
+       seq[0] = bam_nt16_rev_table[(int)seq[0]];
+       for(i=1;i<seqlen;i++)
+	 {
+	   seq[i] = color_bam_nt16_rev_table[(int)seq[i]];
+	 }
+     }
+   else
+     {
+       for(i=0;i<seqlen;i++) {
  	  seq[i] = bam_nt16_rev_table[(int)seq[i]];
  	}
+     }
+   
   if (readquals) {
+    if (color)
+      {
+	squal.resize(seqlen - 1);
+	for(i=1;i<seqlen;i++) {
+	  if (qual[i]==0xFF)
+	    squal[i-1]='I';
+	  else squal[i-1]=qual[i]+33;
+	}
+      }
+    else
+      {
   	squal.resize(seqlen);
- 	  for(i=0;i<seqlen;i++) {
- 	    if (qual[i]==0xFF)
- 		  squal[i]='I';
- 	    else squal[i]=qual[i]+33;
- 	    }
+	for(i=0;i<seqlen;i++) {
+	  if (qual[i]==0xFF)
+	    squal[i]='I';
+	  else squal[i]=qual[i]+33;
+	}
+      }
 
  	  if (isreversed) {
  	    int l=0;

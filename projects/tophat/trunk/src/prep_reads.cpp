@@ -191,9 +191,18 @@ void writePrepBam(GBamWriter* wbam, Read& read, uint32_t rid, char trashcode=0) 
   str_appendUInt(rnum, rid);
   string rname(read.name);
 
-  // attach a primer tag to the end of the read name for colorspace reads
+  // attach a primer tag and the following color to the end of the read name for colorspace reads
+  // also, attach a quality value
   if (color)
-    rnum.push_back(read.seq[0]);
+    {
+      rnum.push_back(read.seq[0]);
+      rnum.push_back(read.seq[1]);
+
+      if (!read.qual.empty())
+	rnum.push_back(read.qual[1]);
+      else
+	rnum.push_back('!');
+    }
     
   size_t pl=rname.length()-1;
   GBamRecord bamrec(rnum.c_str(), -1, 0, false, read.seq.c_str(), NULL, read.qual.c_str());

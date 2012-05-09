@@ -187,7 +187,6 @@ void getRead(const bam1_t *b, samfile_t* fp, Read& rd) {
 	}
 
 	if (!is_fastq) return;
-
 	if (color) {
 	  rd.qual.resize(seqlen-1);
 	  for(i=1;i<seqlen;i++) {
