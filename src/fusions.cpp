@@ -506,7 +506,7 @@ void pair_support(const vector<pair<BowtieHit, BowtieHit> >& best_hits, FusionSe
       uint32_t ref_id1 = lh.ref_id2();
       uint32_t ref_id2 = rh.ref_id();
       
-      int dir = FUSION_FF;
+      uint32_t dir = FUSION_FF;
       if (fusionSpanned)
 	{
 	  if (left_fusionSpanned)
@@ -854,7 +854,7 @@ void pair_support(const vector<pair<BowtieHit, BowtieHit> >& best_hits, FusionSe
 	  if (lb->first.dir == dir &&
 	      lb->first.refid1 == ref_id1 &&
 	      lb->first.refid2 == ref_id2 &&
-	      ((!fusionSpanned && lb->first.right >= right1 && lb->first.right <= right2) || fusionSpanned) &&
+	      ((!fusionSpanned && (int)lb->first.right >= right1 && (int)lb->first.right <= right2) || fusionSpanned) &&
 	      !lb->second.reversed)
 	    {
 	      int dist = 0, left_dist = 0, right_dist = 0;

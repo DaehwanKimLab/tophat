@@ -176,7 +176,7 @@ int Coverage::get_coverage(RefID refid, int pos) const
 	  if (pos >= itr_contig->first)
 	    {
 	      int index = pos - itr_contig->first;
-	      if (index < contig_coverage.size())
+	      if (index < (int)contig_coverage.size())
 		coverage = contig_coverage[index];
 	    }
 	}
@@ -203,11 +203,11 @@ void Coverage::print_info() const
       for (; itr2 != itr->second.end(); ++itr2)
 	bases += (itr2->second.size() - 1);
 	
-      fprintf(stderr, "# of islands: %d, # of bases covered: %d\n", itr->second.size(), bases);
+      fprintf(stderr, "# of islands: %lu, # of bases covered: %lu\n", itr->second.size(), bases);
       total_bases += bases;
     }
 
-  fprintf(stderr, "# of total bases: %d\n", total_bases);
+  fprintf(stderr, "# of total bases: %lu\n", total_bases);
   
   itr = genomeCoverage.begin();
   for (; itr != genomeCoverage.end(); ++itr)
@@ -227,7 +227,7 @@ void Coverage::print_info(const PosCoverage& posCoverage, int begin, int end) co
 
 void Coverage::print_info(int pos, const vector<int>& cov) const
 {
-  fprintf(stderr, "\tPos: %d, size: %u\n", pos, cov.size());
+  fprintf(stderr, "\tPos: %d, size: %lu\n", pos, cov.size());
   for (size_t i = 0; i < cov.size(); ++i)
     fprintf(stderr, "\t\t%d (%d)\n", cov[i], pos + (int)i);
 }

@@ -240,7 +240,7 @@ AlignStatus::AlignStatus(const BowtieHit& bh,
 		    if (addition < 0)
 		      addition = 0;
 
-		    int prev_alignment_score = _alignment_score;
+		    // int prev_alignment_score = _alignment_score;
 		    _alignment_score += addition;
 		    _alignment_score = min(0, _alignment_score);
 		    

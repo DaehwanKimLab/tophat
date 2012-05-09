@@ -451,7 +451,7 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 
 	char orientation;
 	char text_name[buf_size];
-	unsigned int text_offset;
+	int text_offset;
 	char mismatches[buf_size];
 	//memset(mismatches, 0, sizeof(mismatches));
 
@@ -622,7 +622,7 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 					 * If there is a mismatch within the insertion,
 					 * disallow this hit 
 					 */
-					if(mismatch_pos + text_offset <= relative_splice_pos || mismatch_pos + text_offset > relative_splice_pos + insertedSequence.length()){
+					if(mismatch_pos + text_offset <= relative_splice_pos || mismatch_pos + text_offset > relative_splice_pos + (int)insertedSequence.length()){
 					  num_mismatches++;
 					}else{
 					  return false; 
@@ -667,7 +667,7 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 
 		    int spliced_read_len = strlen(seq_str);
 		    uint32_t left = atoi(toks[num_extra_toks + left_window_edge_field].c_str());
-		    int8_t left_splice_pos = atoi(splice_toks[0].c_str());
+		    int left_splice_pos = atoi(splice_toks[0].c_str());
 		    if (junction_type != "fus" || (junction_strand != "rf" && junction_strand != "rr"))
 		      {
 			left += text_offset;
@@ -680,7 +680,7 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 		      }
 
 		    if(left_splice_pos > spliced_read_len) left_splice_pos = spliced_read_len;		  
-		    int8_t right_splice_pos = spliced_read_len - left_splice_pos;
+		    int right_splice_pos = spliced_read_len - left_splice_pos;
 
 		    int gap_len = 0;
 		    if (junction_type == "fus")
@@ -693,13 +693,13 @@ bool SplicedBowtieHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
 		    
 		    if (orientation == '+')
 		      {
-			if (left_splice_pos + seg_offset < _anchor_length){
+			if (left_splice_pos + (int)seg_offset < _anchor_length) {
 			  return false;
 			}
 		      }
 		    else
 		      {
-			if (right_splice_pos + seg_offset < _anchor_length)
+			if (right_splice_pos + (int)seg_offset < _anchor_length)
 			  return false;
 		      }
 
@@ -1236,8 +1236,8 @@ bool spliceCigar(vector<CigarOp>& splcigar, vector<CigarOp>& cigar, vector<bool>
            if (spl_code==INS) {
                  //we have to shorten cur_opcode
                  // find the overlap between current range
-                 int ovl_start = (cur_op_ofs>spl_ofs) ? cur_op_ofs : spl_ofs;
-                 int ovl_end = (ref_ofs>spl_ofs_end) ? spl_ofs_end : ref_ofs;
+                 //int ovl_start = (cur_op_ofs>spl_ofs) ? cur_op_ofs : spl_ofs;
+                 //int ovl_end = (ref_ofs>spl_ofs_end) ? spl_ofs_end : ref_ofs;
 		 
 		 CigarOp op(cigar[c]);
 		 op.length=spl_ofs-cur_op_ofs;
@@ -2013,7 +2013,6 @@ bool SplicedBAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
   
   vector<CigarOp> samcigar;
   bool spliced_alignment = false;
-  int num_hits = 1;
   
   double mapQ = hit_buf->core.qual;
   long double error_prob;
@@ -2117,8 +2116,6 @@ bool SplicedBAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
   vector<bool> mismatches;
   mismatches.resize(strlen(seq), false);
   int num_mismatches=getBAMmismatches(hit_buf, samcigar, mismatches, sam_nm, antisense_splice);
-  unsigned char num_splice_anchor_mismatches = 0;
-  
   //##############################################
   
   // Add this alignment to the table of hits for this half of the

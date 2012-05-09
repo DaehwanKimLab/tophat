@@ -2639,7 +2639,7 @@ void gappedAlignment(const seqan::String<char>& read,
   assign(genomicSequence, leftReference);
   append(genomicSequence, rightReference);
   appendValue(rows(align), genomicSequence);
-  int score = globalAlignment(align, globalScore);
+  // int score = globalAlignment(align, globalScore);
 
   Row<Align<String<char> > >::Type& row0 = row(align, 0);
   Row<Align<String<char> > >::Type& row1 = row(align, 1);
@@ -2689,7 +2689,7 @@ void gappedAlignment(const seqan::String<char>& read,
 
   // assume the lengths of read, leftReference, and rightReference are all equal.
   const int max_gap = end_in_align - start_in_align;
-  if (max_gap < length(read) - 10)
+  if (max_gap < (int)length(read) - 10)
     return;
 
   if (start_in_ref < 0)
@@ -2728,14 +2728,14 @@ void detect_fusion(RefSequenceTable& rt,
   RefSequenceTable::Sequence* left_ref_str = rt.get_seq(leftHit.ref_id());
   RefSequenceTable::Sequence* right_ref_str = rt.get_seq(rightHit.ref_id());
 
-  size_t read_length = seqan::length(read_sequence);
+  int read_length = (int)seqan::length(read_sequence);
 
   Dna5String leftGenomicSequence_temp;
   Dna5String rightGenomicSequence_temp;
 
   if (dir == FUSION_FF || dir == FUSION_FR)
     {
-      if (leftHit.left() + read_length > seqan::length(*left_ref_str))
+      if (leftHit.left() + read_length > (int)seqan::length(*left_ref_str))
 	return;
 
       leftGenomicSequence_temp = seqan::infix(*left_ref_str, leftHit.left(), leftHit.left() + read_length);
@@ -2758,7 +2758,7 @@ void detect_fusion(RefSequenceTable& rt,
     }
   else
     {
-      if (rightHit.left() + read_length > seqan::length(*right_ref_str))
+      if (rightHit.left() + read_length > (int)seqan::length(*right_ref_str))
 	return;
 
       rightGenomicSequence_temp = seqan::infix(*right_ref_str, rightHit.left(), rightHit.left() + read_length);
@@ -2793,7 +2793,7 @@ void detect_fusion(RefSequenceTable& rt,
 			 minErrors);
 
   uint32_t total_edit_dist = leftHit.edit_dist() + rightHit.edit_dist();
-  if (minErrors > total_edit_dist)
+  if (minErrors > (int)total_edit_dist)
     return;
 
 #if 1
@@ -2803,7 +2803,7 @@ void detect_fusion(RefSequenceTable& rt,
   for (size_t i = 0; i < bestLeftInsertPositions.size(); ++i)
     {
       const int left = bestLeftInsertPositions[i];
-      if (left < fusion_anchor_length)
+      if (left < (int)fusion_anchor_length)
 	return;
       
       const int right = bestRightInsertPositions.size() > i ? bestRightInsertPositions[i] : left;
@@ -3207,7 +3207,7 @@ void find_fusions(RefSequenceTable& rt,
 		  else
 		    dist = rightHit.left() - leftHit.right();
 
-		  if (dist > -max_insertion_length && dist <= (int)fusion_min_dist)
+		  if (dist > -(int)max_insertion_length && dist <= (int)fusion_min_dist)
 		    {
 		      check_partner = false;
 		      break;
@@ -3248,8 +3248,8 @@ void find_fusions(RefSequenceTable& rt,
 
 	      RefSequenceTable::Sequence* ref_str = rt.get_seq(rightHit.ref_id());
 
-	      const size_t part_seq_len = inner_dist_std_dev > inner_dist_mean ? inner_dist_std_dev - inner_dist_mean : 0;
-	      const size_t flanking_seq_len = inner_dist_mean + inner_dist_std_dev;
+	      const int part_seq_len = inner_dist_std_dev > inner_dist_mean ? inner_dist_std_dev - inner_dist_mean : 0;
+	      const int flanking_seq_len = inner_dist_mean + inner_dist_std_dev;
 	      
 	      Dna5String right_flanking_seq;
 	      size_t left = 0;
@@ -3526,8 +3526,8 @@ void find_gaps(RefSequenceTable& rt,
 		continue;
 	      
 	      RefSequenceTable::Sequence* ref_str = rt.get_seq(rightHit.ref_id());
-	      const size_t part_seq_len = inner_dist_std_dev > inner_dist_mean ? inner_dist_std_dev - inner_dist_mean : 0;
-	      const size_t flanking_seq_len = inner_dist_mean + inner_dist_std_dev;
+	      const int part_seq_len = inner_dist_std_dev > inner_dist_mean ? inner_dist_std_dev - inner_dist_mean : 0;
+	      const int flanking_seq_len = inner_dist_mean + inner_dist_std_dev;
 	      
 	      Dna5String right_flanking_seq;
 	      size_t left = 0;
@@ -5160,7 +5160,7 @@ void driver(istream& ref_stream,
   fprintf(stderr, "Reported %d total potential splices\n", (int)juncs.size());
   sort(splice_junction_coords.begin(), splice_junction_coords.end());
   
-  fprintf(stderr, "Reporting %u potential deletions...\n", deletions.size());
+  fprintf(stderr, "Reporting %lu potential deletions...\n", deletions.size());
   if(deletions_out){
     for(std::set<Deletion>::iterator itr = deletions.begin(); itr != deletions.end(); ++itr){
       const char* ref_name = rt.get_name(itr->refid);
@@ -5178,7 +5178,7 @@ void driver(istream& ref_stream,
     fprintf(stderr, "Failed to open deletions file for writing, no deletions reported\n");
   }
   
-  fprintf(stderr, "Reporting %u potential insertions...\n", insertions.size());
+  fprintf(stderr, "Reporting %lu potential insertions...\n", insertions.size());
   if(insertions_out){
     for(std::set<Insertion>::iterator itr = insertions.begin(); itr != insertions.end(); ++itr){
       const char* ref_name = rt.get_name(itr->refid);
@@ -5227,7 +5227,7 @@ void driver(istream& ref_stream,
 	      const Fusion& next_fusion = next_itr->first;
 	      const FusionSimpleStat& next_fusion_stat = next_itr->second;
 	      
-	      uint32_t left_diff = abs((int)fusion.left - (int)next_fusion.left);
+	      int left_diff = abs((int)fusion.left - (int)next_fusion.left);
 	      if (fusion.refid1 == next_fusion.refid1 && fusion.refid2 == next_fusion.refid2 && left_diff < 10)
 		{
 		  if (fusion.dir == next_fusion.dir && left_diff == abs((int)fusion.right - (int)next_fusion.right))

@@ -1175,8 +1175,8 @@ GBamRecord::GBamRecord(const char* qname, int32_t flags, int32_t g_tid,
    static const int8_t seq_comp_table[16] = { 0, 8, 4, 12, 2, 10, 9, 14, 1, 6, 5, 13, 3, 11, 7, 15 };
    string seq;
    string squal;
-   char *qual  = (char*)bam1_qual(b);
-   char *s    = (char*)bam1_seq(b);
+   unsigned char *qual  = (unsigned char*)bam1_qual(b);
+   unsigned char *s    = (unsigned char*)bam1_seq(b);
    int i;
    //bool ismapped=((b->core.flag & BAM_FUNMAP) == 0);
    bool isreversed=((b->core.flag & BAM_FREVERSE) != 0);

@@ -583,7 +583,7 @@ class GBamWriter {
 	   pre_pos = post_block_addr << 16;
 	 }
 
-       fprintf(findex, "%lu\t%ld\n", read_id, pre_pos);
+       fprintf(findex, "%lld\t%lld\n", read_id, pre_pos);
        idxcount = 0;
      }
    }
