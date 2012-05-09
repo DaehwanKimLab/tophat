@@ -396,7 +396,7 @@ void process_reads(vector<string>& reads_files, vector<FZPipe>& quals_files)
 		  if (findex != NULL)
 			{
 		  if ((next_id - num_reads_chucked) % INDEX_REC_COUNT == 0)
-			fprintf(findex, "%d\t%llu\n", next_id, file_offset);
+			fprintf(findex, "%d\t%lu\n", next_id, file_offset);
 			}
 
 		  file_offset += strlen(buf);
