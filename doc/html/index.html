@@ -81,15 +81,15 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 		    <ul>
 		      <table width="100%"><tbody><tr>
 		      <td>
-</td></tr><tr><td>version 2.0.0 (BETA)</td> <td align="right">4/09/2012</td></tr>
+</td></tr><tr><td>version 2.0.1 (BETA)</td> <td align="right">5/1X/2012</td></tr>
 				<tr>
-		      		<td><a href="./downloads/tophat-2.0.0.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
+		      		<td><a href="./downloads/tophat-2.0.1.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
 		      	</tr>
 				<tr>
-					<td><a href="./downloads/tophat-2.0.0.Linux_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
+					<td><a href="./downloads/tophat-2.0.1.Linux_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
 				</tr>
 				<tr>
-					<td><a href="./downloads/tophat-2.0.0.OSX_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
+					<td><a href="./downloads/tophat-2.0.1.OSX_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
 				</tr>
 		      
 		      
@@ -143,13 +143,13 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 		
 	</div> <!-- End of "rightside" -->
 	<div id="leftside">
-	  <h2>TopHat 2.0.1 maintenance release 5/07/2012</h2>
+	  <h2>TopHat 2.0.1 maintenance release 5/1X/2012</h2>
 	  <p> Version 2.0.1 is a maintenance release addressing some issues found in the 2.0.0 release:
 	</p><ul>
-	  <li> Fixed some alignments in the BAM output that did not have quality scores. </li>
-	  <li> More strict checking for coordinates in retrieving splice sequences is done. </li>
-	  <li> Colorspace reads are now processed. </li>
-	  <li> </li>
+	  <li> Fixed the problem that some alignments in the BAM output (accepted_hits.bam) miss quality values. </li>
+	  <li> More strict checking for coordinates is done when retrieving splice sequences. </li>
+	  <li> Colorspace reads are now correctly handled (with --bowtie1 option). </li>
+	  <li> (to be done) In case of paired-end reads, a checking routine is added to make sure that both ends are in the same order with the same number of reads in each end.</li>
 	  <li> </li>
 	</ul>
 	  <p></p><br>
