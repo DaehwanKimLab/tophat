@@ -140,7 +140,7 @@ struct FusionStat
 
   /*
    * daehwan - this is a metadata indicating whether Fusion is reversed ..
-   * it's true that this is not a good way to ...
+   * this is not a good way to ...
    */
   bool reversed;
 

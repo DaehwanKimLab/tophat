@@ -112,6 +112,8 @@ AlignStatus::AlignStatus(const BowtieHit& bh,
 			if (supporting_hits >= 5)
 			  penalty *= min((float)avg_cov/supporting_hits + extent_penalty, 1.f);
 
+			// daehwan - we should also probably add some advantage as well as penalty!
+
 			int prev_alignment_score = _alignment_score;
 			_alignment_score -= penalty;
 			_alignment_score = min(0, _alignment_score);

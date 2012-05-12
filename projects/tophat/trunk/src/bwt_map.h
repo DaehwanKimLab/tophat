@@ -434,6 +434,7 @@ BowtieHit(uint32_t ref_id,
   }
   
   unsigned char edit_dist() const	{ return _edit_dist;		}
+  void edit_dist(unsigned char ed) { _edit_dist = ed; }
   unsigned char splice_mms() const	{ return _splice_mms;		}
 
   int alignment_score() const           { return _alignment_score;      }
