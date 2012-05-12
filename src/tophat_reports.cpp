@@ -60,6 +60,8 @@ static const DeletionSet empty_deletions;
 static const FusionSet empty_fusions;
 static const Coverage empty_coverage;
 
+bool daehwan_realignment = false;
+
 // daehwan - this is redundancy, which should be removed.
 void get_seqs(istream& ref_stream,
 	      RefSequenceTable& rt,
@@ -75,7 +77,9 @@ void get_seqs(istream& ref_stream,
 	{
 	  name.resize(space_pos);
 	}
+      fprintf(stderr, "\tLoading %s...", name.c_str());
       seqan::read(ref_stream, *ref_str, Fasta());
+      fprintf(stderr, "done\n");
       
       rt.get_id(name, keep_seqs ? ref_str : NULL, 0);
     }
@@ -916,6 +920,492 @@ void exclude_hits_on_filtered_junctions(const JunctionSet& junctions, HitsForRea
   hits = remaining;
 }
 
+void realign_reads(HitsForRead& hits,
+		   const RefSequenceTable& rt,
+		   const JunctionSet& junctions,
+		   const JunctionSet& rev_junctions,
+		   const InsertionSet& insertions,
+		   const DeletionSet& deletions,
+		   const DeletionSet& rev_deletions,
+		   const FusionSet& fusions)
+{
+  vector<BowtieHit> additional_hits;
+  for (size_t i = 0; i < hits.hits.size(); ++i)
+    {
+      BowtieHit& bh = hits.hits[i];
+
+      const vector<CigarOp>& cigars = bh.cigar();
+      int pos = bh.left();
+      int refid = bh.ref_id();
+      for (size_t j = 0; j < cigars.size(); ++j)
+	{
+	  const CigarOp& op = cigars[j];
+	  if (j == 0 || j == cigars.size() - 1)
+	    {
+	      // let's do this for MATCH case only,
+	      if (op.opcode == MATCH || op.opcode == mATCH)
+		{
+		  int left1, left2;
+		  if (op.opcode == MATCH)
+		    {
+		      left1 = pos;
+		      left2 = pos + op.length - 1;
+		    }
+		  else
+		    {
+		      left1 = pos - op.length + 1;
+		      left2 = pos;
+		    }
+
+		  {
+		    JunctionSet::const_iterator lb, ub;
+		    JunctionSet temp_junctions;
+		    if (j == 0)
+		      {
+			lb = rev_junctions.upper_bound(Junction(refid, left1, 0, true));
+			ub = rev_junctions.lower_bound(Junction(refid, left2, left2, false));
+			while (lb != ub && lb != rev_junctions.end())
+			  {
+			    Junction temp_junction = lb->first;
+			    temp_junction.left = lb->first.right;
+			    temp_junction.right = lb->first.left;
+			    temp_junctions[temp_junction] = lb->second;
+			    ++lb;
+			  }
+		      }
+		    
+		    if (j == cigars.size() - 1)
+		      {
+			int common_right = left2 + max_report_intron_length;
+			lb = junctions.upper_bound(Junction(refid, left1, common_right, true));
+			ub = junctions.lower_bound(Junction(refid, left2, common_right, false));
+			while (lb != ub && lb != junctions.end())
+			  {
+			    temp_junctions[lb->first] = lb->second;
+			    ++lb;
+			  }
+		      }
+
+		    JunctionSet::const_iterator junc_iter = temp_junctions.begin();
+		    for (; junc_iter != temp_junctions.end(); ++junc_iter)
+		      {
+			Junction junc = junc_iter->first;
+			
+			/*
+			fprintf(stderr, "(type%d) %d %d-%d %s (AS:%d XM:%d) with junc %u-%u\n",
+				!use_rev_junctions,
+				bh.insert_id(), bh.left(), bh.right(),
+				print_cigar(bh.cigar()).c_str(),
+				bh.alignment_score(), bh.edit_dist(),
+				junc.left, junc.right);
+			//*/
+
+			int new_left = bh.left();
+			int intron_length = junc.right - junc.left - 1;
+			vector<CigarOp> new_cigars;
+			if (j == 0 && bh.left() > (int)junc.left)
+			  {
+			    new_left -= intron_length;
+			    int before_match_length = junc.left - new_left + 1;;
+			    int after_match_length = op.length - before_match_length;
+			    
+			    if (before_match_length > 0)
+			      new_cigars.push_back(CigarOp(MATCH, before_match_length));
+			    new_cigars.push_back(CigarOp(REF_SKIP, intron_length));
+			    if (after_match_length > 0)
+			      new_cigars.push_back(CigarOp(MATCH, after_match_length));
+			    
+			    new_cigars.insert(new_cigars.end(), cigars.begin() + 1, cigars.end());
+			  }
+			else
+			  {
+			    new_cigars.insert(new_cigars.end(), cigars.begin(), cigars.end() - 1);
+			    
+			    int before_match_length = junc.left - pos + 1;
+			    int after_match_length = op.length - before_match_length;
+			    
+			    if (before_match_length > 0)
+			      new_cigars.push_back(CigarOp(MATCH, before_match_length));
+			    new_cigars.push_back(CigarOp(REF_SKIP, intron_length));
+			    if (after_match_length > 0)
+			      new_cigars.push_back(CigarOp(MATCH, after_match_length));
+			  }
+			
+			BowtieHit new_bh(bh.ref_id(),
+					 bh.ref_id2(),
+					 bh.insert_id(), 
+					 new_left,  
+					 new_cigars,
+					 bh.antisense_align(),
+					 junc.antisense,
+					 0, /* edit_dist - needs to be recalculated */
+					 0, /* splice_mms - needs to be recalculated */
+					 false);
+			
+			new_bh.seq(bh.seq());
+			new_bh.qual(bh.qual());
+
+			vector<string> aux_fields;
+			bowtie_sam_extra(new_bh, rt, aux_fields);
+
+			vector<string>::const_iterator aux_iter = aux_fields.begin();
+			for (; aux_iter != aux_fields.end(); ++aux_iter)
+			  {
+			    const string& aux_field = *aux_iter;
+			    if (strncmp(aux_field.c_str(), "AS", 2) == 0)
+			      {
+				int alignment_score = atoi(aux_field.c_str() + 5);
+				new_bh.alignment_score(alignment_score);
+			      }
+			    else if (strncmp(aux_field.c_str(), "XM", 2) == 0)
+			      {
+				int XM_value =  atoi(aux_field.c_str() + 5);
+				new_bh.edit_dist(XM_value);
+			      }
+			  }
+
+			vector<string> sam_toks;
+			tokenize(bh.hitfile_rec().c_str(), "\t", sam_toks);
+
+			char coord[20] = {0,};
+			sprintf(coord, "%d", new_bh.left() + 1);
+			sam_toks[3] = coord;
+			sam_toks[5] = print_cigar(new_bh.cigar());
+			for (size_t a = 11; a < sam_toks.size(); ++a)
+			  {
+			    string& sam_tok = sam_toks[a];
+			    for (size_t b = 0; b < aux_fields.size(); ++b)
+			      {
+				const string& aux_tok = aux_fields[b];
+				if (strncmp(sam_tok.c_str(), aux_tok.c_str(), 5) == 0)
+				  {
+				    sam_tok = aux_tok;
+				    break;
+				  }
+			      }
+			  }
+
+			if (!bh.is_spliced())
+			  {
+			    if (junc.antisense)
+			      sam_toks.push_back("XS:A:-");
+			    else
+			      sam_toks.push_back("XS:A:+");
+			  }
+						
+			    
+			string new_rec = "";
+			for (size_t d = 0; d < sam_toks.size(); ++d)
+			  {
+			    new_rec += sam_toks[d];
+			    if (d < sam_toks.size() - 1)
+			      new_rec += "\t";
+			  }
+
+			new_bh.hitfile_rec(new_rec);
+			
+			if (new_bh.edit_dist() <= bh.edit_dist())
+			  additional_hits.push_back(new_bh);
+
+			/*
+			fprintf(stderr, "\t%d %d-%d %s (AS:%d XM:%d) with junc %u-%u\n",
+				new_bh.insert_id(), new_bh.left(), new_bh.right(),
+				print_cigar(new_bh.cigar()).c_str(),
+				new_bh.alignment_score(), new_bh.edit_dist(),
+				junc.left, junc.right);
+			//*/
+		      }
+		  }
+
+#if 0
+		  {
+		    DeletionSet::const_iterator lb, ub;
+		    bool use_rev_deletions = (j == 0);
+		    const DeletionSet& curr_deletions = (use_rev_deletions ? rev_deletions : deletions);
+		    if (use_rev_deletions)
+		      {
+			lb = curr_deletions.upper_bound(Deletion(refid, left1, 0, true));
+			ub = curr_deletions.lower_bound(Deletion(refid, left2, left2, false));
+		      }
+		    else
+		      {
+			int common_right = left2 + 100;
+			lb = curr_deletions.upper_bound(Deletion(refid, left1, common_right, true));
+			ub = curr_deletions.lower_bound(Deletion(refid, left2, common_right, false));
+		      }
+		  
+		    while (lb != curr_deletions.end() && lb != ub)
+		      {
+			Deletion del = lb->first;
+			if (use_rev_deletions)
+			  {
+			    int temp = del.left;
+			    del.left = del.right;
+			    del.right = temp;
+			  }		      
+			
+			// daehwan - for debuggin purposes
+			/*
+			  fprintf(stderr, "(type%d) %d %d-%d %s (AS:%d XM:%d) with junc %u-%u\n",
+			  !use_rev_junctions,
+			  bh.insert_id(), bh.left(), bh.right(),
+			  print_cigar(bh.cigar()).c_str(),
+			  bh.alignment_score(), bh.edit_dist(),
+			  junc.left, junc.right);
+			*/
+			
+			int del_length = del.right - del.left - 1;
+			int new_left = bh.left();
+			if (j == 0)
+			  new_left -= del_length;
+			
+			vector<CigarOp> new_cigars;
+			if (j == 0)
+			  {
+			    int before_match_length = del.left - new_left + 1;;
+			    int after_match_length = op.length - before_match_length;
+			    
+			    if (before_match_length > 0)
+			      new_cigars.push_back(CigarOp(MATCH, before_match_length));
+			    new_cigars.push_back(CigarOp(DEL, del_length));
+			    if (after_match_length > 0)
+			      new_cigars.push_back(CigarOp(MATCH, after_match_length));
+			    
+			    new_cigars.insert(new_cigars.end(), cigars.begin() + 1, cigars.end());
+			  }
+			else
+			  {
+			    new_cigars.insert(new_cigars.end(), cigars.begin(), cigars.end() - 1);
+			    
+			    int before_match_length = del.left - pos + 1;
+			    int after_match_length = op.length - before_match_length;
+			    
+			    if (before_match_length > 0)
+			      new_cigars.push_back(CigarOp(MATCH, before_match_length));
+			    new_cigars.push_back(CigarOp(DEL, del_length));
+			    if (after_match_length > 0)
+			      new_cigars.push_back(CigarOp(MATCH, after_match_length));
+			  }
+			
+			BowtieHit new_bh(bh.ref_id(),
+					 bh.ref_id2(),
+					 bh.insert_id(), 
+					 new_left,  
+					 new_cigars,
+					 bh.antisense_align(),
+					 bh.antisense_splice(),
+					 0, /* edit_dist - needs to be recalculated */
+					 0, /* splice_mms - needs to be recalculated */
+					 false);
+			
+			new_bh.seq(bh.seq());
+			new_bh.qual(bh.qual());
+			
+			vector<string> aux_fields;
+			bowtie_sam_extra(new_bh, rt, aux_fields);
+		      
+			vector<string>::const_iterator aux_iter = aux_fields.begin();
+			for (; aux_iter != aux_fields.end(); ++aux_iter)
+			  {
+			    const string& aux_field = *aux_iter;
+			    if (strncmp(aux_field.c_str(), "AS", 2) == 0)
+			      {
+				int alignment_score = atoi(aux_field.c_str() + 5);
+				new_bh.alignment_score(alignment_score);
+			      }
+			    else if (strncmp(aux_field.c_str(), "XM", 2) == 0)
+			      {
+				int XM_value =  atoi(aux_field.c_str() + 5);
+				new_bh.edit_dist(XM_value);
+			      }
+			  }
+
+			vector<string> sam_toks;
+			tokenize(bh.hitfile_rec().c_str(), "\t", sam_toks);
+			
+			char coord[20] = {0,};
+			sprintf(coord, "%d", new_bh.left() + 1);
+			sam_toks[3] = coord;
+			sam_toks[5] = print_cigar(new_bh.cigar());
+			for (size_t a = 11; a < sam_toks.size(); ++a)
+			  {
+			    string& sam_tok = sam_toks[a];
+			    for (size_t b = 0; b < aux_fields.size(); ++b)
+			      {
+				const string& aux_tok = aux_fields[b];
+				if (strncmp(sam_tok.c_str(), aux_tok.c_str(), 5) == 0)
+				  {
+				    sam_tok = aux_tok;
+				    break;
+				  }
+			      }
+			  }
+
+			string new_rec = "";
+			for (size_t d = 0; d < sam_toks.size(); ++d)
+			  {
+			    new_rec += sam_toks[d];
+			    if (d < sam_toks.size() - 1)
+			      new_rec += "\t";
+			  }
+			
+			new_bh.hitfile_rec(new_rec);
+			
+			if (new_bh.edit_dist() <= bh.edit_dist())
+			  additional_hits.push_back(new_bh);
+			
+			/*
+			  fprintf(stderr, "\t%d %d-%d %s (AS:%d XM:%d) with junc %u-%u\n",
+			  new_bh.insert_id(), new_bh.left(), new_bh.right(),
+			  print_cigar(new_bh.cigar()).c_str(),
+			  new_bh.alignment_score(), new_bh.edit_dist(),
+			  junc.left, junc.right);
+			*/
+			
+			++lb;
+		      }
+		  }
+
+		  {
+		    InsertionSet::const_iterator lb, ub;
+		    lb = insertions.upper_bound(Insertion(refid, left1, ""));
+		    ub = insertions.lower_bound(Insertion(refid, left2, ""));
+		  
+		    while (lb != insertions.end() && lb != ub)
+		      {
+			// daehwan - for debugging purposse
+			break;
+			
+			Insertion ins = lb->first;
+			
+			// daehwan - for debugging purposes
+			/*
+			  fprintf(stderr, "(type%d) %d %d-%d %s (AS:%d XM:%d) with junc %u-%u\n",
+			  !use_rev_junctions,
+			  bh.insert_id(), bh.left(), bh.right(),
+			  print_cigar(bh.cigar()).c_str(),
+			  bh.alignment_score(), bh.edit_dist(),
+			  junc.left, junc.right);
+			*/
+
+			int ins_length = ins.sequence.length();
+			int new_left = bh.left();
+			if (j == 0)
+			  new_left -= ins_length;
+			
+			vector<CigarOp> new_cigars;
+			if (j == 0)
+			  {
+			    int before_match_length = ins.left - new_left + 1;;
+			    int after_match_length = op.length - before_match_length - ins_length;
+			    
+			    if (before_match_length > 0)
+			      new_cigars.push_back(CigarOp(MATCH, before_match_length));
+			    new_cigars.push_back(CigarOp(INS, ins_length));
+			    if (after_match_length > 0)
+			      new_cigars.push_back(CigarOp(MATCH, after_match_length));
+			    
+			    new_cigars.insert(new_cigars.end(), cigars.begin() + 1, cigars.end());
+			  }
+			else
+			  {
+			    new_cigars.insert(new_cigars.end(), cigars.begin(), cigars.end() - 1);
+			    
+			    int before_match_length = ins.left - pos + 1;
+			    int after_match_length = op.length - before_match_length - ins_length;
+			    
+			    if (before_match_length > 0)
+			      new_cigars.push_back(CigarOp(MATCH, before_match_length));
+			    new_cigars.push_back(CigarOp(INS, ins_length));
+			    if (after_match_length > 0)
+			      new_cigars.push_back(CigarOp(MATCH, after_match_length));
+			  }
+			
+			BowtieHit new_bh(bh.ref_id(),
+					 bh.ref_id2(),
+					 bh.insert_id(), 
+					 new_left,  
+					 new_cigars,
+					 bh.antisense_align(),
+					 bh.antisense_splice(),
+					 0, /* edit_dist - needs to be recalculated */
+					 0, /* splice_mms - needs to be recalculated */
+					 false);
+			
+			new_bh.seq(bh.seq());
+			new_bh.qual(bh.qual());
+			
+			vector<string> aux_fields;
+			bowtie_sam_extra(new_bh, rt, aux_fields);
+		      
+			vector<string>::const_iterator aux_iter = aux_fields.begin();
+			for (; aux_iter != aux_fields.end(); ++aux_iter)
+			  {
+			    const string& aux_field = *aux_iter;
+			    if (strncmp(aux_field.c_str(), "AS", 2) == 0)
+			      {
+				int alignment_score = atoi(aux_field.c_str() + 5);
+				new_bh.alignment_score(alignment_score);
+			      }
+			    else if (strncmp(aux_field.c_str(), "XM", 2) == 0)
+			      {
+				int XM_value =  atoi(aux_field.c_str() + 5);
+				new_bh.edit_dist(XM_value);
+			      }
+			  }
+			
+			/*
+			  fprintf(stderr, "\t%d %d-%d %s (AS:%d XM:%d) with junc %u-%u\n",
+			  new_bh.insert_id(), new_bh.left(), new_bh.right(),
+			  print_cigar(new_bh.cigar()).c_str(),
+			  new_bh.alignment_score(), new_bh.edit_dist(),
+			  junc.left, junc.right);
+			*/
+			
+			++lb;
+		      }
+		  }
+#endif
+		}
+	    }
+	  
+	  switch(op.opcode)
+	    {
+	    case REF_SKIP:
+	      pos += op.length;
+	      break;
+	    case rEF_SKIP:
+	      pos -= op.length;
+	      break;
+	    case MATCH:
+	    case DEL:
+	      pos += op.length;
+	      break;
+	    case mATCH:
+	    case dEL:
+	      pos -= op.length;
+	      break;
+	    case FUSION_FF:
+	    case FUSION_FR:
+	    case FUSION_RF:
+	    case FUSION_RR:
+	      pos = op.length;
+	      refid = bh.ref_id2();
+	      break;
+	    default:
+	      break;
+	    }
+	}
+    }
+
+  hits.hits.insert(hits.hits.end(), additional_hits.begin(), additional_hits.end());
+
+  std::sort(hits.hits.begin(), hits.hits.end());
+  vector<BowtieHit>::iterator new_end = std::unique(hits.hits.begin(), hits.hits.end());
+  hits.hits.erase(new_end, hits.hits.end());  
+}
+
+
 // events include splice junction, indels, and fusion points.
 struct ConsensusEventsWorker
 {
@@ -1131,6 +1621,12 @@ struct ReportWorker
 	  {
 	    HitsForRead best_hits;
 	    best_hits.insert_id = curr_left_obs_order;
+
+	    // daehwan - temporary code for re-alignment
+	    if (daehwan_realignment)
+	      realign_reads(curr_left_hit_group, *rt, *junctions, *rev_junctions,
+			    *insertions, *deletions, *rev_deletions, *fusions);
+	    
 	    exclude_hits_on_filtered_junctions(*junctions, curr_left_hit_group);
 
 	    // Process hits for left singleton, select best alignments
@@ -1384,8 +1880,10 @@ struct ReportWorker
   JunctionSet* gtf_junctions;
   
   JunctionSet* junctions;
+  JunctionSet* rev_junctions;
   InsertionSet* insertions;
   DeletionSet* deletions;
+  DeletionSet* rev_deletions;
   FusionSet* fusions;
   Coverage* coverage;
 
@@ -1422,7 +1920,7 @@ void driver(const string& bam_output_fname,
 
   RefSequenceTable rt(sam_header, true);
 
-  if (fusion_search)
+  if (fusion_search || daehwan_realignment)
     get_seqs(ref_stream, rt, true);
 
   srandom(1);
@@ -1559,6 +2057,28 @@ void driver(const string& bam_output_fname,
     }
 
   coverage.calculate_coverage();
+  
+  JunctionSet rev_junctions;
+  JunctionSet::const_iterator junction_iter = junctions.begin();
+  for (; junction_iter != junctions.end(); ++junction_iter)
+    {
+      const Junction& junction = junction_iter->first;
+      Junction rev_junction = junction;
+      rev_junction.left = junction.right;
+      rev_junction.right = junction.left;
+      rev_junctions[rev_junction] = junction_iter->second;
+    }
+
+  DeletionSet rev_deletions;
+  DeletionSet::const_iterator deletion_iter = deletions.begin();
+  for (; deletion_iter != deletions.end(); ++deletion_iter)
+    {
+      const Deletion& deletion = deletion_iter->first;
+      Deletion rev_deletion = deletion;
+      rev_deletion.left = deletion.right;
+      rev_deletion.right = deletion.left;
+      rev_deletions[rev_deletion] = deletion_iter->second;
+    }
 
   size_t num_unfiltered_juncs = junctions.size();
   fprintf(stderr, "Loaded %lu junctions\n", (long unsigned int) num_unfiltered_juncs);
@@ -1617,8 +2137,10 @@ void driver(const string& bam_output_fname,
 
       worker.gtf_junctions = &gtf_junctions;
       worker.junctions = &junctions;
+      worker.rev_junctions = &rev_junctions;
       worker.insertions = &insertions;
       worker.deletions = &deletions;
+      worker.rev_deletions = &rev_deletions;
       worker.fusions = &fusions;
       worker.coverage = &coverage;
       
