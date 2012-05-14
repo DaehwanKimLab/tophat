@@ -60,8 +60,6 @@ static const DeletionSet empty_deletions;
 static const FusionSet empty_fusions;
 static const Coverage empty_coverage;
 
-bool daehwan_realignment = false;
-
 // daehwan - this is redundancy, which should be removed.
 void get_seqs(istream& ref_stream,
 	      RefSequenceTable& rt,
@@ -149,7 +147,7 @@ void read_best_alignments(const HitsForRead& hits_for_read,
     }
 }
 
-bool set_insert_alignment_grade(const BowtieHit& lh, const BowtieHit& rh, InsertAlignmentGrade& grade)
+bool set_insert_alignment_grade(const BowtieHit& lh, const BowtieHit& rh, const JunctionSet& junctions, InsertAlignmentGrade& grade)
 {
   bool fusion = false;
   bool left_fusion = lh.fusion_opcode() != FUSION_NOTHING;
@@ -180,20 +178,20 @@ bool set_insert_alignment_grade(const BowtieHit& lh, const BowtieHit& rh, Insert
 	}
     }
 
-  grade = InsertAlignmentGrade(lh, rh, fusion);
+  grade = InsertAlignmentGrade(lh, rh, junctions, fusion);
   
   return true;
 }
 
 struct cmp_pair_alignment
 {
-  cmp_pair_alignment(const JunctionSet& gtf_juncs) :
-    _gtf_juncs(&gtf_juncs) {}
+  cmp_pair_alignment(const JunctionSet& junctions) :
+    _junctions(&junctions) {}
     
   bool operator() (const pair<BowtieHit, BowtieHit>& l, const pair<BowtieHit, BowtieHit>& r) const
   {
-    InsertAlignmentGrade gl; set_insert_alignment_grade(l.first, l.second, gl);
-    InsertAlignmentGrade gr; set_insert_alignment_grade(r.first, r.second, gr);
+    InsertAlignmentGrade gl; set_insert_alignment_grade(l.first, l.second, *_junctions, gl);
+    InsertAlignmentGrade gr; set_insert_alignment_grade(r.first, r.second, *_junctions, gr);
 
     bool better = gr < gl;
     bool worse = gl < gr;
@@ -204,7 +202,7 @@ struct cmp_pair_alignment
       return false;
   }
 
-  const JunctionSet* _gtf_juncs;
+  const JunctionSet* _junctions;
 };
 
 void pair_best_alignments(const HitsForRead& left_hits,
@@ -243,7 +241,8 @@ void pair_best_alignments(const HitsForRead& left_hits,
 				   junctions, insertions, deletions, fusions, coverage);
 	  rh.alignment_score(align_status._alignment_score);
 	  InsertAlignmentGrade g;
-	  bool allowed = set_insert_alignment_grade(lh, rh, g);
+	  bool allowed;
+	  allowed = set_insert_alignment_grade(lh, rh, final_report ? junctions : gtf_junctions, g);
 
 	  // daehwan - for debugging purposes
 	  if (lh.insert_id() == 325708 && !g.is_fusion() && false)
@@ -283,9 +282,9 @@ void pair_best_alignments(const HitsForRead& left_hits,
  
   if ((report_secondary_alignments || !final_report) && best_hits.size() > 0)
     {
-      cmp_pair_alignment cmp(gtf_junctions);
+      cmp_pair_alignment cmp(final_report ? junctions : gtf_junctions);
       sort(best_hits.begin(), best_hits.end(), cmp);
-      set_insert_alignment_grade(best_hits[0].first, best_hits[0].second, best_grade);
+      set_insert_alignment_grade(best_hits[0].first, best_hits[0].second, final_report ? junctions : gtf_junctions, best_grade);
     }
 
   if (final_report)
@@ -425,7 +424,7 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
       else if (strncmp(tok.c_str(), "AS", 2) == 0)
 	{
 	  char AS_score[128] = {0};
-	  sprintf(AS_score, "AS:i:%d", bh.alignment_score());
+	  sprintf(AS_score, "AS:i:%d", min(0, bh.alignment_score()));
 	  tok = AS_score;
 	}
     }
@@ -568,7 +567,7 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
       else if (strncmp(tok.c_str(), "AS", 2) == 0)
 	{
 	  char AS_score[128] = {0};
-	  sprintf(AS_score, "AS:i:%d", bh.alignment_score());
+	  sprintf(AS_score, "AS:i:%d", min(0, bh.alignment_score()));
 	  tok = AS_score;
 	}
     }
@@ -1003,19 +1002,22 @@ void realign_reads(HitsForRead& hits,
 			int new_left = bh.left();
 			int intron_length = junc.right - junc.left - 1;
 			vector<CigarOp> new_cigars;
+			bool anchored = false;
 			if (j == 0 && bh.left() > (int)junc.left)
 			  {
 			    new_left -= intron_length;
 			    int before_match_length = junc.left - new_left + 1;;
 			    int after_match_length = op.length - before_match_length;
 			    
-			    if (before_match_length > 0)
-			      new_cigars.push_back(CigarOp(MATCH, before_match_length));
-			    new_cigars.push_back(CigarOp(REF_SKIP, intron_length));
-			    if (after_match_length > 0)
-			      new_cigars.push_back(CigarOp(MATCH, after_match_length));
-			    
-			    new_cigars.insert(new_cigars.end(), cigars.begin() + 1, cigars.end());
+			    if (before_match_length > 0 && after_match_length)
+			      {
+				anchored = true;
+				new_cigars.push_back(CigarOp(MATCH, before_match_length));
+				new_cigars.push_back(CigarOp(REF_SKIP, intron_length));
+				new_cigars.push_back(CigarOp(MATCH, after_match_length));
+				
+				new_cigars.insert(new_cigars.end(), cigars.begin() + 1, cigars.end());
+			      }
 			  }
 			else
 			  {
@@ -1024,96 +1026,101 @@ void realign_reads(HitsForRead& hits,
 			    int before_match_length = junc.left - pos + 1;
 			    int after_match_length = op.length - before_match_length;
 			    
-			    if (before_match_length > 0)
-			      new_cigars.push_back(CigarOp(MATCH, before_match_length));
-			    new_cigars.push_back(CigarOp(REF_SKIP, intron_length));
-			    if (after_match_length > 0)
-			      new_cigars.push_back(CigarOp(MATCH, after_match_length));
-			  }
-			
-			BowtieHit new_bh(bh.ref_id(),
-					 bh.ref_id2(),
-					 bh.insert_id(), 
-					 new_left,  
-					 new_cigars,
-					 bh.antisense_align(),
-					 junc.antisense,
-					 0, /* edit_dist - needs to be recalculated */
-					 0, /* splice_mms - needs to be recalculated */
-					 false);
-			
-			new_bh.seq(bh.seq());
-			new_bh.qual(bh.qual());
-
-			vector<string> aux_fields;
-			bowtie_sam_extra(new_bh, rt, aux_fields);
-
-			vector<string>::const_iterator aux_iter = aux_fields.begin();
-			for (; aux_iter != aux_fields.end(); ++aux_iter)
-			  {
-			    const string& aux_field = *aux_iter;
-			    if (strncmp(aux_field.c_str(), "AS", 2) == 0)
+			    if (before_match_length > 0 && after_match_length > 0)
 			      {
-				int alignment_score = atoi(aux_field.c_str() + 5);
-				new_bh.alignment_score(alignment_score);
-			      }
-			    else if (strncmp(aux_field.c_str(), "XM", 2) == 0)
-			      {
-				int XM_value =  atoi(aux_field.c_str() + 5);
-				new_bh.edit_dist(XM_value);
+				anchored = true;
+				new_cigars.push_back(CigarOp(MATCH, before_match_length));
+				new_cigars.push_back(CigarOp(REF_SKIP, intron_length));
+				new_cigars.push_back(CigarOp(MATCH, after_match_length));
 			      }
 			  }
 
-			vector<string> sam_toks;
-			tokenize(bh.hitfile_rec().c_str(), "\t", sam_toks);
-
-			char coord[20] = {0,};
-			sprintf(coord, "%d", new_bh.left() + 1);
-			sam_toks[3] = coord;
-			sam_toks[5] = print_cigar(new_bh.cigar());
-			for (size_t a = 11; a < sam_toks.size(); ++a)
+			if (anchored)
 			  {
-			    string& sam_tok = sam_toks[a];
-			    for (size_t b = 0; b < aux_fields.size(); ++b)
+			    BowtieHit new_bh(bh.ref_id(),
+					     bh.ref_id2(),
+					     bh.insert_id(), 
+					     new_left,  
+					     new_cigars,
+					     bh.antisense_align(),
+					     junc.antisense,
+					     0, /* edit_dist - needs to be recalculated */
+					     0, /* splice_mms - needs to be recalculated */
+					     false);
+			    
+			    new_bh.seq(bh.seq());
+			    new_bh.qual(bh.qual());
+			    
+			    vector<string> aux_fields;
+			    bowtie_sam_extra(new_bh, rt, aux_fields);
+			    
+			    vector<string>::const_iterator aux_iter = aux_fields.begin();
+			    for (; aux_iter != aux_fields.end(); ++aux_iter)
 			      {
-				const string& aux_tok = aux_fields[b];
-				if (strncmp(sam_tok.c_str(), aux_tok.c_str(), 5) == 0)
+				const string& aux_field = *aux_iter;
+				if (strncmp(aux_field.c_str(), "AS", 2) == 0)
 				  {
-				    sam_tok = aux_tok;
-				    break;
+				    int alignment_score = atoi(aux_field.c_str() + 5);
+				    new_bh.alignment_score(alignment_score);
+				  }
+				else if (strncmp(aux_field.c_str(), "XM", 2) == 0)
+				  {
+				    int XM_value =  atoi(aux_field.c_str() + 5);
+				    new_bh.edit_dist(XM_value);
 				  }
 			      }
-			  }
-
-			if (!bh.is_spliced())
-			  {
-			    if (junc.antisense)
-			      sam_toks.push_back("XS:A:-");
-			    else
-			      sam_toks.push_back("XS:A:+");
-			  }
-						
 			    
-			string new_rec = "";
-			for (size_t d = 0; d < sam_toks.size(); ++d)
-			  {
-			    new_rec += sam_toks[d];
-			    if (d < sam_toks.size() - 1)
-			      new_rec += "\t";
+			    vector<string> sam_toks;
+			    tokenize(bh.hitfile_rec().c_str(), "\t", sam_toks);
+			    
+			    char coord[20] = {0,};
+			    sprintf(coord, "%d", new_bh.left() + 1);
+			    sam_toks[3] = coord;
+			    sam_toks[5] = print_cigar(new_bh.cigar());
+			    for (size_t a = 11; a < sam_toks.size(); ++a)
+			      {
+				string& sam_tok = sam_toks[a];
+				for (size_t b = 0; b < aux_fields.size(); ++b)
+				  {
+				    const string& aux_tok = aux_fields[b];
+				    if (strncmp(sam_tok.c_str(), aux_tok.c_str(), 5) == 0)
+				      {
+					sam_tok = aux_tok;
+					break;
+				      }
+				  }
+			      }
+			    
+			    if (!bh.is_spliced())
+			      {
+				if (junc.antisense)
+				  sam_toks.push_back("XS:A:-");
+				else
+				  sam_toks.push_back("XS:A:+");
+			      }
+			    
+			    
+			    string new_rec = "";
+			    for (size_t d = 0; d < sam_toks.size(); ++d)
+			      {
+				new_rec += sam_toks[d];
+				if (d < sam_toks.size() - 1)
+				  new_rec += "\t";
+			      }
+			    
+			    new_bh.hitfile_rec(new_rec);
+			    
+			    if (new_bh.edit_dist() <= bh.edit_dist())
+			      additional_hits.push_back(new_bh);
+
+			    /*
+			      fprintf(stderr, "\t%d %d-%d %s (AS:%d XM:%d) with junc %u-%u\n",
+			      new_bh.insert_id(), new_bh.left(), new_bh.right(),
+			      print_cigar(new_bh.cigar()).c_str(),
+			      new_bh.alignment_score(), new_bh.edit_dist(),
+			      junc.left, junc.right);
+			    //*/
 			  }
-
-			new_bh.hitfile_rec(new_rec);
-			
-			if (new_bh.edit_dist() <= bh.edit_dist())
-			  additional_hits.push_back(new_bh);
-
-			/*
-			fprintf(stderr, "\t%d %d-%d %s (AS:%d XM:%d) with junc %u-%u\n",
-				new_bh.insert_id(), new_bh.left(), new_bh.right(),
-				print_cigar(new_bh.cigar()).c_str(),
-				new_bh.alignment_score(), new_bh.edit_dist(),
-				junc.left, junc.right);
-			//*/
 		      }
 		  }
 
@@ -1622,9 +1629,7 @@ struct ReportWorker
 	    HitsForRead best_hits;
 	    best_hits.insert_id = curr_left_obs_order;
 
-	    // daehwan - temporary code for re-alignment
-	    if (daehwan_realignment)
-	      realign_reads(curr_left_hit_group, *rt, *junctions, *rev_junctions,
+	    realign_reads(curr_left_hit_group, *rt, *junctions, *rev_junctions,
 			    *insertions, *deletions, *rev_deletions, *fusions);
 	    
 	    exclude_hits_on_filtered_junctions(*junctions, curr_left_hit_group);
@@ -1671,6 +1676,8 @@ struct ReportWorker
 
 	    if (curr_right_obs_order >=  begin_id)
 	      {
+		realign_reads(curr_right_hit_group, *rt, *junctions, *rev_junctions,
+			      *insertions, *deletions, *rev_deletions, *fusions);
 		exclude_hits_on_filtered_junctions(*junctions, curr_right_hit_group);
 
 		// Process hit for right singleton, select best alignments
@@ -1712,7 +1719,12 @@ struct ReportWorker
 	       curr_left_obs_order < end_id &&
 	       curr_left_obs_order != VMAXINT32)
 	  {
+	    realign_reads(curr_left_hit_group, *rt, *junctions, *rev_junctions,
+			  *insertions, *deletions, *rev_deletions, *fusions);
 	    exclude_hits_on_filtered_junctions(*junctions, curr_left_hit_group);
+
+	    realign_reads(curr_right_hit_group, *rt, *junctions, *rev_junctions,
+			    *insertions, *deletions, *rev_deletions, *fusions);
 	    exclude_hits_on_filtered_junctions(*junctions, curr_right_hit_group);
 	    
 	    if (curr_left_hit_group.hits.empty())
@@ -1919,9 +1931,7 @@ void driver(const string& bam_output_fname,
     num_threads = 1;
 
   RefSequenceTable rt(sam_header, true);
-
-  if (fusion_search || daehwan_realignment)
-    get_seqs(ref_stream, rt, true);
+  get_seqs(ref_stream, rt, true);
 
   srandom(1);
   
@@ -2070,6 +2080,7 @@ void driver(const string& bam_output_fname,
     }
 
   DeletionSet rev_deletions;
+#if 0
   DeletionSet::const_iterator deletion_iter = deletions.begin();
   for (; deletion_iter != deletions.end(); ++deletion_iter)
     {
@@ -2079,6 +2090,7 @@ void driver(const string& bam_output_fname,
       rev_deletion.right = deletion.left;
       rev_deletions[rev_deletion] = deletion_iter->second;
     }
+#endif
 
   size_t num_unfiltered_juncs = junctions.size();
   fprintf(stderr, "Loaded %lu junctions\n", (long unsigned int) num_unfiltered_juncs);
