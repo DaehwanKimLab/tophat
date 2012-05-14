@@ -10,6 +10,7 @@
  */
 
 #include "bwt_map.h"
+#include "junctions.h"
 
 struct InsertAlignment
 {
@@ -69,7 +70,8 @@ InsertAlignmentGrade(const BowtieHit& h1, bool fusion = false) :
   }
   
 InsertAlignmentGrade(const BowtieHit& h1, 
-		     const BowtieHit& h2, 
+		     const BowtieHit& h2,
+		     const JunctionSet& junctions,
 		     bool fusion = false) :
   too_close(false),
     too_far(false),
@@ -105,6 +107,47 @@ InsertAlignmentGrade(const BowtieHit& h1,
     edit_dist = h1.edit_dist() + h2.edit_dist();
     num_alignments = 1;
     assert(!(too_far && too_close));
+
+    if (too_far && !fusion)
+      {
+	int inner1, inner2;
+	if (h1.left() < h2.left())
+	  inner1 = h1.right(), inner2 = h2.left();
+	else
+	  inner1 = h2.right(), inner2 = h1.left();
+	
+	JunctionSet::const_iterator lb, ub;
+
+	lb = junctions.upper_bound(Junction(h1.ref_id(), inner1, inner1, true));
+	ub = junctions.lower_bound(Junction(h1.ref_id(), inner2, inner2, false));
+	while (lb != ub && lb != junctions.end())
+	  {
+	    const Junction& junction = lb->first;
+	    const JunctionStats& junction_stat = lb->second;
+	    if (inner1 <= (int)junction.left && inner2 >= (int)junction.right &&
+		junction_stat.supporting_hits >= 10)
+	      {
+		int temp_dist = junction.left - inner1 + inner2 - junction.right;
+		if (temp_dist >= min_inner_distance && temp_dist <= max_inner_distance)
+		  {
+		    // daehwan - for debugging purposes
+		    /*
+		    fprintf(stderr, "read id: %d\t %s %d-%d %d-%d %s\t %d->%d) \n",
+			    h1.insert_id(), print_cigar(h1.cigar()).c_str(), h1.left(), h1.right(),
+			    h2.left(), h2.right(), print_cigar(h2.cigar()).c_str(),
+			    inner_dist, temp_dist);
+		    */
+		    
+		    inner_dist = temp_dist;
+		    too_far = false;
+
+		    break;
+		  }
+	      }
+	    
+	    ++lb;
+	  }
+      }
 
     //
     static const int penalty_for_long_inner_dist = bowtie2_max_penalty;

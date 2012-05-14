@@ -154,7 +154,8 @@ void best_insert_mappings(uint64_t refid,
 	  
 	  if (h1.insert_id() == h2.insert_id())
 	    {
-	      InsertAlignmentGrade s(h1, h2);
+	      JunctionSet junctions;
+	      InsertAlignmentGrade s(h1, h2, junctions);
 	      
 	      pair<InsertAlignmentGrade, vector<InsertAlignment> >& insert_best
 		= best_status_for_inserts[obs_order];

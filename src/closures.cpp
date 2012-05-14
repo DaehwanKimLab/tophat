@@ -32,8 +32,9 @@ bool possible_cotranscript(const BowtieHit& h1, const BowtieHit& h2, bool check_
 {
   if (h1.insert_id() != h2.insert_id()) 
     return false;
-  
-  InsertAlignmentGrade grade(h1, h2);
+
+  JunctionSet junctions;
+  InsertAlignmentGrade grade(h1, h2, junctions);
   return (!grade.too_far && !grade.too_close && grade.opposite_strands);
 }
 
@@ -174,7 +175,9 @@ void visit_best_pairing(HitsForRead& left_hit_group,
 	    continue;
 	  
 	  uint32_t refid = h1.ref_id();
-	  InsertAlignmentGrade s(h1, h2);
+
+	  JunctionSet junctions;
+	  InsertAlignmentGrade s(h1, h2, junctions);
 	  
 	  //pair<InsertAlignmentGrade, vector<InsertAlignment> >& insert_best
 	  //					= best_status_for_inserts[curr_left_obs_order];

@@ -101,7 +101,7 @@ AlignStatus::AlignStatus(const BowtieHit& bh,
 			const int right_cov = coverage.get_coverage(ref_id, junc.right - 1);
 			const int avg_cov = (left_cov + right_cov) / 2;
 			
-			int penalty = bowtie2_max_penalty;
+			int penalty = bowtie2_max_penalty + 2;
 			const int supporting_hits = itr->second.supporting_hits;
 			const int left_extent = itr->second.left_extent;
 			const int right_extent = itr->second.right_extent;
@@ -112,11 +112,11 @@ AlignStatus::AlignStatus(const BowtieHit& bh,
 			if (supporting_hits >= 5)
 			  penalty *= min((float)avg_cov/supporting_hits + extent_penalty, 1.f);
 
-			// daehwan - we should also probably add some advantage as well as penalty!
+			// add two points to prefer junction alignments to other that may span one side of split site.
+			penalty -= 2;
 
 			int prev_alignment_score = _alignment_score;
 			_alignment_score -= penalty;
-			_alignment_score = min(0, _alignment_score);
 
 			// daehwan - for debugging purposes
 			if (bh.insert_id() == 325708 && false)
