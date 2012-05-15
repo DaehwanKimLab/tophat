@@ -2832,7 +2832,7 @@ def junctions_from_segments(params,
 
     if params.coverage_search == True:
         print >> sys.stderr, "\tCoverage-search algorithm is turned on, making this step very slow"
-        print >> sys.stderr, "\tPlease try running TopHat again with the option (--no-coverage-search) if the step takes too much time."
+        print >> sys.stderr, "\tPlease try running TopHat again with the option (--no-coverage-search) if the step takes too much time or memory."
     
     out_path=getFileDir(left_seg_maps[0])
     juncs_out=out_path+"segment.juncs"
@@ -3498,74 +3498,63 @@ def spliced_alignment(params,
                         removeFileWithIndex(spliced_seg_map)
                    
 
-        if num_segs > 1 or m2g_map:
-            # Merge the spliced and unspliced full length alignments into
-            # a single SAM file.
-            # The individual SAM files are all already sorted in
-            # increasing read ID order.
-            # NOTE: We also should be able to address bug #134 here, by replacing
-            # contiguous alignments that poke into an intron by a small amount by
-            # the correct spliced alignment.
+        # Merge the spliced and unspliced full length alignments into
+        # a single SAM file.
+        # The individual SAM files are all already sorted in
+        # increasing read ID order.
+        # NOTE: We also should be able to address bug #134 here, by replacing
+        # contiguous alignments that poke into an intron by a small amount by
+        # the correct spliced alignment.
+        try:
+            merge_cmd = [prog_path("bam_merge"),
+                         "--index-outfile", merged_map + ".index",
+                         "--sam-header", sam_header_filename,
+                         merged_map]
 
-            try:
-                merge_cmd = [prog_path("bam_merge"),
-                             "--index-outfile", merged_map + ".index",
-                             "--sam-header", sam_header_filename,
-                             merged_map]
+            merge_files = []
 
-                merge_files = []
+            if unspl_samfile and \
+                    bamExists_and_NonEmpty(unspl_samfile):
+                merge_files += [unspl_samfile]
 
-                if num_segs > 1 and \
-                        unspl_samfile and \
-                        bamExists_and_NonEmpty(unspl_samfile):
-                    merge_files += [unspl_samfile]
+            if m2g_map:
+                merge_files += [m2g_map]
 
-                if m2g_map:
-                    merge_files += [m2g_map]
+            if os.path.exists(mapped_reads):
+                merge_files += [mapped_reads]
+            else:
+                for bam_i in range(0, params.system_params.num_threads):
+                    temp_bam = mapped_reads[:-4] + str(bam_i) + ".bam"
+                    if os.path.exists(temp_bam):
+                        merge_files += [temp_bam]
+                    else:
+                        break
 
-                if os.path.exists(mapped_reads):
-                    merge_files += [mapped_reads]
-                else:
-                    for bam_i in range(0, params.system_params.num_threads):
-                        temp_bam = mapped_reads[:-4] + str(bam_i) + ".bam"
-                        if os.path.exists(temp_bam):
-                            merge_files += [temp_bam]
-                        else:
-                            break
+            if len(merge_files) >= 2:
+                merge_cmd += merge_files
+                print >> run_log, " ".join(merge_cmd)
+                ret = subprocess.call( merge_cmd,
+                                       stderr=open(logging_dir + "bam_merge.log", "w") )
 
-                if len(merge_files) >= 2:
-                    merge_cmd += merge_files
-                    print >> run_log, " ".join(merge_cmd)
-                    ret = subprocess.call( merge_cmd,
-                                           stderr=open(logging_dir + "bam_merge.log", "w") )
+                if ret != 0:
+                    die(fail_str+"Error executing: "+" ".join(merge_cmd))
 
-                    if ret != 0:
-                        die(fail_str+"Error executing: "+" ".join(merge_cmd))
+                if not params.system_params.keep_tmp:
+                    for merge_file in merge_files:
+                        removeFileWithIndex(merge_file)
 
-                    if not params.system_params.keep_tmp:
-                        for merge_file in merge_files:
-                            removeFileWithIndex(merge_file)
+            elif len(merge_files) == 1:
+                os.rename(merge_files[0], merged_map)
 
-                elif len(merge_files) == 1:
-                    os.rename(merge_files[0], merged_map)
+        except OSError, o:
+            die(fail_str+"Error: "+str(o))
 
-            except OSError, o:
-                die(fail_str+"Error: "+str(o))
-
-            maps[ri] = [merged_map]
-
-            if not params.system_params.keep_tmp:
-                if mapped_reads and os.path.exists(mapped_reads):
-                     os.remove(mapped_reads)
-        else:
-            # no segments or transcriptome mappings, so no merge is needed
-            #  because join_mapped_segments() produced the final BAM already
-            os.rename(mapped_reads, merged_map)
-            maps[ri] = [merged_map]
+        maps[ri] = [merged_map]
 
         if not params.system_params.keep_tmp:
-            if unspl_samfile and os.path.exists(unspl_samfile):
-                os.remove(unspl_samfile)
+            if mapped_reads and os.path.exists(mapped_reads):
+                 os.remove(mapped_reads)
+
 
     return maps
 

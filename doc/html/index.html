@@ -147,6 +147,7 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 	  <p> Version 2.0.1 is a maintenance release addressing some issues found in the 2.0.0 release:
 	</p><ul>
 	  <li> Fixed the problem that some alignments in the BAM output (accepted_hits.bam) miss quality values. </li>
+	  <li> Read group tag "RG" is properly output each alignment when using --rg-id and --rg-sample </li>
 	  <li> More strict checking for coordinates is done when retrieving splice sequences. </li>
 	  <li> Colorspace reads are now correctly handled (with --bowtie1 option). </li>
 	  <li> (to be done) In case of paired-end reads, a checking routine is added to make sure that both ends are in the same order with the same number of reads in each end.</li>
