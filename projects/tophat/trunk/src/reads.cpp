@@ -538,7 +538,7 @@ void BWA_decode(const string& color, const string& qual, const string& ref, stri
 	      char ref_color;
 	      two_bps_to_color(base_prev, base, ref_color);
 
-	      char base_prev_prev = "ACGTN"[(int)(ptr[(i-1)*4 + k])];
+	      char base_prev_prev = "ACGTN"[(int)ptr[(i-1)*4 + k]];
 	      char ref_color_prev;
 	      two_bps_to_color(base_prev_prev, base_prev, ref_color_prev);
 

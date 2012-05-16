@@ -62,7 +62,7 @@ void insertions_from_alignment(const BowtieHit& bh, InsertionSet& insertions) {
       itr->second.right_extent = max(itr->second.right_extent, insertion.second.right_extent);
     }
     else {
-      assert(insertion.refid != VMAXINT32);
+      //assert(insertion.refid != VMAXINT32);
       insertions[insertion.first] = insertion.second;
     }
   }

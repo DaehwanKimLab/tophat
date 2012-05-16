@@ -174,111 +174,111 @@ void Map2GTF::convert_coords(const std::string& out_fname, const std::string& sa
 bool Map2GTF::trans_to_genomic_coords(TranscriptomeHit& hit)
 //out.trans must already have the corresponding GffObj*
 {
-    // read start in genomic coords
-    size_t read_start = 0;
+  // read start in genomic coords
+  size_t read_start = 0;
 
-    GList<GffExon>& exon_list = hit.trans->exons;
-    GffExon* cur_exon;
-    GffExon* next_exon;
-    int cur_pos;
-    int match_length;
-    int miss_length;
-    int cur_intron_len = 0;
-    int i = 0;
+  GList<GffExon>& exon_list = hit.trans->exons;
+  GffExon* cur_exon;
+  GffExon* next_exon;
+  int cur_pos;
+  int match_length;
+  int miss_length;
+  int cur_intron_len = 0;
+  int i = 0;
 
-    static const int MAX_CIGARS = 1024;
-    int cigars[MAX_CIGARS];
-    int num_cigars = 0;
+  static const int MAX_CIGARS = 1024;
+  int cigars[MAX_CIGARS];
+  int num_cigars = 0;
 
-    // TODO: Check this return value
-    bool ret_val = get_read_start(&exon_list, hit.hit->core.pos, read_start, i);
-    if (!ret_val)
-      {
-      }
-    
-    cur_pos = read_start;
-    for (int c = 0; c < hit.hit->core.n_cigar; ++c)
-      {
+  // TODO: Check this return value
+  bool ret_val = get_read_start(&exon_list, hit.hit->core.pos, read_start, i);
+  if (!ret_val)
+  {
+  }
+
+  cur_pos = read_start;
+  for (int c = 0; c < hit.hit->core.n_cigar; ++c)
+  {
 	int opcode = bam1_cigar(hit.hit)[c] & BAM_CIGAR_MASK;
 	int length = bam1_cigar(hit.hit)[c] >> BAM_CIGAR_SHIFT;
 
 	if (opcode == BAM_CINS)
-	  {
-	    cigars[num_cigars] = opcode | (length << BAM_CIGAR_SHIFT);
-	    ++num_cigars;
-	  }
-	
+	{
+	  cigars[num_cigars] = opcode | (length << BAM_CIGAR_SHIFT);
+	  ++num_cigars;
+	}
+
 	if (opcode != BAM_CMATCH && opcode != BAM_CDEL)
 	  continue;
-	
+
 	int remaining_length = length;
 	for (; i < exon_list.Count(); ++i)
-	  {
-	    cur_exon = exon_list.Get(i);
-	    if (cur_pos >= (int)cur_exon->start &&
-		cur_pos + remaining_length - 1 <= (int)cur_exon->end) // read ends in this exon
-	      {
+	{
+	  cur_exon = exon_list.Get(i);
+	  if (cur_pos >= (int)cur_exon->start &&
+		  cur_pos + remaining_length - 1 <= (int)cur_exon->end) // read ends in this exon
+		  {
 		cigars[num_cigars] = opcode | (remaining_length << BAM_CIGAR_SHIFT);
 		++num_cigars;
 		cur_pos += remaining_length;
 		break;
-	      }
-	    
-	    // shouldn't need the check... can switch to a regular "else"
-	    else if (cur_pos >= (int)cur_exon->start &&
-		     cur_pos + remaining_length - 1 > (int)cur_exon->end)// read is spliced and overlaps this exon
-	      {
+		  }
+
+	  // shouldn't need the check... can switch to a regular "else"
+	  else if (cur_pos >= (int)cur_exon->start &&
+		  cur_pos + remaining_length - 1 > (int)cur_exon->end)// read is spliced and overlaps this exon
+	  {
 		// XXX: This should _never_ go out of range.
 		// get the max length that fits in this exon, go to next exon
 		// cur_pos should be the next exon start
 		// set assertion to check this
-		
+
 		// TODO: check this
 		match_length = cur_exon->end - cur_pos + 1;
 		if (match_length > 0)
-		  {
-		    cigars[num_cigars] = opcode | (match_length << BAM_CIGAR_SHIFT);
-		    ++num_cigars;
-		  }
-		
+		{
+		  cigars[num_cigars] = opcode | (match_length << BAM_CIGAR_SHIFT);
+		  ++num_cigars;
+		}
+
 		// XXX: DEBUG
 		if (i + 1 >= exon_list.Count())
-		  {
-		    std::cerr << "trying to access: " << i + 2 << " when size is: "
-			      << exon_list.Count() << std::endl;
-		    print_trans(hit.trans, hit.hit, remaining_length, match_length, cur_pos,
-				read_start);
-		    return false;
-		  }
-		
+		{
+		  std::cerr << "trying to access: " << i + 2 << " when size is: "
+			  << exon_list.Count() << std::endl;
+		  print_trans(hit.trans, hit.hit, remaining_length, match_length, cur_pos,
+			  read_start);
+		  return false;
+		}
+
 		else
 		  next_exon = exon_list.Get(i + 1);
-		
+
 		// and this
 		miss_length = next_exon->start - cur_exon->end - 1;
 		cur_intron_len += miss_length;
 
 		cigars[num_cigars] = BAM_CREF_SKIP | (miss_length << BAM_CIGAR_SHIFT);
 		++num_cigars;
-		
+
 		cur_pos += match_length + miss_length;
 		remaining_length -= match_length;
-		assert(cur_pos == next_exon->start);
-	      }
+		assert(cur_pos == (int)next_exon->start);
 	  }
-      }
+	}
+  }
 
-    hit.hit->core.tid = ref_to_id_[hit.trans->getRefName()];
-    hit.hit->core.pos = read_start - 1;
-    hit.hit->core.flag &= ~BAM_FSECONDARY;
-    
-    int old_n_cigar = hit.hit->core.n_cigar;
-    if (num_cigars != old_n_cigar)
-      {
+  hit.hit->core.tid = ref_to_id_[hit.trans->getRefName()];
+  hit.hit->core.pos = read_start - 1;
+  hit.hit->core.flag &= ~BAM_FSECONDARY;
+
+  int old_n_cigar = hit.hit->core.n_cigar;
+  if (num_cigars != old_n_cigar)
+  {
 	int data_len = hit.hit->data_len + 4 * (num_cigars - old_n_cigar);
 	int m_data = max(data_len, hit.hit->m_data);
 	kroundup32(m_data);
-	
+
 	uint8_t* data = (uint8_t*)calloc(m_data, 1);
 
 	int copy1_len = (uint8_t*)bam1_cigar(hit.hit) - hit.hit->data;
@@ -291,22 +291,22 @@ bool Map2GTF::trans_to_genomic_coords(TranscriptomeHit& hit)
 	memcpy(data + copy1_len + copy2_len, bam1_seq(hit.hit), copy3_len);
 
 	hit.hit->core.n_cigar = num_cigars;
-	
+
 	free(hit.hit->data);
 	hit.hit->data = data;
 	hit.hit->data_len = data_len;
 	hit.hit->m_data = m_data;
-      }
+  }
 
-    char strand = hit.trans->strand;
-    uint8_t* ptr = bam_aux_get(hit.hit, "XS");
-    if (ptr)
-      bam_aux_del(hit.hit, ptr);
+  char strand = hit.trans->strand;
+  uint8_t* ptr = bam_aux_get(hit.hit, "XS");
+  if (ptr)
+	bam_aux_del(hit.hit, ptr);
 
-    if (strand == '+' || strand == '-')
-      bam_aux_append(hit.hit, "XS", 'A', 1, (uint8_t*)&strand);
+  if (strand == '+' || strand == '-')
+	bam_aux_append(hit.hit, "XS", 'A', 1, (uint8_t*)&strand);
 
-    return true;
+  return true;
 }
 
 void print_trans(GffObj* trans, const bam1_t* in, size_t rem_len,

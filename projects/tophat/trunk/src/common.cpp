@@ -156,6 +156,7 @@ bool report_discordant_pair_alignments = false;
 
 string flt_reads = "";
 string flt_mappings = "";
+int flt_side = 2;
 
 bool fusion_search = false;
 size_t fusion_anchor_length = 20;
@@ -304,6 +305,7 @@ enum
     OPT_GTF_JUNCS,
     OPT_FILTER_READS,
     OPT_FILTER_HITS,
+    OPT_FILTER_SIDE,
     OPT_REPORT_SECONDARY_ALIGNMENTS,
     OPT_REPORT_DISCORDANT_PAIR_ALIGNMENTS,
     OPT_FUSION_SEARCH,
@@ -375,6 +377,8 @@ static struct option long_options[] = {
 {"gtf-juncs", required_argument, 0, OPT_GTF_JUNCS},
 {"flt-reads",required_argument, 0, OPT_FILTER_READS},
 {"flt-hits",required_argument, 0, OPT_FILTER_HITS},
+{"flt-side",required_argument, 0, OPT_FILTER_SIDE},
+
 {"report-secondary-alignments", no_argument, 0, OPT_REPORT_SECONDARY_ALIGNMENTS},
 {"report-discordant-pair-alignments", no_argument, 0, OPT_REPORT_DISCORDANT_PAIR_ALIGNMENTS},
 {"fusion-search", no_argument, 0, OPT_FUSION_SEARCH},
@@ -396,6 +400,20 @@ static struct option long_options[] = {
 {"bowtie2-ref-gap-cont", required_argument, 0, OPT_BOWTIE2_REF_GAP_CONT},
 {0, 0, 0, 0} // terminator
 };
+
+
+
+string str_replace(const string& base_str, const string& oldStr, const string& newStr)
+{
+  size_t pos = 0;
+  string str(base_str);
+  while((pos = str.find(oldStr, pos)) != string::npos)
+  {
+     str.replace(pos, oldStr.length(), newStr);
+     pos += newStr.length();
+  }
+  return str;
+}
 
 
 void str_appendInt(string& str, int64_t v) {
@@ -591,6 +609,10 @@ int parse_options(int argc, char** argv, void (*print_usage)())
     case OPT_FILTER_HITS:
       flt_mappings = optarg;
       break;
+    case OPT_FILTER_SIDE:
+      flt_side = (optarg[0]=='0') ? 0 : 1;
+      break;
+
     case OPT_REPORT_SECONDARY_ALIGNMENTS:
       report_secondary_alignments = true;
       break;
@@ -1204,7 +1226,6 @@ GBamRecord::GBamRecord(const char* qname, int32_t flags, int32_t g_tid,
  		  seq[r]=c;
  		  l++;r--;
  		  }
-	   
 	   for (i=0;i<seqlen;i++) {
 	     seq[i]=seq_comp_table[(int)seq[i]];
 	   }
