@@ -1272,7 +1272,7 @@ def get_bowtie_version(is_bowtie2):
            errmsg+="Error: bowtie not found on this system"
        die(errmsg)
 
-def get_index_sam_header(params, idx_prefix):
+def get_index_sam_header(params, idx_prefix, name = ""):
     try:
         temp_sam_header_filename = tmp_dir + "temp.samheader.sam"
         temp_sam_header_file = open(temp_sam_header_filename, "w")
@@ -1294,7 +1294,11 @@ def get_index_sam_header(params, idx_prefix):
         temp_sam_header_file.close()
         temp_sam_header_file = open(temp_sam_header_filename, "r")
 
-        bowtie_sam_header_filename = tmp_dir + idx_prefix.split('/')[-1] + ".bwt.samheader.sam"
+        bowtie_sam_header_filename = tmp_dir + idx_prefix.split('/')[-1]
+        if name != "":
+             bowtie_sam_header_filename += ("_" + name)
+        bowtie_sam_header_filename += ".bwt.samheader.sam"
+            
         bowtie_sam_header_file = open(bowtie_sam_header_filename, "w")
 
         preamble = []
@@ -1916,6 +1920,7 @@ def prep_reads(params, reads_list, quals_list, side="left", prefilter_reads=None
 # Call bowtie
 def bowtie(params,
            bwt_idx_prefix,
+           sam_header_filename,
            reads_list,
            reads_format,
            num_mismatches,
@@ -2031,8 +2036,7 @@ def bowtie(params,
            #fix_map_ordering will write BAM file directly, and unmapped_reads as BAM file too
            mapped_reads += ".bam"
 
-           temp_sam_header = tmp_dir + bwt_idx_prefix.split('/')[-1] + ".bwt.samheader.sam"
-           fix_map_cmd += ["--sam-header", temp_sam_header, "-", mapped_reads]
+           fix_map_cmd += ["--sam-header", sam_header_filename, "-", mapped_reads]
            if unmapped_reads:
                unmapped_reads_out = unmapped_reads + ".bam"
                fix_map_cmd += [unmapped_reads_out]
@@ -3051,7 +3055,7 @@ def map2gtf(params, genome_sam_header_filename, ref_fasta, left_reads, right_rea
        gtf_to_fasta(params, params.gff_annotation, ref_fasta, m2g_ref_fasta)
        m2g_bwt_idx = build_idx_from_fa(params.bowtie2, m2g_ref_fasta, t_out_dir, params.read_params.color)
 
-    get_index_sam_header(params, m2g_bwt_idx)
+    transcriptome_header_filename = get_index_sam_header(params, m2g_bwt_idx)
 
     mapped_gtf_list = []
     unmapped_gtf_list = []
@@ -3069,13 +3073,14 @@ def map2gtf(params, genome_sam_header_filename, ref_fasta, left_reads, right_rea
         #    unmapped_gtf += ".z"
 
         (mapped_gtf_map, unmapped) = bowtie(params,
-                                           m2g_bwt_idx,
-                                           [reads],
-                                           "fastq",
-                                           params.t_mismatches,
-                                           mapped_gtf_out,
-                                           unmapped_gtf,
-                                           "", _reads_vs_T)
+                                            m2g_bwt_idx,
+                                            transcriptome_header_filename,
+                                            [reads],
+                                            "fastq",
+                                            params.t_mismatches,
+                                            mapped_gtf_out,
+                                            unmapped_gtf,
+                                            "", _reads_vs_T)
         mapped_gtf_list.append(mapped_gtf_map)
         unmapped_gtf_list.append(unmapped)
 
@@ -3276,6 +3281,7 @@ def spliced_alignment(params,
         # Perform the initial Bowtie mapping of the full length reads
           (unspliced_sam, unmapped_reads) = bowtie(params,
                                                    bwt_idx_prefix,
+                                                   sam_header_filename,
                                                    [reads],
                                                    "fastq",
                                                    params.genome_read_mismatches,
@@ -3312,6 +3318,7 @@ def spliced_alignment(params,
                 extra_output = "(%d/%d)" % (i+1, len(read_segments))
                 (seg_map, unmapped) = bowtie(params,
                                              bwt_idx_prefix,
+                                             sam_header_filename,
                                              [seg],
                                              "fastq",
                                              params.segment_mismatches,
@@ -3461,6 +3468,7 @@ def spliced_alignment(params,
                     extra_output = "(%d/%d)" % (i+1, len(maps[ri].segs))
                     (seg_map, unmapped) = bowtie(params,
                                                  tmp_dir + junc_idx_prefix,
+                                                 juncs_bwt_samheader,
                                                  [seg],
                                                  "fastq",
                                                  params.segment_mismatches,
@@ -3686,7 +3694,8 @@ def main(argv=None):
         (ref_fasta, ref_seq_dict) = check_index(bwt_idx_prefix, params.bowtie2)
 
         th_log("Generating SAM header for "+bwt_idx_prefix)
-        sam_header_filename = get_index_sam_header(params, bwt_idx_prefix)
+        # we need to provide another name for this sam header as genome and transcriptome may have the same prefix.
+        sam_header_filename = get_index_sam_header(params, bwt_idx_prefix, "genome")
         params.sam_header = sam_header_filename
         #if not params.skip_check_reads:
         reads_list = left_reads_list
@@ -3743,7 +3752,7 @@ def main(argv=None):
                #   side_ium += ".z"
                th_log("Pre-filtering multi-mapped "+sides[ri]+" reads")
                rdlist=reads_list.split(',')
-               bwt=bowtie(params, bwt_idx_prefix, rdlist,
+               bwt=bowtie(params, bwt_idx_prefix, sam_header_filename, rdlist,
                      params.read_params.reads_format,
                      params.genome_read_mismatches,
                      side_imap, side_ium,
