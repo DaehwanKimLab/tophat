@@ -147,7 +147,7 @@ struct QReadData { //read data for the priority queue
   Read read;
   char trashCode; //ZT tag value
   int8_t matenum; //mate number (1,2) 0 if unpaired
-  QReadData():id(0),read(),trashCode(0) { }
+  QReadData():id(0),read(),trashCode(0), matenum(0) { }
   QReadData(uint64_t rid, Read& rd, bam1_t* bd=NULL):
 	 id(rid), read(rd), trashCode(0), matenum(0) {
      if (bd) {

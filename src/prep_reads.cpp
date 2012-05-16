@@ -1,5 +1,5 @@
 /*
- *  polyA_reads.cpp
+ *  prep_reads.cpp
  *  TopHat
  *
  *  Created by Cole Trapnell on 9/2/08.
@@ -34,36 +34,28 @@ void format_qual_string(string& qual_str)
     }
 }
 
+vector<string> flt_reads_fnames;
 bool readmap_loaded=false;
 vector<bool> readmap; //for filter_multihits
+vector<bool> mate_readmap; //for filter_multihits
 
-void load_readmap() {
-  readmap_loaded=false;
-  if (flt_reads.empty()) return;
-  //FZPipe(filter_multihits, false);
-  ReadStream rdstream(flt_reads, NULL, true);
-  /*
-  FILE* rfile=fopen(flt_reads.c_str(),"r");
-  if (rfile==NULL)
-     err_die("Error: cannot read file %s\n", flt_reads.c_str());
-  FLineReader fr(rfile);
-  skip_lines(fr); //should not be needed, bowtie doesn't add extra header lines for this
-  */
+void load_readmap(string& flt_fname, vector<bool>& rmap) {
+  //readmap_loaded=false;
+  if (flt_fname.empty()) return;
+  ReadStream rdstream(flt_fname, NULL, true);
   Read read;
-  //while (next_fastx_read(fr, read, reads_format)) {
   while (rdstream.get_direct(read, reads_format)) {
     uint32_t rnum=(uint32_t)atol(read.name.c_str());
-    if (rnum>=(uint32_t) readmap.size())
-         readmap.resize(rnum+1, false);
-    readmap[rnum] = true;
+    if (rnum>=(uint32_t) rmap.size())
+         rmap.resize(rnum+1, false);
+    rmap[rnum] = true;
     }
   readmap_loaded=true;
-  //fclose(rfile);
 }
 
-bool check_readmap(uint32_t read_id) {
- if (read_id>=readmap.size()) return false;
-    else return readmap[read_id];
+bool check_readmap(vector<bool>& rmap, uint32_t read_id) {
+ if (read_id>=rmap.size()) return false;
+    else return rmap[read_id];
 }
 
 void flt_reads_and_hits(vector<string>& reads_files) {
@@ -71,9 +63,6 @@ void flt_reads_and_hits(vector<string>& reads_files) {
       err_die("Error: filtering reads not enabled, aborting.");
   if (aux_outfile.empty())
        err_die("Error: auxiliary output file not provided.");
-  //if (index_outfile.empty())
-  //  err_die("Error: index output file not provided.");
-  
   // -- filter mappings:
   string fext=getFext(flt_mappings);
   if (fext=="bam") {
@@ -87,7 +76,7 @@ void flt_reads_and_hits(vector<string>& reads_files) {
     while (samread(fbam, b) > 0) {
       char* rname  = bam1_qname(b);
       uint32_t rid=(uint32_t)atol(rname);
-      if (check_readmap(rid)) {
+      if (check_readmap(readmap, rid)) {
     	 //write this mapping into the output file
     	 wbam.write(b, rid);
          }
@@ -124,7 +113,7 @@ void flt_reads_and_hits(vector<string>& reads_files) {
 		err_die("Error: invalid read ID (%s) parsed from mapping file %s",
 			  line, flt_mappings.c_str());
 	  *tab='\t';
-	  if (check_readmap(rid)) {
+	  if (check_readmap(readmap, rid)) {
 		 fprintf(outfile.file, "%s\n", line);
 		 }
 	  }
@@ -164,7 +153,7 @@ void flt_reads_and_hits(vector<string>& reads_files) {
       //skip_lines(fr);
       while (readstream.get_direct(read)) {
         uint32_t rnum=(uint32_t)atol(read.name.c_str());
-        if (check_readmap(rnum)) {
+        if (check_readmap(readmap, rnum)) {
           if (wbam) {
         	GBamRecord bamrec(read.name.c_str(), -1, 0, false,
         		read.seq.c_str(), NULL, read.qual.c_str());
@@ -185,7 +174,7 @@ void flt_reads_and_hits(vector<string>& reads_files) {
 }
 
 
-void writePrepBam(GBamWriter* wbam, Read& read, uint32_t rid, char trashcode=0) {
+void writePrepBam(GBamWriter* wbam, Read& read, uint32_t rid, char trashcode=0, int matenum=0) {
   if (wbam==NULL) return;
   string rnum;
   str_appendUInt(rnum, rid);
@@ -206,6 +195,11 @@ void writePrepBam(GBamWriter* wbam, Read& read, uint32_t rid, char trashcode=0) 
     
   size_t pl=rname.length()-1;
   GBamRecord bamrec(rnum.c_str(), -1, 0, false, read.seq.c_str(), NULL, read.qual.c_str());
+  if (matenum) {
+	if (matenum==1) bamrec.set_flag(BAM_FREAD1);
+	else if (matenum==2) bamrec.set_flag(BAM_FREAD2);
+  }
+  /*
   int matenum=0;
   if (rname[pl-1]=='/') {
     if (rname[pl]=='1') {
@@ -216,10 +210,13 @@ void writePrepBam(GBamWriter* wbam, Read& read, uint32_t rid, char trashcode=0) 
       bamrec.set_flag(BAM_FREAD2);
       matenum=2;
     }
-    if (matenum) rname.resize(pl-1);
-  }
+	*/
+  if (matenum && rname[pl-1]=='/')
+	rname.resize(pl-1);
+//  }
 
   bamrec.add_aux("ZN", 'Z', rname.length(), (uint8_t*)rname.c_str());
+
   if (trashcode) {
 	 bamrec.set_flag(BAM_FQCFAIL);
      bamrec.add_aux("ZT", 'A', 1, (uint8_t*)&trashcode);
@@ -227,68 +224,13 @@ void writePrepBam(GBamWriter* wbam, Read& read, uint32_t rid, char trashcode=0) 
   wbam->write(bamrec.get_b(), rid);
 }
 
-void process_reads(vector<string>& reads_files, vector<FZPipe>& quals_files)
-{	
-   //TODO: add the option to write the garbage reads into separate file(s)
-  int num_reads_chucked = 0;
-  int multimap_chucked = 0;
-  int min_read_len = 20000000;
-  int max_read_len = 0;
-  uint32_t next_id = 0;
-  uint64_t file_offset = 0;
-  FILE* fw=NULL;
-  if (!aux_outfile.empty()) {
-    fw=fopen(aux_outfile.c_str(), "w");
-    if (fw==NULL)
-       err_die("Error: cannot create file %s\n",aux_outfile.c_str());
-    }
-
-  FILE* findex = NULL;
-  GBamWriter* wbam=NULL;
-  FILE* fout=NULL;
-  if (std_outfile.empty()) {
-    fout=stdout;
-  }
-  else { //output file name explicitely given
-	if (getFext(std_outfile)=="bam") {
-	  if (sam_header.empty()) err_die("Error: sam header file not provided.\n");
-	  wbam = new GBamWriter(std_outfile.c_str(), sam_header.c_str(), index_outfile);
-	  //wbam = new GBamWriter(std_outfile, index_outfile);
-	}
-	else {
-	  fout = fopen(std_outfile.c_str(), "w");
-	  if (fout==NULL)
-	       err_die("Error: cannot create file %s\n", std_outfile.c_str());
-	}
-  }
-  if (wbam==NULL && !index_outfile.empty()) {
-    findex = fopen(index_outfile.c_str(), "w");
-    if (findex == NULL)
-       err_die("Error: cannot create file %s\n", index_outfile.c_str());
-    }
-
-  for (size_t fi = 0; fi < reads_files.size(); ++fi)
-    {
-      Read read;
-      FZPipe* fq=NULL;
-      if (quals)
-         fq = & quals_files[fi];
-      ReadStream reads(reads_files[fi], fq, true);
-      
-      while (reads.get_direct(read, reads_format)) {
-	    // read.clear();
-	    // Get the next read from the file
-        //if (!next_fastx_read(fr, read, reads_format, ((quals) ? &frq : NULL)))
-        //    break;
-
-        ++next_id;
-	
-        //IMPORTANT: to keep paired reads in sync, this must be
-        //incremented BEFORE any reads are chucked !
-        if (read.seq.length() < 20) {
+bool processRead(int matenum, Read& read, uint32_t next_id,  int& num_reads_chucked,
+	int& multimap_chucked, GBamWriter* wbam, FILE* fout, FILE* fqindex,
+	int& min_read_len, int& max_read_len, uint64_t& fout_offset, vector<bool>& rmap) {
+  if (read.seq.length()<12) {
             ++num_reads_chucked;
-            writePrepBam(wbam, read, next_id, 'S');
-            continue;
+	  writePrepBam(wbam, read, next_id, 'S', matenum);
+	  return false;
 	}
         if ((int)read.seq.length()<min_read_len)
              min_read_len=read.seq.length();
@@ -297,15 +239,15 @@ void process_reads(vector<string>& reads_files, vector<FZPipe>& quals_files)
 
         if (color && read.seq[1] == '4') {
           ++num_reads_chucked;
-          writePrepBam(wbam, read, next_id, 'c');
-          continue;
+	writePrepBam(wbam, read, next_id, 'c', matenum);
+	return false;
           }
 
-        if (readmap_loaded && check_readmap(next_id)) {
+  if (readmap_loaded && check_readmap(rmap, next_id)) {
           ++num_reads_chucked;
           ++multimap_chucked;
-          writePrepBam(wbam, read, next_id, 'M');
-          continue;
+	writePrepBam(wbam, read, next_id, 'M', matenum);
+	return false;
           }
         format_qual_string(read.qual);
         std::transform(read.seq.begin(), read.seq.end(), read.seq.begin(), ::toupper);
@@ -337,8 +279,8 @@ void process_reads(vector<string>& reads_files, vector<FZPipe>& quals_files)
               trash_code='N';
         if (trash_code) {
           ++num_reads_chucked;
-          writePrepBam(wbam, read, next_id, trash_code);
-          continue;
+	writePrepBam(wbam, read, next_id, trash_code, matenum);
+	return false;
         }
 
         if (wbam) {
@@ -347,7 +289,7 @@ void process_reads(vector<string>& reads_files, vector<FZPipe>& quals_files)
 	  else if (color && quals)
 	    read.qual = "!" + read.qual;
 	  
-          writePrepBam(wbam, read, next_id);
+          writePrepBam(wbam, read, next_id, 0, matenum);
         }
         else {
 		  // daehwan - we should not use buf in printf function
@@ -393,44 +335,215 @@ void process_reads(vector<string>& reads_files, vector<FZPipe>& quals_files)
 		  assert(0);
 			}
 
-		  if (findex != NULL)
+	if (fqindex != NULL)
 			{
 		  if ((next_id - num_reads_chucked) % INDEX_REC_COUNT == 0)
-			fprintf(findex, "%d\t%lu\n", next_id, file_offset);
+		fprintf(fqindex, "%d\t%lu\n", next_id, fout_offset);
+	}
+
+	fout_offset += strlen(buf);
+  }
+  return true;
+} //validate read
+
+
+const char* ERR_FILE_CREATE="Error: cannot create file %s\n";
+
+void process_reads(vector<string>& reads_fnames, vector<FZPipe>& quals_files,
+	    vector<string>& mate_fnames, vector<FZPipe>& mate_quals_files)
+{
+   //TODO: add the option to write the garbage reads into separate file(s)
+  int num_reads_chucked = 0;
+  int multimap_chucked = 0;
+  int mate_num_reads_chucked = 0;
+  int mate_multimap_chucked = 0;
+  int min_read_len = 20000000;
+  int max_read_len = 0;
+  int mate_min_read_len = 20000000;
+  int mate_max_read_len = 0;
+  uint32_t next_id = 0;
+  FILE* fw=NULL; //aux output file
+  string outfname; //std_outfile after instancing template
+  string mate_outfname;
+  string idxfname; //index_outfile after instancing template
+  string mate_idxfname;
+  bool have_mates = (mate_fnames.size() > 0);
+
+  if (!aux_outfile.empty()) {
+    fw=fopen(aux_outfile.c_str(), "w");
+    if (fw==NULL)
+       err_die(ERR_FILE_CREATE,aux_outfile.c_str());
+    }
+
+  FILE* fqindex = NULL; //fastq index
+  FILE* mate_fqindex = NULL;
+  GBamWriter* wbam=NULL;
+  GBamWriter* mate_wbam=NULL;
+  FILE* fout=NULL;
+  FILE* mate_fout=NULL;
+  uint64_t fout_offset = 0;
+  uint64_t mate_fout_offset = 0;
+  if (std_outfile.empty()) {
+    fout=stdout;
+    //for PE reads, flt_side will decide which side is printed (can't be both)
+    if (have_mates && flt_side==2)
+      err_die("Error: --flt-side option required for PE reads directed to stdout!\n");
+  }
+  else { //output file name explicitely given
+	//could be a template
+	if (std_outfile.find("%side%") != string::npos) {
+	  outfname=str_replace(std_outfile, "%side%", "left");
+	  if (have_mates)
+	    mate_outfname=str_replace(std_outfile, "%side%", "right");
+	}
+	else {
+	  outfname=std_outfile;
+	}
+	if (index_outfile.find("%side%") != string::npos) {
+	  idxfname=str_replace(index_outfile, "%side%", "left");
+	  if (have_mates)
+	    mate_idxfname=str_replace(index_outfile, "%side%", "right");
+	}
+	else {
+	  idxfname=index_outfile;
+	}
+	if (getFext(outfname)=="bam") {
+	  if (sam_header.empty()) err_die("Error: sam header file not provided.\n");
+	  wbam = new GBamWriter(outfname.c_str(), sam_header.c_str(), idxfname);
+	  if (!mate_outfname.empty()) {
+		mate_wbam = new GBamWriter(mate_outfname.c_str(), sam_header.c_str(), mate_idxfname);
+	  }
+	}
+	else { //fastq output
+	  fout = fopen(outfname.c_str(), "w");
+	  if (fout==NULL)
+	       err_die(ERR_FILE_CREATE, outfname.c_str());
+	  mate_fout = fopen(mate_outfname.c_str(), "w");
+	  if (mate_fout==NULL)
+	       err_die(ERR_FILE_CREATE, mate_outfname.c_str());
+	}
+  }
+  if (wbam==NULL && !idxfname.empty()) {
+	//fastq file output, indexed
+	fqindex = fopen(idxfname.c_str(), "w");
+	if (fqindex == NULL)
+	  err_die(ERR_FILE_CREATE, idxfname.c_str());
+	if (!mate_idxfname.empty()) {
+	  mate_fqindex = fopen(mate_idxfname.c_str(), "w");
+	  if (mate_fqindex == NULL)
+		err_die(ERR_FILE_CREATE, mate_idxfname.c_str());
 			}
 
-		  file_offset += strlen(buf);
+  }
+  for (size_t fi = 0; fi < reads_fnames.size(); ++fi)
+  {
+	Read read;
+	Read mate_read;
+	FZPipe* fq=NULL;
+	FZPipe* mate_fq=NULL;
+	if (quals)
+	  fq = & quals_files[fi];
+	ReadStream reads(reads_fnames[fi], fq, true);
+	ReadStream* mate_reads=NULL;
+	if (have_mates) {
+	  if (quals)
+		mate_fq = & mate_quals_files[fi];
+	  mate_reads=new ReadStream(mate_fnames[fi], mate_fq, true);
+	}
+	while (reads.get_direct(read, reads_format)) {
+	  // Get the next read from the file
+	  //if (!next_fastx_read(fr, read, reads_format, ((quals) ? &frq : NULL)))
+	  //    break;
+	  ++next_id;
+	  //IMPORTANT: to keep paired reads in sync, this must be
+	  //incremented BEFORE any reads are chucked !
+	  int matenum=0;
+	  if (have_mates) {
+		if (!mate_reads->get_direct(mate_read, reads_format))
+		  err_die("Error: could not retrieve mate for read '%s' !\n",read.name.c_str());
+		//check if reads are paired correctly
+		matenum=1;
+		size_t nl=read.name.length()-1;
+		size_t mate_nl=mate_read.name.length()-1;
+		bool mate_match=(nl==mate_nl);
+		if (mate_match && read.name[nl-1]=='/' ) --nl;
+		if (mate_match && strncmp(read.name.data(), mate_read.name.data(), nl+1)!=0)
+		  mate_match=false;
+		if (!mate_match) {
+		  err_die("Error: read #%d (%s) does not have a matching mate in the same order (%s found instead)\n",
+			  next_id, read.name.c_str(), mate_read.name.c_str());
+		}
+	  }
+	  processRead(matenum, read, next_id,  num_reads_chucked, multimap_chucked,
+		  wbam, fout, fqindex, min_read_len,  max_read_len,  fout_offset, readmap);
+	  if (mate_reads) {
+		  matenum=2;
+		  processRead(matenum, mate_read, next_id,  mate_num_reads_chucked, mate_multimap_chucked,
+			  mate_wbam, mate_fout, mate_fqindex, mate_min_read_len,  mate_max_read_len,
+			  mate_fout_offset, mate_readmap);
           }
+
       } //while !fr.isEof()
-    //fr.close();
-    //frq.close();
     } //for each input file
   fprintf(stderr, "%u out of %u reads have been filtered out\n",
 	  num_reads_chucked, next_id);
   if (readmap_loaded)
     fprintf(stderr, "\t(%u filtered out due to %s)\n",
-        multimap_chucked, flt_reads.c_str());
+	    multimap_chucked, flt_reads_fnames[0].c_str());
+  if (have_mates)
+	fprintf(stderr, "%u out of %u read mates have been filtered out\n",
+	   mate_num_reads_chucked, next_id);
+  if (readmap_loaded && have_mates && mate_multimap_chucked)
+	fprintf(stderr, "\t(%u mates filtered out due to %s)\n",
+	    mate_multimap_chucked, flt_reads_fnames[1].c_str());
+
   if (wbam) { delete wbam; }
+  if (mate_wbam) { delete mate_wbam; }
   if (fout && fout!=stdout) fclose(fout);
+  if (mate_fout) fclose(mate_fout);
   if (fw!=NULL) {
-    fprintf(fw, "min_read_len=%d\n",min_read_len - (color ? 1 : 0));
-    fprintf(fw, "max_read_len=%d\n",max_read_len - (color ? 1 : 0));
-    fprintf(fw, "reads_in =%d\n",next_id);
-    fprintf(fw, "reads_out=%d\n",next_id-num_reads_chucked);
+	string side("");
+	if (have_mates)
+	   side="left_";
+    fprintf(fw, "%smin_read_len=%d\n", side.c_str(), min_read_len - (color ? 1 : 0));
+    fprintf(fw, "%smax_read_len=%d\n", side.c_str(), max_read_len - (color ? 1 : 0));
+    fprintf(fw, "%sreads_in =%d\n", side.c_str(), next_id);
+    fprintf(fw, "%sreads_out=%d\n", side.c_str(), next_id-num_reads_chucked);
+    if (have_mates) {
+      side="right_";
+      fprintf(fw, "%smin_read_len=%d\n", side.c_str(), mate_min_read_len - (color ? 1 : 0));
+      fprintf(fw, "%smax_read_len=%d\n", side.c_str(), mate_max_read_len - (color ? 1 : 0));
+      fprintf(fw, "%sreads_in =%d\n", side.c_str(), next_id);
+      fprintf(fw, "%sreads_out=%d\n", side.c_str(), next_id-mate_num_reads_chucked);
+    }
     fclose(fw);
     }
 
-  if (findex != NULL)
-    fclose(findex);
+  if (fqindex) fclose(fqindex);
+  if (mate_fqindex) fclose(mate_fqindex);
 }
 
 void print_usage()
 {
-  fprintf(stderr, "Usage:\n prep_reads [--filter-multi <multi.fq>] <reads1.fa/fq,...,readsN.fa/fq>\n");
-  //alternate usage (--ctv_to_num) : doesn't filter out any reads,
-  //but simply convert read names to numeric ids
+  fprintf(stderr, "Usage:\n prep_reads [--filter-multi <multi.fq>] <reads1.fa/fq,...,readsN.fa/fq> [<read_qual_files>,..] \\"
+	  "[<mate_reads1.fa/fq,...,mate_readsN.fa/fq> [<mate_qual_files>,..]\n");
 }
 
+void open_qual_files(vector<FZPipe>& quals_files, string& quals_file_list) {
+  vector<string> quals_file_names;
+  tokenize(quals_file_list, ",", quals_file_names);
+  for (size_t i = 0; i < quals_file_names.size(); ++i)
+  {
+	FZPipe seg_file(quals_file_names[i], true);
+	if (seg_file.file == NULL)
+	{
+	  fprintf(stderr, "Error: cannot open qual. file %s\n",
+		  quals_file_names[i].c_str());
+	  exit(1);
+	}
+	quals_files.push_back(seg_file);
+  }
+}
 
 int main(int argc, char *argv[])
 {
@@ -440,42 +553,61 @@ int main(int argc, char *argv[])
   int parse_ret = parse_options(argc, argv, print_usage);
   if (parse_ret)
     return parse_ret;
-  
   if(optind >= argc)
     {
       print_usage();
       return 1;
     }
   
-  string reads_file_list = argv[optind++];
-  
+  string reads_file_list(argv[optind++]);
   vector<string> reads_filenames;
   tokenize(reads_file_list, ",",reads_filenames);
-  vector<string> quals_file_names;
   vector<FZPipe> quals_files;
   if (quals)
     {
-      string quals_file_list = argv[optind++];
-      tokenize(quals_file_list, ",", quals_file_names);
-      for (size_t i = 0; i < quals_file_names.size(); ++i)
-	{
-      FZPipe seg_file(quals_file_names[i], true);
-	  if (seg_file.file == NULL)
-	    {
-	      fprintf(stderr, "Error: cannot open reads file %s for reading\n",
-		      quals_file_names[i].c_str());
-	      exit(1);
-	      }
-	  quals_files.push_back(seg_file);
-	}
+    if (optind>=argc) {
+      err_die("Error: quality value file(s) not provided !\n");
     }
-  load_readmap();
-  // Only print to standard out the good reads
-  //TODO: a better, more generic read filtering protocol
+      string quals_file_list = argv[optind++];
+    open_qual_files(quals_files, quals_file_list);
+    if (quals_files.size()!=reads_filenames.size())
+        err_die("Error: number of quality value files must much the number of read files!\n");
+  }
+  string mate_file_list;
+  vector<string> mate_filenames;
+  vector<FZPipe> mate_quals_files;
+  if (optind<argc)
+	mate_file_list = argv[optind++];
+
+  if (!mate_file_list.empty()) {
+	tokenize(mate_file_list, ",",mate_filenames);
+	if (reads_filenames.size()!=mate_filenames.size()) {
+	    err_die("Error: same number of input files required for paired reads!\n");
+	  }
+	if (quals)
+	{
+	  if (optind>=argc) {
+	      err_die("Error: mate quality value file(s) not provided !\n");
+	  }
+	  string mate_quals_file_list = argv[optind++];
+	  open_qual_files(mate_quals_files, mate_quals_file_list);
+	  if (mate_quals_files.size()!=mate_filenames.size())
+	      err_die("Error: number of quality value files must much the number of read files!\n");
+	      }
+	}
+  if (!flt_reads.empty()) {
+	//for multi-mapped prefiltering usage
+	readmap_loaded = false;
+	tokenize(flt_reads, ",", flt_reads_fnames);
+	load_readmap(flt_reads_fnames[0], readmap);
+	if (flt_reads_fnames.size()==2)
+	  load_readmap(flt_reads_fnames[1], mate_readmap);
+    }
   if (flt_mappings.empty())
-     process_reads(reads_filenames, quals_files);
-  else //special use case: filter previous bowtie results
+     process_reads(reads_filenames, quals_files, mate_filenames, mate_quals_files);
+  else //special use case: filter previous mappings (when prefiltering)
      flt_reads_and_hits(reads_filenames);
     
   return 0;
 }
+

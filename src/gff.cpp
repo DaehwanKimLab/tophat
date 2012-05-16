@@ -935,7 +935,7 @@ GfoHolder* GffReader::gfoFind(const char* id, const char* ctg,
       if (strand && gfo.gffobj->strand!='.' && strand != gfo.gffobj->strand)
            continue;
       if (start>0) {
-	if (abs((int)start-(int)gfo.gffobj->start)> (int)GFF_MAX_LOCUS)
+	       if (abs((int)start-(int)gfo.gffobj->start)> (int)GFF_MAX_LOCUS)
                continue;
            if (end>0 && (gfo.gffobj->start>end || gfo.gffobj->end<start))
         	   continue;

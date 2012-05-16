@@ -92,9 +92,8 @@ Advanced Options:
     --min-segment-intron           <int>       [ default: 50               ]
     --max-segment-intron           <int>       [ default: 500000           ]
     --no-sort-bam                              (Output BAM is not coordinate-sorted)
-    --no-convert-bam                           (Do not convert to bam format.
-                                                Output is <output_dir>accepted_hit.sam.
-                                                Implies --no-sort-bam)
+    --no-convert-bam                           (Do not output bam format.
+                                                Output is <output_dir>/accepted_hit.sam)
     --keep-fasta-order
     --allow-partial-mapping
 
@@ -213,11 +212,16 @@ def init_logger(log_fname):
 # This class and its nested classes also do options parsing through parse_options()
 # and option validation via the member function check()
 
-class BowtieOutputFiles:
+
+
+class BowtieFltFiles:
     def __init__(self,
+          seqfiles=None, qualfiles=None,
           mappings=None,
           unmapped_reads=None,
           multihit_reads=None):
+        self.seqfiles=seqfiles
+        self.qualfiles=qualfiles
         self.mappings=mappings
         self.unmapped_reads=unmapped_reads
         self.multihit_reads=multihit_reads
@@ -472,7 +476,6 @@ class TopHatParams:
                     self.sort_bam = False
                 if option == "--no-convert-bam":
                     self.convert_bam = False
-                    self.sort_bam = False
 
     class Bowtie2Params:
         def __init__(self):
@@ -588,7 +591,7 @@ class TopHatParams:
                                                          0,     # splice_mismatches
                                                          0.15)  # min_isoform_frac
 
-        self.preflt_data = [ BowtieOutputFiles(), BowtieOutputFiles() ]
+        self.preflt_data = [ BowtieFltFiles(), BowtieFltFiles() ]
         self.sam_header = None
         self.read_params = self.ReadParams(False,               # solexa_scale
                                            False,
@@ -1298,7 +1301,7 @@ def get_index_sam_header(params, idx_prefix, name = ""):
         if name != "":
              bowtie_sam_header_filename += ("_" + name)
         bowtie_sam_header_filename += ".bwt.samheader.sam"
-            
+
         bowtie_sam_header_file = open(bowtie_sam_header_filename, "w")
 
         preamble = []
@@ -1630,14 +1633,14 @@ class ZReader:
              if len(pipecmd)>0:
                 if pipecmd[0]=='gzip' and sys_params.zipper.endswith('pigz'):
                    pipecmd[0]=sys_params.zipper
-                   pipecmd.extend(sysparams.zipper_opts)
-                elif pipecmd[0]=='bzip2' and sysparams.zipper.endswith('pbzip2'):
-                   pipecmd[0]=sysparams.zipper
-                   pipecmd.extend(sysparams.zipper_opts)
+                   pipecmd.extend(sys_params.zipper_opts)
+                elif pipecmd[0]=='bzip2' and sys_params.zipper.endswith('pbzip2'):
+                   pipecmd[0]=sys_params.zipper
+                   pipecmd.extend(sys_params.zipper_opts)
           else: #not guessing, but must still check if it's a compressed file
              if use_zpacker and filename.endswith(".z"):
-                pipecmd=[sysparams.zipper]
-                pipecmd.extend(sysparams.zipper_opts)
+                pipecmd=[sys_params.zipper]
+                pipecmd.extend(sys_params.zipper_opts)
 
           if pipecmd:
              pipecmd+=['-cd']
@@ -1797,58 +1800,83 @@ def formatTD(td):
         return '%02d:%02d:%02d' % (hours, minutes, seconds)
 
 class PrepReadsInfo:
-    def __init__(self, fname, side):
+    def __init__(self, fname, out_fname):
+           self.min_len  = [0, 0]
+           self.max_len  = [0, 0]
+           self.in_count = [0, 0]
+           self.out_count= [0, 0]
+           self.kept_reads = [None, None]
            try:
              f=open(fname,"r")
-             self.min_len=int(f.readline().split("=")[-1])
-             self.max_len=int(f.readline().split("=")[-1])
-             self.in_count=int(f.readline().split("=")[-1])
-             self.out_count=int(f.readline().split("=")[-1])
-             if (self.out_count==0) or (self.max_len<16):
+             self.min_len[0]=int(f.readline().split("=")[-1])
+             self.max_len[0]=int(f.readline().split("=")[-1])
+             self.in_count[0]=int(f.readline().split("=")[-1])
+             self.out_count[0]=int(f.readline().split("=")[-1])
+             if (self.out_count[0]==0) or (self.max_len[0]<16):
                raise Exception()
+             line=f.readline()
+             if line and line.find("=") > 0:
+                self.min_len[1]=int(line.split("=")[-1])
+                self.max_len[1]=int(f.readline().split("=")[-1])
+                self.in_count[1]=int(f.readline().split("=")[-1])
+                self.out_count[1]=int(f.readline().split("=")[-1])
+                if (self.out_count[1]==0) or (self.max_len[1]<16):
+                   raise Exception()
            except Exception, e:
              die(fail_str+"Error retrieving prep_reads info.")
-           th_logp("\t%5s reads: min. length=%s, count=%s" %  (side, self.min_len, self.out_count))
-           if self.min_len < 20:
-               th_logp("Warning: short reads (<20bp) will make TopHat quite slow and take large amount of memory because they are likely to be mapped to too many places")
+           sides=["left", "right"]
+           for ri in (0,1):
+               if self.in_count[ri]==0: break
+               trashed=self.in_count[ri]-self.out_count[ri]
+               self.kept_reads[ri]=out_fname.replace("%side%", sides[ri])
+               th_logp("\t%5s reads: min. length=%s, max. length=%s, %s kept reads (%s discarded)" %  (sides[ri], self.min_len[ri], self.max_len[ri], self.out_count[ri], trashed))
 
-
-def prep_reads_cmd(params, reads_list, quals_list=None, out_file=None, aux_file=None, index_file=None, filter_reads=None, hits_to_filter=None):
+def prep_reads_cmd(params, l_reads_list, l_quals_list=None, r_reads_list=None, r_quals_list=None, out_file=None, aux_file=None,
+                                 index_file=None, filter_reads=[], hits_to_filter=[]):
   #generate a prep_reads cmd arguments
-  filter_cmd = [prog_path("prep_reads")]
+  prep_cmd = [prog_path("prep_reads")]
 
-  filter_cmd.extend(params.cmd())
+  prep_cmd.extend(params.cmd())
 
   if params.read_params.reads_format == "fastq":
-      filter_cmd += ["--fastq"]
+      prep_cmd += ["--fastq"]
   elif params.read_params.reads_format == "fasta":
-      filter_cmd += ["--fasta"]
+      prep_cmd += ["--fasta"]
   if hits_to_filter:
-    filter_cmd += ["--flt-hits="+hits_to_filter]
+    prep_cmd += ["--flt-hits=" + ",".join(hits_to_filter)]
   if aux_file:
-    filter_cmd += ["--aux-outfile="+aux_file]
+    prep_cmd += ["--aux-outfile="+aux_file]
   if index_file:
-      filter_cmd += ["--index-outfile="+index_file]
+      prep_cmd += ["--index-outfile="+index_file] # could be a template
   if filter_reads:
-    filter_cmd += ["--flt-reads="+filter_reads]
+    prep_cmd += ["--flt-reads=" + ",".join(filter_reads)]
   if params.sam_header:
-    filter_cmd += ["--sam-header="+params.sam_header]
+    prep_cmd += ["--sam-header="+params.sam_header]
   if out_file:
-    filter_cmd += ["--outfile="+out_file]
-  filter_cmd.append(reads_list)
-  if quals_list:
-        filter_cmd.append(quals_list)
-  return filter_cmd
+    prep_cmd += ["--outfile="+out_file] #could be a template
+  prep_cmd.append(l_reads_list)
+  if l_quals_list:
+        prep_cmd.append(l_quals_list)
+  if r_reads_list:
+    prep_cmd.append(r_reads_list)
+    if r_quals_list:
+        prep_cmd.append(r_quals_list)
+
+  return prep_cmd
 
 # Calls the prep_reads executable, which prepares an internal read library.
 # The read library features reads with monotonically increasing integer IDs.
 # prep_reads also filters out very low complexy or garbage reads as well as
 # polyA reads.
-#--> returns the tuple (internal_read_library_file, read_info)
-def prep_reads(params, reads_list, quals_list, side="left", prefilter_reads=None):
+#--> returns a PrepReadsInfo structure
+def prep_reads(params, l_reads_list, l_quals_list, r_reads_list, r_quals_list, prefilter_reads=[]):
     reads_suffix = ".bam"
     use_bam = True
-    
+
+    #if params.read_params.color:
+    #   reads_suffix = ".fq"
+    #   use_bam = False
+
     # for parallelization, we don't compress the read files
     do_use_zpacker = use_zpacker and not use_bam
     if do_use_zpacker and params.system_params.num_threads > 1:
@@ -1856,27 +1884,34 @@ def prep_reads(params, reads_list, quals_list, side="left", prefilter_reads=None
 
     if do_use_zpacker: reads_suffix += ".z"
 
-    output_name=side+"_kept_reads"
-    kept_reads_filename = tmp_dir + output_name + reads_suffix
+    out_suffix = "_kept_reads" + reads_suffix
+    #kept_reads_filename = tmp_dir + output_name + reads_suffix
 
+    for side in ("left", "right"):
+       kept_reads_filename = tmp_dir + side + out_suffix
     if os.path.exists(kept_reads_filename):
         os.remove(kept_reads_filename)
-    out_file=None
-    kept_reads=None
+    out_tmpl="left"
+    out_fname=None
+    kept_reads = None #output file handle
+    if r_reads_list:
+        out_tmpl="%side%"
     if use_bam:
-      out_file=kept_reads_filename
+       out_fname = tmp_dir + out_tmpl + out_suffix
     else:
-      kept_reads = open(kept_reads_filename, "wb")
+      #assumed no right reads given here, only one side is being processed
+      kept_reads = open(tmp_dir + out_tmpl + out_suffix, "wb")
     log_fname=logging_dir + "prep_reads.log"
     filter_log = open(log_fname,"w")
 
-    info_file=output_dir+output_name+".info"
-    index_file=kept_reads_filename+".index"
+    info_file = output_dir+"prep_reads.info"
+    index_file = out_fname + ".index"
     if do_use_zpacker: index_file=None
 
-    filter_cmd=prep_reads_cmd(params, reads_list, quals_list, out_file, info_file, index_file, prefilter_reads)
-    shell_cmd = ' '.join(filter_cmd)
-    #finally, add the compression pipe
+    prep_cmd=prep_reads_cmd(params, l_reads_list, l_quals_list, r_reads_list, r_quals_list,
+                                       out_fname, info_file, index_file, prefilter_reads)
+    shell_cmd = ' '.join(prep_cmd)
+    #finally, add the compression pipe if needed
     zip_cmd=[]
     if do_use_zpacker:
        zip_cmd=[ params.system_params.zipper ]
@@ -1888,7 +1923,7 @@ def prep_reads(params, reads_list, quals_list, side="left", prefilter_reads=None
     try:
         print >> run_log, shell_cmd
         if do_use_zpacker:
-            filter_proc = subprocess.Popen(filter_cmd,
+            filter_proc = subprocess.Popen(prep_cmd,
                                   stdout=subprocess.PIPE,
                                   stderr=filter_log)
             zip_proc=subprocess.Popen(zip_cmd,
@@ -1902,9 +1937,9 @@ def prep_reads(params, reads_list, quals_list, side="left", prefilter_reads=None
               retcode=zip_proc.poll()
         else:
             if use_bam:
-              retcode = subprocess.call(filter_cmd, stderr=filter_log)
+              retcode = subprocess.call(prep_cmd, stderr=filter_log)
             else:
-              retcode = subprocess.call(filter_cmd,
+              retcode = subprocess.call(prep_cmd,
                                  stdout=kept_reads, stderr=filter_log)
         if retcode:
             die(fail_str+"Error running 'prep_reads'\n"+log_tail(log_fname))
@@ -1914,7 +1949,7 @@ def prep_reads(params, reads_list, quals_list, side="left", prefilter_reads=None
         die(errmsg+"\n"+log_tail(log_fname))
 
     if kept_reads: kept_reads.close()
-    return kept_reads_filename, PrepReadsInfo(info_file, side)
+    return PrepReadsInfo(info_file, tmp_dir + out_tmpl + out_suffix)
 
 
 # Call bowtie
@@ -1952,10 +1987,16 @@ def bowtie(params,
             params.bowtie_alignment_option = "-v"
 
     if t_mapping:
-       th_log("Mapping %s against transcriptome %s with %s %s" % (readfile_basename,
+       th_log("Mapping %s to transcriptome %s with %s %s" % (readfile_basename,
                      bwt_idx_name, bowtie_str, extra_output))
     else:
-       th_log("Mapping %s against %s with %s %s" % (readfile_basename,
+       qryname = readfile_basename
+       if len(reads_list) > 1:
+           bnames=[]
+           for fname in reads_list:
+              bnames += [getFileBaseName(fname)]
+           qryname = ",".join(bnames)
+       th_log("Mapping %s to genome %s with %s %s" % (qryname,
                      bwt_idx_name, bowtie_str, extra_output))
     bwt_log = open(logging_dir + 'bowtie.'+readfile_basename+'.fixmap.log', "w")
     #bwt_mapped=mapped_reads
@@ -1984,6 +2025,8 @@ def bowtie(params,
 
         if params.read_params.color:
             bowtie_cmd += ["-C", "--col-keepends"]
+            #if unmapped_reads:
+            #   bowtie_cmd += ["--un", unmapped_reads_out]
 
         unzip_cmd=None
         bam_input=False
@@ -2057,8 +2100,8 @@ def bowtie(params,
         fix_map_cmd += ["--index-outfile", mapped_reads + ".index"]
         if not params.bowtie2:
            fix_map_cmd += ["--bowtie1"]
-        if multihits_out:
-           fix_map_cmd += ["--aux-outfile", multihits_out]
+        if multihits_out != None:
+           fix_map_cmd += ["--aux-outfile", params.preflt_data[multihits_out].multihit_reads]
            fix_map_cmd += ["--max-multihits", str(params.max_hits)]
 
         if t_mapping:
@@ -2072,7 +2115,7 @@ def bowtie(params,
            num_mismatches = 3
 
         if params.bowtie2:
-            if seg_mapping or multihits_out:
+            if seg_mapping or multihits_out != None:
                 # since bowtie2 does not suppress reads that map to too many places,
                 # we suppress those in segment_juncs and long_spanning_reads.
                 bowtie_cmd += ["-k", str(max_hits + 1)]
@@ -2132,8 +2175,8 @@ def bowtie(params,
             bowtie_cmd += ["--sam-nohead"]
 
         if not params.bowtie2:
-            if multihits_out:
-                bowtie_cmd += ["--max", multihits_out]
+            if multihits_out != None:
+                bowtie_cmd += ["--max", params.preflt_data[multihits_out].multihit_reads]
             else:
                 bowtie_cmd += ["--max", "/dev/null"]
 
@@ -2145,11 +2188,12 @@ def bowtie(params,
         shellcmd=""
         unzip_proc=None
 
-        if multihits_out:
+        if multihits_out != None:
            #special prefilter bowtie run: we use prep_reads on the fly
            #in order to get multi-mapped reads to exclude later
-           # WARNING: for now this does NOT support separate qual files
-           prep_cmd = prep_reads_cmd(params, ",".join(reads_list))
+           prep_cmd = prep_reads_cmd(params, params.preflt_data[0].seqfiles, params.preflt_data[0].qualfiles,
+                                      params.preflt_data[1].seqfiles, params.preflt_data[1].qualfiles)
+           prep_cmd.insert(1,"--flt-side="+str(multihits_out))
            preplog_fname=logging_dir + "prep_reads_prefilter.log"
            prepfilter_log = open(preplog_fname,"w")
            unzip_proc = subprocess.Popen(prep_cmd,
@@ -2235,8 +2279,8 @@ def bowtie(params,
           os.remove(unmapped_reads_fifo)
         except:
           pass
-    if multihits_out and not os.path.exists(multihits_out):
-        open(multihits_out, "w").close()
+    if multihits_out != None and not os.path.exists(params.preflt_data[multihits_out].multihit_reads):
+        open(params.preflt_data[multihits_out].multihit_reads, "w").close()
 
     if seg_mapping:
         if not params.bowtie2:
@@ -2490,30 +2534,28 @@ def compile_reports(params, sam_header_filename, ref_fasta, mappings, readfiles,
         report_cmd.append(right_maps)
         report_cmd.append(right_reads)
 
-    # -- tophat_reports now produces (uncompressed) BAM stream,
     try:
-        if params.report_params.convert_bam:
-            if params.report_params.sort_bam:
-                print >> run_log, " ".join(report_cmd)
-                report_proc=subprocess.call(report_cmd,
+        print >> run_log, " ".join(report_cmd)
+        report_proc=subprocess.call(report_cmd,
                                             preexec_fn=subprocess_setup,
                                             stderr=report_log)
-                if report_proc != 0:
-                  die(fail_str+"Error running "+" ".join(report_cmd)+"\n"+log_tail(log_fname))
-                bam_parts = []
-                for i in range(params.system_params.num_threads):
-                    bam_part_filename = "%s%d.bam" % (alignments_output_filename, i)
-                    if os.path.exists(bam_part_filename):
-                        bam_parts.append(bam_part_filename)
-                    else:
-                        break
+        if report_proc != 0:
+              die(fail_str+"Error running "+" ".join(report_cmd)+"\n"+log_tail(log_fname))
+        bam_parts = []
+        for i in range(params.system_params.num_threads):
+               bam_part_filename = "%s%d.bam" % (alignments_output_filename, i)
+               if os.path.exists(bam_part_filename):
+                  bam_parts.append(bam_part_filename)
+               else:
+                  break
+        num_bam_parts = len(bam_parts)
 
-                num_bam_parts = len(bam_parts)
-                pids = [0 for i in range(num_bam_parts)]
-                sorted_bam_parts = ["%s%d_sorted" % (alignments_output_filename, i) for i in range(num_bam_parts)]
-                #left_um_parts = ["%s%s%d_sorted" % (alignments_output_filename, i) for i in range(num_bam_parts)]
-                #right_um_parts = ["%s%d_sorted" % (alignments_output_filename, i) for i in range(num_bam_parts)]
-                for i in range(num_bam_parts):
+        if params.report_params.sort_bam:
+            pids = [0 for i in range(num_bam_parts)]
+            sorted_bam_parts = ["%s%d_sorted" % (alignments_output_filename, i) for i in range(num_bam_parts)]
+            #left_um_parts = ["%s%s%d_sorted" % (alignments_output_filename, i) for i in range(num_bam_parts)]
+            #right_um_parts = ["%s%d_sorted" % (alignments_output_filename, i) for i in range(num_bam_parts)]
+            for i in range(num_bam_parts):
                     bamsort_cmd = [samtools_path,
                                    "sort",
                                    bam_parts[i],
@@ -2529,63 +2571,63 @@ def compile_reports(params, sam_header_filename, ref_fasta, mappings, readfiles,
                     else:
                         pids[i] = pid
 
-                for i in range(len(pids)):
+            for i in range(len(pids)):
                     if pids[i] > 0:
                         os.waitpid(pids[i], 0)
                         pids[i] = 0
 
-                # for bam_part in bam_parts:
-                #    os.remove(bam_part)
+            for bam_part in bam_parts:
+                os.remove(bam_part)
+            bam_parts = sorted_bam_parts[:]
+        #-- endif sort_bam
 
-                if num_bam_parts > 1:
-                    bammerge_cmd = [samtools_path,
-                                    "merge",
-                                    "-f","-h",
-                                    sam_header_filename,
-                                    "%s.bam" % accepted_hits]
-                    bammerge_cmd += sorted_bam_parts
+        if num_bam_parts > 1:
+            if params.report_params.sort_bam:
+               bammerge_cmd = [samtools_path,
+                    "merge","-f","-h", sam_header_filename]
+               if not params.report_params.convert_bam:
+                    bammerge_cmd += ["-u"]
+            else: #not sorted, so just raw merge
+               bammerge_cmd = [prog_path("bam_merge"), "-Q",
+                     "--sam-header", sam_header_filename]
 
-                    print >> run_log, " ".join(bammerge_cmd)
-                    subprocess.call(bammerge_cmd,
-                                    stderr=open(logging_dir + "reports.samtools_merge.log", "w"))
-
-                    for sorted_bam_part in sorted_bam_parts:
-                        os.remove(sorted_bam_part)
-                else:
-                    os.rename(sorted_bam_parts[0], output_dir + "accepted_hits.bam")
-
-            else:
-                print >> run_log, " ".join(report_cmd)
-                report_proc=subprocess.call(report_cmd,
-                                            preexec_fn=subprocess_setup,
-                                            stdout=open(accepted_hits,"wb"),
-                                            stderr=report_log)
-                if report_proc != 0:
-                  die(fail_str+"Error running "+" ".join(report_cmd)+"\n"+log_tail(log_fname))
-
-                os.rename(accepted_hits, output_dir + "accepted_hits.bam")
-        else:
-            print >> run_log, " ".join(report_cmd)
-            report_proc=subprocess.call(report_cmd,
-                                        preexec_fn=subprocess_setup,
-                                        stdout=open(accepted_hits,"wb"),
-                                        stderr=report_log)
-            if report_proc != 0:
-                  die(fail_str+"Error running "+" ".join(report_cmd)+"\n"+log_tail(log_fname))
-
-            tmp_sam = output_dir + "accepted_hits.sam"
-
-            bam_to_sam_cmd = [samtools_path, "view", "-h", accepted_hits]
-            print >> run_log, " ".join(bam_to_sam_cmd) + " > " + tmp_sam
-            bam_to_sam_log = open(logging_dir + "accepted_hits_bam_to_sam.log", "w")
-            tmp_sam_file = open(tmp_sam, "w")
-            ret = subprocess.call(bam_to_sam_cmd,
-                                  stdout=tmp_sam_file,
-                                  stderr=bam_to_sam_log)
-            if ret != 0:
-              die(fail_str+"Error running "+" ".join(bam_to_sam_cmd)+"\n"+logging_dir + "accepted_hits_bam_to_sam.log")
-            tmp_sam_file.close()
-            os.remove(accepted_hits)
+            if params.report_params.convert_bam:
+               bammerge_cmd += ["%s.bam" % accepted_hits]
+               bammerge_cmd += bam_parts
+               print >> run_log, " ".join(bammerge_cmd)
+               subprocess.call(bammerge_cmd,
+                      stderr=open(logging_dir + "reports.merge_bam.log", "w"))
+            else: #make .sam
+               bammerge_cmd += ["-"]
+               bammerge_cmd += bam_parts
+               merge_proc = subprocess.Popen(bammerge_cmd,
+                            stdout=subprocess.PIPE,
+                            stderr=open(logging_dir + "reports.merge_bam.log", "w"))
+               bam2sam_cmd = [samtools_path, "view", "-h", "-"]
+               sam_proc = subprocess.Popen(bam2sam_cmd,
+                              stdin=merge_proc.stdout,
+                              stdout=open(accepted_hits + ".sam", "w"),
+                              stderr=open(logging_dir + "accepted_hits_bam_to_sam.log", "w"))
+               merge_proc.stdout.close()
+               shellcmd = " ".join(bammerge_cmd) + " | " + " ".join(bam2sam_cmd)
+               print >> run_log, shellcmd
+               sam_proc.communicate()
+               retcode = sam_proc.returncode
+               if retcode:
+                 die(fail_str+"Error running:\n"+shellcmd)
+        else: # only one file
+            os.rename(bam_parts[0], accepted_hits+".bam")
+            if not params.report_params.convert_bam:
+               #just convert to .sam
+               bam2sam_cmd = [samtools_path, "view", "-h", accepted_hits+".bam"]
+               shellcmd = " ".join(bam2sam_cmd) + " > " + accepted_hits + ".sam"
+               print >> run_log, shellcmd
+               r = subprocess.call(bam2sam_cmd,
+                              stdout=open(accepted_hits + ".sam", "w"),
+                              stderr=open(logging_dir + "accepted_hits_bam_to_sam.log", "w"))
+               if r != 0:
+                  die(fail_str+"Error running: "+shellcmd)
+               os.remove(accepted_hits+".bam")
 
     except OSError, o:
           die(fail_str+"Error: "+str(o)+"\n"+log_tail(log_fname))
@@ -2836,8 +2878,8 @@ def junctions_from_segments(params,
 
     if params.coverage_search == True:
         print >> sys.stderr, "\tCoverage-search algorithm is turned on, making this step very slow"
-        print >> sys.stderr, "\tPlease try running TopHat again with the option (--no-coverage-search) if the step takes too much time or memory."
-    
+        print >> sys.stderr, "\tPlease try running TopHat again with the option (--no-coverage-search) if this step takes too much time or memory."
+
     out_path=getFileDir(left_seg_maps[0])
     juncs_out=out_path+"segment.juncs"
     insertions_out=out_path+"segment.insertions"
@@ -3093,7 +3135,7 @@ def map2gtf(params, genome_sam_header_filename, ref_fasta, left_reads, right_rea
                            params.gff_annotation,
                            reads,
                            bam_out_fname)
-        
+
         bam_gtf_list.append(bam_out_fname)
         if not params.system_params.keep_tmp:
             removeFileWithIndex(reads)
@@ -3109,21 +3151,23 @@ def get_preflt_data(params, ri, target_reads, out_mappings, out_unmapped):
  ## extract mappings and unmapped reads from prefilter mappings and preflt_ium
  ##
  #this is accomplished by a special prep_reads usage (triggered by --flt-hits)
- use_bam=None
- if params.read_params.color:
-   out_unmapped += ".fq"
-   #if use_zpacker: out_unmapped += ".z"
- else:
-   out_unmapped += ".bam"
-   use_bam = out_unmapped
- do_use_zpacker = use_zpacker and not use_bam
+ out_bam=None
+ #if params.read_params.color:
+ #  out_unmapped += ".fq"
+ #  #if use_zpacker: out_unmapped += ".z"
+ #else:
+ out_unmapped += ".bam"
+ out_bam = out_unmapped
+ # no colorspace reads
+ do_use_zpacker = use_zpacker and not out_bam
  prep_cmd=prep_reads_cmd(params, params.preflt_data[ri].unmapped_reads, None,
-                     use_bam, # stdout file
-                     out_mappings,
-                     None,
-                     target_reads,
-                     params.preflt_data[ri].mappings)
- if not use_bam: um_reads = open(out_unmapped, "wb")
+                     None, None, # right-side mates
+                     out_bam, # stdout file
+                     out_mappings, # aux file (filtered mappings)
+                     None, # no index for out_bam
+                     [target_reads], # prefilter reads
+                     [params.preflt_data[ri].mappings]) # mappings to filter
+ if not out_bam: um_reads = open(out_unmapped, "wb")
  log_fname=logging_dir + "prep_reads.from_preflt."+str(ri)+".log"
  filter_log = open(log_fname,"w")
 
@@ -3135,7 +3179,7 @@ def get_preflt_data(params, ri, target_reads, out_mappings, out_unmapped):
     zip_cmd.extend(params.system_params.zipper_opts)
     zip_cmd.extend(['-c','-'])
     shell_cmd +=' | '+' '.join(zip_cmd)
- if not use_bam:
+ if not out_bam:
     shell_cmd += ' >' + out_unmapped
  retcode=0
  try:
@@ -3154,7 +3198,7 @@ def get_preflt_data(params, ri, target_reads, out_mappings, out_unmapped):
          if retcode==0:
            retcode=zip_proc.poll()
      else:
-         if use_bam:
+         if out_bam:
              retcode = subprocess.call(prep_cmd, stderr=filter_log)
          else:
              retcode = subprocess.call(prep_cmd, stdout=um_reads,
@@ -3165,7 +3209,7 @@ def get_preflt_data(params, ri, target_reads, out_mappings, out_unmapped):
  except OSError, o:
      errmsg=fail_str+str(o)
      die(errmsg+"\n"+log_tail(log_fname))
- if not use_bam: um_reads.close()
+ if not out_bam: um_reads.close()
 
  return (out_mappings, out_unmapped)
 
@@ -3504,8 +3548,9 @@ def spliced_alignment(params,
 
                     for spliced_seg_map in spliced_seg_maps:
                         removeFileWithIndex(spliced_seg_map)
-                   
 
+
+        #if num_segs > 1 or m2g_map:
         # Merge the spliced and unspliced full length alignments into
         # a single SAM file.
         # The individual SAM files are all already sorted in
@@ -3513,6 +3558,7 @@ def spliced_alignment(params,
         # NOTE: We also should be able to address bug #134 here, by replacing
         # contiguous alignments that poke into an intron by a small amount by
         # the correct spliced alignment.
+
         try:
             merge_cmd = [prog_path("bam_merge"),
                          "--index-outfile", merged_map + ".index",
@@ -3562,7 +3608,15 @@ def spliced_alignment(params,
         if not params.system_params.keep_tmp:
             if mapped_reads and os.path.exists(mapped_reads):
                  os.remove(mapped_reads)
+        #else:
+        #    # no segments or transcriptome mappings, so no merge is needed
+        #    #  because join_mapped_segments() produced the final BAM already
+        #    os.rename(mapped_reads, merged_map)
+        #    maps[ri] = [merged_map]
 
+        #if not params.system_params.keep_tmp:
+        #    if unspl_samfile and os.path.exists(unspl_samfile):
+        #        os.remove(unspl_samfile)
 
     return maps
 
@@ -3618,7 +3672,7 @@ def main(argv=None):
 
         bwt_idx_prefix = args[0]
         left_reads_list = args[1]
-        left_quals_list, right_quals_list = [], []
+        left_quals_list, right_quals_list = None, None
         if (not params.read_params.quals and len(args) > 2) or (params.read_params.quals and len(args) > 3):
             if params.read_params.mate_inner_dist == None:
                 params.read_params.mate_inner_dist = 50
@@ -3737,6 +3791,7 @@ def main(argv=None):
         if params.prefilter_multi:
             sides=("left","right")
             read_lists=(left_reads_list, right_reads_list)
+            qual_lists=(left_quals_list, right_quals_list)
             for ri in (0,1):
                reads_list=read_lists[ri]
                if not reads_list:
@@ -3744,6 +3799,8 @@ def main(argv=None):
                fmulti_ext="bam"
                if not params.bowtie2:
                  fmulti_ext="fq"
+               params.preflt_data[ri].seqfiles = reads_list
+               params.preflt_data[ri].qualfiles = qual_lists[ri]
                params.preflt_data[ri].multihit_reads = tmp_dir + sides[ri]+"_multimapped."+fmulti_ext
                side_imap = tmp_dir + sides[ri]+"_im"
                #if use_zpacker: side_imap+=".z"
@@ -3756,28 +3813,32 @@ def main(argv=None):
                      params.read_params.reads_format,
                      params.genome_read_mismatches,
                      side_imap, side_ium,
-                     "", _reads_vs_G, params.preflt_data[ri].multihit_reads)
+                     "", _reads_vs_G,  ri )             #  multi-mapped reads will be in params.preflt_data[ri].multihit_reads
                params.preflt_data[ri].mappings = bwt[0] # initial mappings
                params.preflt_data[ri].unmapped_reads = bwt[1] # IUM reads
 
         th_log("Preparing reads")
-        left_kept_reads, left_reads_info = prep_reads(params,
-                                     left_reads_list,
-                                     left_quals_list,
-                                     "left",
-                                     params.preflt_data[0].multihit_reads)
-        min_read_len=left_reads_info.min_len
-        max_read_len=left_reads_info.max_len
-        if right_reads_list:
-            right_kept_reads, right_reads_info = prep_reads(params,
-                                          right_reads_list,
-                                          right_quals_list,
-                                          "right",
-                                          params.preflt_data[1].multihit_reads)
-            min_read_len=min(right_reads_info.min_len, min_read_len)
-            max_read_len=max(right_reads_info.max_len, max_read_len)
-        else:
-            right_kept_reads = None
+        prep_info=None
+
+        multihit_reads = []
+        if params.preflt_data[0].multihit_reads:
+           multihit_reads += [params.preflt_data[0].multihit_reads]
+        if params.preflt_data[1].multihit_reads:
+           multihit_reads += [params.preflt_data[1].multihit_reads]
+        prep_info= prep_reads(params,
+                         left_reads_list, left_quals_list,
+                         right_reads_list, right_quals_list,
+                         multihit_reads)
+
+        min_read_len = prep_info.min_len[0]
+        if prep_info.min_len[1] > 0 and min_read_len > prep_info.min_len[1]:
+           min_read_len = prep_info.min_len[1]
+
+        if min_read_len < 20:
+                  th_logp("Warning: short reads (<20bp) will make TopHat quite slow and take large amount of memory because they are likely to be mapped to too many places")
+
+        max_read_len=max(prep_info.max_len[0], prep_info.max_len[1])
+
         seed_len=params.read_params.seed_length
         if seed_len: #if read len was explicitly given
             seed_len = max(seed_len, min_read_len)
@@ -3789,7 +3850,7 @@ def main(argv=None):
         if params.read_params.integer_quals:
             params.read_params.integer_quals = False
 
-        input_reads = [left_kept_reads, right_kept_reads]
+        input_reads = prep_info.kept_reads[:]
         mappings = spliced_alignment(params,
                               bwt_idx_prefix,
                               sam_header_filename,
@@ -3809,18 +3870,19 @@ def main(argv=None):
                         params.gff_annotation)
 
         if not params.system_params.keep_tmp:
-            for m in mappings[0]:
-                os.remove(m)
-            if left_kept_reads:
-                os.remove(left_kept_reads)
-            for m in mappings[1]:
-                os.remove(m)
-            if right_kept_reads:
-                os.remove(right_kept_reads)
-            tmp_files = os.listdir(tmp_dir)
-            for t in tmp_files:
-                os.remove(tmp_dir+t)
-            os.rmdir(tmp_dir)
+            try:
+              for m in mappings[0]:
+                  os.remove(m)
+              for m in input_reads:
+                  if m and os.path.exists(m): os.remove(m)
+              for m in mappings[1]:
+                  os.remove(m)
+              tmp_files = os.listdir(tmp_dir)
+              for t in tmp_files:
+                  os.remove(tmp_dir+t)
+              os.rmdir(tmp_dir)
+            except OSError, o:
+              th_logp("Warning: couldn't remove all temporary files in "+tmp_dir)
 
         finish_time = datetime.now()
         duration = finish_time - start_time

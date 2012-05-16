@@ -681,7 +681,7 @@ void print_sam_for_single(const RefSequenceTable& rt,
 			  GBamWriter& bam_writer,
 			  boost::random::mt19937& rng)
 {
-    assert(!read.alt_name.empty());
+    //assert(!read.alt_name.empty());
     if (hits.hits.empty())
       return;
     
@@ -747,7 +747,6 @@ void print_sam_for_pair(const RefSequenceTable& rt,
     if (!report_secondary_alignments)
       primaryHit = rng() % right_hits.hits.size();
     
-    assert (got_left_read && got_right_read);
     bool multipleHits = (best_hits.size() > 1);
     for (i = 0; i < best_hits.size(); ++i)
       {

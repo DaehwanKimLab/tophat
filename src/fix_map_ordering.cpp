@@ -236,7 +236,7 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
        //collect all hits for this read
        read_hits.push_back(map_pq.top());
        unsigned int mcount=0; //number of good scoring multi-hits
-       int tbscore=0;
+       int tbscore=0; //best mapping score for this read (first alignment reported)
        if (bowtie2) {
 	 uint8_t* ptr = bam_aux_get(tb, "AS");
 	 if (ptr) {
@@ -254,7 +254,8 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
            uint8_t* ptr = bam_aux_get(map_pq.top().second, "AS");
            if (ptr) {
 	     int score=bam_aux2i(ptr);
-	     if (score>=bowtie2_min_score) {
+         	    //if (score>=bowtie2_min_score) {
+         	   if (score>=bowtie2_min_score && score>=tbscore-2) {
 	       ++mcount;
 	     }
 	   }
