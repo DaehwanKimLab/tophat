@@ -2194,7 +2194,8 @@ def bowtie(params,
            prep_cmd = prep_reads_cmd(params, params.preflt_data[0].seqfiles, params.preflt_data[0].qualfiles,
                                       params.preflt_data[1].seqfiles, params.preflt_data[1].qualfiles)
            prep_cmd.insert(1,"--flt-side="+str(multihits_out))
-           preplog_fname=logging_dir + "prep_reads_prefilter.log"
+           sides=["left", "right"]
+           preplog_fname=logging_dir + "prep_reads.prefilter_%s.log" % sides[multihits_out]
            prepfilter_log = open(preplog_fname,"w")
            unzip_proc = subprocess.Popen(prep_cmd,
                                 stdout=subprocess.PIPE,
@@ -3168,7 +3169,8 @@ def get_preflt_data(params, ri, target_reads, out_mappings, out_unmapped):
                      [target_reads], # prefilter reads
                      [params.preflt_data[ri].mappings]) # mappings to filter
  if not out_bam: um_reads = open(out_unmapped, "wb")
- log_fname=logging_dir + "prep_reads.from_preflt."+str(ri)+".log"
+ sides=["left","right"]
+ log_fname=logging_dir + "prep_reads.from_preflt."+sides[ri]+".log"
  filter_log = open(log_fname,"w")
 
  shell_cmd = " ".join(prep_cmd)

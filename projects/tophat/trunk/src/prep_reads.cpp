@@ -388,6 +388,7 @@ void process_reads(vector<string>& reads_fnames, vector<FZPipe>& quals_files,
     //for PE reads, flt_side will decide which side is printed (can't be both)
     if (have_mates && flt_side==2)
       err_die("Error: --flt-side option required for PE reads directed to stdout!\n");
+    mate_fout=stdout;
   }
   else { //output file name explicitely given
 	//could be a template
@@ -474,9 +475,10 @@ void process_reads(vector<string>& reads_fnames, vector<FZPipe>& quals_files,
 			  next_id, read.name.c_str(), mate_read.name.c_str());
 		}
 	  }
-	  processRead(matenum, read, next_id,  num_reads_chucked, multimap_chucked,
-		  wbam, fout, fqindex, min_read_len,  max_read_len,  fout_offset, readmap);
-	  if (mate_reads) {
+	  if ((flt_side & 1)==0)
+	    processRead(matenum, read, next_id,  num_reads_chucked, multimap_chucked,
+		   wbam, fout, fqindex, min_read_len,  max_read_len,  fout_offset, readmap);
+	  if (mate_reads && flt_side>0) {
 		  matenum=2;
 		  processRead(matenum, mate_read, next_id,  mate_num_reads_chucked, mate_multimap_chucked,
 			  mate_wbam, mate_fout, mate_fqindex, mate_min_read_len,  mate_max_read_len,
@@ -485,17 +487,21 @@ void process_reads(vector<string>& reads_fnames, vector<FZPipe>& quals_files,
 
       } //while !fr.isEof()
     } //for each input file
-  fprintf(stderr, "%u out of %u reads have been filtered out\n",
-	  num_reads_chucked, next_id);
-  if (readmap_loaded)
-    fprintf(stderr, "\t(%u filtered out due to %s)\n",
-	    multimap_chucked, flt_reads_fnames[0].c_str());
-  if (have_mates)
+  if (fout!=stdout || (flt_side & 1) == 0) {
+	fprintf(stderr, "%u out of %u reads have been filtered out\n",
+		num_reads_chucked, next_id);
+	if (readmap_loaded)
+	  fprintf(stderr, "\t(%u filtered out due to %s)\n",
+		  multimap_chucked, flt_reads_fnames[0].c_str());
+  }
+
+  if (have_mates && (fout!=stdout || flt_side>0)) {
 	fprintf(stderr, "%u out of %u read mates have been filtered out\n",
-	   mate_num_reads_chucked, next_id);
-  if (readmap_loaded && have_mates && mate_multimap_chucked)
-	fprintf(stderr, "\t(%u mates filtered out due to %s)\n",
-	    mate_multimap_chucked, flt_reads_fnames[1].c_str());
+		mate_num_reads_chucked, next_id);
+	if (readmap_loaded && mate_multimap_chucked)
+	  fprintf(stderr, "\t(%u mates filtered out due to %s)\n",
+		  mate_multimap_chucked, flt_reads_fnames[1].c_str());
+  }
 
   if (wbam) { delete wbam; }
   if (mate_wbam) { delete mate_wbam; }
