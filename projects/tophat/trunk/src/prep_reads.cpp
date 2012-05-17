@@ -338,7 +338,7 @@ bool processRead(int matenum, Read& read, uint32_t next_id,  int& num_reads_chuc
 	if (fqindex != NULL)
 			{
 		  if ((next_id - num_reads_chucked) % INDEX_REC_COUNT == 0)
-		fprintf(fqindex, "%d\t%lu\n", next_id, fout_offset);
+		fprintf(fqindex, "%d\t%lu\n", next_id, (long unsigned)fout_offset);
 	}
 
 	fout_offset += strlen(buf);
