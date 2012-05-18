@@ -1964,7 +1964,11 @@ void driver(const string& bam_output_fname,
               uint32_t right_coord = atoi(scan_right_coord);
               bool antisense = *orientation == '-';
 
-              gtf_junctions.insert(make_pair<Junction, JunctionStats>(Junction(ref_id, left_coord, right_coord, antisense), JunctionStats()));
+	      JunctionStats junction_stat;
+	      junction_stat.gtf_match = true;
+	      junction_stat.accepted = true;
+	      
+              gtf_junctions.insert(make_pair<Junction, JunctionStats>(Junction(ref_id, left_coord, right_coord, antisense), junction_stat));
             }
         }
       fprintf(stderr, "Loaded %d GFF junctions from %s.\n", (int)(gtf_junctions.size()), gtf_juncs.c_str());
@@ -2035,7 +2039,7 @@ void driver(const string& bam_output_fname,
     }
 
   for (size_t i = 0; i < threads.size(); ++i)
-      {
+    {
       threads[i]->join();
       delete threads[i];
       threads[i] = NULL;
@@ -2064,6 +2068,8 @@ void driver(const string& bam_output_fname,
       coverage.merge_with(vcoverages[i]);
       vcoverages[i].clear();
     }
+
+  merge_with(junctions, gtf_junctions);
 
   coverage.calculate_coverage();
   

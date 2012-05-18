@@ -2641,12 +2641,11 @@ def compile_reports(params, sam_header_filename, ref_fasta, mappings, readfiles,
           left_um_file =  tmp_dir + "unmapped_left_%d.bam" % i
           right_um_file = tmp_dir + "unmapped_right_%d.bam" % i
           um_len = len(um_parts)
-          if os.path.exists(left_um_file):
+          if bamExists_and_NonEmpty(left_um_file):
              um_parts.append(left_um_file)
-          if right_reads and os.path.exists(right_um_file):
+          if right_reads and bamExists_and_NonEmpty(right_um_file):
              um_parts.append(right_um_file)
-          if um_len == len(um_parts):
-             break
+
       if len(um_parts) > 0:
           if len(um_parts)==1:
             os.rename(um_parts[0], um_merged)

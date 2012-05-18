@@ -94,6 +94,9 @@ JunctionStats() : left_extent(0), right_extent(0), left_exon_doc(0), right_exon_
     min_splice_mms = min(min_splice_mms, other.min_splice_mms);
     supporting_hits += other.supporting_hits;
 
+    gtf_match |= other.gtf_match;
+    accepted |= other.accepted;
+
     return *this;
   }
   
