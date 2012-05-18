@@ -81,8 +81,7 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 		    <ul>
 		      <table width="100%"><tbody><tr>
 		      <td>
-<br>
-</td></tr><tr><td>version 2.0.1 (BETA)</td> <td align="right">5/17/2012</td></tr>
+			  </td></tr><tr><td>version 2.0.1 (BETA)</td> <td align="right">5/17/2012</td></tr>
 				<tr>
 		      		<td><a href="./downloads/tophat-2.0.1.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
 		      	</tr>
@@ -154,8 +153,13 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 </li>
 	  <li> Paired-end input reads are now checked for consistency (proper ordering in the input files).<br>
 </li>
-	  <li>Restored the functionality of options --no-sort-bam and --no-convert-bam.<br>
+	  <li> Restored the functionality of options --no-sort-bam and --no-convert-bam.<br>
 </li>
+	  <li> --transcriptome-only option is correctly processed. </li>
+	  <li> Some of alignments that overlap with introns are realigned against those corresponding splice sites.
+	    If those new alignments are better than the previous alignments, they will be reported. </li>
+	  <li> If the reference genome and the transcriptome files have the same prefix like genome (genome.fa and genome.gtf),
+	    it caused some naming problems for chromosomes, which is now fixed. </li>
 	</ul>
 	  <p></p><br>
 	    
