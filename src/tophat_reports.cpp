@@ -931,6 +931,8 @@ void realign_reads(HitsForRead& hits,
   for (size_t i = 0; i < hits.hits.size(); ++i)
     {
       BowtieHit& bh = hits.hits[i];
+      if (fusion_search && bh.fusion_opcode() != FUSION_NOTHING)
+	return;
 
       const vector<CigarOp>& cigars = bh.cigar();
       int pos = bh.left();
