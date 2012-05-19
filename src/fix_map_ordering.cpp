@@ -186,6 +186,7 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
      
      bam1_t* tb=map_pq.top().second;
      bool unmapped = (tb->core.flag & BAM_FUNMAP) != 0;
+      
      if (unmapped) { //unmapped read
        if (umbam!=NULL)
 	 {
@@ -286,6 +287,7 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
          for (vector<pair<uint64_t, bam1_t*> >::size_type i=0;i<read_hits.size();++i)
 	   {
 	     pair<uint64_t, bam1_t*>& v = read_hits[i];
+	     v.second->core.flag &= ~BAM_FSECONDARY;
 
 	     // restore quality values
 	     if (bowtie2 && num_hits > 1) {
