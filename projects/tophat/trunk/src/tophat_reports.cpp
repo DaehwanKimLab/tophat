@@ -992,8 +992,7 @@ void realign_reads(HitsForRead& hits,
 			Junction junc = junc_iter->first;
 			
 			/*
-			fprintf(stderr, "(type%d) %d %d-%d %s (AS:%d XM:%d) with junc %u-%u\n",
-				!use_rev_junctions,
+			fprintf(stderr, "%d %d-%d %s (AS:%d XM:%d) with junc %u-%u\n",
 				bh.insert_id(), bh.left(), bh.right(),
 				print_cigar(bh.cigar()).c_str(),
 				bh.alignment_score(), bh.edit_dist(),
@@ -1036,22 +1035,26 @@ void realign_reads(HitsForRead& hits,
 			      }
 			  }
 
-			if (anchored)
+			BowtieHit new_bh(bh.ref_id(),
+					 bh.ref_id2(),
+					 bh.insert_id(), 
+					 new_left,  
+					 new_cigars,
+					 bh.antisense_align(),
+					 junc.antisense,
+					 0, /* edit_dist - needs to be recalculated */
+					 0, /* splice_mms - needs to be recalculated */
+					 false);
+
+			new_bh.seq(bh.seq());
+			new_bh.qual(bh.qual());
+
+			const RefSequenceTable::Sequence* ref_str = rt.get_seq(bh.ref_id());
+			    
+			if (new_left >= 0 &&
+			    bh.right() <= length(ref_str) &&
+			    anchored)
 			  {
-			    BowtieHit new_bh(bh.ref_id(),
-					     bh.ref_id2(),
-					     bh.insert_id(), 
-					     new_left,  
-					     new_cigars,
-					     bh.antisense_align(),
-					     junc.antisense,
-					     0, /* edit_dist - needs to be recalculated */
-					     0, /* splice_mms - needs to be recalculated */
-					     false);
-			    
-			    new_bh.seq(bh.seq());
-			    new_bh.qual(bh.qual());
-			    
 			    vector<string> aux_fields;
 			    bowtie_sam_extra(new_bh, rt, aux_fields);
 			    
