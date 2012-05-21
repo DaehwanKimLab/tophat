@@ -3026,7 +3026,7 @@ void bowtie_sam_extra(const BowtieHit& bh, const RefSequenceTable& rt, vector<st
   
   if (!ref_str1 || !ref_str2)
     return;
-  
+
   RefSequenceTable::Sequence* ref_str = ref_str1;
 
   size_t pos_seq = 0;
