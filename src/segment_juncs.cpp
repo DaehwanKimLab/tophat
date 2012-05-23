@@ -2526,7 +2526,7 @@ void detect_small_insertion(RefSequenceTable& rt,
       adjustment = -1;
     }
     if(minErrors <= (leftHit.edit_dist() + rightHit.edit_dist() + adjustment) &&
-       bestInsertPosition + discrepancy <= length(left_read_sequence)){
+       bestInsertPosition + discrepancy <= (int)length(left_read_sequence)){
       String<char> insertedSequence = seqan::infix(left_read_sequence, bestInsertPosition, bestInsertPosition + discrepancy);
       if(color)
 	insertedSequence = convert_color_to_bp(genomic_sequence_temp[bestInsertPosition - begin_offset + end_offset - 1], insertedSequence);
