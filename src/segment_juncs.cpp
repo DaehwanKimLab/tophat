@@ -2525,11 +2525,11 @@ void detect_small_insertion(RefSequenceTable& rt,
     if(leftHit.read_len() + rightHit.read_len() >= (int)read_length){
       adjustment = -1;
     }
-    if(minErrors <= (leftHit.edit_dist()+rightHit.edit_dist()+adjustment)){
+    if(minErrors <= (leftHit.edit_dist() + rightHit.edit_dist() + adjustment) &&
+       bestInsertPosition + discrepancy <= length(left_read_sequence)){
       String<char> insertedSequence = seqan::infix(left_read_sequence, bestInsertPosition, bestInsertPosition + discrepancy);
       if(color)
 	insertedSequence = convert_color_to_bp(genomic_sequence_temp[bestInsertPosition - begin_offset + end_offset - 1], insertedSequence);
-      
       insertions.insert(Insertion(leftHit.ref_id(),
 				  leftHit.left() + bestInsertPosition - 1 + end_offset,
 				  seqan::toCString(insertedSequence)));
@@ -4744,8 +4744,13 @@ struct SegmentSearchWorker
 					     begin_id, end_id)) != 0)
       {
 	num_group++;
-	//if (num_group % 500000 == 0)
-	//  fprintf(stderr, "\tProcessed %d root segment groups\n", num_group);
+#if 0
+	if (num_group % 500000 == 0)
+	  {
+	    fprintf(stderr, "\tProcessed %d in %d between %d and %d root segment groups\n", num_group, read_id, begin_id, end_id);
+	    fprintf(stderr, "\t# of events %d(j)-%d(i)-%d(d)\n", juncs->size(), deletions->size(), insertions->size());
+	  }
+#endif
 
 	last_read_id = read_id;
       }
@@ -5181,12 +5186,26 @@ void driver(istream& ref_stream,
   if(insertions_out){
     for(std::set<Insertion>::iterator itr = insertions.begin(); itr != insertions.end(); ++itr){
       const char* ref_name = rt.get_name(itr->refid);
-      fprintf(insertions_out,
-	      "%s\t%d\t%d\t%s\n",
-	      ref_name,
-	      itr->left,
-	      itr->left,
-	      itr->sequence.c_str());
+
+      // daehwan - for debugging purposes
+      if (rand() % 10 == 0)
+	{
+	  fprintf(insertions_out,
+		  "\n%s\t%d\t%d\t%s\n",
+		  ref_name,
+		  itr->left,
+		  itr->left,
+		  itr->sequence.c_str());
+	}
+      else
+	{
+	  fprintf(insertions_out,
+		  "%s\t%d\t%d\t%s\n",
+		  ref_name,
+		  itr->left,
+		  itr->left,
+		  itr->sequence.c_str());
+	}
     }
     fclose(insertions_out);
   }else{

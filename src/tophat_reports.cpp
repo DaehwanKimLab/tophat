@@ -927,6 +927,9 @@ void realign_reads(HitsForRead& hits,
 		   const DeletionSet& rev_deletions,
 		   const FusionSet& fusions)
 {
+  if (color)
+    return;
+  
   vector<BowtieHit> additional_hits;
   for (size_t i = 0; i < hits.hits.size(); ++i)
     {
