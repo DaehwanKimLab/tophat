@@ -81,15 +81,15 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 		    <ul>
 		      <table width="100%"><tbody><tr>
 		      <td>
-			  </td></tr><tr><td>version 2.0.1 (BETA)</td> <td align="right">5/17/2012</td></tr>
+			  </td></tr><tr><td>version 2.0.2 (BETA)</td> <td align="right">5/23/2012</td></tr>
 				<tr>
-		      		<td><a href="./downloads/tophat-2.0.1.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
+		      		<td><a href="./downloads/tophat-2.0.2.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
 		      	</tr>
 				<tr>
-					<td><a href="./downloads/tophat-2.0.1.Linux_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
+					<td><a href="./downloads/tophat-2.0.2.Linux_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
 				</tr>
 				<tr>
-					<td><a href="./downloads/tophat-2.0.1.OSX_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
+					<td><a href="./downloads/tophat-2.0.2.OSX_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
 				</tr>
 		      
 		      
@@ -143,14 +143,25 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 		
 	</div> <!-- End of "rightside" -->
 	<div id="leftside">
+	  <h2>iGenomes index and annotation  have been updated to include Bowtie2 indexes (in addition to Bowtie1 indexes) - 5/23/2012</h2>
+
+	  <p></p><br>
+	  <h2>TopHat 2.0.2 release 5/23/2012</h2>
+	  <p> Version 2.0.2 is a maintenance release:
+	</p><ul>
+	  <li> Fixed a bug TopHat2 aborts while reads overlapping with introns are being re-aligned, giving an error message like <br/>
+	  ./SeqAn-1.3/seqan/sequence/segment_infix.h:81 Assertion failed : data_begin_position <= data_end_position was: 18446744073709551607 > 31</li>
+	  <li> Some unique alignments were set as secondary alignments using 0x100 SAM flag, which is now fixed. </li>
+	</ul>
+	  
+	  <p></p><br>
 	  <h2>TopHat 2.0.1 maintenance release 5/17/2012</h2>
 	  <p> Version 2.0.1 is a maintenance release addressing some issues found in the 2.0.0 release:
 	</p><ul>
 	  <li> Fixed the problem with some alignments in the BAM output (accepted_hits.bam) missing quality values. </li>
 	  <li> The Read Group tag "RG" is now properly written for each alignment when using --rg-id and related options.</li>
 	  <li> More strict checking for genomic coordinates is performed when retrieving spliced sequences. </li>
-	  <li> Colorspace reads are now correctly handled (--color option).<br>
-</li>
+	  <li> Colorspace reads are now correctly handled (--color option).<br></li>
 	  <li> Paired-end input reads are now checked for consistency (proper ordering in the input files).<br>
 </li>
 	  <li> Restored the functionality of options --no-sort-bam and --no-convert-bam.<br>
@@ -160,6 +171,7 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 	    If those new alignments are better than the previous alignments, they will be reported. </li>
 	  <li> If the reference genome and the transcriptome files have the same prefix like genome (genome.fa and genome.gtf),
 	    it caused some naming problems for chromosomes, which is now fixed. </li>
+	  <li> Some of reads not present in neither accepted_hits.bam nor unmapped.bam are now reported correctly.</li>
 	</ul>
 	  <p></p><br>
 	    
