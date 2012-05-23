@@ -555,7 +555,7 @@ int main(int argc, char *argv[])
 {
   fprintf(stderr, "prep_reads v%s (%s)\n", PACKAGE_VERSION, SVN_REVISION); 
   fprintf(stderr, "---------------------------\n");
-  
+
   int parse_ret = parse_options(argc, argv, print_usage);
   if (parse_ret)
     return parse_ret;
