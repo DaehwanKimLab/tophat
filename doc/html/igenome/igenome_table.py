@@ -7,7 +7,7 @@ from ftplib import FTP
 use_message = '''
 '''
 
-ftp_address = 'ftp.illumina.com'
+ftp_address = 'ussd-ftp.illumina.com'
 user_id = 'igenome'
 password = 'G3nom3s4u'
 
