@@ -1053,9 +1053,9 @@ void realign_reads(HitsForRead& hits,
 			new_bh.qual(bh.qual());
 
 			const RefSequenceTable::Sequence* ref_str = rt.get_seq(bh.ref_id());
-			    
+
 			if (new_left >= 0 &&
-			    bh.right() <= (int)length(ref_str) &&
+			    new_bh.right() <= (int)length(*ref_str) &&
 			    anchored)
 			  {
 			    vector<string> aux_fields;
