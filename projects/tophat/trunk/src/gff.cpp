@@ -731,9 +731,12 @@ void GffObj::removeExon(GffExon* p) {
         int segend=exons[idx]->end;
         exons.Delete(idx);
         covlen -= (int)(segend-segstart)+1;
-        start=exons.First()->start;
-        end=exons.Last()->end;
-        if (isCDS) { CDstart=start; CDend=end; }
+
+	if (exons.Count() > 0) {
+	  start=exons.First()->start;
+	  end=exons.Last()->end;
+	  if (isCDS) { CDstart=start; CDend=end; }
+	}
         return;
         }
      }
