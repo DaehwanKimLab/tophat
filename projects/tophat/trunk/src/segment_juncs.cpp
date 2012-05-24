@@ -5186,26 +5186,12 @@ void driver(istream& ref_stream,
   if(insertions_out){
     for(std::set<Insertion>::iterator itr = insertions.begin(); itr != insertions.end(); ++itr){
       const char* ref_name = rt.get_name(itr->refid);
-
-      // daehwan - for debugging purposes
-      if (rand() % 10 == 0)
-	{
-	  fprintf(insertions_out,
-		  "\n%s\t%d\t%d\t%s\n",
-		  ref_name,
-		  itr->left,
-		  itr->left,
-		  itr->sequence.c_str());
-	}
-      else
-	{
-	  fprintf(insertions_out,
-		  "%s\t%d\t%d\t%s\n",
-		  ref_name,
-		  itr->left,
-		  itr->left,
-		  itr->sequence.c_str());
-	}
+      fprintf(insertions_out,
+	      "\n%s\t%d\t%d\t%s\n",
+	      ref_name,
+	      itr->left,
+	      itr->left,
+	      itr->sequence.c_str());
     }
     fclose(insertions_out);
   }else{
