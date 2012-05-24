@@ -5187,7 +5187,7 @@ void driver(istream& ref_stream,
     for(std::set<Insertion>::iterator itr = insertions.begin(); itr != insertions.end(); ++itr){
       const char* ref_name = rt.get_name(itr->refid);
       fprintf(insertions_out,
-	      "\n%s\t%d\t%d\t%s\n",
+	      "%s\t%d\t%d\t%s\n",
 	      ref_name,
 	      itr->left,
 	      itr->left,
