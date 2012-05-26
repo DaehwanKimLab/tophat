@@ -184,7 +184,7 @@ if test "x$want_bam" = "xyes"; then
 
 	if test "$succeeded" != "yes" ; then
 		if test "$_version" = "0" ; then
-			AC_MSG_ERROR([[We could not detect the bam libraries (version $bam_lib_version_req_shorten or higher). If you have a staged bam library (still not installed) please specify \$BAM_ROOT in your environment and do not give a PATH to --with-bam option.  If you are sure you have bam installed, then check your version number looking in <bam/version.hpp>. See http://randspringer.de/bam for more documentation.]])
+			AC_MSG_ERROR([[We could not detect the bam libraries (version $bam_lib_version_req_shorten or higher). If you have a staged bam library (still not installed) please specify \$BAM_ROOT in your environment and do not give a PATH to --with-bam option.]])
 		else
 			AC_MSG_NOTICE([Your bam libraries seem too old (version $_version).])
 		fi
