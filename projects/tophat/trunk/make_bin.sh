@@ -8,6 +8,11 @@ fi
 echo "packing up $1.tar.gz, using BAM installation in $2, BOOST installation in $3"
 mkdir $1
 make clean
+make distclean
+if [[ $(uname -m) = "x86_64" ]]; then
+ echo "Linking statically on x86_64.."
+ export LDFLAGS="-static-libgcc -static-libstdc++"
+fi 
 ./configure --prefix=`pwd`/$1 --with-bam=$2 --with-boost=$3
 sed -e 's|__PREFIX__||' src/tophat2.in > src/tophat2
 make
