@@ -1,7 +1,7 @@
 m4_include([ax_boost_base.m4])
 m4_include([ax_boost_thread.m4])
 m4_include([ax_bam.m4])
-m4_include([ax_check_zlib.m4])
+#m4_include([ax_check_zlib.m4])
 
 define([svnversion], esyscmd([sh -c "svnversion|tr -d '\n'"]))dnl
 AC_INIT([tophat],[2.0.3],[cole@cs.umd.edu])
@@ -33,7 +33,7 @@ AM_PATH_PYTHON([2.4])
 AX_BOOST_BASE([1.38.0])
 AX_BAM
 AX_BOOST_THREAD
-AX_CHECK_ZLIB()
+# AX_CHECK_ZLIB()
 
 
 # Checks for header files.
@@ -71,6 +71,8 @@ user_CFLAGS=${CFLAGS}
 generic_CFLAGS="-Wall -Wno-strict-aliasing -g -gdwarf-2 -Wuninitialized"
 ext_CFLAGS=""
 debug_CFLAGS=""
+user_LDFLAGS="$LDFLAGS"
+
 AC_ARG_ENABLE(intel64,      [  --enable-intel64        optimize for Intel64 CPU such as Xeon and Core2],
 			  [ext_CFLAGS="${ext_CFLAGS} -mtune=nocona"], [])
 
@@ -92,7 +94,7 @@ AS_IF([test "x$enable_debug" = xyes],
 CFLAGS="${generic_CFLAGS} ${ext_CFLAGS} ${user_CFLAGS} ${debug_CFLAGS}"
 CXXFLAGS="$CFLAGS"
 CXXFLAGS="$CXXFLAGS $BOOST_CPPFLAGS $BAM_CPPFLAGS -I./SeqAn-1.3"
-LDFLAGS="$ext_LDFLAGS"
+LDFLAGS="$user_LDFLAGS"
 
 AM_INIT_AUTOMAKE([-Wall foreign tar-pax foreign])
 
@@ -106,7 +108,8 @@ AC_OUTPUT
 echo \
 "
 -- ${PACKAGE_STRING} Configuration Results --
-  C++ compiler:        ${CXX} ${CXXFLAGS} ${LDFLAGS}"
+  C++ compiler:        ${CXX} ${CXXFLAGS} \
+  Linker flags:        ${LDFLAGS}"
 
 if test x"${GCC}" = x"yes" ; then
    gcc_version=`${CC} --version | head -n 1`
