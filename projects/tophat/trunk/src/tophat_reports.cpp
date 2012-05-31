@@ -929,7 +929,7 @@ void realign_reads(HitsForRead& hits,
 {
   if (color)
     return;
-  
+
   vector<BowtieHit> additional_hits;
   for (size_t i = 0; i < hits.hits.size(); ++i)
     {
@@ -988,6 +988,9 @@ void realign_reads(HitsForRead& hits,
 			    ++lb;
 			  }
 		      }
+
+		    if (temp_junctions.size() > 10)
+		      continue;
 
 		    JunctionSet::const_iterator junc_iter = temp_junctions.begin();
 		    for (; junc_iter != temp_junctions.end(); ++junc_iter)
