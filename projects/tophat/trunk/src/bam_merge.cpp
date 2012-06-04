@@ -239,9 +239,8 @@ int main(int argc, char *argv[])
     assert (brec.fileno>=0 && brec.b!=NULL);
     // we need to eliminate duplicate alignments, which can happen when using Bowtie2
     // as we may often map the same read against transcriptome, genome, and novel/known splice junctions.
-    if (last_id != brec.read_id && bam_lines.size() > 0)
+    if ((raw_merge || last_id != brec.read_id) && bam_lines.size() > 0)
        write_bam_lines(bamwriter, bam_lines);
-
     last_id = brec.read_id;
     bam_lines.push_back(brec);
     //reuse brec
