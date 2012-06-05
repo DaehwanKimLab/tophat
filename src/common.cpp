@@ -417,15 +417,15 @@ string str_replace(const string& base_str, const string& oldStr, const string& n
 
 
 void str_appendInt(string& str, int64_t v) {
- stringstream ss;
- ss << v;
- str.append(ss.str());
+  char int_str[32] = {0};
+  sprintf(int_str, "%lld", v);
+  str += int_str;
 }
 
 void str_appendUInt(string& str, uint64_t v) {
- stringstream ss;
- ss << v;
- str.append(ss.str());
+  char uint_str[32] = {0};
+  sprintf(uint_str, "%llu", v);
+  str += uint_str;
 }
 
 bool str_endsWith(string& str, const char* suffix) {
