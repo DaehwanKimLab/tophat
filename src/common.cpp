@@ -418,13 +418,13 @@ string str_replace(const string& base_str, const string& oldStr, const string& n
 
 void str_appendInt(string& str, int64_t v) {
   char int_str[32] = {0};
-  sprintf(int_str, "%lld", v);
+  sprintf(int_str, "%ld", v);
   str += int_str;
 }
 
 void str_appendUInt(string& str, uint64_t v) {
   char uint_str[32] = {0};
-  sprintf(uint_str, "%llu", v);
+  sprintf(uint_str, "%lu", v);
   str += uint_str;
 }
 

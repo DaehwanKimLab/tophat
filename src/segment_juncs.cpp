@@ -4747,8 +4747,8 @@ struct SegmentSearchWorker
 #if 0
 	if (num_group % 500000 == 0)
 	  {
-	    fprintf(stderr, "\tProcessed %d in %d between %d and %d root segment groups\n", num_group, read_id, begin_id, end_id);
-	    fprintf(stderr, "\t# of events %d(j)-%d(i)-%d(d)\n", juncs->size(), deletions->size(), insertions->size());
+	    fprintf(stderr, "\tProcessed %lu in %d between %lu and %lu root segment groups\n", num_group, read_id, begin_id, end_id);
+	    fprintf(stderr, "\t# of events %lu(j)-%lu(i)-%lu(d)\n", juncs->size(), deletions->size(), insertions->size());
 	  }
 #endif
 
@@ -4976,7 +4976,7 @@ void driver(istream& ref_stream,
 	  if (i == 0)
 	    {
 	      worker.begin_id = 0;
-	      worker.seg_offsets = vector<int64_t>(left_segmap_fnames.size(), 0);
+	      worker.seg_offsets = vector<int64_t>(right_segmap_fnames.size(), 0);
 	      worker.read_offset = 0;
 	    }
 	  else

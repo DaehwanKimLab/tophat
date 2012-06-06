@@ -178,6 +178,15 @@ bool set_insert_alignment_grade(const BowtieHit& lh, const BowtieHit& rh, const 
 	}
     }
 
+  // a read contains its partner, in which case the paired mapping will be ignored.
+  if (!fusion)
+    {
+      if (lh.left() <= rh.left() && lh.right() >= rh.right())
+	return false;
+      else if (rh.left() <= lh.left() && rh.right() >= lh.right())
+	return false;
+    }
+
   grade = InsertAlignmentGrade(lh, rh, junctions, fusion);
   
   return true;
