@@ -181,9 +181,9 @@ bool set_insert_alignment_grade(const BowtieHit& lh, const BowtieHit& rh, const 
   // a read contains its partner, in which case the paired mapping will be ignored.
   if (!fusion)
     {
-      if (lh.left() <= rh.left() && lh.right() >= rh.right())
+      if (lh.left() <= rh.left() && lh.right() >= rh.right() && lh.right() - lh.left() > rh.right() - rh.left())
 	return false;
-      else if (rh.left() <= lh.left() && rh.right() >= lh.right())
+      else if (rh.left() <= lh.left() && rh.right() >= lh.right() && rh.right() - rh.left() > lh.right() - lh.left())
 	return false;
     }
 
@@ -254,6 +254,7 @@ void pair_best_alignments(const HitsForRead& left_hits,
 	  allowed = set_insert_alignment_grade(lh, rh, final_report ? junctions : gtf_junctions, g);
 
 	  // daehwan - for debugging purposes
+#if 0
 	  if (lh.insert_id() == 325708 && !g.is_fusion() && false)
 	    {
 	      fprintf(stderr, "lh %d:%d %s score: %d (from %d) NM: %d\n",
@@ -264,6 +265,7 @@ void pair_best_alignments(const HitsForRead& left_hits,
 		      rh.alignment_score(), right[j].alignment_score(), rh.edit_dist());
 	      fprintf(stderr, "combined score: %d is_fusion(%d)\n", g.align_score(), g.is_fusion());
 	    }
+#endif
 
 	  if (!allowed) continue;
 	  if (!fusion_search && !report_discordant_pair_alignments && g.is_fusion()) continue;
@@ -1574,6 +1576,50 @@ struct ConsensusEventsWorker
 
 struct ReportWorker
 {
+  void write_singleton_alignments(uint64_t curr_obs_order,
+				  HitsForRead& curr_hit_group,
+				  ReadStream& reads_file,
+				  GBamWriter& bam_writer,
+				  GBamWriter& um_out,
+				  FragmentType fragment_type)
+  {
+    HitsForRead best_hits;
+    best_hits.insert_id = curr_obs_order;
+    
+    realign_reads(curr_hit_group, *rt, *junctions, *rev_junctions,
+		  *insertions, *deletions, *rev_deletions, *fusions);
+    
+    exclude_hits_on_filtered_junctions(*junctions, curr_hit_group);
+    
+    // Process hits for singleton, select best alignments
+    const bool final_report = true;
+    read_best_alignments(curr_hit_group, best_hits, *gtf_junctions,
+			 *junctions, *insertions, *deletions, *fusions, *coverage,
+			 final_report);
+    
+    if (best_hits.hits.size() > 0)
+      {
+	Read read;
+	bool got_read = reads_file.getRead(curr_obs_order, read,
+					   reads_format, false, begin_id, end_id,
+					   &um_out, false);
+	assert (got_read);
+	if (got_read)
+	  {
+	    update_junctions(best_hits, *final_junctions);
+	    update_insertions_and_deletions(best_hits, *final_insertions, *final_deletions);
+	    update_fusions(best_hits, *rt, *final_fusions, *fusions);
+	    
+	    print_sam_for_single(*rt,
+				 best_hits,
+				 fragment_type,
+				 read.alt_name,
+				 bam_writer,
+				 rng);
+	  }
+      }
+  }
+  
   void operator()()
   {
     rng.seed(1);
@@ -1645,40 +1691,12 @@ struct ReportWorker
 	       curr_left_obs_order < end_id &&
 	       curr_left_obs_order != VMAXINT32)
 	  {
-	    HitsForRead best_hits;
-	    best_hits.insert_id = curr_left_obs_order;
-
-	    realign_reads(curr_left_hit_group, *rt, *junctions, *rev_junctions,
-			    *insertions, *deletions, *rev_deletions, *fusions);
-	    
-	    exclude_hits_on_filtered_junctions(*junctions, curr_left_hit_group);
-
-	    // Process hits for left singleton, select best alignments
-	    read_best_alignments(curr_left_hit_group, best_hits, *gtf_junctions,
-				 *junctions, *insertions, *deletions, *fusions, *coverage,
-				 final_report);
-
-	    if (best_hits.hits.size() > 0)
-	      {
-		bool got_read = left_reads_file.getRead(curr_left_obs_order, l_read,
-							reads_format, false, begin_id, end_id,
-							left_um_out, false);
-		assert (got_read);
-
-		if (got_read)
-		  {
-		    update_junctions(best_hits, *final_junctions);
-		    update_insertions_and_deletions(best_hits, *final_insertions, *final_deletions);
-		    update_fusions(best_hits, *rt, *final_fusions, *fusions);
-		    
-		    print_sam_for_single(*rt,
-					 best_hits,
-					 (right_map_fname.empty() ? FRAG_UNPAIRED : FRAG_LEFT),
-					 l_read.alt_name,
-					 bam_writer,
-					 rng);
-		  }
-	      }
+	    write_singleton_alignments(curr_left_obs_order,
+				       curr_left_hit_group,
+				       left_reads_file,
+				       bam_writer,
+				       *left_um_out,
+				       right_map_fname.empty() ? FRAG_UNPAIRED : FRAG_LEFT);
 	    
 	    // Get next hit group
 	    left_hs.next_read_hits(curr_left_hit_group);
@@ -1690,42 +1708,12 @@ struct ReportWorker
 	       curr_right_obs_order < end_id &&
 	       curr_right_obs_order != VMAXINT32)
 	  {
-	    HitsForRead best_hits;
-	    best_hits.insert_id = curr_right_obs_order;
-
-	    if (curr_right_obs_order >=  begin_id)
-	      {
-		realign_reads(curr_right_hit_group, *rt, *junctions, *rev_junctions,
-			      *insertions, *deletions, *rev_deletions, *fusions);
-		exclude_hits_on_filtered_junctions(*junctions, curr_right_hit_group);
-
-		// Process hit for right singleton, select best alignments
-		read_best_alignments(curr_right_hit_group, best_hits, *gtf_junctions,
-				     *junctions, *insertions, *deletions, *fusions, *coverage,
-				     final_report);
-
-		if (best_hits.hits.size() > 0)
-		  {
-		    bool got_read =right_reads_file.getRead(curr_right_obs_order, r_read,
-							    reads_format, false, begin_id, end_id,
-							    right_um_out, false);
-		    assert (got_read);
-
-		    if (got_read)
-		      {
-			update_junctions(best_hits, *final_junctions);
-			update_insertions_and_deletions(best_hits, *final_insertions, *final_deletions);
-			update_fusions(best_hits, *rt, *final_fusions, *fusions);
-			
-			print_sam_for_single(*rt,
-					     best_hits,
-					     FRAG_RIGHT,
-					     r_read.alt_name,
-					     bam_writer,
-					     rng);
-		      }
-		  }
-	      }
+	    write_singleton_alignments(curr_right_obs_order,
+				       curr_right_hit_group,
+				       right_reads_file,
+				       bam_writer,
+				       *right_um_out,
+				       FRAG_RIGHT);
 
 	    // Get next hit group
 	    right_hs.next_read_hits(curr_right_hit_group);
@@ -1746,81 +1734,26 @@ struct ReportWorker
 			    *insertions, *deletions, *rev_deletions, *fusions);
 	    exclude_hits_on_filtered_junctions(*junctions, curr_right_hit_group);
 	    
-	    if (curr_left_hit_group.hits.empty())
-	      {   //only right read mapped
-                //write it in the mapped file with the #MAPPED# flag
-		HitsForRead right_best_hits;
-		right_best_hits.insert_id = curr_right_obs_order;
-		
-		read_best_alignments(curr_right_hit_group, right_best_hits, *gtf_junctions,
-				     *junctions, *insertions, *deletions, *fusions, *coverage,
-				     final_report);
+	    vector<pair<BowtieHit, BowtieHit> > best_hits;
 
-		if (right_best_hits.hits.size() > 0)
-		  {
-		    bool got_read = right_reads_file.getRead(curr_left_obs_order, r_read,
-							     reads_format, false, begin_id, end_id,
-							     right_um_out, false);
-		    assert (got_read);
+	    bool paired_alignments = curr_left_hit_group.hits.size() > 0 && curr_right_hit_group.hits.size() > 0;
+	    InsertAlignmentGrade grade;
 
-		    if (got_read)
-		      {
-			update_junctions(right_best_hits, *final_junctions);
-			update_insertions_and_deletions(right_best_hits, *final_insertions, *final_deletions);
-			update_fusions(right_best_hits, *rt, *final_fusions, *fusions);
-			
-			print_sam_for_single(*rt,
-					     right_best_hits,
-					     FRAG_RIGHT,
-					     r_read.alt_name,
-					     bam_writer,
-					     rng);
-		      }
-		  }
-	      }
-	    else if (curr_right_hit_group.hits.empty())
+	    if (paired_alignments)
 	      {
-		HitsForRead left_best_hits;
-		left_best_hits.insert_id = curr_left_obs_order;
-		//only left read mapped
-		// Process hits for left singleton, select best alignments
-		read_best_alignments(curr_left_hit_group, left_best_hits, *gtf_junctions,
-				     *junctions, *insertions, *deletions, *fusions, *coverage,
-				     final_report);
-		
-		if (left_best_hits.hits.size() > 0)
-		  {
-		    bool got_read =left_reads_file.getRead(curr_left_obs_order, l_read,
-							   reads_format, false, begin_id, end_id,
-							   left_um_out, false);
-		    assert (got_read);
-
-		    if (got_read)
-		      {
-			update_junctions(left_best_hits, *final_junctions);
-			update_insertions_and_deletions(left_best_hits, *final_insertions, *final_deletions);
-			update_fusions(left_best_hits, *rt, *final_fusions, *fusions);
-			
-			print_sam_for_single(*rt,
-					     left_best_hits,
-					     FRAG_LEFT,
-					     l_read.alt_name,
-					     bam_writer,
-					     rng);
-		      }
-		  }
-	      }
-	    else
-	      {
-		vector<pair<BowtieHit, BowtieHit> > best_hits;
-
-		InsertAlignmentGrade grade;
 		pair_best_alignments(curr_left_hit_group,
 				     curr_right_hit_group,
 				     grade, best_hits, *gtf_junctions,
 				     *junctions, *insertions, *deletions, *fusions, *coverage,
 				     final_report);
 
+		if (best_hits.size() <= 0 ||
+		    (grade.fusion && !fusion_search && !report_discordant_pair_alignments))
+		    paired_alignments = false;
+	      }
+
+	    if (paired_alignments)
+	      {
 		HitsForRead best_left_hit_group; best_left_hit_group.insert_id = curr_left_obs_order;
 		HitsForRead best_right_hit_group; best_right_hit_group.insert_id = curr_left_obs_order;
 		
@@ -1829,7 +1762,7 @@ struct ReportWorker
 		    best_left_hit_group.hits.push_back(best_hits[i].first);
 		    best_right_hit_group.hits.push_back(best_hits[i].second);
 		  }
-
+		
 		if (best_hits.size() > 0)
 		  {
 		    bool got_left_read = left_reads_file.getRead(best_hits[0].first.insert_id(), l_read,
@@ -1839,9 +1772,9 @@ struct ReportWorker
 		    bool got_right_read = right_reads_file.getRead(best_hits[0].first.insert_id(), r_read,
 								   reads_format, false, begin_id, end_id,
 								   right_um_out, false);
-
+		    
 		    assert (got_left_read && got_right_read);
-
+		    
 		    if (got_left_read && got_right_read)
 		      {
 			update_junctions(best_left_hit_group, *final_junctions);
@@ -1864,6 +1797,29 @@ struct ReportWorker
 					   begin_id,
 					   end_id);
 		      }
+		  }
+	      }
+	    else
+	      {
+		if (curr_left_hit_group.hits.size() > 0)
+		  {
+		    write_singleton_alignments(curr_left_obs_order,
+					       curr_left_hit_group,
+					       left_reads_file,
+					       bam_writer,
+					       *left_um_out,
+					       (right_map_fname.empty() ? FRAG_UNPAIRED : FRAG_LEFT));
+		  }
+		
+		if (curr_right_hit_group.hits.size() > 0)
+		  {   //only right read mapped
+		    //write it in the mapped file with the #MAPPED# flag
+		    write_singleton_alignments(curr_right_obs_order,
+					       curr_right_hit_group,
+					       right_reads_file,
+					       bam_writer,
+					       *right_um_out,
+					       FRAG_RIGHT);
 		  }
 	      }
 	    
