@@ -2233,8 +2233,8 @@ bool dfs_seg_hits(RefSequenceTable& rt,
 	  BowtieHit* prevHit = &bh_prev;
 	  BowtieHit* currHit = &bh;
 
-	  // daehwan
-	  // if (bh.insert_id() == 11921733)
+	  // daehwan - for debugging purposes
+	  // if (bh.insert_id() == 792140)
 	  //  bDebug = true;
 
 	  /*
