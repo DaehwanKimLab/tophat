@@ -1120,7 +1120,7 @@ void cigar_add(vector<CigarOp>& cigar, CigarOp& op) {
  cigar.push_back(op);
 }
 
-bool spliceCigar(vector<CigarOp>& splcigar, vector<CigarOp>& cigar, vector<bool> mismatches,
+bool spliceCigar(vector<CigarOp>& splcigar, const vector<CigarOp>& cigar, vector<bool> mismatches,
 		 int &left, int spl_start, int spl_len, CigarOpCode spl_code, int& spl_mismatches) {
   //merge the original 'cigar' with the new insert/gap operation
   //at position spl_start and place the result into splcigar;
@@ -1314,7 +1314,7 @@ bool spliceCigar(vector<CigarOp>& splcigar, vector<CigarOp>& cigar, vector<bool>
    //return spl_mismatches;
   // }
 
-   if (splcigar.size() < 3)
+   if (splcigar.size() < cigar.size() + 2)
      return false;
    else if (splcigar.front().opcode != MATCH && splcigar.front().opcode != mATCH)
      return false;
@@ -1322,7 +1322,6 @@ bool spliceCigar(vector<CigarOp>& splcigar, vector<CigarOp>& cigar, vector<bool>
      return false;
    else
      return true;
-     
 }
 
 bool SplicedSAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
