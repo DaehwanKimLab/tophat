@@ -1524,10 +1524,18 @@ struct ConsensusEventsWorker
 	    HitsForRead best_left_hit_group; best_left_hit_group.insert_id = curr_left_obs_order;
 	    HitsForRead best_right_hit_group; best_right_hit_group.insert_id = curr_left_obs_order;
 
-	    for (size_t i = 0; i < best_hits.size(); ++i)
+	    if (best_hits.size() > 0)
 	      {
-		best_left_hit_group.hits.push_back(best_hits[i].first);
-		best_right_hit_group.hits.push_back(best_hits[i].second);
+		for (size_t i = 0; i < best_hits.size(); ++i)
+		  {
+		    best_left_hit_group.hits.push_back(best_hits[i].first);
+		    best_right_hit_group.hits.push_back(best_hits[i].second);
+		  }
+	      }
+	    else
+	      {
+		best_left_hit_group.hits = curr_left_hit_group.hits;
+		best_right_hit_group.hits = curr_right_hit_group.hits;
 	      }
 
 	    update_coverage(best_left_hit_group, *coverage);
@@ -1729,7 +1737,7 @@ struct ReportWorker
 	    realign_reads(curr_left_hit_group, *rt, *junctions, *rev_junctions,
 			  *insertions, *deletions, *rev_deletions, *fusions);
 	    exclude_hits_on_filtered_junctions(*junctions, curr_left_hit_group);
-
+	    
 	    realign_reads(curr_right_hit_group, *rt, *junctions, *rev_junctions,
 			    *insertions, *deletions, *rev_deletions, *fusions);
 	    exclude_hits_on_filtered_junctions(*junctions, curr_right_hit_group);
