@@ -1033,21 +1033,18 @@ def nonzeroFile(filepath):
      fpath, fname=os.path.split(filepath)
      fbase, fext =os.path.splitext(fname)
      if fext.lower() == ".bam":
-        output = os.popen("samtools view %s | head | wc -l" % filepath).read()[:-1]
-        if int(output) > 0:
-          return True
+         samtools_view_cmd = ["samtools", "view", filepath]
+         samtools_view = subprocess.Popen(samtools_view_cmd, stdout=subprocess.PIPE)
+         head_cmd = ["head", "-1"]
+         head = subprocess.Popen(head_cmd, stdin=samtools_view.stdout, stdout=subprocess.PIPE)
+         output = head.communicate()[0][:-1]
+         if len(output) > 0:
+             return True
      else:
         if os.path.getsize(filepath)>25:
           return True
   return False
 
-def bamExists_and_NonEmpty(filepath):
-  if os.path.exists(filepath):
-      output = os.popen("samtools view %s | head | wc -l" % filepath).read()[:-1]
-      if int(output) > 0:
-          return True
-
-  return False
 
 # check if a file exists and has non-zero (or minimum) size
 def fileExists(filepath, minfsize=1):
@@ -2564,13 +2561,18 @@ def compile_reports(params, sam_header_filename, ref_fasta, mappings, readfiles,
 
                     sorted_bam_parts[i] += ".bam"
                     print >> run_log, " ".join(bamsort_cmd)
-                    pid = os.fork()
-                    if pid == 0:
+
+                    if i + 1 < range(num_bam_parts):
+                        pid = os.fork()
+                        if pid == 0:
+                            subprocess.call(bamsort_cmd,
+                                            stderr=open(logging_dir + "reports.samtools_sort.log%d" % i, "w"))
+                            os._exit(os.EX_OK)
+                        else:
+                            pids[i] = pid
+                    else:
                         subprocess.call(bamsort_cmd,
                                         stderr=open(logging_dir + "reports.samtools_sort.log%d" % i, "w"))
-                        os._exit(os.EX_OK)
-                    else:
-                        pids[i] = pid
 
             for i in range(len(pids)):
                     if pids[i] > 0:
@@ -2641,9 +2643,9 @@ def compile_reports(params, sam_header_filename, ref_fasta, mappings, readfiles,
           left_um_file =  tmp_dir + "unmapped_left_%d.bam" % i
           right_um_file = tmp_dir + "unmapped_right_%d.bam" % i
           um_len = len(um_parts)
-          if bamExists_and_NonEmpty(left_um_file):
+          if nonzeroFile(left_um_file):
              um_parts.append(left_um_file)
-          if right_reads and bamExists_and_NonEmpty(right_um_file):
+          if right_reads and nonzeroFile(right_um_file):
              um_parts.append(right_um_file)
 
       if len(um_parts) > 0:
@@ -3569,18 +3571,18 @@ def spliced_alignment(params,
             merge_files = []
 
             if unspl_samfile and \
-                    bamExists_and_NonEmpty(unspl_samfile):
+                    nonzeroFile(unspl_samfile):
                 merge_files += [unspl_samfile]
 
             if m2g_map:
                 merge_files += [m2g_map]
 
-            if os.path.exists(mapped_reads):
+            if nonzeroFile(mapped_reads):
                 merge_files += [mapped_reads]
             else:
                 for bam_i in range(0, params.system_params.num_threads):
                     temp_bam = mapped_reads[:-4] + str(bam_i) + ".bam"
-                    if os.path.exists(temp_bam):
+                    if nonzeroFile(temp_bam):
                         merge_files += [temp_bam]
                     else:
                         break

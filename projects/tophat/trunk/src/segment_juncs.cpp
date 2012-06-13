@@ -4914,8 +4914,8 @@ void driver(istream& ref_stream,
 	  worker.end_id = (i+1 < num_threads) ? read_ids[i] : std::numeric_limits<uint64_t>::max();
       //Geo debug:
       //fprintf(stderr, "Worker %d: begin_id=%lu, end_id=%lu\n", i, worker.begin_id, worker.end_id);
-	  
-	  if (num_threads > 1)
+
+	  if (num_threads > 1 && i + 1 < num_threads)
 	    threads.push_back(new boost::thread(worker));
 	  else
 	    worker();
@@ -4992,7 +4992,7 @@ void driver(istream& ref_stream,
 
 	  worker.end_id = (i+1 < num_threads) ? read_ids[i] : std::numeric_limits<uint64_t>::max();
 
-	  if (num_threads > 1)
+	  if (num_threads > 1 && i + 1 < num_threads)
 	    threads.push_back(new boost::thread(worker));
 	  else
 	    worker();
