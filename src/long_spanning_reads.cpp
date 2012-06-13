@@ -3073,7 +3073,7 @@ void driver(const string& bam_output_fname,
       
       worker.end_id = (i+1 < num_threads) ? read_ids[i] : std::numeric_limits<uint64_t>::max();
 
-      if (num_threads > 1)
+      if (num_threads > 1 && i + 1 < num_threads)
 	threads.push_back(new boost::thread(worker));
       else
 	worker();
