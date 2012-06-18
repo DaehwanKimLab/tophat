@@ -41,6 +41,10 @@ extern int bowtie2_read_gap_cont;
 extern int bowtie2_ref_gap_open;
 extern int bowtie2_ref_gap_cont;
 
+//geo - enforcing an absolute score filter
+extern int bowtie2_scoreflt;
+
+
 // daehwan - temporary for parallelization
 extern bool parallel;
 

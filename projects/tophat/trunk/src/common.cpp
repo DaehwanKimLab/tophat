@@ -78,6 +78,12 @@ void print_mem_usage() {
 
 bool bowtie2 = true;
 int bowtie2_min_score = -10;
+
+//FIXME: experimental score threshold (activated by the hidden -W option)
+//for "soft" filtering in fix_map_ordering
+//should be removed if a bowtie2 min-score function is used instead
+int bowtie2_scoreflt  = 0; 
+
 int bowtie2_max_penalty = 6;
 int bowtie2_min_penalty = 2;
 int bowtie2_penalty_for_N = 1;
@@ -252,7 +258,7 @@ char* get_token(char** str, const char* delims)
   return token;
 }
 
-const char *short_options = "QCp:z:N:w:";
+const char *short_options = "QCp:z:N:w:W:";
 
 enum
   {
@@ -325,6 +331,7 @@ enum
     OPT_BOWTIE2_READ_GAP_CONT,
     OPT_BOWTIE2_REF_GAP_OPEN,
     OPT_BOWTIE2_REF_GAP_CONT,
+    OPT_BOWTIE2_SCOREFLT 
   };
 
 static struct option long_options[] = {
@@ -669,6 +676,10 @@ int parse_options(int argc, char** argv, void (*print_usage)())
       break;
     case OPT_BOWTIE2_REF_GAP_CONT:
       bowtie2_ref_gap_cont = parseIntOpt(0, "--bowtie2-ref-gap-cont must be at least 0", print_usage);
+      break;
+    case 'W':
+    case OPT_BOWTIE2_SCOREFLT:
+      bowtie2_scoreflt = -1 * parseIntOpt(1, "-W option must be at least 1", print_usage);
       break;
     default:
       print_usage();
