@@ -160,39 +160,6 @@ struct QReadData { //read data for the priority queue
      }
   }
 
-  /*
-  bam1_t* b;
-
-  QReadData(uint64_t rid=0, Read* rd=NULL, bam1_t* bd=NULL):
-	 id(rid), read(*rd), b(NULL) {
-     if (bd) {
-       b=bam_dup1(bd);
-     }
-  }
-
-  QReadData(const QReadData& rdata):id(rdata.id),
-	  read(rdata.read), b(NULL) {
-	if (rdata.b) {
-	  b=bam_dup1(rdata.b);
-	}
-  }
-
-  QReadData& operator=(QReadData& rdata) {
-	id=rdata.id;
-	read=rdata.read;
-	if (rdata.b) {
-	  if (b==NULL) { bam_init1(); }
-	  bam_copy1(b, rdata.b);
-	}
-	return *this;
-  }
-
-  ~QReadData() {
-	if (b) {
-	  bam_destroy1(b);
-	}
-  }
-  */
 };
 
 class ReadStream {

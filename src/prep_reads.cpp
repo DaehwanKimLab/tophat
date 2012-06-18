@@ -196,24 +196,13 @@ void writePrepBam(GBamWriter* wbam, Read& read, uint32_t rid, char trashcode=0, 
   size_t pl=rname.length()-1;
   GBamRecord bamrec(rnum.c_str(), -1, 0, false, read.seq.c_str(), NULL, read.qual.c_str());
   if (matenum) {
+	bamrec.set_flag(BAM_FPAIRED);
 	if (matenum==1) bamrec.set_flag(BAM_FREAD1);
 	else if (matenum==2) bamrec.set_flag(BAM_FREAD2);
+
+	if (rname[pl-1]=='/')
+		rname.resize(pl-1);
   }
-  /*
-  int matenum=0;
-  if (rname[pl-1]=='/') {
-    if (rname[pl]=='1') {
-      bamrec.set_flag(BAM_FREAD1);
-      matenum=1;
-    }
-    else if (rname[pl]=='2') {
-      bamrec.set_flag(BAM_FREAD2);
-      matenum=2;
-    }
-	*/
-  if (matenum && rname[pl-1]=='/')
-	rname.resize(pl-1);
-//  }
 
   bamrec.add_aux("ZN", 'Z', rname.length(), (uint8_t*)rname.c_str());
 
@@ -362,6 +351,7 @@ void process_reads(vector<string>& reads_fnames, vector<FZPipe>& quals_files,
   int mate_min_read_len = 20000000;
   int mate_max_read_len = 0;
   uint32_t next_id = 0;
+  uint32_t num_mates = 0;
   FILE* fw=NULL; //aux output file
   string outfname; //std_outfile after instancing template
   string mate_outfname;
@@ -436,6 +426,8 @@ void process_reads(vector<string>& reads_fnames, vector<FZPipe>& quals_files,
 			}
 
   }
+  bool possible_mate_mismatch=false;
+  bool mates_ended=false;
   for (size_t fi = 0; fi < reads_fnames.size(); ++fi)
   {
 	Read read;
@@ -446,46 +438,63 @@ void process_reads(vector<string>& reads_fnames, vector<FZPipe>& quals_files,
 	  fq = & quals_files[fi];
 	ReadStream reads(reads_fnames[fi], fq, true);
 	ReadStream* mate_reads=NULL;
-	if (have_mates) {
+	if (fi>=mate_fnames.size()) mates_ended=true;
+	if (have_mates && !mates_ended) {
 	  if (quals)
 		mate_fq = & mate_quals_files[fi];
 	  mate_reads=new ReadStream(mate_fnames[fi], mate_fq, true);
 	}
 	while (reads.get_direct(read, reads_format)) {
 	  // Get the next read from the file
-	  //if (!next_fastx_read(fr, read, reads_format, ((quals) ? &frq : NULL)))
-	  //    break;
+	  int matenum=0; // 0 = unpaired, 1 = left, 2 = right
 	  ++next_id;
 	  //IMPORTANT: to keep paired reads in sync, this must be
 	  //incremented BEFORE any reads are chucked !
-	  int matenum=0;
-	  if (have_mates) {
-		if (!mate_reads->get_direct(mate_read, reads_format))
-		  err_die("Error: could not retrieve mate for read '%s' !\n",read.name.c_str());
-		//check if reads are paired correctly
-		matenum=1;
-		size_t nl=read.name.length()-1;
-		size_t mate_nl=mate_read.name.length()-1;
-		bool mate_match=(nl==mate_nl);
-		if (mate_match && read.name[nl-1]=='/' ) --nl;
-		if (mate_match && strncmp(read.name.data(), mate_read.name.data(), nl+1)!=0)
-		  mate_match=false;
-		if (!mate_match) {
-		  err_die("Error: read #%d (%s) does not have a matching mate in the same order (%s found instead)\n",
-			  next_id, read.name.c_str(), mate_read.name.c_str());
+	  if (have_mates && !mates_ended) {
+		if (!mate_reads->get_direct(mate_read, reads_format)) {
+		   if (num_mates>0)
+              mates_ended=true;
+		   else {
+			 //no mates found
+		     err_die("Error: could not retrieve mate for read '%s' !\n",read.name.c_str());
+		   }
 		}
-	  }
+		matenum = 1; //read is first in a pair
+		num_mates++;
+		if (!mates_ended && !possible_mate_mismatch) {
+  		  //check if reads are paired correctly
+		  int nl=read.name.length();
+		  bool mate_match=(nl==(int)mate_read.name.length());
+		  //if (mate_match && read.name[nl-1]=='/' ) --nl;
+		  int m_len=0, c=0;
+		  while (c<nl) {
+			if (read.name[c]==mate_read.name[c]) {
+			  m_len++; //number of matching chars in the same position
+			}
+			c++;
+		  }
+		  if (mate_match && nl-m_len > 2) //more than 2 chars differ
+			mate_match=false;
+		  if (!mate_match) {
+			fprintf(stderr, "WARNING: read #%d (%s) does not have a matching mate in the same order (%s found instead).\n",
+				next_id, read.name.c_str(), mate_read.name.c_str());
+			possible_mate_mismatch=true;
+		  }
+		}
+	  } //paired read
 	  if ((flt_side & 1)==0)
-	    processRead(matenum, read, next_id,  num_reads_chucked, multimap_chucked,
-		   wbam, fout, fqindex, min_read_len,  max_read_len,  fout_offset, readmap);
-	  if (mate_reads && flt_side>0) {
-		  matenum=2;
-		  processRead(matenum, mate_read, next_id,  mate_num_reads_chucked, mate_multimap_chucked,
+		  //for unpaired reads or left read in a pair
+	      processRead(matenum, read, next_id,  num_reads_chucked, multimap_chucked,
+		     wbam, fout, fqindex, min_read_len,  max_read_len,  fout_offset, readmap);
+	  if (mate_reads && flt_side>0 && !mates_ended) {
+		  //matenum = 2;
+		  processRead(2, mate_read, next_id,  mate_num_reads_chucked, mate_multimap_chucked,
 			  mate_wbam, mate_fout, mate_fqindex, mate_min_read_len,  mate_max_read_len,
 			  mate_fout_offset, mate_readmap);
-          }
-
-      } //while !fr.isEof()
+      }
+    } //while !fr.isEof()
+	if (mate_reads)
+	  delete mate_reads;
     } //for each input file
   if (fout!=stdout || (flt_side & 1) == 0) {
 	fprintf(stderr, "%u out of %u reads have been filtered out\n",
@@ -519,8 +528,8 @@ void process_reads(vector<string>& reads_fnames, vector<FZPipe>& quals_files,
       side="right_";
       fprintf(fw, "%smin_read_len=%d\n", side.c_str(), mate_min_read_len - (color ? 1 : 0));
       fprintf(fw, "%smax_read_len=%d\n", side.c_str(), mate_max_read_len - (color ? 1 : 0));
-      fprintf(fw, "%sreads_in =%d\n", side.c_str(), next_id);
-      fprintf(fw, "%sreads_out=%d\n", side.c_str(), next_id-mate_num_reads_chucked);
+      fprintf(fw, "%sreads_in =%d\n", side.c_str(), num_mates);
+      fprintf(fw, "%sreads_out=%d\n", side.c_str(), num_mates-mate_num_reads_chucked);
     }
     fclose(fw);
     }
@@ -587,9 +596,11 @@ int main(int argc, char *argv[])
 
   if (!mate_file_list.empty()) {
 	tokenize(mate_file_list, ",",mate_filenames);
+	/*
 	if (reads_filenames.size()!=mate_filenames.size()) {
 	    err_die("Error: same number of input files required for paired reads!\n");
 	  }
+	*/
 	if (quals)
 	{
 	  if (optind>=argc) {

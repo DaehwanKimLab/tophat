@@ -659,6 +659,10 @@ class TopHatParams:
         self.report_secondary_alignments = False
         self.report_discordant_pair_alignments = False
 
+        # experimental -W option to activate score and edit distance filtering
+        # in fix_map_ordering (hits post processing)
+        self.b2scoreflt = False
+
         self.keep_fasta_order = False
         self.partial_mapping = False
 
@@ -796,7 +800,7 @@ class TopHatParams:
     # of options.
     def parse_options(self, argv):
         try:
-            opts, args = getopt.getopt(argv[1:], "hvp:m:n:N:F:a:i:I:G:Tr:o:j:Xz:s:g:x:MQC",
+            opts, args = getopt.getopt(argv[1:], "hvp:m:n:N:F:a:i:I:G:Tr:o:j:Xz:s:g:x:MQCW",
                                         ["version",
                                          "help",
                                          "output-dir=",
@@ -966,7 +970,11 @@ class TopHatParams:
                 self.coverage_search = False
             if option == "--coverage-search":
                 self.coverage_search = True
-
+            # -W option : score and edit distance filtering in fix_map_ordering
+            # this is *soft* post-processing of bowtie2 results, should be
+            # more effectively implemented by using bowtie2's score function
+            if option == "-W":
+                self.b2scoreflt = True
             self.closure_search = False
             #if option == "--no-closure-search":
             #    self.closure_search = False
@@ -2063,12 +2071,18 @@ def bowtie(params,
             fix_map_cmd += ["--color"]
 
         if params.bowtie2:
-            if t_mapping or g_mapping:
+            #if t_mapping or g_mapping:
                 max_penalty, min_penalty = params.bowtie2_params.mp.split(',')
                 max_penalty, min_penalty = int(max_penalty), int(min_penalty)
                 min_score = (max_penalty - 1) * num_mismatches
                 fix_map_cmd += ["--bowtie2-min-score", str(min_score)]
-
+            # testing score filtering
+                if params.b2scoreflt:
+                   fix_map_cmd +=["-W"+str(min_score+max_penalty)]
+        if t_mapping:
+            fix_map_cmd +=["--max-mismatches", str(params.t_mismatches)]
+        else:
+            fix_map_cmd +=["--max-mismatches", str(params.max_read_mismatches)]
         samzip_cmd=None
 
         if unmapped_reads or params.system_params.num_threads >= 1:

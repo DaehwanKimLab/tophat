@@ -108,7 +108,7 @@ AC_OUTPUT
 echo \
 "
 -- ${PACKAGE_STRING} Configuration Results --
-  C++ compiler:        ${CXX} ${CXXFLAGS} \
+  C++ compiler:        ${CXX} ${CXXFLAGS}
   Linker flags:        ${LDFLAGS}"
 
 if test x"${GCC}" = x"yes" ; then
