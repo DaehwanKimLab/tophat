@@ -17,8 +17,12 @@
 #include "bwt_map.h"
 using namespace std;
 
-typedef std::map<int, vector<int> > PosCoverage;
+typedef int8_t cov_t;
+typedef std::map<int, vector<cov_t> > PosCoverage;
 typedef std::map<RefID, PosCoverage> GenomeCoverage;
+
+static const cov_t cov_max_value = std::numeric_limits<cov_t>::max();
+static const cov_t cov_min_value = std::numeric_limits<cov_t>::min();
 
 class Coverage
 {
@@ -42,10 +46,10 @@ class Coverage
   // for debug purposes;
   void print_info() const;
   void print_info(const PosCoverage& posCoverage, int begin = 0, int end = std::numeric_limits<int>::max()) const;
-  void print_info(int pos, const vector<int>& cov) const;
+  void print_info(int pos, const vector<cov_t>& cov) const;
   
  private:
-  void merge_contig(int pos, vector<int>& cov, int pos2, const vector<int>& cov2);
+  void merge_contig(int pos, vector<cov_t>& cov, int pos2, const vector<cov_t>& cov2);
   PosCoverage::iterator get_contig(PosCoverage& posCoverage, int pos);
   
  private:
