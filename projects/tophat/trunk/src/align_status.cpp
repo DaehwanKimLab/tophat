@@ -45,7 +45,7 @@ AlignStatus::AlignStatus(const BowtieHit& bh,
 			 const FusionSet& fusions,
 			 const Coverage& coverage)
 {
-  // it seems like we need to test this more
+  // it seems like we need to work on this more
   // daehwan - it doesn't seem to work.
   const bool recalculate_indel_score = false;
   
@@ -100,7 +100,7 @@ AlignStatus::AlignStatus(const BowtieHit& bh,
 			const int left_cov = coverage.get_coverage(ref_id, junc.left + 1);
 			const int right_cov = coverage.get_coverage(ref_id, junc.right - 1);
 			const int avg_cov = (left_cov + right_cov) / 2;
-			
+
 			int penalty = bowtie2_max_penalty + 2;
 			const int supporting_hits = itr->second.supporting_hits;
 			const int left_extent = itr->second.left_extent;
@@ -132,6 +132,10 @@ AlignStatus::AlignStatus(const BowtieHit& bh,
 				left_extent, right_extent);
 			  }
 		      }
+		  }
+		else
+		  {
+		    _alignment_score += 2;
 		  }
 	      }
 	  }

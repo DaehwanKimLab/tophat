@@ -36,10 +36,10 @@ void Coverage::add_coverage(RefID refid, int pos, int length)
   PosCoverage::iterator itr2 = get_contig(itr->second, pos);
   if (itr2 == itr->second.end())
     {
-      itr->second[pos] = vector<int>(length + 1,  0);
+      itr->second[pos] = vector<cov_t>(length + 1,  0);
       itr2 = itr->second.find(pos);
 
-      vector<int>& contig_coverage = itr2->second;
+      vector<cov_t>& contig_coverage = itr2->second;
       contig_coverage[0] = 1;
       contig_coverage[length] = -1;
     }
@@ -58,8 +58,11 @@ void Coverage::add_coverage(RefID refid, int pos, int length)
       if (resize > itr2->second.size())
 	itr2->second.resize(resize, 0);
 
-      itr2->second[first] += 1;
-      itr2->second[last] -= 1;
+      if (itr2->second[first] < cov_max_value)
+	itr2->second[first] += 1;
+      
+      if (itr2->second[last] > cov_min_value)
+	itr2->second[last] -= 1;
     }
 
   PosCoverage::iterator itr_lower = itr2; ++itr_lower;
@@ -121,7 +124,7 @@ void Coverage::merge_with(const Coverage& other)
     }
 }
 
-void Coverage::merge_contig(int pos, vector<int>& cov, int pos2, const vector<int>& cov2)
+void Coverage::merge_contig(int pos, vector<cov_t>& cov, int pos2, const vector<cov_t>& cov2)
 {
   assert (pos <= pos2);
   size_t resize = cov2.size() + pos2 - pos;
@@ -129,7 +132,16 @@ void Coverage::merge_contig(int pos, vector<int>& cov, int pos2, const vector<in
       cov.resize(resize, 0);
 
   for (size_t i = 0; i < cov2.size(); ++i)
-    cov[i + pos2 - pos] += cov2[i];
+    {
+      size_t update_pos = i + pos2 - pos;
+      int temp_value = cov[update_pos] + cov2[i];
+      if (temp_value > cov_max_value)
+	cov[update_pos] = cov_max_value;
+      else if (temp_value < cov_min_value)
+	cov[update_pos] = cov_min_value;
+      else
+	cov[update_pos] = (cov_t)temp_value;
+    }
 }
 
 PosCoverage::iterator Coverage::get_contig(PosCoverage& posCoverage, int pos)
@@ -153,9 +165,17 @@ void Coverage::calculate_coverage()
       PosCoverage::iterator itr2 = itr->second.begin();
       for (; itr2 != itr->second.end(); ++itr2)
 	{
-	  vector<int>& contig_coverage = itr2->second;
+	  vector<cov_t>& contig_coverage = itr2->second;
 	  for (size_t i = 1; i < contig_coverage.size(); ++i)
-	    contig_coverage[i] += contig_coverage[i-1];
+	    {
+	      int temp_value = contig_coverage[i] + contig_coverage[i-1];
+	      if (temp_value > cov_max_value)
+		contig_coverage[i] = cov_max_value;
+	      else if (temp_value < 0)
+		contig_coverage[i] = 0;
+	      else
+		contig_coverage[i] = (cov_t)temp_value;
+	    }
 	}
     }
 }
@@ -172,7 +192,7 @@ int Coverage::get_coverage(RefID refid, int pos) const
       if (itr_contig != itr->second.begin())
 	{
 	  --itr_contig;
-	  const vector<int>& contig_coverage = itr_contig->second;
+	  const vector<cov_t>& contig_coverage = itr_contig->second;
 	  if (pos >= itr_contig->first)
 	    {
 	      int index = pos - itr_contig->first;
@@ -225,7 +245,7 @@ void Coverage::print_info(const PosCoverage& posCoverage, int begin, int end) co
       print_info(itr->first, itr->second);
 }
 
-void Coverage::print_info(int pos, const vector<int>& cov) const
+void Coverage::print_info(int pos, const vector<cov_t>& cov) const
 {
   fprintf(stderr, "\tPos: %d, size: %lu\n", pos, cov.size());
   for (size_t i = 0; i < cov.size(); ++i)

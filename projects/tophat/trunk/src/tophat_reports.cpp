@@ -972,6 +972,8 @@ void realign_reads(HitsForRead& hits,
 		    }
 
 		  {
+		    static const size_t max_temp_juncs = 3;
+		    
 		    JunctionSet::const_iterator lb, ub;
 		    JunctionSet temp_junctions;
 		    if (j == 0)
@@ -985,6 +987,9 @@ void realign_reads(HitsForRead& hits,
 			    temp_junction.right = lb->first.left;
 			    temp_junctions[temp_junction] = lb->second;
 			    ++lb;
+
+			    if (temp_junctions.size() > max_temp_juncs)
+			      break;
 			  }
 		      }
 		    
@@ -997,10 +1002,13 @@ void realign_reads(HitsForRead& hits,
 			  {
 			    temp_junctions[lb->first] = lb->second;
 			    ++lb;
+
+			    if (temp_junctions.size() > max_temp_juncs)
+			      break;
 			  }
 		      }
 
-		    if (temp_junctions.size() > 10)
+		    if (temp_junctions.size() > max_temp_juncs)
 		      continue;
 
 		    JunctionSet::const_iterator junc_iter = temp_junctions.begin();
@@ -1026,7 +1034,7 @@ void realign_reads(HitsForRead& hits,
 			    int before_match_length = junc.left - new_left + 1;;
 			    int after_match_length = op.length - before_match_length;
 			    
-			    if (before_match_length > 0 && after_match_length)
+			    if (before_match_length > 0 && after_match_length > 0)
 			      {
 				anchored = true;
 				new_cigars.push_back(CigarOp(MATCH, before_match_length));
@@ -1036,7 +1044,7 @@ void realign_reads(HitsForRead& hits,
 				new_cigars.insert(new_cigars.end(), cigars.begin() + 1, cigars.end());
 			      }
 			  }
-			else
+			else if (j == cigars.size() - 1 && pos < (int)junc.left)
 			  {
 			    new_cigars.insert(new_cigars.end(), cigars.begin(), cigars.end() - 1);
 			    
@@ -1051,6 +1059,9 @@ void realign_reads(HitsForRead& hits,
 				new_cigars.push_back(CigarOp(MATCH, after_match_length));
 			      }
 			  }
+
+			if (!anchored)
+			  continue;
 
 			BowtieHit new_bh(bh.ref_id(),
 					 bh.ref_id2(),
@@ -1068,9 +1079,7 @@ void realign_reads(HitsForRead& hits,
 
 			const RefSequenceTable::Sequence* ref_str = rt.get_seq(bh.ref_id());
 
-			if (new_left >= 0 &&
-			    new_bh.right() <= (int)length(*ref_str) &&
-			    anchored)
+			if (new_left >= 0 && new_bh.right() <= (int)length(*ref_str))
 			  {
 			    vector<string> aux_fields;
 			    bowtie_sam_extra(new_bh, rt, aux_fields);
@@ -1611,7 +1620,6 @@ struct ReportWorker
 	bool got_read = reads_file.getRead(curr_obs_order, read,
 					   reads_format, false, begin_id, end_id,
 					   &um_out, false);
-	assert (got_read);
 	if (got_read)
 	  {
 	    update_junctions(best_hits, *final_junctions);
@@ -1780,8 +1788,6 @@ struct ReportWorker
 		    bool got_right_read = right_reads_file.getRead(best_hits[0].first.insert_id(), r_read,
 								   reads_format, false, begin_id, end_id,
 								   right_um_out, false);
-		    
-		    assert (got_left_read && got_right_read);
 		    
 		    if (got_left_read && got_right_read)
 		      {
@@ -2054,9 +2060,8 @@ void driver(const string& bam_output_fname,
     }
 
   merge_with(junctions, gtf_junctions);
-
   coverage.calculate_coverage();
-  
+
   JunctionSet rev_junctions;
   JunctionSet::const_iterator junction_iter = junctions.begin();
   for (; junction_iter != junctions.end(); ++junction_iter)
@@ -2190,10 +2195,10 @@ void driver(const string& bam_output_fname,
     }
   threads.clear();
 
-  JunctionSet final_junctions = vfinal_junctions[0];
-  InsertionSet final_insertions = vfinal_insertions[0];
-  DeletionSet final_deletions = vfinal_deletions[0];
-  FusionSet final_fusions = vfinal_fusions[0];
+  JunctionSet& final_junctions = vfinal_junctions[0];
+  InsertionSet& final_insertions = vfinal_insertions[0];
+  DeletionSet& final_deletions = vfinal_deletions[0];
+  FusionSet& final_fusions = vfinal_fusions[0];
   for (int i = 1; i < num_threads; ++i)
     {
       merge_with(final_junctions, vfinal_junctions[i]);
