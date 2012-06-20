@@ -79,22 +79,41 @@ struct BamMapOrdering {
     uint64_t lhs_id = lhs.first;
     uint64_t rhs_id = rhs.first;
 
-    if (lhs_id != rhs_id || !bowtie2)
+    //if (lhs_id != rhs_id || !bowtie2)
+    if (lhs_id != rhs_id)
       return lhs_id > rhs_id;
 
     int lhs_score, rhs_score;
     lhs_score = rhs_score = numeric_limits<int>::min();
-    uint8_t* ptr = bam_aux_get(lhs.second, "AS");
-    if (ptr)
-      lhs_score = bam_aux2i(ptr);
+    if (bowtie2) {
+      uint8_t* ptr = bam_aux_get(lhs.second, "AS");
+      if (ptr)
+    	lhs_score = bam_aux2i(ptr);
 
-    ptr = bam_aux_get(rhs.second, "AS");
-    if (ptr)
-      rhs_score = bam_aux2i(ptr);
+      ptr = bam_aux_get(rhs.second, "AS");
+      if (ptr)
+    	rhs_score = bam_aux2i(ptr);
 
+      if (lhs_score != rhs_score)
+    	return lhs_score < rhs_score;
+    }
+    lhs_score = rhs_score = numeric_limits<int>::min();
+    uint8_t* ptr = bam_aux_get(lhs.second, "NM");
+    if (ptr)
+  	  lhs_score = bam_aux2i(ptr);
+
+    ptr = bam_aux_get(rhs.second, "NM");
+    if (ptr)
+  	  rhs_score = bam_aux2i(ptr);
     if (lhs_score != rhs_score)
-      return lhs_score < rhs_score;
-
+  	   return lhs_score < rhs_score;
+    //try to get a stable sort here
+    bam1_t* lb=lhs.second;
+    bam1_t* rb=rhs.second;
+    if (lb->core.tid != rb->core.tid)
+       return lb->core.tid<rb->core.tid;
+    if (lb->core.pos != rb->core.pos)
+       return lb->core.pos<rb->core.pos;
     return lhs.second->core.flag & BAM_FSECONDARY;
   }
 };
@@ -451,14 +470,21 @@ int main(int argc, char** argv)
         driver_headerless(f_in, f_out);
 	    }
 	else {
-		//BAM output, we have SAM header
-		GBamWriter bam_writer(out_file_name.c_str(),sam_header.c_str(), index_outfile);
+		//we have SAM header - BAM output
+	    GBamWriter* bam_writer;
+	    if (out_file_name == "-") { //write uncompressed bam to stdout
+	      bam_writer=new GBamWriter(out_file_name.c_str(), sam_header.c_str(), true);
+	    }
+	    else {
+			bam_writer=new GBamWriter (out_file_name.c_str(), sam_header.c_str(), index_outfile);
+	    }
 		GBamWriter *unmapped_bam_writer=NULL;
 		if (!out_unmapped_fname.empty())
 		    unmapped_bam_writer=new GBamWriter(out_unmapped_fname.c_str(),
 		                                       sam_header.c_str());
-		driver_bam(map_file_name, bam_writer, unmapped_bam_writer);
+		driver_bam(map_file_name, *bam_writer, unmapped_bam_writer);
 		delete unmapped_bam_writer;
+		delete bam_writer;
 	    }
 
     return 0;

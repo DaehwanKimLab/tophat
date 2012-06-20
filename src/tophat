@@ -1960,7 +1960,7 @@ def prep_reads(params, l_reads_list, l_quals_list, r_reads_list, r_quals_list, p
 # Call bowtie
 def bowtie(params,
            bwt_idx_prefix,
-           sam_header_filename,
+           sam_headers,
            reads_list,
            reads_format,
            num_mismatches,
@@ -1975,11 +1975,17 @@ def bowtie(params,
     readfile_basename=getFileBaseName(reads_file)
 
     g_mapping, t_mapping, seg_mapping = False, False, False
+    sam_header_filename = None
+    genome_sam_header_filename = None
     if mapping_type == _reads_vs_T:
         t_mapping = True
-    elif mapping_type >= _segs_vs_G:
-        seg_mapping = True
+        sam_header_filename = sam_headers[0]
+        genome_sam_header_filename = sam_headers[1]
     else:
+      sam_header_filename = sam_headers
+      if mapping_type >= _segs_vs_G:
+        seg_mapping = True
+      else:
         g_mapping = True
 
     bowtie_str = "Bowtie"
@@ -2083,38 +2089,23 @@ def bowtie(params,
             fix_map_cmd +=["--max-mismatches", str(params.t_mismatches)]
         else:
             fix_map_cmd +=["--max-mismatches", str(params.max_read_mismatches)]
-        samzip_cmd=None
+        #write BAM file
+        mapped_reads += ".bam"
+        out_bam = mapped_reads
 
-        if unmapped_reads or params.system_params.num_threads >= 1:
-           #mapping on the genome
-           #fix_map_ordering will write BAM file directly, and unmapped_reads as BAM file too
-           mapped_reads += ".bam"
-
-           fix_map_cmd += ["--sam-header", sam_header_filename, "-", mapped_reads]
-           if unmapped_reads:
-               unmapped_reads_out = unmapped_reads + ".bam"
-               fix_map_cmd += [unmapped_reads_out]
-        else:
-           #mapping on segment_juncs (spliced potential junctions)
-           # SAM headers could be huge
-           mapped_reads += ".sam"
-           fix_map_cmd += ["-"]
-           if use_zpacker:
-              fix_map_cmd += ["-"]
-              samzip_cmd=[ params.system_params.zipper ]
-              samzip_cmd.extend(params.system_params.zipper_opts)
-              samzip_cmd += ["-c"]
-              mapped_reads += ".z"
-           else:
-              fix_map_cmd += [mapped_reads]
-
-        fix_map_cmd += ["--index-outfile", mapped_reads + ".index"]
+        if not t_mapping:
+           fix_map_cmd += ["--index-outfile", mapped_reads + ".index"]
         if not params.bowtie2:
            fix_map_cmd += ["--bowtie1"]
         if multihits_out != None:
            fix_map_cmd += ["--aux-outfile", params.preflt_data[multihits_out].multihit_reads]
            fix_map_cmd += ["--max-multihits", str(params.max_hits)]
-
+        if t_mapping:
+           out_bam = "-" # we'll pipe into map2gtf
+        fix_map_cmd += ["--sam-header", sam_header_filename, "-", out_bam]
+        if unmapped_reads:
+            unmapped_reads_out = unmapped_reads + ".bam"
+            fix_map_cmd += [unmapped_reads_out]
         if t_mapping:
             max_hits = params.t_max_hits
         elif seg_mapping:
@@ -2243,29 +2234,34 @@ def bowtie(params,
         shellcmd += ' '.join(bowtie_cmd) + '|' + ' '.join(fix_map_cmd)
         pipeline_proc = None
         fix_order_proc = None
-        if samzip_cmd:
-           shellcmd += "|"+ ' '.join(samzip_cmd)+" > " + mapped_reads
-           fix_order_proc = subprocess.Popen(fix_map_cmd,
-                                             stdin=bowtie_proc.stdout,
-                                             stderr=tophat_log,
-                                             stdout=subprocess.PIPE)
-           bowtie_proc.stdout.close() # needed?
-           pipeline_proc = subprocess.Popen(samzip_cmd,
-                                 preexec_fn=subprocess_setup,
-                                 stdin=fix_order_proc.stdout,
-                                 stderr=tophat_log,
-                                 stdout=open(mapped_reads, "wb"))
-           fix_order_proc.stdout.close()
+        #write BAM format directly
+        if t_mapping:
+            #pipe into map2gtf
+            fix_order_proc = subprocess.Popen(fix_map_cmd,
+                                          stdin=bowtie_proc.stdout,
+                                          stdout=subprocess.PIPE,
+                                          stderr=tophat_log)
+            bowtie_proc.stdout.close()
+            m2g_cmd = [prog_path("map2gtf")]
+            m2g_cmd += ["--sam-header", genome_sam_header_filename]
+            m2g_cmd.append(params.gff_annotation)
+            m2g_cmd.append("-") #incoming uncompressed BAM stream
+            m2g_cmd.append(mapped_reads)
+            m2g_log = logging_dir + "m2g_"+readfile_basename+".out"
+            m2g_err = logging_dir + "m2g_"+readfile_basename+".err"
+            shellcmd += ' | '+' '.join(m2g_cmd)+ ' > '+m2g_log
+            pipeline_proc = subprocess.Popen(m2g_cmd,
+                                              stdin=fix_order_proc.stdout,
+                                              stdout=open(m2g_log, "w"),
+                                              stderr=open(m2g_err, "w"))
+            fix_order_proc.stdout.close()
         else:
-           #write BAM output directly
-           fix_order_proc = subprocess.Popen(fix_map_cmd,
+            fix_order_proc = subprocess.Popen(fix_map_cmd,
                                           stdin=bowtie_proc.stdout,
                                           stderr=tophat_log)
-                                        # stdout=open(mapped_reads, "w"))
-           pipeline_proc = fix_order_proc
-           bowtie_proc.stdout.close()
+            bowtie_proc.stdout.close()
+            pipeline_proc = fix_order_proc
 
-        # shellcmd += " > " + mapped_reads
         print >> run_log, shellcmd
         retcode = None
         if pipeline_proc:
@@ -3132,7 +3128,7 @@ def map2gtf(params, genome_sam_header_filename, ref_fasta, left_reads, right_rea
 
         (mapped_gtf_map, unmapped) = bowtie(params,
                                             m2g_bwt_idx,
-                                            transcriptome_header_filename,
+                                            [transcriptome_header_filename, genome_sam_header_filename],
                                             [reads],
                                             "fastq",
                                             params.t_mismatches,
@@ -3142,25 +3138,30 @@ def map2gtf(params, genome_sam_header_filename, ref_fasta, left_reads, right_rea
         mapped_gtf_list.append(mapped_gtf_map)
         unmapped_gtf_list.append(unmapped)
 
-    bam_gtf_list = []
-    for reads in mapped_gtf_list:
-        fbasename = getFileBaseName(reads)
-        bam_out_fname = tmp_dir + fbasename + "_converted.bam"
-        m2g_convert_coords(params,
-                           genome_sam_header_filename,
-                           params.gff_annotation,
-                           reads,
-                           bam_out_fname)
+#    bam_gtf_list = mapped_gtf_map[]
 
-        bam_gtf_list.append(bam_out_fname)
-        if not params.system_params.keep_tmp:
-            removeFileWithIndex(reads)
+#     for reads in mapped_gtf_list:
+#         fbasename = getFileBaseName(reads)
+#         bam_out_fname = tmp_dir + fbasename + "_converted.bam"
+#         m2g_convert_coords(params,
+#                            genome_sam_header_filename,
+#                            params.gff_annotation,
+#                            reads,
+#                            bam_out_fname)
+#
+#         bam_gtf_list.append(bam_out_fname)
+#         if not params.system_params.keep_tmp:
+#             removeFileWithIndex(reads)
 
-    if len(bam_gtf_list) < 2:
-        bam_gtf_list.append(None)
+#    if len(bam_gtf_list) < 2:
+#        bam_gtf_list.append(None)
+#        unmapped_gtf_list.append(None)
+    if len(mapped_gtf_list) < 2:
+        mapped_gtf_list.append(None)
+    if len(unmapped_gtf_list) < 2:
         unmapped_gtf_list.append(None)
-
-    return (bam_gtf_list, unmapped_gtf_list)
+#    return (bam_gtf_list, unmapped_gtf_list)
+    return (mapped_gtf_list, unmapped_gtf_list)
 # end Map2GTF
 
 def get_preflt_data(params, ri, target_reads, out_mappings, out_unmapped):
