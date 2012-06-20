@@ -1775,6 +1775,14 @@ def check_reads_format(params, reads_files):
                                    params.read_params.seq_run_date,
                                    params.read_params.seq_platform)
 
+def grep_file(logfile, regex="warning"):
+   f=open(logfile, "r")
+   r=[]
+   for line in f:
+      if re.match(regex, line, re.IGNORECASE):
+         r += [line.rstrip()]
+   return r
+
 def log_tail(logfile, lines=1):
     f=open(logfile, "r")
     f.seek(0, 2)
@@ -1796,10 +1804,10 @@ def log_tail(logfile, lines=1):
        f.seek(block*1024, 2)
     else:
        f.seek(0,0)
-    f.readline() # find a newline
+    #f.readline() # find a newline
     lastBlocks= list( f.readlines() )
     f.close()
-    return "\n".join(lastBlocks[-lines:])
+    return "".join(lastBlocks[-lines:])
 
 # Format a DateTime as a pretty string.
 # FIXME: Currently doesn't support days!
@@ -1964,8 +1972,10 @@ def prep_reads(params, l_reads_list, l_quals_list, r_reads_list, r_quals_list, p
         die(errmsg+"\n"+log_tail(log_fname))
 
     if kept_reads: kept_reads.close()
+    warnings=grep_file(log_fname)
+    if warnings:
+       th_logp("\n"+"\n".join(warnings)+"\n")
     return PrepReadsInfo(info_file, tmp_dir + out_tmpl + out_suffix)
-
 
 # Call bowtie
 def bowtie(params,
@@ -2019,7 +2029,7 @@ def bowtie(params,
            qryname = ",".join(bnames)
        th_log("Mapping %s to genome %s with %s %s" % (qryname,
                      bwt_idx_name, bowtie_str, extra_output))
-    bwt_log = open(logging_dir + 'bowtie.'+readfile_basename+'.fixmap.log', "w")
+    bwt_logname=logging_dir + 'bowtie.'+readfile_basename+'.log'
     #bwt_mapped=mapped_reads
     unmapped_reads_out=None
     if unmapped_reads:
@@ -2231,14 +2241,14 @@ def bowtie(params,
                    if not unzip_proc:
                         bowtie_proc = subprocess.Popen(bowtie_cmd,
                                      stdout=subprocess.PIPE,
-                                     stderr=bwt_log)
+                                     stderr=open(bwt_logname, "w"))
         if unzip_proc:
               #input is compressed OR prep_reads is used as a filter
               bowtie_cmd += ['-']
               bowtie_proc = subprocess.Popen(bowtie_cmd,
                                      stdin=unzip_proc.stdout,
                                      stdout=subprocess.PIPE,
-                                     stderr=bwt_log)
+                                     stderr=open(bwt_logname, "w"))
               unzip_proc.stdout.close() # see http://bugs.python.org/issue7678
 
         shellcmd += ' '.join(bowtie_cmd) + '|' + ' '.join(fix_map_cmd)
@@ -2277,6 +2287,10 @@ def bowtie(params,
         if pipeline_proc:
             pipeline_proc.communicate()
             retcode = pipeline_proc.returncode
+            bowtie_proc.wait()
+            r=bowtie_proc.returncode
+            if r:
+              die(fail_str+"Error running bowtie:\n"+log_tail(bwt_logname,100))
         if use_FIFO:
             if fifo_pid and not os.path.exists(unmapped_reads_out):
                 try:
@@ -3861,7 +3875,6 @@ def main(argv=None):
         min_read_len = prep_info.min_len[0]
         if prep_info.min_len[1] > 0 and min_read_len > prep_info.min_len[1]:
            min_read_len = prep_info.min_len[1]
-
         if min_read_len < 20:
                   th_logp("Warning: short reads (<20bp) will make TopHat quite slow and take large amount of memory because they are likely to be mapped to too many places")
 
