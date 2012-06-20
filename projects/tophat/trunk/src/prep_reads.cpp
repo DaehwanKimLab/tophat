@@ -351,7 +351,9 @@ void process_reads(vector<string>& reads_fnames, vector<FZPipe>& quals_files,
   int mate_min_read_len = 20000000;
   int mate_max_read_len = 0;
   uint32_t next_id = 0;
+  uint32_t num_left = 0;
   uint32_t num_mates = 0;
+
   FILE* fw=NULL; //aux output file
   string outfname; //std_outfile after instancing template
   string mate_outfname;
@@ -444,24 +446,33 @@ void process_reads(vector<string>& reads_fnames, vector<FZPipe>& quals_files,
 		mate_fq = & mate_quals_files[fi];
 	  mate_reads=new ReadStream(mate_fnames[fi], mate_fq, true);
 	}
-	while (reads.get_direct(read, reads_format)) {
+	bool have_l_reads=true;
+	bool have_r_reads=false;
+	while (have_l_reads || have_r_reads) {
+	  if ((have_l_reads=reads.get_direct(read, reads_format)))
+		 num_left++;
 	  // Get the next read from the file
 	  int matenum=0; // 0 = unpaired, 1 = left, 2 = right
-	  ++next_id;
-	  //IMPORTANT: to keep paired reads in sync, this must be
-	  //incremented BEFORE any reads are chucked !
 	  if (have_mates && !mates_ended) {
-		if (!mate_reads->get_direct(mate_read, reads_format)) {
-		   if (num_mates>0)
+		if ( (have_r_reads=mate_reads->get_direct(mate_read, reads_format)) ) {
+			num_mates++;
+		}
+		else {
+		  if (num_mates>0)
               mates_ended=true;
-		   else {
-			 //no mates found
-		     err_die("Error: could not retrieve mate for read '%s' !\n",read.name.c_str());
-		   }
+		  else {
+			 //no mates found at all
+		     err_die("Error: could not retrieve read pair!");
+		  }
+		}
+
+		if (have_l_reads || have_r_reads) {
+		  //IMPORTANT: to keep paired reads in sync, this must be
+		  //incremented BEFORE any reads are chucked !
+		  ++next_id;
 		}
 		matenum = 1; //read is first in a pair
-		num_mates++;
-		if (!mates_ended && !possible_mate_mismatch) {
+		if (have_l_reads && have_r_reads && !possible_mate_mismatch) {
   		  //check if reads are paired correctly
 		  int nl=read.name.length();
 		  bool mate_match=(nl==(int)mate_read.name.length());
@@ -476,17 +487,18 @@ void process_reads(vector<string>& reads_fnames, vector<FZPipe>& quals_files,
 		  if (mate_match && nl-m_len > 2) //more than 2 chars differ
 			mate_match=false;
 		  if (!mate_match) {
-			fprintf(stderr, "WARNING: read #%d (%s) does not have a matching mate in the same order (%s found instead).\n",
+			fprintf(stderr, "WARNING: read pairing issues detected (check prep_reads.log) !\n"
+				" Pair #%d name mismatch: %s vs %s\n",
 				next_id, read.name.c_str(), mate_read.name.c_str());
 			possible_mate_mismatch=true;
 		  }
 		}
 	  } //paired read
-	  if ((flt_side & 1)==0)
+	  if ((flt_side & 1)==0 && have_l_reads)
 		  //for unpaired reads or left read in a pair
 	      processRead(matenum, read, next_id,  num_reads_chucked, multimap_chucked,
 		     wbam, fout, fqindex, min_read_len,  max_read_len,  fout_offset, readmap);
-	  if (mate_reads && flt_side>0 && !mates_ended) {
+	  if (mate_reads && flt_side>0 && have_r_reads) {
 		  //matenum = 2;
 		  processRead(2, mate_read, next_id,  mate_num_reads_chucked, mate_multimap_chucked,
 			  mate_wbam, mate_fout, mate_fqindex, mate_min_read_len,  mate_max_read_len,
@@ -498,7 +510,7 @@ void process_reads(vector<string>& reads_fnames, vector<FZPipe>& quals_files,
     } //for each input file
   if (fout!=stdout || (flt_side & 1) == 0) {
 	fprintf(stderr, "%u out of %u reads have been filtered out\n",
-		num_reads_chucked, next_id);
+		num_reads_chucked, num_left);
 	if (readmap_loaded)
 	  fprintf(stderr, "\t(%u filtered out due to %s)\n",
 		  multimap_chucked, flt_reads_fnames[0].c_str());
@@ -506,7 +518,7 @@ void process_reads(vector<string>& reads_fnames, vector<FZPipe>& quals_files,
 
   if (have_mates && (fout!=stdout || flt_side>0)) {
 	fprintf(stderr, "%u out of %u read mates have been filtered out\n",
-		mate_num_reads_chucked, next_id);
+		mate_num_reads_chucked, num_mates);
 	if (readmap_loaded && mate_multimap_chucked)
 	  fprintf(stderr, "\t(%u mates filtered out due to %s)\n",
 		  mate_multimap_chucked, flt_reads_fnames[1].c_str());
@@ -522,8 +534,8 @@ void process_reads(vector<string>& reads_fnames, vector<FZPipe>& quals_files,
 	   side="left_";
     fprintf(fw, "%smin_read_len=%d\n", side.c_str(), min_read_len - (color ? 1 : 0));
     fprintf(fw, "%smax_read_len=%d\n", side.c_str(), max_read_len - (color ? 1 : 0));
-    fprintf(fw, "%sreads_in =%d\n", side.c_str(), next_id);
-    fprintf(fw, "%sreads_out=%d\n", side.c_str(), next_id-num_reads_chucked);
+    fprintf(fw, "%sreads_in =%d\n", side.c_str(), num_left);
+    fprintf(fw, "%sreads_out=%d\n", side.c_str(), num_left-num_reads_chucked);
     if (have_mates) {
       side="right_";
       fprintf(fw, "%smin_read_len=%d\n", side.c_str(), mate_min_read_len - (color ? 1 : 0));
