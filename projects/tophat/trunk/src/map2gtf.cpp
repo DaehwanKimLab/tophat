@@ -9,7 +9,7 @@
 void m2g_print_usage()
 {
     std::cerr << "Usage: map2gtf\tannotation.gtf "
-            << " alignments.bwtout out_file.sam" << std::endl;
+            << " alignments.bam out_file.bam" << std::endl;
 }
 
 Map2GTF::Map2GTF(const std::string& gtf_fname, const std::string& in_fname) :
@@ -25,8 +25,12 @@ Map2GTF::Map2GTF(const std::string& gtf_fname, const std::string& in_fname) :
   std::cout << "Reading the annotation file: " << gtf_fname_ << std::endl;
   gtfReader_.init(gtf_fhandle_, true); //only recognizable transcripts will be loaded
   gtfReader_.readAll();
-  
-  in_fhandle_=samopen(in_fname_.c_str(), "rb", 0);
+  if (in_fname_=="-") {
+    in_fhandle_=samopen(in_fname_.c_str(), "rbu", 0);
+    }
+  else {
+	in_fhandle_=samopen(in_fname_.c_str(), "rb", 0);
+  }
   if (in_fhandle_ == NULL)
     {
       std::cerr << "FATAL: Couldn't open input bam file: " << in_fname_
