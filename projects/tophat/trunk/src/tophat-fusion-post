@@ -1497,11 +1497,50 @@ def generate_html(params):
                         output["lcount"] = lcount
                         output["lavg"] = lavg
                         output["lgap"] = lgap
-                        output["lder"] = derivation(lcolor, lcount_min, lavg)
+                        output["lder"] = lder = derivation(lcolor, lcount_min, lavg)
                         output["rcount"] = rcount
                         output["ravg"] = ravg
                         output["rgap"] = rgap
-                        output["rder"] = derivation(rcolor, rcount_min, ravg)
+                        output["rder"] = rder = derivation(rcolor, rcount_min, ravg)
+
+                        stats = output["stats"]
+                        num_read = int(stats[0])
+                        pair = int(stats[1])
+                        pair_fusion = int(stats[2])
+                        anti_read = int(stats[3])
+                        anti_pair = int(stats[4])
+                        pair_coords = output["pair_coords"]
+
+                        dist = 1000000
+                        if len(pair_coords) > 0:
+                            pair = 0
+                            for pair_coord in pair_coords:
+                                pair_coord = pair_coord.split(":")
+                                temp_dist = abs(int(pair_coord[0])) + abs(int(pair_coord[1]))
+                                if temp_dist < dist:
+                                    dist = temp_dist
+
+                                if temp_dist < 2000:
+                                    pair += 1
+
+                        anti_read += 0.5
+                        if pair == 0:
+                            rate = num_read / anti_read
+                        else:
+                            rate = pair / anti_read
+
+                        max_avg = 300
+                        score = lcount + rcount + (min(max_avg, lavg) + min(max_avg, ravg)) - abs(lcount - rcount) \
+                            - min(max_avg, abs(lavg - ravg)) - (lgap + rgap) - (lder + rder) * max_avg \
+                            + rate - min(dist, 1000)
+
+                        # daehwan - for debugging purposes
+                        '''
+                        fusion_list[index]["score"] = score
+                        fusion_list[index]["test"] = "lcount: %d, lavg: %d, lgap: %d, lder: %f, rcount: %d, ravg: %d, rgap: %f, rder: %f, rate: %f, dist: %d, score: %f" % \
+                            (lcount, lavg, lgap, lder, rcount, ravg, rgap, rder, rate, dist, score)
+                        '''
+                        
                         # print >> sys.stderr, "\t%d" % (line_no / 6 + 1)
 
                     else:
@@ -1832,7 +1871,9 @@ def generate_html(params):
                 print >> html_file, r'<TD ALIGN="RIGHT"><a href="#read_%d">%d</a></TD>' % (i, stats[0])
                 print >> html_file, r'<TD ALIGN="RIGHT"><a href="#pair_%d">%d</a></TD>' % (i, stats[1])
                 print >> html_file, r'<TD ALIGN="RIGHT">%d</TD>' % stats[2]
-                # print >> html_file, r'<TD ALIGN="RIGHT">%.2f</TD></TR>' % fusion["score"]
+
+                # daehwan - for debugging purposes
+                print >> html_file, r'<TD ALIGN="RIGHT">%.2f</TD></TR>' % fusion["score"]
                 
                 
             print >> html_file, r'</TABLE>'

@@ -697,6 +697,9 @@ class TopHatParams:
 
         self.bowtie2_params.check()
 
+        if self.bowtie2 and self.fusion_search:
+            th_logp("\tWarning: --fusion-search with Bowtie2 may not work well as it may require much memory space and produce many spurious fusions.  Please try --bowtie1 option if this doesn't work.")            
+
         library_types = ["fr-unstranded", "fr-firststrand", "fr-secondstrand"]
 
         if self.read_params.library_type and self.read_params.library_type not in library_types:
@@ -1168,7 +1171,11 @@ def check_bowtie_index(idx_prefix, is_bowtie2):
         return
     else:
         bwtidxerr="Error: Could not find Bowtie "+bowtie_ver+"index files (" + idx_prefix + ".*."+idxext+")"
-        bwtidx_env = os.environ.get("BOWTIE_INDEXES")
+
+        if is_bowtie2:
+            bwtidx_env = os.environ.get("BOWTIE2_INDEXES")
+        else:
+            bwtidx_env = os.environ.get("BOWTIE_INDEXES")
 
         if bwtidx_env == None:
             die(bwtidxerr)
@@ -1222,7 +1229,10 @@ def check_fasta(idx_prefix, is_bowtie2):
     if os.path.exists(idx_fasta):
         return idx_fasta
     else:
-        bowtie_idx_env_var = os.environ.get("BOWTIE_INDEXES")
+        if is_bowtie2:
+            bowtie_idx_env_var = os.environ.get("BOWTIE2_INDEXES")
+        else:
+            bowtie_idx_env_var = os.environ.get("BOWTIE_INDEXES")
         if bowtie_idx_env_var:
             idx_fasta = bowtie_idx_env_var + idx_prefix + ".fa"
             if os.path.exists(idx_fasta):

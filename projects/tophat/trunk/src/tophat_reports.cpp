@@ -99,7 +99,8 @@ void read_best_alignments(const HitsForRead& hits_for_read,
 			  const DeletionSet& deletions = empty_deletions,
 			  const FusionSet& fusions = empty_fusions,
 			  const Coverage& coverage = empty_coverage,
-			  bool final_report = false)
+			  bool final_report = false,
+			  boost::random::mt19937* rng = NULL)
 {
   const vector<BowtieHit>& hits = hits_for_read.hits;
 
@@ -143,7 +144,38 @@ void read_best_alignments(const HitsForRead& hits_for_read,
   if (final_report)
     {
       if (best_hits.hits.size() > max_multihits)
-	best_hits.hits.erase(best_hits.hits.begin() + max_multihits, best_hits.hits.end());
+	{
+	  // there may be several alignments with the same alignment scores,
+	  // all of which we can not include because of this limit.
+	  // let's pick up some of them randomly up to this many max multihits.
+	  vector<size_t> tie_indexes;
+	  int tie_alignment_score = best_hits.hits[max_multihits - 1].alignment_score();
+	  int count_better_alignments = 0;
+	  for (size_t i = 0; i < best_hits.hits.size(); ++i)
+	    {
+	      int temp_alignment_score = best_hits.hits[i].alignment_score();
+	      if (temp_alignment_score == tie_alignment_score)
+		tie_indexes.push_back(i);
+	      else if (temp_alignment_score < tie_alignment_score)
+		break;
+	      else
+		++count_better_alignments;
+	    }
+	  
+	  while (count_better_alignments + tie_indexes.size() > max_multihits)
+	    {
+	      int random_index = (*rng)() % tie_indexes.size();
+	      tie_indexes.erase(tie_indexes.begin() + random_index);
+	    }
+
+	  for (size_t i = 0; i < tie_indexes.size(); ++i)
+	    {
+	      if (count_better_alignments + i != tie_indexes[i])
+		best_hits.hits[count_better_alignments + i] = best_hits.hits[tie_indexes[i]];
+	    }
+	  
+	  best_hits.hits.erase(best_hits.hits.begin() + max_multihits, best_hits.hits.end());
+	}
     }
 }
 
@@ -224,7 +256,8 @@ void pair_best_alignments(const HitsForRead& left_hits,
 			  const DeletionSet& deletions = empty_deletions,
 			  const FusionSet& fusions = empty_fusions,
 			  const Coverage& coverage = empty_coverage,
-			  bool final_report = false)
+			  bool final_report = false,
+			  boost::random::mt19937* rng = NULL)
 {
   const vector<BowtieHit>& left = left_hits.hits;
   const vector<BowtieHit>& right = right_hits.hits;
@@ -301,7 +334,39 @@ void pair_best_alignments(const HitsForRead& left_hits,
   if (final_report)
     {
       if (best_hits.size() > max_multihits)
-	best_hits.erase(best_hits.begin() + max_multihits, best_hits.end());
+	{
+	  vector<size_t> tie_indexes;
+	  InsertAlignmentGrade temp_grade;
+	  set_insert_alignment_grade(best_hits[max_multihits - 1].first, best_hits[max_multihits - 1].second, junctions, temp_grade);
+	  int tie_alignment_score = temp_grade.align_score();
+	  int count_better_alignments = 0;
+
+	  for (size_t i = 0; i < best_hits.size(); ++i)
+	    {
+	      set_insert_alignment_grade(best_hits[i].first, best_hits[i].second, junctions, temp_grade);
+	      int temp_alignment_score = temp_grade.align_score();
+	      if (temp_alignment_score == tie_alignment_score)
+		tie_indexes.push_back(i);
+	      else if (temp_alignment_score < tie_alignment_score)
+		break;
+	      else
+		++count_better_alignments;
+	    }
+
+	  while (count_better_alignments + tie_indexes.size() > max_multihits)
+	    {
+	      int random_index = (*rng)() % tie_indexes.size();
+	      tie_indexes.erase(tie_indexes.begin() + random_index);
+	    }
+
+	  for (size_t i = 0; i < tie_indexes.size(); ++i)
+	    {
+	      if (count_better_alignments + i != tie_indexes[i])
+		best_hits[count_better_alignments + i] = best_hits[tie_indexes[i]];
+	    }
+	  
+	  best_hits.erase(best_hits.begin() + max_multihits, best_hits.end());
+	}
     }
   
   best_grade.num_alignments = best_hits.size();
@@ -1612,7 +1677,7 @@ struct ReportWorker
     const bool final_report = true;
     read_best_alignments(curr_hit_group, best_hits, *gtf_junctions,
 			 *junctions, *insertions, *deletions, *fusions, *coverage,
-			 final_report);
+			 final_report, &rng);
     
     if (best_hits.hits.size() > 0)
       {
@@ -1761,7 +1826,7 @@ struct ReportWorker
 				     curr_right_hit_group,
 				     grade, best_hits, *gtf_junctions,
 				     *junctions, *insertions, *deletions, *fusions, *coverage,
-				     final_report);
+				     final_report, &rng);
 
 		if (best_hits.size() <= 0 ||
 		    (grade.fusion && !fusion_search && !report_discordant_pair_alignments))
