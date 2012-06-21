@@ -148,11 +148,12 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 	  <p> Version 2.0.4 is a maintenance release addressing some issues found in the 2.0.3 release:
 	</p><ul>
 	  <li> The last stage of TopHat (tophat_reports) randomly crashes with a large data set, which is fixed in this release. </li>
-	  <li> For incorrectly paired reads, TopHat outputs a warning message instead of terminating. </li>
-	  <li> For discordantly mapped pairs, their alignments are reported separately as if their other reads (in pair) are not mapped.
+	  <li> For incorrectly paired reads in the left and the right read files, TopHat outputs a warning message instead of terminating the pipeline. </li>
+	  <li> For discordantly mapped pairs, their alignments are reported separately as single-end alignments (or singleton).
 	  If you use --report-discordant-pair-alignments, those pair alignments are reported as paired alignments using the relevant SAM flag. </li>
 	  <li> --fusion-search with Bowtie2 is still in developmental stage, it may require much memory space and produce many spurious fusions.
 	    You may want to try a combination of --bowtie1 and --fusion-search if it does not work.</li>
+	  <li> Environment variables such as BOWTIE_INDEXES and BOWTIE2_INDEXES are handled properly - please refer to the Bowtie website for more details about the variables. </li>
 	</ul>
 	  <p></p><br>
 	    
