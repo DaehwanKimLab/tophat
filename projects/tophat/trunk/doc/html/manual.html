@@ -413,8 +413,7 @@ so you can invoke this new version of TopHat with the command 'tophat2'.</p>
 	  </td><td valign="top">
 	  This is the expected (mean) inner distance between mate pairs.  For, 
 	  example, for paired end runs with fragments selected at 300bp, where each
-	  end is 50bp, you should set -r to be 200.  There is no default, and this
-	  parameter is required for paired end runs.
+	  end is 50bp, you should set -r to be 200.  The default is 50bp.
 	  </td></tr>
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>--mate-std-dev &lt;int&gt;</tt>
@@ -524,12 +523,18 @@ so you can invoke this new version of TopHat with the command 'tophat2'.</p>
 	      (the default number 20 can be changed using -g/--max-multihits option above).
 	  </td></tr>
 	  <tr><td nowrap="nowrap" valign="top">
-	  <tt>--report-discordant-pair-alignments</tt>
+	  <tt>--no-discordant</tt>
 	  </td><td valign="top">
-	      This option will allow mate pairs to map to different chromosomes,
-	      distant places on the same chromosome, or on the same strand.
+	      By default, TopHat reports discordanlty mapped pairs, which can be turned off using this option.
 	  </td></tr>
-	  
+
+	  <tr><td nowrap="nowrap" valign="top">
+	  <tt>--no-mixed</tt>
+	  </td><td valign="top">
+	      In case TopHat cannot find a concordant or discordant pair alignment, it will then try to find alignments for each read separately.
+	      This option disables that behavior.
+	  </td></tr>
+
 	  
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>--no-coverage-search</tt>

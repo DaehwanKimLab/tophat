@@ -150,12 +150,12 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 	</p><ul>
 	  <li>Fixed a bug that caused the last stage of TopHat (tophat_reports) to occasionally crash for large data sets<br>
  </li>
-	  <li> For paired reads found to be incorrectly paired in the input 
+	  <li>For paired reads found to be incorrectly paired in the input 
 files TopHat now outputs a warning message instead of terminating with 
 an error.<br>
 </li>
 	  <li>Alignments of paired reads mapped discordantly (e.g. on different
- chromosomes) are now reported, but flagged as improperly paired in 
+ chromosomes) are now reported by default.  To disable this behavior, --no-discordant option can be used.  Also please check --no-mixed option in the manual, which we borrow from Bowtie2 options.
 mapping.<br>
  </li><li>--fusion-search with Bowtie2 is still in developmental stage, 
 it may require much memory space and produce many spurious fusions.

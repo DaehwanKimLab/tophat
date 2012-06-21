@@ -122,6 +122,7 @@ extern std::string gtf_juncs;
 
 extern bool report_secondary_alignments;
 extern bool report_discordant_pair_alignments;
+extern bool report_mixed_alignments;
 
 //prep_reads only: --flt-reads <bowtie-fastq_for--max>
 //  filter out reads if their numeric ID is in this fastq file

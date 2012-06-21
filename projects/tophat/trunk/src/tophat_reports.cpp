@@ -1828,9 +1828,12 @@ struct ReportWorker
 				     *junctions, *insertions, *deletions, *fusions, *coverage,
 				     final_report, &rng);
 
-		if (best_hits.size() <= 0 ||
-		    (grade.fusion && !fusion_search && !report_discordant_pair_alignments))
-		    paired_alignments = false;
+		if (report_mixed_alignments)
+		  {
+		    if (best_hits.size() <= 0 ||
+			(grade.fusion && !fusion_search && !report_discordant_pair_alignments))
+		      paired_alignments = false;
+		  }
 	      }
 
 	    if (paired_alignments)
