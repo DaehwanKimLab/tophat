@@ -465,12 +465,6 @@ void process_reads(vector<string>& reads_fnames, vector<FZPipe>& quals_files,
 		     err_die("Error: could not retrieve read pair!");
 		  }
 		}
-
-		if (have_l_reads || have_r_reads) {
-		  //IMPORTANT: to keep paired reads in sync, this must be
-		  //incremented BEFORE any reads are chucked !
-		  ++next_id;
-		}
 		matenum = 1; //read is first in a pair
 		if (have_l_reads && have_r_reads && !possible_mate_mismatch) {
   		  //check if reads are paired correctly
@@ -489,11 +483,16 @@ void process_reads(vector<string>& reads_fnames, vector<FZPipe>& quals_files,
 		  if (!mate_match) {
 			fprintf(stderr, "WARNING: read pairing issues detected (check prep_reads.log) !\n"
 				" Pair #%d name mismatch: %s vs %s\n",
-				next_id, read.name.c_str(), mate_read.name.c_str());
+				next_id+1, read.name.c_str(), mate_read.name.c_str());
 			possible_mate_mismatch=true;
 		  }
-		}
-	  } //paired read
+		} //mate check
+	  } //paired reads
+	  if (have_l_reads || have_r_reads) {
+		  //IMPORTANT: to keep paired reads in sync, this must be
+		  //incremented BEFORE any reads are chucked !
+		  ++next_id;
+	  }
 	  if ((flt_side & 1)==0 && have_l_reads)
 		  //for unpaired reads or left read in a pair
 	      processRead(matenum, read, next_id,  num_reads_chucked, multimap_chucked,
