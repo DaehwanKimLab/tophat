@@ -82,7 +82,8 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 		    <ul>
 		      <table width="100%"><tbody><tr>
 		      <td>
-			  </td></tr><tr><td>version 2.0.4 (BETA)</td> <td align="right">6/21/2012</td></tr>
+			  <br>
+</td></tr><tr><td>version 2.0.4 (BETA)</td> <td align="right">6/21/2012</td></tr>
 				<tr>
 		      		<td><a href="./downloads/tophat-2.0.4.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
 		      	</tr>
@@ -147,29 +148,42 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 	  <h2>TopHat 2.0.4 maintenance release 6/21/2012</h2>
 	  <p> Version 2.0.4 is a maintenance release addressing some issues found in the 2.0.3 release:
 	</p><ul>
-	  <li> The last stage of TopHat (tophat_reports) randomly crashes with a large data set, which is fixed in this release. </li>
-	  <li> For incorrectly paired reads in the left and the right read files, TopHat outputs a warning message instead of terminating the pipeline. </li>
-	  <li> For discordantly mapped pairs, their alignments are reported separately as single-end alignments (or singleton).
-	  If you use --report-discordant-pair-alignments, those pair alignments are reported as paired alignments using the relevant SAM flag. </li>
-	  <li> --fusion-search with Bowtie2 is still in developmental stage, it may require much memory space and produce many spurious fusions.
-	    You may want to try a combination of --bowtie1 and --fusion-search if it does not work.</li>
-	  <li> Environment variables such as BOWTIE_INDEXES and BOWTIE2_INDEXES are handled properly - please refer to the Bowtie website for more details about the variables. </li>
+	  <li>Fixed a bug that caused the last stage of TopHat (tophat_reports) to occasionally crash for large data sets<br>
+ </li>
+	  <li> For paired reads found to be incorrectly paired in the input 
+files TopHat now outputs a warning message instead of terminating with 
+an error.<br>
+</li>
+	  <li>Alignments of paired reads mapped discordantly (e.g. on different
+ chromosomes) are now reported, but flagged as improperly paired in 
+mapping.<br>
+ </li><li>--fusion-search with Bowtie2 is still in developmental stage, 
+it may require much memory space and produce many spurious fusions.
+	    You may want to try a combination of --bowtie1 and --fusion-search 
+if it does not work.</li>
+	  <li> Environment variables such as BOWTIE_INDEXES and BOWTIE2_INDEXES
+ are handled properly - please refer to the Bowtie website for more 
+details about the variables. </li>
 	</ul>
 	  <p></p><br>
 	    
 	  <h2>TopHat 2.0.3 release 5/26/2012</h2>
-	  <p> Users are strongly recommended to upgrade to this release as the source distribution and the binary versions of TopHat2.0.2 have some serious issues that cause runtime failure.
-	  </p><br/>
+	  <p> Users are strongly recommended to upgrade to this release as the 
+source distribution and the binary versions of TopHat2.0.2 have some 
+serious issues that cause runtime failure.
+	  </p><br>
 
 	  <h2>iGenomes index and annotation have been updated to include Bowtie2 indexes (in addition to Bowtie1 indexes) - 5/23/2012</h2>
 
 	  <p></p><br>
 	  <h2>TopHat 2.0.2 release 5/23/2012</h2>
 	  <p> Version 2.0.2 is a maintenance release:
-	  <p><strong>Note (9:50pm EST - 5/23):</strong> this version is slightly updated to remove some debugging code, which caused TopHat to exit abnormally.
+	  </p><p><strong>Note (9:50pm EST - 5/23):</strong> this version is slightly updated to remove some debugging code, which caused TopHat to exit abnormally.
 	</p><ul>
-	  <li> Fixed a bug TopHat2 aborts while reads overlapping with introns are being re-aligned, giving an error message like <br/>
-	  ./SeqAn-1.3/seqan/sequence/segment_infix.h:81 Assertion failed : data_begin_position <= data_end_position was: 18446744073709551607 > 31</li>
+	  <li> Fixed a bug TopHat2 aborts while reads overlapping with introns are being re-aligned, giving an error message like <br>
+	  ./SeqAn-1.3/seqan/sequence/segment_infix.h:81 Assertion failed : 
+data_begin_position &lt;= data_end_position was: 18446744073709551607 
+&gt; 31</li>
 	  <li> Some unique alignments were set as secondary alignments using 0x100 SAM flag, which is now fixed. </li>
 	</ul>
 	  
@@ -840,6 +854,7 @@ var pageTracker = _gat._getTracker("UA-6101038-1");
 pageTracker._trackPageview();
 </script>
 <!-- End google analytics code -->
+
 
 
 
