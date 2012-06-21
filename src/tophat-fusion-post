@@ -1534,12 +1534,9 @@ def generate_html(params):
                             - min(max_avg, abs(lavg - ravg)) - (lgap + rgap) - (lder + rder) * max_avg \
                             + rate - min(dist, 1000)
 
-                        # daehwan - for debugging purposes
-                        '''
-                        fusion_list[index]["score"] = score
-                        fusion_list[index]["test"] = "lcount: %d, lavg: %d, lgap: %d, lder: %f, rcount: %d, ravg: %d, rgap: %f, rder: %f, rate: %f, dist: %d, score: %f" % \
+                        output["score"] = score
+                        output["test"] = "lcount: %d, lavg: %d, lgap: %d, lder: %f, rcount: %d, ravg: %d, rgap: %f, rder: %f, rate: %f, dist: %d, score: %f" % \
                             (lcount, lavg, lgap, lder, rcount, ravg, rgap, rder, rate, dist, score)
-                        '''
                         
                         # print >> sys.stderr, "\t%d" % (line_no / 6 + 1)
 
@@ -1655,45 +1652,9 @@ def generate_html(params):
             def pair_count(indices):
                 final_score = -1000000.0
                 for index in indices:
-                    dist = 1000000
-
-                    stats = fusion_list[index]["stats"]
-                    num_read = int(stats[0])
-                    pair = int(stats[1])
-                    pair_fusion = int(stats[2])
-                    anti_read = int(stats[3])
-                    anti_pair = int(stats[4])
-                    lcount, lavg, lgap, lder = fusion_list[index]["lcount"], fusion_list[index]["lavg"], fusion_list[index]["lgap"], fusion_list[index]["lder"] 
-                    rcount, ravg, rgap, rder = fusion_list[index]["rcount"], fusion_list[index]["ravg"], fusion_list[index]["rgap"], fusion_list[index]["rder"]
-                    pair_coords = fusion_list[index]["pair_coords"]
-                    if len(pair_coords) > 0:
-                        pair = 0
-                        for pair_coord in pair_coords:
-                            pair_coord = pair_coord.split(":")
-                            temp_dist = abs(int(pair_coord[0])) + abs(int(pair_coord[1]))
-                            if temp_dist < dist:
-                                dist = temp_dist
-
-                            if temp_dist < 2000:
-                                pair += 1
-
-                    anti_read += 0.5
-                    if pair == 0:
-                        rate = num_read / anti_read
-                    else:
-                        rate = pair / anti_read
-
-                    max_avg = 300
-                    score = lcount + rcount + (min(max_avg, lavg) + min(max_avg, ravg)) - abs(lcount - rcount) \
-                        - min(max_avg, abs(lavg - ravg)) - (lgap + rgap) - (lder + rder) * max_avg \
-                        + rate - min(dist, 1000)
-
+                    score = fusion_list[index]["score"]
                     if score > final_score:
                         final_score = score
-
-                    fusion_list[index]["score"] = score
-                    fusion_list[index]["test"] = "lcount: %d, lavg: %d, lgap: %d, lder: %f, rcount: %d, ravg: %d, rgap: %f, rder: %f, rate: %f, dist: %d, score: %f" % \
-                        (lcount, lavg, lgap, lder, rcount, ravg, rgap, rder, rate, dist, score)
 
                 return int(final_score)
 
@@ -1849,7 +1810,7 @@ def generate_html(params):
                          stats[0],
                          stats[1] + stats[2])
 
-                print >> txt_file, '%s\t%s\t%s\t%d\t%s\t%s\t%d\t%d\t%d\t%d' % \
+                print >> txt_file, '%s\t%s\t%s\t%d\t%s\t%s\t%d\t%d\t%d\t%d\t%.2f' % \
                       (sample_name,
                        fusion["gene1"],
                        chr1,
@@ -1859,7 +1820,8 @@ def generate_html(params):
                        fusion["right_coord"],
                        stats[0],
                        stats[1],
-                       stats[2])
+                       stats[2],
+                       fusion["score"])
 
                 print >> html_file, r'<TR><TD ALIGN="LEFT"><a href="#fusion_%d">%s</a></TD>' % (i, sample_name)
                 print >> html_file, r'<TD ALIGN="LEFT">%s</TD>' % fusion["gene1"]
