@@ -159,6 +159,7 @@ string gtf_juncs = "";
 
 bool report_secondary_alignments = false;
 bool report_discordant_pair_alignments = false;
+bool report_mixed_alignments = false;
 
 string flt_reads = "";
 string flt_mappings = "";
@@ -314,6 +315,7 @@ enum
     OPT_FILTER_SIDE,
     OPT_REPORT_SECONDARY_ALIGNMENTS,
     OPT_REPORT_DISCORDANT_PAIR_ALIGNMENTS,
+    OPT_REPORT_MIXED_ALIGNMENTS,
     OPT_FUSION_SEARCH,
     OPT_FUSION_ANCHOR_LENGTH,
     OPT_FUSION_MIN_DIST,
@@ -388,6 +390,7 @@ static struct option long_options[] = {
 
 {"report-secondary-alignments", no_argument, 0, OPT_REPORT_SECONDARY_ALIGNMENTS},
 {"report-discordant-pair-alignments", no_argument, 0, OPT_REPORT_DISCORDANT_PAIR_ALIGNMENTS},
+{"report-mixed-alignments", no_argument, 0, OPT_REPORT_MIXED_ALIGNMENTS},
 {"fusion-search", no_argument, 0, OPT_FUSION_SEARCH},
 {"fusion-anchor-length", required_argument, 0, OPT_FUSION_ANCHOR_LENGTH},
 {"fusion-min-dist", required_argument, 0, OPT_FUSION_MIN_DIST},
@@ -625,6 +628,9 @@ int parse_options(int argc, char** argv, void (*print_usage)())
       break;
     case OPT_REPORT_DISCORDANT_PAIR_ALIGNMENTS:
       report_discordant_pair_alignments = true;
+      break;
+    case OPT_REPORT_MIXED_ALIGNMENTS:
+      report_mixed_alignments = true;
       break;
     case OPT_FUSION_SEARCH:
       fusion_search = true;
