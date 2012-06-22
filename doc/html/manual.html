@@ -18,7 +18,7 @@
       <tbody><tr><td>
         <a href="./index.html"><h1>TopHat</h1></a>
         <h2>A spliced read mapper for RNA-Seq</h2>
-      </td><td align="right" valign="middle">
+      </td><td valign="middle" align="right">
         <a href="http://bio.math.berkeley.edu/">
         <img style="vertical-align:middle;padding-top:4px" src="images/UCBerkeley-seal.scaled.gif" border="0">
         </a>&nbsp;
@@ -69,6 +69,7 @@
 		    <ul>
 		      <table width="100%"><tbody><tr>
 		      <td>
+<br>
 </td></tr><tr><td>version 2.0.4 (BETA)</td> <td align="right">6/21/2012</td></tr>
 				<tr>
 		      		<td><a href="./downloads/tophat-2.0.4.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
@@ -516,23 +517,22 @@ so you can invoke this new version of TopHat with the command 'tophat2'.</p>
 	  </td></tr>
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>--report-secondary-hits</tt>
-	  </td><td valign="top">
-	      Without the option, TopHat will report best or primary alignments based on alignment scores (AS).
-	      If you want to output additional or secondary alignments, use the option,
-	      which will report up to 20 alignments
-	      (the default number 20 can be changed using -g/--max-multihits option above).
+	  </td><td valign="top">By default TopHat reports best or primary alignments based on alignment scores (AS). Use this option
+ if you want to output additional or secondary alignments&nbsp; (up to 
+20 alignments will be reported this way, this limit can be changed by 
+using the -g/--max-multihits option above).
 	  </td></tr>
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>--no-discordant</tt>
-	  </td><td valign="top">
-	      By default, TopHat reports discordanlty mapped pairs, which can be turned off using this option.
-	  </td></tr>
+	  </td><td valign="top">For paired reads, report only concordant mappings.</td></tr>
 
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>--no-mixed</tt>
-	  </td><td valign="top">
-	      In case TopHat cannot find a concordant or discordant pair alignment, it will then try to find alignments for each read separately.
-	      This option disables that behavior.
+	  </td><td valign="top">For paired reads, only report read alignments 
+if both reads in a pair can be mapped (by default, if TopHat cannot find
+ a concordant or discordant alignment for both reads in a pair, it will find and report 
+alignments for each read separately; this option disables that 
+behavior).
 	  </td></tr>
 
 	  
@@ -1079,6 +1079,7 @@ document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.
 var pageTracker = _gat._getTracker("UA-6101038-1");
 pageTracker._trackPageview();
 </script>
+
 
 
 
