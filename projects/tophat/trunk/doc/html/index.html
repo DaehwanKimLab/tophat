@@ -113,7 +113,8 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 		  <div class="box">
 		    <ul>
 		      <li style="font-size: x-small; line-height: 130%"><p>Trapnell C, Pachter L, Salzberg SL. <a href="http://bioinformatics.oxfordjournals.org/cgi/content/abstract/btp120"><b>TopHat: discovering splice junctions with RNA-Seq</b></a>. <i><a href="http://bioinformatics.oxfordjournals.org">Bioinformatics</a></i>  doi:10.1093/bioinformatics/btp120</p><br></li>
-		      <li style="font-size: x-small; line-height: 130%"><p>Langmead B, Trapnell C, Pop M, Salzberg SL. <a href="http://genomebiology.com/2009/10/3/R25"><b>Ultrafast and memory-efficient alignment of short DNA sequences to the human genome</b></a>. <i><a href="http://genomebiology.com">Genome Biology</a></i> <b>10</b>:R25.</p></li>
+		      <li style="font-size: x-small; line-height: 130%"><p>Langmead B, Trapnell C, Pop M, Salzberg SL. <a href="http://genomebiology.com/2009/10/3/R25"><b>Ultrafast and memory-efficient alignment of short DNA sequences to the human genome</b></a>. <i><a href="http://genomebiology.com">Genome Biology</a></i> <b>10</b>:R25.</p><br></li>
+		      <li style="font-size: x-small; line-height: 130%"><p>Kim D and Salzberg SL. <a href="http://genomebiology.com/2011/12/8/R72/abstract"><b>TopHat-Fusion: an algorithm for discovery of novel fusion transcripts</b></a>. <i><a href="http://genomebiology.com/">Genome Biology</a></i> 2011, 12:R72</p><br/></li>
 		    </ul>
 		  </div>
 
@@ -147,7 +148,7 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 	  <h2>TopHat 2.0.4 release 6/21/2012</h2>
 	  <p> Version 2.0.4 is a maintenance release addressing some issues found in the 2.0.3 release:
 	</p><ul>
-	  <li>Fixed a bug that caused the last stage of TopHat (tophat_reports) to occasionally crash for large data sets<br>
+	  <li>Fixed a bug that caused the last stage of TopHat (tophat_reports) to occasionally crash for large data sets.<br>
  </li>
 	  <li>For paired reads found to be incorrectly paired in the input 
 files TopHat now outputs a warning message instead of terminating with 
@@ -162,6 +163,7 @@ if it does not work.</li>
 	  <li> Environment variables such as BOWTIE_INDEXES and BOWTIE2_INDEXES
  are handled properly - please refer to the Bowtie website for more 
 details about the variables. </li>
+	  <li> Prebuilt transcriptome indexes by older versions of TopHat may not be compatible with this version due to some internal changes in parsing gtf files.  It is strongly recommended to build a new transcriptome index.</li>
 	</ul>
 	  <p></p><br>
 	    
