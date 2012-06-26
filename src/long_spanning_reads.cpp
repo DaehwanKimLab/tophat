@@ -680,16 +680,18 @@ BowtieHit merge_chain_color(RefSequenceTable& rt,
       if (found_closure)
   {
     bool end = false;
+    int mismatches = prev_hit->mismatches() + curr_hit->mismatches() + mismatch;
     BowtieHit merged_hit(reference_id,
 			 reference_id,
-             insert_id,
-             new_left,
-             new_cigar,
-             antisense,
-             antisense_closure,
-             prev_hit->edit_dist() + curr_hit->edit_dist() + mismatch,
-             prev_hit->splice_mms() + curr_hit->splice_mms(),
-             end);
+			 insert_id,
+			 new_left,
+			 new_cigar,
+			 antisense,
+			 antisense_closure,
+			 mismatches,
+			 mismatches + gap_length(new_cigar),
+			 prev_hit->splice_mms() + curr_hit->splice_mms(),
+			 end);
 
     if (curr_seg_index > 1)
       merged_hit.seq(seq.substr(first_seg_length + (curr_seg_index - 1) * segment_length, 2 * segment_length));
@@ -723,7 +725,7 @@ BowtieHit merge_chain_color(RefSequenceTable& rt,
   int num_splice_mms = 0;
   for (list<BowtieHit>::iterator s = hit_chain.begin(); s != hit_chain.end(); ++s)
     {
-      num_mismatches += s->edit_dist();
+      num_mismatches += s->mismatches();
       num_splice_mms += s->splice_mms();
 
       /*
@@ -777,14 +779,15 @@ BowtieHit merge_chain_color(RefSequenceTable& rt,
   bool end = false;
   BowtieHit new_hit(reference_id,
 		    reference_id,
-        insert_id,
-        left,
-        long_cigar,
-        antisense,
-        saw_antisense_splice,
-        num_mismatches,
-        num_splice_mms,
-        end);
+		    insert_id,
+		    left,
+		    long_cigar,
+		    antisense,
+		    saw_antisense_splice,
+		    num_mismatches,
+		    num_mismatches + gap_length(long_cigar),
+		    num_splice_mms,
+		    end);
 
   new_hit.seq(seq);
   new_hit.qual(qual);
@@ -1819,6 +1822,7 @@ BowtieHit merge_chain(RefSequenceTable& rt,
       if (found_closure)
 	{
 	  bool end = false;
+	  int mismatches = prev_hit->mismatches() + curr_hit->mismatches() + mismatch;
 	  BowtieHit merged_hit(prev_hit->ref_id(),
 			       curr_hit->ref_id2(),
 			       insert_id,
@@ -1826,7 +1830,8 @@ BowtieHit merge_chain(RefSequenceTable& rt,
 			       new_cigar,
 			       antisense,
 			       antisense_closure,
-			       prev_hit->edit_dist() + curr_hit->edit_dist() + mismatch,
+			       mismatches,
+			       mismatches + gap_length(new_cigar),
 			       prev_hit->splice_mms() + curr_hit->splice_mms(),
 			       end);
 
@@ -1887,7 +1892,7 @@ BowtieHit merge_chain(RefSequenceTable& rt,
   int num_splice_mms = 0;
   for (list<BowtieHit>::iterator s = hit_chain.begin(); s != hit_chain.end(); ++s)
     {
-      num_mismatches += s->edit_dist();
+      num_mismatches += s->mismatches();
       num_splice_mms += s->splice_mms();
 
       /*
@@ -1947,6 +1952,7 @@ BowtieHit merge_chain(RefSequenceTable& rt,
 		    antisense,
 		    saw_antisense_splice,
 		    num_mismatches,
+		    num_mismatches + gap_length(long_cigar),
 		    num_splice_mms,
 		    end);
 
@@ -2799,6 +2805,11 @@ struct JoinSegmentsWorker
 		    joined_hits.erase(new_end, joined_hits.end());
 		    for (size_t i = 0; i < joined_hits.size(); i++)
 		      {
+			if (joined_hits[i].mismatches() > read_mismatches ||
+			    joined_hits[i].gap_length() > read_gap_length ||
+			    joined_hits[i].edit_dist() > read_edit_dist)
+			  continue;
+			    
 			const char* ref_name = rt->get_name(joined_hits[i].ref_id());
 			const char* ref_name2 = "";
 			if (joined_hits[i].fusion_opcode() != FUSION_NOTHING)

@@ -522,7 +522,6 @@ bin_PROGRAMS = \
 	fix_map_ordering \
 	bam2fastx \
 	segment_juncs \
-	closure_juncs \
 	gtf_juncs \
 	juncs_db \
 	long_spanning_reads \
@@ -580,7 +579,6 @@ noinst_HEADERS = \
 	align_status.h \
 	alphabet.h \
 	timer.h \
-	closures.h \
 	tokenize.h \
 	fragments.h \
 	inserts.h \
@@ -651,10 +649,6 @@ bam2fastx_LDFLAGS = $(LDFLAGS) $(BAM_LDFLAGS)
 bam_merge_SOURCES = bam_merge.cpp
 bam_merge_LDADD = $(top_builddir)/src/libtophat.a $(top_builddir)/src/libgc.a $(BAM_LIB)
 bam_merge_LDFLAGS = $(LDFLAGS) $(BAM_LDFLAGS)
-
-closure_juncs_SOURCES = closures.cpp
-closure_juncs_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
-closure_juncs_LDFLAGS = $(LDFLAGS) $(BAM_LDFLAGS)
 
 sam_juncs_SOURCES = sam_juncs.cpp
 sam_juncs_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
