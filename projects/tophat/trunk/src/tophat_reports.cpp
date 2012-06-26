@@ -91,6 +91,25 @@ struct cmp_read_alignment
   }
 };
 
+struct cmp_read_equal
+{
+  bool operator() (const BowtieHit& l, const BowtieHit& r) const
+  {
+    if (l.insert_id() != r.insert_id() ||
+	l.ref_id() != r.ref_id() || 
+	l.ref_id2() != r.ref_id2() ||
+	l.left() != r.left() ||
+	l.right() != r.right() ||
+	l.antisense_align() != r.antisense_align() ||
+	l.mismatches() != r.mismatches() ||
+	l.edit_dist() != r.edit_dist() ||
+	l.cigar().size() != r.cigar().size())
+      return false;
+
+    return true;
+  }
+};
+
 void read_best_alignments(const HitsForRead& hits_for_read,
 			  HitsForRead& best_hits,
 			  const JunctionSet& gtf_junctions,
@@ -103,13 +122,14 @@ void read_best_alignments(const HitsForRead& hits_for_read,
 			  boost::random::mt19937* rng = NULL)
 {
   const vector<BowtieHit>& hits = hits_for_read.hits;
-
   if (hits.size() >= max_multihits * 5)
     return;
 
   for (size_t i = 0; i < hits.size(); ++i)
     {
-      if (hits[i].edit_dist() > max_read_mismatches)
+      if (hits[i].mismatches() > read_mismatches ||
+	  hits[i].gap_length() > read_gap_length ||
+	  hits[i].edit_dist() > read_edit_dist)
 	continue;
 
       BowtieHit hit = hits[i];
@@ -135,6 +155,11 @@ void read_best_alignments(const HitsForRead& hits_for_read,
 	    }
 	}
     }
+
+  // due to indel alignments, there may be alignments with the same location
+  std::sort(best_hits.hits.begin(), best_hits.hits.end());
+  vector<BowtieHit>::iterator new_end = std::unique(best_hits.hits.begin(), best_hits.hits.end(), cmp_read_equal());
+  best_hits.hits.erase(new_end, best_hits.hits.end());
 
   if ((report_secondary_alignments || !final_report) && best_hits.hits.size() > 0)
     {
@@ -246,6 +271,35 @@ struct cmp_pair_alignment
   const JunctionSet* _junctions;
 };
 
+struct cmp_pair_equal
+{
+  bool operator() (const pair<BowtieHit, BowtieHit>& l, const pair<BowtieHit, BowtieHit>& r) const
+  {
+    if (!cmp_read_equal()(l.first, r.first) || !cmp_read_equal()(l.second, r.second))
+	return false;
+	
+    return true;
+  }
+};
+
+struct cmp_pair_less
+{
+  bool operator() (const pair<BowtieHit, BowtieHit>& l, const pair<BowtieHit, BowtieHit>& r) const
+  {
+    if (l.first < r.first)
+      return true;
+    else if (r.first < l.first)
+      return false;
+
+    if (l.second < r.second)
+      return true;
+    else if (r.second < l.second)
+      return false;
+	
+    return false;
+  }
+};
+
 void pair_best_alignments(const HitsForRead& left_hits,
 			  const HitsForRead& right_hits,
 			  InsertAlignmentGrade& best_grade,
@@ -267,7 +321,10 @@ void pair_best_alignments(const HitsForRead& left_hits,
 
   for (size_t i = 0; i < left.size(); ++i)
     {
-      if (left[i].edit_dist() > max_read_mismatches) continue;
+      if (left[i].mismatches() > read_mismatches ||
+	  left[i].gap_length() > read_gap_length ||
+	  left[i].edit_dist() > read_edit_dist)
+	continue;
 
       BowtieHit lh = left[i];
       AlignStatus align_status(lh, gtf_junctions,
@@ -276,7 +333,10 @@ void pair_best_alignments(const HitsForRead& left_hits,
 
       for (size_t j = 0; j < right.size(); ++j)
 	{
-	  if (right[j].edit_dist() > max_read_mismatches) continue;
+	  if (right[j].mismatches() > read_mismatches ||
+	      right[j].gap_length() > read_gap_length ||
+	      right[j].edit_dist() > read_edit_dist)
+	    continue;
 	  
 	  BowtieHit rh = right[j];
 	  AlignStatus align_status(rh, gtf_junctions,
@@ -323,7 +383,11 @@ void pair_best_alignments(const HitsForRead& left_hits,
 	    }
 	}
     }
- 
+
+  std::sort(best_hits.begin(), best_hits.end(), cmp_pair_less());
+  vector<pair<BowtieHit, BowtieHit> >::iterator new_end = std::unique(best_hits.begin(), best_hits.end(), cmp_pair_equal());
+  best_hits.erase(new_end, best_hits.end());
+
   if ((report_secondary_alignments || !final_report) && best_hits.size() > 0)
     {
       cmp_pair_alignment cmp(final_report ? junctions : gtf_junctions);
@@ -967,7 +1031,9 @@ void exclude_hits_on_filtered_junctions(const JunctionSet& junctions, HitsForRea
   for (size_t i = 0; i < hits.hits.size(); ++i)
     {
       BowtieHit& bh = hits.hits[i];
-      if (bh.edit_dist() > max_read_mismatches)
+      if (bh.mismatches() > read_mismatches ||
+	  bh.gap_length() > read_gap_length ||
+	  bh.edit_dist() > read_edit_dist)
 	continue;
       
       bool filter_hit = false;
@@ -1135,6 +1201,7 @@ void realign_reads(HitsForRead& hits,
 					 new_cigars,
 					 bh.antisense_align(),
 					 junc.antisense,
+					 0, /* mismatches - needs to be recalculated */
 					 0, /* edit_dist - needs to be recalculated */
 					 0, /* splice_mms - needs to be recalculated */
 					 false);
@@ -1161,7 +1228,8 @@ void realign_reads(HitsForRead& hits,
 				else if (strncmp(aux_field.c_str(), "XM", 2) == 0)
 				  {
 				    int XM_value =  atoi(aux_field.c_str() + 5);
-				    new_bh.edit_dist(XM_value);
+				    new_bh.mismatches(XM_value);
+				    new_bh.edit_dist(XM_value + gap_length(new_cigars));
 				  }
 			      }
 			    

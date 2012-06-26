@@ -1378,6 +1378,7 @@ void hits_from_seed_extension(uint32_t ref_id,
 				     antisense,
 				     false,
 				     s.mismatches,
+				     s.mismatches,
 				     0,
 				     end);
 			hits_out.push_back(bh);
@@ -3283,7 +3284,7 @@ void find_fusions(RefSequenceTable& rt,
 	      if (fwd_pos >= 0)
 		{
 		  BowtieHit hit(rightHit.ref_id(), rightHit.ref_id(), rightHit.insert_id(),
-				left + fwd_pos, check_read_len, false, 0, true);
+				left + fwd_pos, check_read_len, false, 0, 0, true);
 		  
 		  right_segment_hits.hits.push_back(hit);
 		}
@@ -3293,7 +3294,7 @@ void find_fusions(RefSequenceTable& rt,
 	      if (rev_pos >= 0)
 		{
 		  BowtieHit hit(rightHit.ref_id(), rightHit.ref_id(), rightHit.insert_id(),
-				left + rev_pos, check_read_len, true, 0, true);
+				left + rev_pos, check_read_len, true, 0, 0, true);
 		  
 		  right_segment_hits.hits.push_back(hit);
 		}
@@ -3560,7 +3561,7 @@ void find_gaps(RefSequenceTable& rt,
 	      if (fwd_pos >= 0)
 		{
 		  BowtieHit hit(rightHit.ref_id(), rightHit.ref_id2(), rightHit.insert_id(),
-				left + fwd_pos, check_read_len, false, 0, true);
+				left + fwd_pos, check_read_len, false, 0, 0, true);
 		  
 		  hits_for_read[last_segment].hits.push_back(hit);
 		}
@@ -3570,7 +3571,7 @@ void find_gaps(RefSequenceTable& rt,
 	      if (rev_pos >= 0)
 		{
 		  BowtieHit hit(rightHit.ref_id(), rightHit.ref_id2(), rightHit.insert_id(),
-				left + rev_pos, check_read_len, true, 0, true);
+				left + rev_pos, check_read_len, true, 0, 0, true);
 		  
 		  hits_for_read[last_segment].hits.push_back(hit);
 		}

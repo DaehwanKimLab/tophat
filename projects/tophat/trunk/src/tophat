@@ -37,13 +37,16 @@ Options:
     -v/--version
     -o/--output-dir                <string>    [ default: ./tophat_out     ]
     --bowtie1                                  [ default: bowtie2          ]
+    -N/--read-mismatches           <int>       [ default: 2                ]
+    --read-gap-length              <int>       [ default: 2                ]
+    --read-edit-dist               <int>       [ default: 2                ]
+    --read-realign-edit-dist       <int>       [ default: 2                ]
     -a/--min-anchor                <int>       [ default: 8                ]
     -m/--splice-mismatches         <0-2>       [ default: 0                ]
     -i/--min-intron-length         <int>       [ default: 50               ]
     -I/--max-intron-length         <int>       [ default: 500000           ]
     -g/--max-multihits             <int>       [ default: 20               ]
     -x/--transcriptome-max-hits    <int>       [ default: 60               ]
-    -n/--transcriptome-mismatches  <int>       [ default: 1                ]
     -M/--prefilter-multihits                   ( for -G/--GTF option, enable
                                                  an initial bowtie search
                                                  against the genome )
@@ -83,10 +86,10 @@ Advanced Options:
     --report-secondary-alignments
     --no-discordant
     --no-mixed
-    --genome-read-mismatches       <int>       [ default: 2                ]
-    -N/--read-mismatches           <int>       [ default: 2                ]
+
     --segment-mismatches           <int>       [ default: 2                ]
     --segment-length               <int>       [ default: 25               ]
+    
     --bowtie-n                                 [ default: bowtie -v        ]
     --min-coverage-intron          <int>       [ default: 50               ]
     --max-coverage-intron          <int>       [ default: 20000            ]
@@ -495,7 +498,8 @@ class TopHatParams:
             self.np = 1
             self.rdg = "5,3"
             self.rfg = "5,3"
-            self.score_min = "L,-0.6,-0.6"
+            # self.score_min = "L,-0.6,-0.6"
+            self.score_min = None
 
             self.D = 15
             self.R = 2
@@ -567,9 +571,10 @@ class TopHatParams:
             if not function_match:
                 die("Error: arg to --b2-n-ceil must be <func> (e.g. --b2-n-ceil L,0,0.15)")
 
-            function_match = re.search(function_re, self.score_min)
-            if not function_match:
-                die("Error: arg to --b2-score-min must be <func> (e.g. --b2-score-min L,-0.6,-0.6)")
+            if self.score_min:
+                function_match = re.search(function_re, self.score_min)
+                if not function_match:
+                    die("Error: arg to --b2-score-min must be <func> (e.g. --b2-score-min L,-0.6,-0.6)")
 
             pair_re = r'^\d+,\d+$'
             pair_match = re.search(pair_re, self.mp)
@@ -642,9 +647,10 @@ class TopHatParams:
         self.t_max_hits = 60
         self.max_seg_hits = 40
         self.prefilter_multi = False
-        self.genome_read_mismatches = 2
-        self.max_read_mismatches = 2
-        self.t_mismatches = 1
+        self.read_mismatches = 2
+        self.read_gap_length = 2
+        self.read_edit_dist = 2
+        self.read_realign_edit_dist = None
         self.segment_length = 25
         self.segment_mismatches = 2
         self.bowtie_alignment_option = "-v"
@@ -685,9 +691,6 @@ class TopHatParams:
             die("Error: arg to --segment-length must at least 10")
         if self.segment_mismatches < 0 or self.segment_mismatches > 3:
             die("Error: arg to --segment-mismatches must in [0, 3]")
-        if self.t_mismatches < 0 or self.t_mismatches > 3:
-            die("Error: arg to -n or --transcriptome-mismatches must in [0, 3]")
-
         if self.read_params.color:
             if self.bowtie2:
                 th_log("Warning: bowtie2 in colorspace is not supported; --bowtie1 option assumed.")
@@ -728,6 +731,10 @@ class TopHatParams:
         if self.max_deletion_length < 0:
            die("Error: the max deletion length ("+self.max_deletion_length+") can not be less than 0")
 
+        if self.read_mismatches > self.read_edit_dist or self.read_gap_length > self.read_edit_dist:
+            die("Error: the read mismatches (" + str(self.read_mismatches) + ") and the read gap length (" + str(self.read_edit_dist) + ") should be less than or equal to the read edit dist (" + str(self.read_edit_dist) + ")\n" + \
+                "Either decrease --read-mismatches or --read-gap-length, or increase --read-edit-dist")
+
     def cmd(self):
         cmd = ["--min-anchor", str(self.splice_constraints.min_anchor_length),
                "--splice-mismatches", str(self.splice_constraints.splice_mismatches),
@@ -746,7 +753,10 @@ class TopHatParams:
                "--max-coverage-intron", str(self.search_params.max_coverage_intron_length),
                "--min-segment-intron", str(self.search_params.min_segment_intron_length),
                "--max-segment-intron", str(self.search_params.max_segment_intron_length),
-               "--max-mismatches", str(self.max_read_mismatches),
+               "--read-mismatches", str(self.read_mismatches),
+               "--read-gap-length", str(self.read_gap_length),
+               "--read-edit-dist", str(self.read_edit_dist),
+               "--read-realign-edit-dist", str(self.read_realign_edit_dist),
                "--max-insertion-length", str(self.max_insertion_length),
                "--max-deletion-length", str(self.max_deletion_length)]
 
@@ -859,10 +869,10 @@ class TopHatParams:
                                          "min-segment-intron=",
                                          "max-segment-intron=",
                                          "seed-length=",
-                                         "genome-read-mismatches=",
                                          "read-mismatches=",
-                                         "max-read-mismatches=",
-                                         "transcriptome-mismatches=",
+                                         "read-gap-length=",
+                                         "read-edit-dist=",
+                                         "read-realign-edit-dist=",
                                          "segment-length=",
                                          "segment-mismatches=",
                                          "bowtie-n",
@@ -994,12 +1004,14 @@ class TopHatParams:
             #    self.butterfly_search = True
             #if option == "--no-butterfly-search":
             #    self.butterfly_search = False
-            if option == "--genome-read-mismatches":
-                self.genome_read_mismatches = int(value)
-            if option in ("-N", "--read-mismatches", "--max-read-mismatches"):
-                self.max_read_mismatches = int(value)
-            if option in ("-n", "--transcriptome-mismatches"):
-                self.t_mismatches = int(value)
+            if option in ("-N", "--read-mismatches"):
+                self.read_mismatches = int(value)
+            if option == "--read-gap-length":
+                self.read_gap_length = int(value)
+            if option == "--read-edit-dist":
+                self.read_edit_dist = int(value)
+            if option == "--read-realign-edit-dist":
+                self.read_realign_edit_dist = int(value)
             if option == "--segment-length":
                 self.segment_length = int(value)
             if option == "--segment-mismatches":
@@ -1028,6 +1040,7 @@ class TopHatParams:
                 custom_out_dir = value + "/"
             if option == "--tmp-dir":
                 custom_tmp_dir = value + "/"
+                
         if self.transcriptome_only:
            self.find_novel_juncs=False
            self.find_novel_indels=False
@@ -1041,6 +1054,10 @@ class TopHatParams:
             sam_header = tmp_dir + "stub_header.sam"
         if len(args) < 2:
             raise Usage(use_message)
+
+        if not self.read_realign_edit_dist:
+            self.read_realign_edit_dist = self.read_edit_dist
+
         return args
 
 
@@ -1989,6 +2006,9 @@ def bowtie(params,
            reads_list,
            reads_format,
            num_mismatches,
+           gap_length,
+           edit_dist,
+           realign_edit_dist,
            mapped_reads,
            unmapped_reads,
            extra_output = "",
@@ -2105,15 +2125,16 @@ def bowtie(params,
             #if t_mapping or g_mapping:
                 max_penalty, min_penalty = params.bowtie2_params.mp.split(',')
                 max_penalty, min_penalty = int(max_penalty), int(min_penalty)
-                min_score = (max_penalty - 1) * num_mismatches
+                min_score = (max_penalty - 1) * realign_edit_dist
                 fix_map_cmd += ["--bowtie2-min-score", str(min_score)]
             # testing score filtering
                 if params.b2scoreflt:
                    fix_map_cmd +=["-W"+str(min_score+max_penalty)]
-        if t_mapping:
-            fix_map_cmd +=["--max-mismatches", str(params.t_mismatches)]
-        else:
-            fix_map_cmd +=["--max-mismatches", str(params.max_read_mismatches)]
+        fix_map_cmd += ["--read-mismatches", str(params.read_mismatches),
+                        "--read-gap-length", str(params.read_gap_length),
+                        "--read-edit-dist", str(params.read_edit_dist),
+                        "--read-realign-edit-dist", str(params.read_realign_edit_dist)]
+        
         #write BAM file
         mapped_reads += ".bam"
         out_bam = mapped_reads
@@ -2178,6 +2199,11 @@ def bowtie(params,
                                    "-L", str(bowtie2_params.L),
                                    "-i", bowtie2_params.i]
 
+                score_min = bowtie2_params.score_min
+                if not score_min:
+                    max_penalty, min_penalty = bowtie2_params.mp.split(',')
+                    score_min = "C,-%d,0" % (int(max_penalty) * edit_dist + 2)
+        
                 # "--n-ceil" is not correctly parsed in Bowtie2,
                 # I  (daehwan) already talked to Ben who will fix the problem.
                 bowtie_cmd += [# "--n-ceil", bowtie2_params.n_ceil,
@@ -2186,7 +2212,7 @@ def bowtie(params,
                                "--np", str(bowtie2_params.np),
                                "--rdg", bowtie2_params.rdg,
                                "--rfg", bowtie2_params.rfg,
-                               "--score-min", bowtie2_params.score_min]
+                               "--score-min", score_min]
 
         else:
             bowtie_cmd += [params.bowtie_alignment_option, str(num_mismatches),
@@ -3163,7 +3189,10 @@ def map2gtf(params, genome_sam_header_filename, ref_fasta, left_reads, right_rea
                                             [transcriptome_header_filename, genome_sam_header_filename],
                                             [reads],
                                             "fastq",
-                                            params.t_mismatches,
+                                            params.read_mismatches,
+                                            params.read_gap_length,
+                                            params.read_edit_dist,
+                                            params.read_realign_edit_dist,
                                             mapped_gtf_out,
                                             unmapped_gtf,
                                             "", _reads_vs_T)
@@ -3378,7 +3407,10 @@ def spliced_alignment(params,
                                                    sam_header_filename,
                                                    [reads],
                                                    "fastq",
-                                                   params.genome_read_mismatches,
+                                                   params.read_mismatches,
+                                                   params.read_gap_length,
+                                                   params.read_edit_dist,
+                                                   params.read_realign_edit_dist,
                                                    unspliced_out,
                                                    unmapped_unspliced,
                                                    "",
@@ -3415,6 +3447,9 @@ def spliced_alignment(params,
                                              sam_header_filename,
                                              [seg],
                                              "fastq",
+                                             params.segment_mismatches,
+                                             params.segment_mismatches,
+                                             params.segment_mismatches,
                                              params.segment_mismatches,
                                              seg_out,
                                              unmapped_seg,
@@ -3566,6 +3601,9 @@ def spliced_alignment(params,
                                                  [seg],
                                                  "fastq",
                                                  params.segment_mismatches,
+                                                 params.segment_mismatches,
+                                                 params.segment_mismatches,
+                                                 params.segment_mismatches,
                                                  seg_out,
                                                  None,
                                                  extra_output,
@@ -3697,7 +3735,7 @@ def prog_path(program):
 
 # FIXME: this should get set during the make dist autotools phase of the build
 def get_version():
-   return "2.0.4"
+   return "2.0.5"
 
 def mlog(msg):
   print >> sys.stderr, "[DBGLOG]:"+msg
@@ -3860,10 +3898,13 @@ def main(argv=None):
                th_log("Pre-filtering multi-mapped "+sides[ri]+" reads")
                rdlist=reads_list.split(',')
                bwt=bowtie(params, bwt_idx_prefix, sam_header_filename, rdlist,
-                     params.read_params.reads_format,
-                     params.genome_read_mismatches,
-                     side_imap, side_ium,
-                     "", _reads_vs_G,  ri )             #  multi-mapped reads will be in params.preflt_data[ri].multihit_reads
+                          params.read_params.reads_format,
+                          params.read_mismatches,
+                          params.read_gap_length,
+                          params.read_edit_dist,
+                          params.read_realign_edit_dist,
+                          side_imap, side_ium,
+                          "", _reads_vs_G,  ri )             #  multi-mapped reads will be in params.preflt_data[ri].multihit_reads
                params.preflt_data[ri].mappings = bwt[0] # initial mappings
                params.preflt_data[ri].unmapped_reads = bwt[1] # IUM reads
 

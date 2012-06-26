@@ -84,7 +84,10 @@ extern int island_extension;
 extern int num_threads;
 extern int segment_length; // the read segment length used by the pipeline
 extern int segment_mismatches;
-extern int max_read_mismatches;
+extern int read_mismatches;
+extern int read_gap_length;
+extern int read_edit_dist;
+extern int read_realign_edit_dist;
 
 extern int max_splice_mismatches;
 

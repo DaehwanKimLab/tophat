@@ -279,7 +279,7 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
 		 uint8_t* ptr = bam_aux_get(tb, "NM");
 		 if (ptr) {
 		   int edit_dist=bam_aux2i(ptr);
-		   if (edit_dist>max_read_mismatches)
+		   if (edit_dist>read_edit_dist)
 			 properly_mapped=false;
 		 }
 	   }
@@ -303,7 +303,7 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
 		   uint8_t* ptr = bam_aux_get(map_pq.top().second, "NM");
 			 if (ptr) {
 			   int edit_dist=bam_aux2i(ptr);
-			   if (edit_dist>max_read_mismatches)
+			   if (edit_dist>read_edit_dist)
 				 acceptable=false;
 			 }
 		 }
