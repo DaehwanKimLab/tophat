@@ -429,42 +429,37 @@ void process_reads(vector<string>& reads_fnames, vector<FZPipe>& quals_files,
 
   }
   bool possible_mate_mismatch=false;
-  bool mates_ended=false;
-  for (size_t fi = 0; fi < reads_fnames.size(); ++fi)
+  size_t max_files=max(reads_fnames.size(), mate_fnames.size());
+  for (size_t fi = 0; fi < max_files; ++fi)
   {
 	Read read;
 	Read mate_read;
+    ReadStream* reads=NULL;
+	ReadStream* mate_reads=NULL;
 	FZPipe* fq=NULL;
 	FZPipe* mate_fq=NULL;
-	if (quals)
-	  fq = & quals_files[fi];
-	ReadStream reads(reads_fnames[fi], fq, true);
-	ReadStream* mate_reads=NULL;
-	if (fi>=mate_fnames.size()) mates_ended=true;
-	if (have_mates && !mates_ended) {
+	bool have_l_reads=(fi<reads_fnames.size());
+	bool have_r_reads=(have_mates && fi<mate_fnames.size());
+	if (have_l_reads) {
 	  if (quals)
-		mate_fq = & mate_quals_files[fi];
+		fq = & quals_files[fi];
+	  reads=new ReadStream(reads_fnames[fi], fq, true);
+	}
+	if (have_r_reads) {
+	  if (quals)
+		 mate_fq = & mate_quals_files[fi];
 	  mate_reads=new ReadStream(mate_fnames[fi], mate_fq, true);
 	}
-	bool have_l_reads=true;
-	bool have_r_reads=false;
+
 	while (have_l_reads || have_r_reads) {
-	  if ((have_l_reads=reads.get_direct(read, reads_format)))
+	  if (have_l_reads && (have_l_reads=reads->get_direct(read, reads_format)))
 		 num_left++;
 	  // Get the next read from the file
 	  int matenum=0; // 0 = unpaired, 1 = left, 2 = right
-	  if (have_mates && !mates_ended) {
-		if ( (have_r_reads=mate_reads->get_direct(mate_read, reads_format)) ) {
-			num_mates++;
-		}
-		else {
-		  if (num_mates>0)
-              mates_ended=true;
-		  else {
-			 //no mates found at all
-		     err_die("Error: could not retrieve read pair!");
-		  }
-		}
+	  if (have_r_reads && (have_r_reads=mate_reads->get_direct(mate_read, reads_format)) ) {
+		num_mates++;
+	  }
+	  if (have_l_reads && have_r_reads) {
 		matenum = 1; //read is first in a pair
 		if (have_l_reads && have_r_reads && !possible_mate_mismatch) {
   		  //check if reads are paired correctly
@@ -497,13 +492,15 @@ void process_reads(vector<string>& reads_fnames, vector<FZPipe>& quals_files,
 		  //for unpaired reads or left read in a pair
 	      processRead(matenum, read, next_id,  num_reads_chucked, multimap_chucked,
 		     wbam, fout, fqindex, min_read_len,  max_read_len,  fout_offset, readmap);
-	  if (mate_reads && flt_side>0 && have_r_reads) {
-		  //matenum = 2;
-		  processRead(2, mate_read, next_id,  mate_num_reads_chucked, mate_multimap_chucked,
+	  if (flt_side>0 && have_r_reads) {
+		  matenum = have_l_reads ? 2 : 0;
+		  processRead(matenum, mate_read, next_id,  mate_num_reads_chucked, mate_multimap_chucked,
 			  mate_wbam, mate_fout, mate_fqindex, mate_min_read_len,  mate_max_read_len,
 			  mate_fout_offset, mate_readmap);
       }
     } //while !fr.isEof()
+	if (reads)
+	  delete reads;
 	if (mate_reads)
 	  delete mate_reads;
     } //for each input file
