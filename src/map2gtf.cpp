@@ -60,9 +60,8 @@ Map2GTF::~Map2GTF()
 }
 
 //
-bool Map2GTF::next_read_hits(vector<bam1_t*>& hits, size_t& num_hits)
+bool Map2GTF::next_read_hits(vector<bam1_t*>& hits, size_t& num_hits, long& read_id)
 {
-  long read_id = 0;
   if (hits.size() > num_hits)
     {
       bam1_t* temp = hits[num_hits];
@@ -117,11 +116,9 @@ void Map2GTF::convert_coords(const std::string& out_fname, const std::string& sa
     std::cerr << "Error opening sam header: " << sam_header << std::endl;
 
   out_sam_header_ = out_sam_header_file->header;
-  
-  samfile_t* bam_writer = samopen(out_fname.c_str(), "wb", out_sam_header_);
-  if (bam_writer == NULL)
-    std::cerr << "Error opening bam file for writing: " << out_fname << std::endl;
 
+  string index_out_fname = out_fname + ".index";
+  GBamWriter bam_writer(out_fname.c_str(), out_sam_header_, index_out_fname);
   ref_to_id_.clear();
   for (int i = 0; i < out_sam_header_->n_targets; ++i)
     {
@@ -138,8 +135,9 @@ void Map2GTF::convert_coords(const std::string& out_fname, const std::string& sa
 
   vector<bam1_t*> hits;
   size_t num_hits = 0;
+  long read_id = 0;
   // a hit group is a set of reads with the same name
-  while (next_read_hits(hits, num_hits))
+  while (next_read_hits(hits, num_hits, read_id))
     {
       for (size_t i = 0; i < num_hits; ++i)
         {
@@ -161,7 +159,7 @@ void Map2GTF::convert_coords(const std::string& out_fname, const std::string& sa
       bh_unique_it = std::unique(read_list.begin(), read_list.end());
       for (bh_it = read_list.begin(); bh_it != bh_unique_it; ++bh_it)
         {
-	  samwrite(bam_writer, bh_it->hit);
+	  bam_writer.write(bh_it->hit, read_id);
         }
       read_list.clear();
     }
@@ -171,8 +169,6 @@ void Map2GTF::convert_coords(const std::string& out_fname, const std::string& sa
       bam_destroy1(hits[i]);
     }
   hits.clear();
-
-  samclose(bam_writer);
 }
 
 bool Map2GTF::trans_to_genomic_coords(TranscriptomeHit& hit)

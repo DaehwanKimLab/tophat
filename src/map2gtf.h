@@ -45,7 +45,7 @@ public:
     Map2GTF(const std::string& gtf_fname, const std::string& sam_fname);
     ~Map2GTF();
     // Write out to a BAM file
-    bool next_read_hits(std::vector<bam1_t*>& hits, size_t& num_hits);
+    bool next_read_hits(std::vector<bam1_t*>& hits, size_t& num_hits, long& read_id);
     void convert_coords(const std::string& out_fname, const std::string& sam_header);
     bool trans_to_genomic_coords(TranscriptomeHit& hit);
 
