@@ -73,16 +73,29 @@ struct MapOrdering {
 	}
 };
 
+#define NOQUALS 0xFF
+
+void copy_quals(const bam1_t& from_bam,  bam1_t& to_bam) {
+  const uint8_t *base_bq = bam1_qual(&from_bam);
+  uint8_t *this_bq = bam1_qual(&to_bam);
+  if ((from_bam.core.flag & BAM_FREVERSE) == (to_bam.core.flag & BAM_FREVERSE)) {
+	memcpy(this_bq, base_bq, to_bam.core.l_qseq);
+  } else {
+	for(int i=0;i<(to_bam.core.l_qseq);i++) {
+	  this_bq[to_bam.core.l_qseq - i - 1] = base_bq[i];
+	}
+  }
+}
+
 // "AS:i" (alignment score) is considered.
 struct BamMapOrdering {
   bool operator()(pair<uint64_t, bam1_t*>& lhs, pair<uint64_t, bam1_t*>& rhs) {
     uint64_t lhs_id = lhs.first;
     uint64_t rhs_id = rhs.first;
-
     //if (lhs_id != rhs_id || !bowtie2)
     if (lhs_id != rhs_id)
       return lhs_id > rhs_id;
-
+    //they have the same ID here
     int lhs_score, rhs_score;
     lhs_score = rhs_score = numeric_limits<int>::min();
     if (bowtie2) {
@@ -257,6 +270,8 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
 	   read_hits.push_back(map_pq.top());
 	   unsigned int mcount=0; //number of "good" scoring multi-mappings
 	   int tbscore=0; //best mapping score for this read (first alignment reported)
+	   uint8_t* tbq=bam1_qual(read_hits[0].second);
+	   bool need_quals = (tbq[0] == NOQUALS);
 	   bool properly_mapped=true;
 	   if (bowtie2) {
 		 uint8_t* ptr = bam_aux_get(tb, "AS");
@@ -286,6 +301,13 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
 	   map_pq.pop();
 	   while (map_pq.size()>0 && map_pq.top().first==rid) {
 		 //read_hits.push_back(map_pq.top()); //no, we'll keep only "acceptable" mappings
+		 if (need_quals) {
+		   uint8_t* mq=bam1_qual(map_pq.top().second);
+           if (mq[0]!=NOQUALS) {
+        	 copy_quals(*(map_pq.top().second), *(read_hits[0].second));
+        	 need_quals=false;
+           }
+		 }
 		 bool acceptable=true;
 		 if (bowtie2) {
 		   uint8_t* ptr = bam_aux_get(map_pq.top().second, "AS");
@@ -310,7 +332,7 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
 		 if (acceptable)
 		   read_hits.push_back(map_pq.top());
 		 map_pq.pop();
-	   }
+	   } //for each alignment of the same read
 	   int32_t num_hits=read_hits.size(); //this will only count "acceptable" mappings
 	   if (wmulti && mcount>max_multihits) {
 		 //just filtering out multi-mapped hits if requested (pre-filtering feature)
@@ -336,26 +358,11 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
 		   {
 			 pair<uint64_t, bam1_t*>& v = read_hits[i];
 			 v.second->core.flag &= ~BAM_FSECONDARY;
-
-			 // restore quality values
-			 if (bowtie2 && num_hits > 1) {
-			   if (i > 0) {
-				 const bam1_t& base_bam = *(read_hits[0].second);
-				 bam1_t& this_bam = *(v.second);
-
-				 const char *base_bq = (char*)bam1_qual(&base_bam);
-				 char *this_bq = (char*)bam1_qual(&this_bam);
-
-				 if ((base_bam.core.flag & BAM_FREVERSE) == (this_bam.core.flag & BAM_FREVERSE)) {
-				   memcpy(this_bq, base_bq, this_bam.core.l_qseq);
-				 } else {
-				   for(int i=0;i<(this_bam.core.l_qseq);i++) {
-					 this_bq[this_bam.core.l_qseq - i - 1] = base_bq[i];
-				   }
-				 }
-			   }
+			 if (i>0) {
+			   uint8_t* mq=bam1_qual(v.second);
+			   if (mq[0]==NOQUALS)
+				 copy_quals(*(read_hits[0].second), *v.second);
 			 }
-
 			 if (num_hits>1)
 			   bam_aux_append(v.second, "NH", 'i', 4, (uint8_t*)&num_hits);
 			 bam_writer.write(v.second, v.first);
