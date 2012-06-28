@@ -272,7 +272,6 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
 	   int tbscore=0; //best mapping score for this read (first alignment reported)
 	   uint8_t* tbq=bam1_qual(read_hits[0].second);
 	   bool need_quals = (tbq[0] == NOQUALS);
-	   bool properly_mapped=true;
 	   if (bowtie2) {
 		 uint8_t* ptr = bam_aux_get(tb, "AS");
 		 if (ptr) {
@@ -280,24 +279,11 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
 		   if (tbscore>=bowtie2_min_score) {
 			 ++mcount;
 		   }
-		   if (bowtie2_scoreflt && tbscore<bowtie2_scoreflt)
-			 properly_mapped=false;
 		 }
 	   } //bowtie2 only
 	   else
 		 mcount++; //for bowtie 1 count every mapping
-	   if (bowtie2_scoreflt && properly_mapped) {
-		 //for now filter out hits with too many mismatches/edit distance
-		 // FIXME: Daehwan suggested to convert this into a "fuzzy" count instead, 
-		 //    taking into account quality values - so a bowtie2 min-score function should 
-		 //    take care of this as well (in which case this code should be removed)
-		 uint8_t* ptr = bam_aux_get(tb, "NM");
-		 if (ptr) {
-		   int edit_dist=bam_aux2i(ptr);
-		   if (edit_dist>read_edit_dist)
-			 properly_mapped=false;
-		 }
-	   }
+
 	   map_pq.pop();
 	   while (map_pq.size()>0 && map_pq.top().first==rid) {
 		 //read_hits.push_back(map_pq.top()); //no, we'll keep only "acceptable" mappings
@@ -308,29 +294,17 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
         	 need_quals=false;
            }
 		 }
-		 bool acceptable=true;
 		 if (bowtie2) {
 		   uint8_t* ptr = bam_aux_get(map_pq.top().second, "AS");
 		   if (ptr) {
 			 int score=bam_aux2i(ptr);
 			 if (score>=bowtie2_min_score && score>=tbscore-2) {
 			   ++mcount;
-			 if (bowtie2_scoreflt && score<bowtie2_scoreflt)
-				 acceptable=false;
 			 }
 		   }
 		 }
 		 else mcount++;
-		 if (bowtie2_scoreflt && acceptable) { //edit distance filtering -- see note above
-		   uint8_t* ptr = bam_aux_get(map_pq.top().second, "NM");
-			 if (ptr) {
-			   int edit_dist=bam_aux2i(ptr);
-			   if (edit_dist>read_edit_dist)
-				 acceptable=false;
-			 }
-		 }
-		 if (acceptable)
-		   read_hits.push_back(map_pq.top());
+		 read_hits.push_back(map_pq.top());
 		 map_pq.pop();
 	   } //for each alignment of the same read
 	   int32_t num_hits=read_hits.size(); //this will only count "acceptable" mappings
@@ -345,7 +319,7 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
 		 // In case of Bowtie2, some of the mapped reads against either transcriptome or genome
 		 // may have low alignment scores due to gaps, in which case we will remap those.
 		 // Later, we may have better alignments that usually involve splice junctions.
-		 if (!properly_mapped || (bowtie2 && tbscore<bowtie2_min_score)) {
+		 if (bowtie2 && tbscore<bowtie2_min_score) {
 		   //poor mapping, we want to map this read later in the pipeline
 		   //unmapped = true;
 		   if (umbam!=NULL) {
@@ -353,21 +327,19 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
 		   }
 		 }
 		 //-- keep all "acceptable" mappings for this read:
-		 if (properly_mapped) {
-		   for (vector<pair<uint64_t, bam1_t*> >::size_type i=0;i<read_hits.size();++i)
-		   {
-			 pair<uint64_t, bam1_t*>& v = read_hits[i];
-			 v.second->core.flag &= ~BAM_FSECONDARY;
-			 if (i>0) {
-			   uint8_t* mq=bam1_qual(v.second);
-			   if (mq[0]==NOQUALS)
-				 copy_quals(*(read_hits[0].second), *v.second);
-			 }
-			 if (num_hits>1)
-			   bam_aux_append(v.second, "NH", 'i', 4, (uint8_t*)&num_hits);
-			 bam_writer.write(v.second, v.first);
-		   } //for each mapping of this read
-		 } //keeping properly mapped hits
+		 for (vector<pair<uint64_t, bam1_t*> >::size_type i=0;i<read_hits.size();++i)
+		 {
+		   pair<uint64_t, bam1_t*>& v = read_hits[i];
+		   v.second->core.flag &= ~BAM_FSECONDARY;
+		   if (i>0) {
+			 uint8_t* mq=bam1_qual(v.second);
+			 if (mq[0]==NOQUALS)
+			   copy_quals(*(read_hits[0].second), *v.second);
+		   }
+		   if (num_hits>1)
+			 bam_aux_append(v.second, "NH", 'i', 4, (uint8_t*)&num_hits);
+		   bam_writer.write(v.second, v.first);
+		 } //for each mapping of this read
 	   }
 	   //free the read hits
 	   for (vector<pair<uint64_t, bam1_t*> >::size_type i=0;i<read_hits.size();++i)
