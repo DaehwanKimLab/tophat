@@ -627,7 +627,16 @@ class RefSequenceTable
                 // fprintf(stderr, "SQ: %s - %u\n", name, len);
             }
 	  // order_recs_lexicographically();
+	  samclose(fh);
         }
+    }
+
+  ~RefSequenceTable()
+    {
+      for (IDTable::iterator i = _by_name.begin(); i != _by_name.end(); ++i)
+	{
+	  free(i->second.name);
+	}
     }
   
   // This function should NEVER return zero
@@ -978,33 +987,23 @@ class BAMHitFactory : public HitFactory {
     void closeStream(HitStream& hs);
 
     bool next_record(HitStream& hs, const char*& buf, size_t& buf_size);
-	
-	/*void mark_curr_pos()
-	{ 
-		_curr_pos = bgzf_tell(((samfile_t*)_hit_file)->x.bam);
-	}
+    string hitfile_rec(HitStream& hs, const char* hit_buf);
+    
+    bool get_hit_from_buf(const char* bwt_buf, 
+			  BowtieHit& bh,
+			  bool strip_slash,
+			  char* name_out = NULL,
+			  char* name_tags = NULL,
+			  char* seq = NULL,
+			  char* qual = NULL);
 
-	
-	void undo_hit() 
-	{ 
-		bgzf_seek(((samfile_t*)_hit_file)->x.bam, _curr_pos, SEEK_SET);
-		_eof = false;
-	}
-    */
-	string hitfile_rec(HitStream& hs, const char* hit_buf);
-
-	bool get_hit_from_buf(const char* bwt_buf, 
-			      BowtieHit& bh,
-			      bool strip_slash,
-			      char* name_out = NULL,
-			      char* name_tags = NULL,
-			      char* seq = NULL,
-			      char* qual = NULL);
-protected:
-	//int64_t _curr_pos;
-	//int64_t _beginning;
-	bam1_t _next_hit; 
-	bam_header_t* _sam_header;
+    void set_sam_header(bam_header_t* header) { _sam_header = header; }
+    
+ protected:
+    //int64_t _curr_pos;
+    //int64_t _beginning;
+    bam1_t _next_hit; 
+    bam_header_t* _sam_header;
     bool inspect_header(HitStream& hs);
 };
 

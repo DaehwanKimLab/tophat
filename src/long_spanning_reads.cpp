@@ -2638,7 +2638,7 @@ struct JoinSegmentsWorker
   void operator()()
   {
     ReadTable it;
-    GBamWriter bam_writer(bam_output_fname.c_str(), sam_header_fname.c_str());
+    GBamWriter bam_writer(bam_output_fname.c_str(), sam_header_fname.c_str(), bam_output_fname + ".index");
     ReadStream readstream(reads_fname);
     if (readstream.file() == NULL)
       err_die("Error: cannot open %s for reading\n", reads_fname.c_str());

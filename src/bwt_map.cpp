@@ -1097,18 +1097,6 @@ bool BAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
   bool spliced_alignment = false;
   int num_hits = 1;
   
-  double mapQ = hit_buf->core.qual;
-  long double error_prob;
-  if (mapQ > 0)
-    {
-      long double p = (-1.0 * mapQ) / 10.0;
-      error_prob = pow(10.0L, p);
-    }
-  else
-    {
-      error_prob = 1.0;
-    }
-  
   bool end = true;
   unsigned int seg_offset = 0;
   unsigned int seg_num = 0;
@@ -1448,18 +1436,6 @@ bool SplicedBAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
   
   vector<CigarOp> samcigar;
   bool spliced_alignment = false;
-  
-  double mapQ = hit_buf->core.qual;
-  long double error_prob;
-  if (mapQ > 0)
-    {
-      long double p = (-1.0 * mapQ) / 10.0;
-      error_prob = pow(10.0L, p);
-    }
-  else
-    {
-      error_prob = 1.0;
-    }
   
   if (seq!=NULL) {
     char *bseq = (char*)bam1_seq(hit_buf);
