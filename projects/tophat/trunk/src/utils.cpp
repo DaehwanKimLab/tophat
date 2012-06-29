@@ -26,16 +26,40 @@ bool calculate_offsets(const vector<string>& fnames,
   vector<vector<pair<uint64_t, int64_t> > > index_list(fnames.size());
   for (size_t i = 0; i < fnames.size(); ++i)
     {
-      ifstream reads_index_file((fnames[i] + ".index").c_str());
-      string line;
-      while (getline(reads_index_file, line))
+      const string& fname = fnames[i];
+      
+      vector<string> temp_fnames;
+      if (fname.substr(fname.length() - 4) == ".bam")
 	{
-	  istringstream istream(line);
-	  uint64_t read_id;
-	  int64_t offset;
-	  
-	  istream >> read_id >> offset;
-	  index_list[i].push_back(make_pair(read_id, offset));
+	  temp_fnames.push_back(fname);
+	}
+      else
+	{
+	  for (size_t j = 0; j < (size_t)num_threads; ++j)
+	    {
+	      char suffix[128];
+	      sprintf(suffix, "%lu.bam", j);
+	      string temp_fname = fname + suffix;
+	      temp_fnames.push_back(temp_fname);
+	    }
+	}
+      
+      for (size_t j = 0; j < temp_fnames.size(); ++j)
+	{
+	  ifstream reads_index_file((temp_fnames[j] + ".index").c_str());
+	  if (!reads_index_file.is_open())
+	    continue;
+
+	  string line;
+	  while (getline(reads_index_file, line))
+	    {
+	      istringstream istream(line);
+	      uint64_t read_id;
+	      int64_t offset;
+	      
+	      istream >> read_id >> offset;
+	      index_list[i].push_back(make_pair(read_id, offset));
+	    }
 	}
     }
 
@@ -57,8 +81,7 @@ bool calculate_offsets(const vector<string>& fnames,
       ids.push_back(id);
       offsets[i-1].push_back(offset);
 
-      // daehwan - print index
-      //fprintf(stderr, "%lu)read %lu - offset %ld\n", index_list.size() - 1, id, offset);
+      // fprintf(stderr, "%lu)read %lu - offset %ld\n", index_list.size() - 1, id, offset);
   
       for (int j = index_list.size() - 2; j >= 0; --j)
 	{

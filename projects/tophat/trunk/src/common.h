@@ -560,7 +560,15 @@ class GBamWriter {
 
    void write(GBamRecord* brec) {
       if (brec!=NULL) {
-        samwrite(this->bam_file,brec->get_b());
+	if (findex)
+	  {
+	    bam1_t* b = brec->get_b();
+	    char* name = bam1_qname(b);
+	    long read_id = atol(name);
+	    write(b, read_id);
+	  }
+	else
+	  samwrite(this->bam_file, brec->get_b());
         wcount++;
       }
 

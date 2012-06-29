@@ -584,6 +584,7 @@ noinst_HEADERS = \
 	inserts.h \
 	segments.h \
 	qual.h \
+	bam_merge.h \
 	utils.h \
 	coverage.h
 
@@ -601,6 +602,7 @@ libtophat_a_SOURCES = \
 	tokenize.cpp \
 	inserts.cpp \
 	qual.cpp \
+	bam_merge_impl.cpp \
 	utils.cpp \
 	coverage.cpp
     
