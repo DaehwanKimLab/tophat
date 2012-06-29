@@ -193,15 +193,11 @@ void writePrepBam(GBamWriter* wbam, Read& read, uint32_t rid, char trashcode=0, 
 	rnum.push_back('!');
     }
     
-  size_t pl=rname.length()-1;
   GBamRecord bamrec(rnum.c_str(), -1, 0, false, read.seq.c_str(), NULL, read.qual.c_str());
   if (matenum) {
 	bamrec.set_flag(BAM_FPAIRED);
 	if (matenum==1) bamrec.set_flag(BAM_FREAD1);
 	else if (matenum==2) bamrec.set_flag(BAM_FREAD2);
-
-	if (rname[pl-1]=='/')
-		rname.resize(pl-1);
   }
 
   bamrec.add_aux("ZN", 'Z', rname.length(), (uint8_t*)rname.c_str());
@@ -465,7 +461,6 @@ void process_reads(vector<string>& reads_fnames, vector<FZPipe>& quals_files,
   		  //check if reads are paired correctly
 		  int nl=read.name.length();
 		  bool mate_match=(nl==(int)mate_read.name.length());
-		  //if (mate_match && read.name[nl-1]=='/' ) --nl;
 		  int m_len=0, c=0;
 		  while (c<nl) {
 			if (read.name[c]==mate_read.name[c]) {
