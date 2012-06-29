@@ -25,9 +25,8 @@ string outfname;
    [-M|--mapped-only|-A|--all] [-o <outfile>] [-P|--paired] [-N] <in.bam>\n\
    \nNote: By default, reads flagged as not passing quality controls are\n\
    discarded; the -Q option can be used to ignore the QC flag.\n\
-   \nUse the -N option if the /1 and /2 suffixes should be applied to\n\
-   read names according to the SAM flags (otherwise these suffixes\n\
-   are not added unless the -P option is used)\n"
+   \nUse the -N option if the /1 and /2 suffixes should be appended to\n\
+   read names according to the SAM flags\n"
 
 const char *short_options = "o:ac:qstQMAPN";
 
@@ -101,7 +100,6 @@ int parse_options(int argc, char** argv)
        case 'P':
        case OPT_PAIRED:
          pairs = true;
-         add_matenum=true;
          break;
        case 'Q':
     	 ignoreQC = true;
@@ -139,7 +137,7 @@ void getRead(const bam1_t *b, samfile_t* fp, Read& rd) {
 
   bool isreversed=((b->core.flag & BAM_FREVERSE) != 0);
   bool is_paired = ((b->core.flag & BAM_FPAIRED) != 0);
-  if (is_paired || add_matenum) {
+  if (add_matenum) {
      if (b->core.flag & BAM_FREAD1)
          rd.mate=1;
      else if (b->core.flag & BAM_FREAD2)
