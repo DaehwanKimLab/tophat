@@ -96,6 +96,7 @@ extern ReadFormat reads_format;
 
 extern bool verbose;
 extern unsigned int max_multihits;
+extern bool suppress_hits;
 extern unsigned int max_seg_multihits;
 extern bool no_closure_search;
 extern bool no_coverage_search;
