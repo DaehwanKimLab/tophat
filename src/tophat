@@ -46,6 +46,7 @@ Options:
     -i/--min-intron-length         <int>       [ default: 50               ]
     -I/--max-intron-length         <int>       [ default: 500000           ]
     -g/--max-multihits             <int>       [ default: 20               ]
+    --suppress-hits
     -x/--transcriptome-max-hits    <int>       [ default: 60               ]
     -M/--prefilter-multihits                   ( for -G/--GTF option, enable
                                                  an initial bowtie search
@@ -644,6 +645,7 @@ class TopHatParams:
         self.find_novel_fusions = True
         self.find_GFF_juncs = True
         self.max_hits = 20
+        self.suppress_hits = False
         self.t_max_hits = 60
         self.max_seg_hits = 40
         self.prefilter_multi = False
@@ -760,6 +762,9 @@ class TopHatParams:
                "--max-insertion-length", str(self.max_insertion_length),
                "--max-deletion-length", str(self.max_deletion_length)]
 
+        if self.suppress_hits:
+            cmd.extend(["--suppress-hits"])
+
         if not self.bowtie2:
             cmd.extend(["--bowtie1"])
 
@@ -830,6 +835,7 @@ class TopHatParams:
                                          "num-threads=",
                                          "splice-mismatches=",
                                          "max-multihits=",
+                                         "suppress-hits",
                                          "min-isoform-fraction=",
                                          "min-anchor-length=",
                                          "min-intron-length=",
@@ -948,6 +954,8 @@ class TopHatParams:
             if option in ("-g", "--max-multihits"):
                 self.max_hits = int(value)
                 self.max_seg_hits = max(10, self.max_hits * 2)
+            if option == "--suppress-hits":
+                self.suppress_hits = True
             if option in ("-x", "--transcriptome-max-hits"):
                 self.t_max_hits = int(value)
             if option in ("-G", "--GTF"):

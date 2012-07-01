@@ -131,6 +131,7 @@ ReadFormat reads_format = FASTQ;
 bool verbose = false;
 
 unsigned int max_multihits = 20;
+bool suppress_hits = false;
 unsigned int max_seg_multihits = 40;
 bool no_closure_search = false;
 bool no_coverage_search = false;
@@ -277,6 +278,7 @@ enum
     OPT_GENE_FILTER,
     OPT_GFF_ANNOTATIONS,
     OPT_MAX_MULTIHITS,
+    OPT_SUPPRESS_HITS,
     OPT_MAX_SEG_MULTIHITS,
     OPT_NO_CLOSURE_SEARCH,
     OPT_NO_COVERAGE_SEARCH,
@@ -355,6 +357,7 @@ static struct option long_options[] = {
 {"gene-filter",		required_argument,	0,	OPT_GENE_FILTER},
 {"gtf-annotations",	required_argument,	0,	OPT_GFF_ANNOTATIONS},
 {"max-multihits",	required_argument,	0,  OPT_MAX_MULTIHITS},
+{"suppress-hits",	no_argument,	0,  OPT_SUPPRESS_HITS},
 {"max-seg-multihits",	required_argument,	0,  OPT_MAX_SEG_MULTIHITS},
 {"no-closure-search",	no_argument,		0,  OPT_NO_CLOSURE_SEARCH},
 {"no-coverage-search",	no_argument,		0,  OPT_NO_COVERAGE_SEARCH},
@@ -494,6 +497,9 @@ int parse_options(int argc, char** argv, void (*print_usage)())
       break;
     case OPT_MAX_MULTIHITS:
       max_multihits = parseIntOpt(1, "--max-multihits arg must be at least 1", print_usage);
+      break;
+    case OPT_SUPPRESS_HITS:
+      suppress_hits = true;
       break;
     case OPT_MAX_SEG_MULTIHITS:
       max_seg_multihits = parseIntOpt(1, "--max-seg-multihits arg must be at least 1", print_usage);

@@ -167,6 +167,9 @@ void read_best_alignments(const HitsForRead& hits_for_read,
 
   if (final_report)
     {
+      if (suppress_hits && best_hits.hits.size() > max_multihits)
+	best_hits.hits.clear();
+      
       if (best_hits.hits.size() > max_multihits)
 	{
 	  // there may be several alignments with the same alignment scores,
@@ -436,6 +439,9 @@ void pair_best_alignments(const HitsForRead& left_hits,
 
   if (final_report)
     {
+      if (suppress_hits && best_hits.size() > max_multihits)
+	best_hits.clear();
+	
       if (best_hits.size() > max_multihits)
 	{
 	  vector<size_t> tie_indexes;
