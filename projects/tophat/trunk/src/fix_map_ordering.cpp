@@ -460,7 +460,8 @@ int main(int argc, char** argv)
 		GBamWriter *unmapped_bam_writer=NULL;
 		if (!out_unmapped_fname.empty())
 		    unmapped_bam_writer=new GBamWriter(out_unmapped_fname.c_str(),
-		                                       sam_header.c_str());
+		                                       sam_header.c_str(),
+						       out_unmapped_fname + ".index");
 		driver_bam(map_file_name, *bam_writer, unmapped_bam_writer);
 		delete unmapped_bam_writer;
 		delete bam_writer;

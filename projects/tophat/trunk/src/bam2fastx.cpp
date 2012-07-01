@@ -136,7 +136,7 @@ void getRead(const bam1_t *b, samfile_t* fp, Read& rd) {
   if (mapped_only && !ismapped) return;
 
   bool isreversed=((b->core.flag & BAM_FREVERSE) != 0);
-  bool is_paired = ((b->core.flag & BAM_FPAIRED) != 0);
+  // bool is_paired = ((b->core.flag & BAM_FPAIRED) != 0);
   if (add_matenum) {
      if (b->core.flag & BAM_FREAD1)
          rd.mate=1;

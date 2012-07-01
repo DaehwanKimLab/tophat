@@ -384,8 +384,48 @@ void pair_best_alignments(const HitsForRead& left_hits,
     }
 
   std::sort(best_hits.begin(), best_hits.end(), cmp_pair_less());
+
+  // daehwan - for debugging purposes
+#if 0
+  if (best_hits.size() > 0 && best_hits[0].first.insert_id() == 37239044)
+    {
+      for (size_t i = 0; i < best_hits.size(); ++i)
+	{
+	  const BowtieHit& lh = best_hits[i].first;
+	  const BowtieHit& rh = best_hits[i].second;
+
+	  fprintf(stderr, "%d %d:%d %s %d:%d %s\n",
+		  i,
+		  lh.ref_id(), lh.left(), print_cigar(lh.cigar()).c_str(),
+		  rh.ref_id(), rh.left(), print_cigar(rh.cigar()).c_str());
+	}
+
+      fprintf(stderr, "\n\n\n");
+    }
+#endif
+
   vector<pair<BowtieHit, BowtieHit> >::iterator new_end = std::unique(best_hits.begin(), best_hits.end(), cmp_pair_equal());
   best_hits.erase(new_end, best_hits.end());
+
+  // daehwan - for debugging purposes
+#if 0
+  if (best_hits.size() > 0 && best_hits[0].first.insert_id() == 37239044)
+    {
+      for (size_t i = 0; i < best_hits.size(); ++i)
+	{
+	  const BowtieHit& lh = best_hits[i].first;
+	  const BowtieHit& rh = best_hits[i].second;
+	  
+	  fprintf(stderr, "%d %d:%d %s %d:%d %s\n",
+		  i,
+		  lh.ref_id(), lh.left(), print_cigar(lh.cigar()).c_str(),
+		  rh.ref_id(), rh.left(), print_cigar(rh.cigar()).c_str());
+	}
+
+      fprintf(stderr, "\n\n\n");
+    }
+#endif
+
 
   if ((report_secondary_alignments || !final_report) && best_hits.size() > 0)
     {
@@ -1442,9 +1482,6 @@ void realign_reads(HitsForRead& hits,
 		  
 		    while (lb != insertions.end() && lb != ub)
 		      {
-			// daehwan - for debugging purposse
-			break;
-			
 			Insertion ins = lb->first;
 			
 			// daehwan - for debugging purposes
@@ -1675,44 +1712,49 @@ public:
 	  return false;
 
 	uint64_t read_id = bam_lines[0].read_id;
-
 	if (read_id >= _begin_id && read_id < _end_id)
-	  break;
+	  {
+	    hits.hits.clear();
+	    for (size_t i = 0; i < bam_lines.size(); ++i)
+	      {
+		CBamLine& bam_line = bam_lines[i];
+		BowtieHit bh;
+		
+		char seq[MAX_READ_LEN + 1] = {0};
+		char qual[MAX_READ_LEN + 1] = {0};
+		
+		bool success = _bam_hit_factory.get_hit_from_buf((const char*)bam_line.b, bh, true, NULL, NULL, seq, qual);
+		if (success)
+		  {
+		    bh.seq(seq);
+		    bh.qual(qual);
+		    
+		    char* sam_line = bam_format1(_bam_merge->get_sam_header(), bam_line.b);
+		    bh.hitfile_rec(sam_line);
+		    free(sam_line);
+		    
+		    hits.insert_id = bh.insert_id();
+		    hits.hits.push_back(bh);
+		  }
+
+		bam_line.b_free();
+	      }
+	    bam_lines.clear();
+
+	    if (hits.hits.size() > 0)
+	      return true;
+	  }
 
 	for (size_t i = 0; i < bam_lines.size(); ++i)
 	  bam_lines[i].b_free();
 
 	bam_lines.clear();
+
+	if (read_id >= _end_id)
+	  break;
       }
 
-    if (bam_lines.size() <= 0)
-      return false;
-
-    hits.hits.clear();
-    for (size_t i = 0; i < bam_lines.size(); ++i)
-      {
-	CBamLine& bam_line = bam_lines[i];
-	BowtieHit bh;
-
-	char seq[MAX_READ_LEN + 1] = {0};
-	char qual[MAX_READ_LEN + 1] = {0};
-	
-	_bam_hit_factory.get_hit_from_buf((const char*)bam_line.b, bh, true, NULL, NULL, seq, qual);
-	bh.seq(seq);
-	bh.qual(qual);
-
-	char* sam_line = bam_format1(_bam_merge->get_sam_header(), bam_line.b);
-	bh.hitfile_rec(sam_line);
-	free(sam_line);
-	
-	hits.insert_id = bh.insert_id();
-	hits.hits.push_back(bh);
-	
-	bam_line.b_free();
-      }
-    bam_lines.clear();
-    
-    return true;
+    return false;
   }
 
 private:

@@ -2891,8 +2891,8 @@ void driver(const string& bam_output_fname,
   fprintf (stderr, "Loading reference sequences...\n");
   get_seqs(ref_stream, rt, true);
     fprintf (stderr, "        reference sequences loaded.\n");
-
   fprintf(stderr, "Loading junctions...");
+  
   std::set<Junction> possible_juncs;
 
   for (size_t i = 0; i < possible_juncs_files.size(); ++i)
