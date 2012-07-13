@@ -17,7 +17,8 @@ bool mapped_only=false;
 bool add_matenum=false;
 bool pairs=false;
 bool color=false;
-bool ignoreQC; // ignore qc fail flag 0x400
+bool ignoreQC=false; // ignore qc fail flag 0x400
+bool ignoreOQ=false; // ignore OQ tag
 
 string outfname;
 
@@ -26,9 +27,10 @@ string outfname;
    \nNote: By default, reads flagged as not passing quality controls are\n\
    discarded; the -Q option can be used to ignore the QC flag.\n\
    \nUse the -N option if the /1 and /2 suffixes should be appended to\n\
-   read names according to the SAM flags\n"
+   read names according to the SAM flags\n\
+   \nUse the -O option to ignore the OQ tag, if present, when writing quality values\n"
 
-const char *short_options = "o:ac:qstQMAPN";
+const char *short_options = "o:ac:qstOQMAPN";
 
 enum {
    OPT_FASTA = 127,
@@ -104,6 +106,9 @@ int parse_options(int argc, char** argv)
        case 'Q':
     	 ignoreQC = true;
     	 break;
+       case 'O':
+    	 ignoreOQ = true;
+    	 break;
        case 'o':
          outfname=optarg;
          break;
@@ -126,7 +131,7 @@ void getRead(const bam1_t *b, samfile_t* fp, Read& rd) {
   rd.clear();
   char *name  = bam1_qname(b);
   rd.name=name;
-  unsigned char *qual  = (unsigned char*)bam1_qual(b);
+  unsigned char *qual  = NULL;
   unsigned char *s    = (unsigned char*)bam1_seq(b);
   int i;
 
@@ -186,6 +191,7 @@ void getRead(const bam1_t *b, samfile_t* fp, Read& rd) {
 
 	if (!is_fastq) return;
 	if (color) {
+      qual = (unsigned char*)bam1_qual(b);
 	  rd.qual.resize(seqlen-1);
 	  for(i=1;i<seqlen;i++) {
 	    if (qual[i]==0xFF)
@@ -194,11 +200,28 @@ void getRead(const bam1_t *b, samfile_t* fp, Read& rd) {
 	  }
 	}
 	else {
-	  rd.qual.resize(seqlen);
-	  for(i=0;i<seqlen;i++) {
-	    if (qual[i]==0xFF)
-	      rd.qual[i]='I';
-	    else rd.qual[i]=qual[i]+33;
+	  bool fromOQ=false;
+	  if (!ignoreOQ) {
+	   uint8_t* ptr = bam_aux_get(b, "OQ");
+	   if (ptr) {
+	     fromOQ=true;
+	     qual = (unsigned char*)bam_aux2Z(ptr);
+	   }
+	  }
+	  if (fromOQ) {
+	    rd.qual = (char*)qual;
+	    //for(i=0;i<seqlen;i++) {
+	    //  rd.qual[i]=qual[i];
+	    //}
+	  }
+	  else {
+		qual = (unsigned char*)bam1_qual(b);
+	    rd.qual.resize(seqlen);
+	    for(i=0;i<seqlen;i++) {
+	      if (qual[i]==0xFF)
+	        rd.qual[i]='I';
+	      else rd.qual[i]=qual[i]+33;
+	    }
 	  }
 	}
 
