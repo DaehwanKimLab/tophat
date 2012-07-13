@@ -142,12 +142,12 @@ void getRead(const bam1_t *b, samfile_t* fp, Read& rd) {
 
   bool isreversed=((b->core.flag & BAM_FREVERSE) != 0);
   // bool is_paired = ((b->core.flag & BAM_FPAIRED) != 0);
-  if (add_matenum) {
+  //if (add_matenum) {
      if (b->core.flag & BAM_FREAD1)
          rd.mate=1;
      else if (b->core.flag & BAM_FREAD2)
          rd.mate=2;
-     }
+  //   }
   int seqlen = b->core.l_qseq;
   if (seqlen>0) {
 	rd.seq.resize(seqlen);
@@ -246,25 +246,22 @@ void writeRead(Read& rd, int& wpair, FILE* fout) {
   //if (rd.seq.empty()) {
   //	    return;
   //      }
+  wpair |= (rd.mate>0 ? rd.mate : 4);
   if (is_fastq) {
-    if (rd.mate>0) {
+    if (rd.mate && add_matenum) {
       fprintf(fout, "@%s/%d\n%s\n",rd.name.c_str(), rd.mate, rd.seq.c_str());
-      wpair|=rd.mate;
     }
-     else {
-       fprintf(fout, "@%s\n%s\n",rd.name.c_str(), rd.seq.c_str());
-	   wpair|=4;
-     }
+    else {
+      fprintf(fout, "@%s\n%s\n",rd.name.c_str(), rd.seq.c_str());
+    }
     fprintf(fout, "+\n%s\n",rd.qual.c_str());
   }
   else {
-    if (rd.mate>0) {
+    if (rd.mate && add_matenum) {
       fprintf(fout, ">%s/%d\n%s\n",rd.name.c_str(), rd.mate, rd.seq.c_str());
-      wpair|=rd.mate;
     }
 	 else {
-	   fprintf(fout, ">%s\n%s\n",rd.name.c_str(), rd.seq.c_str());
-	   wpair|=4;
+	  fprintf(fout, ">%s\n%s\n",rd.name.c_str(), rd.seq.c_str());
 	 }
   }
 }
@@ -272,13 +269,9 @@ void writeRead(Read& rd, int& wpair, FILE* fout) {
 void writePaired(Read& rd, int& wpair, FILE* fout, FILE* fout2) {
   if (rd.mate==1) {
 	 writeRead(rd, wpair, fout);
-	  //if (write_mapped && last1>rd.name)
-	  //err_order(last1, rd.name);
   }
   else if (rd.mate==2) {
 	writeRead(rd, wpair, fout2);
-	//if (write_mapped && last2>rd.name)
-	  //      err_order(last2, rd.name);
   }
   else {
 	fprintf(stderr, "Error: unpaired read encountered (%s)\n", rd.name.c_str());
