@@ -255,7 +255,7 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
 		   tb->m_data = m_data;
 		 }
 
-		 umbam->write(tb);
+		 umbam->write(tb, rid);
 	   }
 
 	   bam_destroy1(tb);

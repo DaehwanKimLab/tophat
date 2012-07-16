@@ -2220,8 +2220,12 @@ bool dfs_seg_hits(RefSequenceTable& rt,
 		  size_t curr,
 		  vector<BowtieHit>& seg_hit_stack,
 		  vector<BowtieHit>& joined_hits,
+		  int& num_try,
 		  int fusion_dir = FUSION_NOTHING)
 {
+  if (num_try <= 0)
+    return false;
+  
   assert (!seg_hit_stack.empty());
   bool join_success = false;
 
@@ -2553,6 +2557,7 @@ bool dfs_seg_hits(RefSequenceTable& rt,
 					  curr + 1,
 					  seg_hit_stack,
 					  joined_hits,
+					  num_try,
 					  dir == FUSION_NOTHING ? fusion_dir : dir);
 	      
 	      if (success)
@@ -2565,6 +2570,7 @@ bool dfs_seg_hits(RefSequenceTable& rt,
     }
   else
     {
+      --num_try;
       merge_segment_chain(rt,
 			  read_seq,
 			  read_quals,
@@ -2614,7 +2620,9 @@ bool join_segments_for_read(RefSequenceTable& rt,
 	seg_hit_stack.push_back(bh.reverse());
       else
 	seg_hit_stack.push_back(bh);
-      
+
+      const int max_try = 1000;
+      int num_try = max_try;
       bool success = dfs_seg_hits(rt,
 				  read_seq,
 				  read_quals,
@@ -2624,7 +2632,8 @@ bool join_segments_for_read(RefSequenceTable& rt,
 				  seg_hits_for_read, 
 				  1, 
 				  seg_hit_stack,
-				  joined_hits);
+				  joined_hits,
+				  num_try);
       if (success)
 	join_success = true;
       seg_hit_stack.pop_back();

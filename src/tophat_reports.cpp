@@ -765,22 +765,31 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
   }
   int tlen=0; //TLEN
   int mate_pos=atoi(sam_toks[7].c_str());
+  string mate_contig = "*", mate_contig2 = "*";
   if (partner) {
-    if (partner->ref_id()==bh.ref_id()) {
-      sam_toks[6] = "="; //same chromosome
+    if (partner->ref_id() == bh.ref_id()) {
+      mate_contig = "="; //same chromosome
       //TLEN:
       tlen = bh.left() < partner->left() ? partner->right() - bh.left() :
 	partner->left() - bh.right();
     }
     
     else { //partner on different chromosome/contig
-      sam_toks[6] = rt.get_name(partner->ref_id());
+      mate_contig = rt.get_name(partner->ref_id());
     }
     mate_pos = partner->left() + 1;
     if (grade.happy())
       flag |= 0x0002;
     if (partner->antisense_align())
       flag |=  0x0020;
+
+    if (fusion_alignment)
+      {
+	if (partner->ref_id() == bh.ref_id2())
+	  mate_contig2 = "=";
+	else
+	  mate_contig2 = rt.get_name(partner->ref_id());
+      }
 
     if (partner->fusion_opcode() != FUSION_NOTHING)
       {
@@ -790,7 +799,6 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
       }
   }
   else {
-    sam_toks[6] = "*";
     mate_pos = 0;
     flag |= 0x0008;
   }
@@ -806,7 +814,7 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
     if (rg_aux != "")
       auxdata.push_back(rg_aux);
     bamrec=bam_writer.new_record(qname.c_str(), flag, ref_name.c_str(), left1 + 1, mapQ,
-				 cigar1, sam_toks[6].c_str(), mate_pos,
+				 cigar1, mate_contig.c_str(), mate_pos,
 				 tlen, left_seq.c_str(), left_qual.c_str(), &auxdata);
     bam_writer.write(bamrec);
     delete bamrec;
@@ -817,7 +825,7 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
     if (rg_aux != "")
       auxdata.push_back(rg_aux);
     bamrec=bam_writer.new_record(qname.c_str(), flag, ref_name2.c_str(), left2 + 1, mapQ,
-				 cigar2, sam_toks[6].c_str(), mate_pos,
+				 cigar2, mate_contig2.c_str(), mate_pos,
 				 tlen, right_seq.c_str(), right_qual.c_str(), &auxdata);
     bam_writer.write(bamrec);
     delete bamrec;
@@ -827,7 +835,7 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
     if (rg_aux != "")
       auxdata.push_back(rg_aux);
     bamrec=bam_writer.new_record(qname.c_str(), flag, sam_toks[2].c_str(), gpos, mapQ,
-				 sam_toks[5].c_str(), sam_toks[6].c_str(), mate_pos,
+				 sam_toks[5].c_str(), mate_contig.c_str(), mate_pos,
 				 tlen, sam_toks[9].c_str(), sam_toks[10].c_str(), &auxdata);
     bam_writer.write(bamrec);
     delete bamrec;
