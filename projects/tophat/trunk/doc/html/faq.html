@@ -204,10 +204,16 @@
   	  <h1>Frequently Asked Questions</h1><br/>
       <div id="toc">
   	    <ul>
- 	    <li><a href="#test"></a></li>
+ 	    <li><a href="#library_type">What if you are not sure which library type to use (fr-firststrand or fr-secondstrand)?</a></li>
   	    </ul><br/>
   	  </div>
-  	  <h2 id="test"></h2><br/><p> 
+  	  <h2 id="library_type"></h2><br/><p>
+	    One possible way to figure out the correct library-type is to run TopHat with a small number of reads (e.g., 1M) as follows. <br/>
+(1) run TopHat with fr-firststrand and count the number of junctions in junctions.bed, one of the output files from TopHat <br/>
+(2) run TopHat with fr-secondstrand and count the number of junctions in junctions.bed <br/>
+Since the splice junction finding algorithm of TopHat makes use of library-type information (if provided), one of the two TopHat runs would result in much more splice junctions than the other one.
+You can use the library type that gives more junctions.
+If this is not the case, TopHat may not support your sequencing protocol.  Please let us know more details about your protocol so we can support a new library type. 
   	  </p><br/>
 	</div>
   </div>
