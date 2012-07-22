@@ -1063,7 +1063,7 @@ class TopHatParams:
         if len(args) < 2:
             raise Usage(use_message)
 
-        if not self.read_realign_edit_dist:
+        if self.read_realign_edit_dist == None:
             self.read_realign_edit_dist = self.read_edit_dist
 
         return args
@@ -2210,7 +2210,8 @@ def bowtie(params,
                 score_min = bowtie2_params.score_min
                 if not score_min:
                     max_penalty, min_penalty = bowtie2_params.mp.split(',')
-                    score_min = "C,-%d,0" % (int(max_penalty) * edit_dist + 2)
+                    score_min_value = int(max_penalty) * edit_dist + 2
+                    score_min = "C,-%d,0" % score_min_value
         
                 # "--n-ceil" is not correctly parsed in Bowtie2,
                 # I  (daehwan) already talked to Ben who will fix the problem.

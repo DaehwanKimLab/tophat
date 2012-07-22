@@ -177,7 +177,7 @@
 		  <div class="box">
 		    <ul>
 		      <li><a href="http://www.cs.umd.edu/%7Ecole/">Cole Trapnell</a></li>
-			  <li><a href="http://www.cs.umd.edu/%7Einfphilo/">Daehwan Kim</a></li>
+			  <li><a href="http://www.umiacs.umd.edu/%7Einfphilo/">Daehwan Kim</a></li>
 			  <li>Geo Pertea</li>
 			  <li><a href="http://cs.berkeley.edu/%7Epimentel">Harold Pimentel</a></li>
 			  <li>Ryan Kelley</li>
@@ -204,10 +204,14 @@
   	  <h1>Frequently Asked Questions</h1><br/>
       <div id="toc">
   	    <ul>
- 	    <li><a href="#library_type">What if you are not sure which library type to use (fr-firststrand or fr-secondstrand)?</a></li>
+	      <li><a href="#mate_inner_dist">If I don't know mate inner distance (-r/--mate-inner-dist), what should I do?</a></li>
+ 	      <li><a href="#library_type">What if you are not sure which library type to use (fr-firststrand or fr-secondstrand)?</a></li>
   	    </ul><br/>
   	  </div>
-  	  <h2 id="library_type"></h2><br/><p>
+      <h2 id="mate_inner_dist">If I don't know mate inner distance (-r/--mate-inner-dist), what should I do?</h2><br/><p>
+	TopHat makes use of the mate inner distance information in several places, for instance, when finding splice sites and fusion break points.  Besides, that information is taken into account when choosing the best candidate alignments for pairs in the final stage of TopHat (tophat_reports).  In case the inner distance is unknown, I suggest you run Bowtie on some of reads and then take a look at their mapped positions to guess the inner mate distance.  As long as you provide a good approximate value, TopHat will work fine.  We hope to add this functionality in the near future.
+      </p><br/>
+      <h2 id="library_type">What if you are not sure which library type to use (fr-firststrand or fr-secondstrand)?</h2><br/><p>
 	    One possible way to figure out the correct library-type is to run TopHat with a small number of reads (e.g., 1M) as follows. <br/>
 (1) run TopHat with fr-firststrand and count the number of junctions in junctions.bed, one of the output files from TopHat <br/>
 (2) run TopHat with fr-secondstrand and count the number of junctions in junctions.bed <br/>
