@@ -2621,7 +2621,7 @@ bool join_segments_for_read(RefSequenceTable& rt,
       else
 	seg_hit_stack.push_back(bh);
 
-      const int max_try = 1000;
+      const int max_try = 10000;
       int num_try = max_try;
       bool success = dfs_seg_hits(rt,
 				  read_seq,
