@@ -21,6 +21,7 @@ import errno
 import os
 import warnings
 import re
+import glob
 import signal
 from datetime import datetime, date, time
 from shutil import copy
@@ -63,6 +64,7 @@ Options:
     --library-type                 <string>    (fr-unstranded, fr-firststrand,
                                                 fr-secondstrand)
     -p/--num-threads               <int>       [ default: 1                   ]
+    -R/--resume                    <out_dir>   ( try to resume execution )
     -G/--GTF                       <filename>  (GTF/GFF with known transcripts)
     --transcriptome-index          <bwtidx>    (transcriptome bowtie index)
     -T/--transcriptome-only                    (map only to the transcriptome)
@@ -90,7 +92,7 @@ Advanced Options:
 
     --segment-mismatches           <int>       [ default: 2                ]
     --segment-length               <int>       [ default: 25               ]
-    
+
     --bowtie-n                                 [ default: bowtie -v        ]
     --min-coverage-intron          <int>       [ default: 50               ]
     --max-coverage-intron          <int>       [ default: 20000            ]
@@ -187,8 +189,53 @@ gtf_juncs = None #file name with junctions extracted from given GFF file
 
 #mapping types:
 
-
 _reads_vs_G, _reads_vs_T, _segs_vs_G, _segs_vs_J = range(1,5)
+
+# execution resuming stages (for now, execution can be resumed only for stages
+# after the pre-filter and transcriptome searches):
+_stage_map_segments, _stage_find_juncs, _stage_juncs_db, _stage_map2juncs, _stage_tophat_reports = range(1,6)
+stageNames = ["start", "map_segments", "find_juncs", "juncs_db", "map2juncs", "tophat_reports"]
+#                0           1               2            3           4                5
+runStages = dict([(stageNames[st], st) for st in range(0, 6)])
+currentStage  = 0
+resumeStage = 0
+
+def doResume(odir):
+  #must return the original list of arguments
+  rlog = odir+"/logs/run.log"
+  oldargv = None
+  try:
+    flog=open(rlog)
+    #first line must be the actual tophat command used
+    thcmd=None
+    try:
+        thcmd = next(flog)
+    except StopIteration as e:
+        die("Error: cannot resume, run.log is empty.")
+    oldargv=thcmd.split()
+    resume_tag = None
+    for line in flog:
+       #scan for last resume code, if any
+       r=re.match("^#>(\w+):$", line)
+       if r:
+          resume_tag=r.group(1)
+    global resumeStage
+    if resume_tag:
+       if resume_tag in runStages:
+          resumeStage = runStages[resume_tag]
+       else:
+          die("Error: unrecognized run stage '"+resume_tag+"'")
+    else:
+       die("Error: resuming requested but no valid stage found in run.log")
+    flog.close()
+  except IOError as e:
+    die("Error: cannot resume, failed to open "+rlog)
+  return oldargv
+
+def setRunStage(stnum):
+   global currentStage
+   print >> run_log, "#>"+stageNames[stnum]+":"
+   currentStage = stnum
 
 def init_logger(log_fname):
     global tophat_logger
@@ -210,14 +257,11 @@ def init_logger(log_fname):
     tophat_logger.addHandler(logfh)
     tophat_log=logfh.stream
 
-
 # TopHatParams captures all of the runtime paramaters used by TopHat, and many
 # of these are passed as command line options to exectubles run by the pipeline
 
 # This class and its nested classes also do options parsing through parse_options()
 # and option validation via the member function check()
-
-
 
 class BowtieFltFiles:
     def __init__(self,
@@ -640,6 +684,7 @@ class TopHatParams:
         self.transcriptome_index = None
         self.transcriptome_outdir = None
         self.raw_junctions = None
+        self.resume_dir = None
         self.find_novel_juncs = True
         self.find_novel_indels = True
         self.find_novel_fusions = True
@@ -705,7 +750,7 @@ class TopHatParams:
         self.bowtie2_params.check()
 
         if self.bowtie2 and self.fusion_search:
-            th_logp("\tWarning: --fusion-search with Bowtie2 may not work well as it may require much memory space and produce many spurious fusions.  Please try --bowtie1 option if this doesn't work.")            
+            th_logp("\tWarning: --fusion-search with Bowtie2 may not work well as it may require much memory space and produce many spurious fusions.  Please try --bowtie1 option if this doesn't work.")
 
         library_types = ["fr-unstranded", "fr-firststrand", "fr-secondstrand"]
 
@@ -820,7 +865,7 @@ class TopHatParams:
     # of options.
     def parse_options(self, argv):
         try:
-            opts, args = getopt.getopt(argv[1:], "hvp:m:n:N:F:a:i:I:G:Tr:o:j:Xz:s:g:x:MQCW",
+            opts, args = getopt.getopt(argv[1:], "hvp:m:n:N:F:a:i:I:G:Tr:o:j:Xz:s:g:x:R:MQCW",
                                         ["version",
                                          "help",
                                          "output-dir=",
@@ -861,19 +906,13 @@ class TopHatParams:
                                          "mate-std-dev=",
                                          "no-coverage-search",
                                          "coverage-search",
-                                         #"no-closure-search",
-                                         #"closure-search",
-                                         #"min-closure-exon=",
-                                         #"min-closure-intron=",
-                                         #"max-closure-intron=",
-                                         #"butterfly-search",
-                                         #"no-butterfly-search",
                                          "prefilter-multihits",
                                          "microexon-search",
                                          "min-coverage-intron=",
                                          "max-coverage-intron=",
                                          "min-segment-intron=",
                                          "max-segment-intron=",
+                                         "resume=",
                                          "seed-length=",
                                          "read-mismatches=",
                                          "read-gap-length=",
@@ -1046,9 +1085,11 @@ class TopHatParams:
                 self.partial_mapping = True
             if option in ("-o", "--output-dir"):
                 custom_out_dir = value + "/"
+            if option in ("-R", "--resume"):
+                self.resume_dir = value
             if option == "--tmp-dir":
                 custom_tmp_dir = value + "/"
-                
+
         if self.transcriptome_only:
            self.find_novel_juncs=False
            self.find_novel_indels=False
@@ -1060,7 +1101,7 @@ class TopHatParams:
         if custom_tmp_dir:
             tmp_dir = custom_tmp_dir
             sam_header = tmp_dir + "stub_header.sam"
-        if len(args) < 2:
+        if len(args) < 2 and not self.resume_dir:
             raise Usage(use_message)
 
         if self.read_realign_edit_dist == None:
@@ -1182,7 +1223,8 @@ def subprocess_setup():
 # Check that the Bowtie index specified by the user is present and all files
 # are there.
 def check_bowtie_index(idx_prefix, is_bowtie2):
-    th_log("Checking for Bowtie index files")
+    if currentStage >= resumeStage:
+       th_log("Checking for Bowtie index files")
     idxext="ebwt"
     bowtie_ver=""
     if is_bowtie2:
@@ -1321,9 +1363,12 @@ def get_bowtie_version(is_bowtie2):
        die(errmsg)
 
 def get_index_sam_header(params, idx_prefix, name = ""):
+    noSkip = currentStage >= resumeStage
     try:
         temp_sam_header_filename = tmp_dir + "temp.samheader.sam"
-        temp_sam_header_file = open(temp_sam_header_filename, "w")
+        temp_sam_header_file = None
+        if noSkip:
+          temp_sam_header_file = open(temp_sam_header_filename, "w")
 
         bowtie_header_cmd = [bowtie_path]
 
@@ -1335,18 +1380,20 @@ def get_index_sam_header(params, idx_prefix, name = ""):
             bowtie_header_cmd.append('-C')
 
         bowtie_header_cmd.extend([idx_prefix, '/dev/null'])
-        subprocess.call(bowtie_header_cmd,
+        if noSkip:
+           subprocess.call(bowtie_header_cmd,
                    stdout=temp_sam_header_file,
                    stderr=open('/dev/null'))
 
-        temp_sam_header_file.close()
-        temp_sam_header_file = open(temp_sam_header_filename, "r")
+           temp_sam_header_file.close()
+           temp_sam_header_file = open(temp_sam_header_filename, "r")
 
         bowtie_sam_header_filename = tmp_dir + idx_prefix.split('/')[-1]
         if name != "":
              bowtie_sam_header_filename += ("_" + name)
         bowtie_sam_header_filename += ".bwt.samheader.sam"
-
+        if not noSkip:
+           return bowtie_sam_header_filename
         bowtie_sam_header_file = open(bowtie_sam_header_filename, "w")
 
         preamble = []
@@ -1942,13 +1989,17 @@ def prep_reads(params, l_reads_list, l_quals_list, r_reads_list, r_quals_list, p
 
     for side in ("left", "right"):
        kept_reads_filename = tmp_dir + side + out_suffix
-    if os.path.exists(kept_reads_filename):
-        os.remove(kept_reads_filename)
+       if resumeStage<1 and os.path.exists(kept_reads_filename):
+          os.remove(kept_reads_filename)
     out_tmpl="left"
     out_fname=None
     kept_reads = None #output file handle
     if r_reads_list:
         out_tmpl="%side%"
+    info_file = output_dir+"prep_reads.info"
+    if fileExists(info_file,10) and resumeStage>0 :
+        return PrepReadsInfo(info_file, tmp_dir + out_tmpl + out_suffix)
+
     if use_bam:
        out_fname = tmp_dir + out_tmpl + out_suffix
     else:
@@ -1957,7 +2008,6 @@ def prep_reads(params, l_reads_list, l_quals_list, r_reads_list, r_quals_list, p
     log_fname=logging_dir + "prep_reads.log"
     filter_log = open(log_fname,"w")
 
-    info_file = output_dir+"prep_reads.info"
     index_file = out_fname + ".index"
     if do_use_zpacker: index_file=None
 
@@ -2050,6 +2100,22 @@ def bowtie(params,
             backup_bowtie_alignment_option = params.bowtie_alignment_option
             params.bowtie_alignment_option = "-v"
 
+    resume_skip = resumeStage > currentStage
+    unmapped_reads_out=None
+    if unmapped_reads:
+         unmapped_reads_out=unmapped_reads+".fq"
+    mapped_reads += ".bam"
+    if unmapped_reads:
+            unmapped_reads_out = unmapped_reads + ".bam"
+    use_FIFO = use_BWT_FIFO and use_zpacker and unmapped_reads and params.read_params.color
+    if use_FIFO:
+         unmapped_reads_out+=".z"
+    if resume_skip:
+         #skipping this step
+         return (mapped_reads, unmapped_reads_out)
+
+    bwt_logname=logging_dir + 'bowtie.'+readfile_basename+'.log'
+
     if t_mapping:
        th_log("Mapping %s to transcriptome %s with %s %s" % (readfile_basename,
                      bwt_idx_name, bowtie_str, extra_output))
@@ -2062,22 +2128,16 @@ def bowtie(params,
            qryname = ",".join(bnames)
        th_log("Mapping %s to genome %s with %s %s" % (qryname,
                      bwt_idx_name, bowtie_str, extra_output))
-    bwt_logname=logging_dir + 'bowtie.'+readfile_basename+'.log'
-    #bwt_mapped=mapped_reads
-    unmapped_reads_out=None
-    if unmapped_reads:
-         unmapped_reads_out=unmapped_reads+".fq"
-    use_FIFO = use_BWT_FIFO and use_zpacker and unmapped_reads and params.read_params.color
+
     if use_FIFO:
          global unmapped_reads_fifo
          unmapped_reads_fifo=unmapped_reads+".fifo"
          if os.path.exists(unmapped_reads_fifo):
-             os.remove(unmapped_reads_fifo)
+              os.remove(unmapped_reads_fifo)
          try:
-             os.mkfifo(unmapped_reads_fifo)
+              os.mkfifo(unmapped_reads_fifo)
          except OSError, o:
-             die(fail_str+"Error at mkfifo("+unmapped_reads_fifo+'). '+str(o))
-         unmapped_reads_out+=".z"
+              die(fail_str+"Error at mkfifo("+unmapped_reads_fifo+'). '+str(o))
 
     # Launch Bowtie
     try:
@@ -2086,11 +2146,8 @@ def bowtie(params,
             bowtie_cmd += ["-q"]
         elif reads_format == "fasta":
             bowtie_cmd += ["-f"]
-
         if params.read_params.color:
             bowtie_cmd += ["-C", "--col-keepends"]
-            #if unmapped_reads:
-            #   bowtie_cmd += ["--un", unmapped_reads_out]
 
         unzip_cmd=None
         bam_input=False
@@ -2142,9 +2199,8 @@ def bowtie(params,
                         "--read-gap-length", str(params.read_gap_length),
                         "--read-edit-dist", str(params.read_edit_dist),
                         "--read-realign-edit-dist", str(params.read_realign_edit_dist)]
-        
+
         #write BAM file
-        mapped_reads += ".bam"
         out_bam = mapped_reads
 
         if not t_mapping:
@@ -2158,7 +2214,6 @@ def bowtie(params,
            out_bam = "-" # we'll pipe into map2gtf
         fix_map_cmd += ["--sam-header", sam_header_filename, "-", out_bam]
         if unmapped_reads:
-            unmapped_reads_out = unmapped_reads + ".bam"
             fix_map_cmd += [unmapped_reads_out]
         if t_mapping:
             max_hits = params.t_max_hits
@@ -2212,7 +2267,7 @@ def bowtie(params,
                     max_penalty, min_penalty = bowtie2_params.mp.split(',')
                     score_min_value = int(max_penalty) * edit_dist + 2
                     score_min = "C,-%d,0" % score_min_value
-        
+
                 # "--n-ceil" is not correctly parsed in Bowtie2,
                 # I  (daehwan) already talked to Ben who will fix the problem.
                 bowtie_cmd += [# "--n-ceil", bowtie2_params.n_ceil,
@@ -2436,7 +2491,6 @@ def build_juncs_index(is_bowtie2,
                       reference_fasta,
                       color):
     th_log("Retrieving sequences for splices")
-
     juncs_file_list = ",".join(external_juncs)
     insertions_file_list = ",".join(external_insertions)
     deletions_file_list = ",".join(external_deletions)
@@ -2759,14 +2813,18 @@ def split_reads(reads_filename,
                 params,
                 segment_length):
     #reads_file = open(reads_filename)
-    zreads = ZReader(reads_filename, params, False)
     out_segfiles = []
-
     if fasta:
         extension = ".fa"
     else:
         extension = ".fq"
     if use_zpacker: extension += ".z"
+    existing_seg_files = glob.glob(prefix+"_seg*"+extension)
+    if resumeStage > currentStage and len(existing_seg_files)>0:
+         #skip this, we are going to return the existing files
+         return existing_seg_files
+    zreads = ZReader(reads_filename, params, False)
+
     def convert_color_to_bp(color_seq):
         decode_dic = { 'A0':'A', 'A1':'C', 'A2':'G', 'A3':'T', 'A4':'N', 'A.':'N', 'AN':'N',
                        'C0':'C', 'C1':'A', 'C2':'T', 'C3':'G', 'C4':'N', 'C.':'N', 'CN':'N',
@@ -2953,17 +3011,18 @@ def junctions_from_segments(params,
                             reads_format,
                             ref_fasta):
     # if left_reads_map != left_seg_maps[0]:
-    th_log("Searching for junctions via segment mapping")
-
-    if params.coverage_search == True:
-        print >> sys.stderr, "\tCoverage-search algorithm is turned on, making this step very slow"
-        print >> sys.stderr, "\tPlease try running TopHat again with the option (--no-coverage-search) if this step takes too much time or memory."
 
     out_path=getFileDir(left_seg_maps[0])
     juncs_out=out_path+"segment.juncs"
     insertions_out=out_path+"segment.insertions"
     deletions_out =out_path+"segment.deletions"
     fusions_out = out_path+"segment.fusions"
+    if resumeStage>currentStage and fileExists(juncs_out):
+       return [juncs_out, insertions_out, deletions_out, fusions_out]
+    th_log("Searching for junctions via segment mapping")
+    if params.coverage_search == True:
+        print >> sys.stderr, "\tCoverage-search algorithm is turned on, making this step very slow"
+        print >> sys.stderr, "\tPlease try running TopHat again with the option (--no-coverage-search) if this step takes too much time or memory."
 
     left_maps = ','.join(left_seg_maps)
     log_fname = logging_dir + "segment_juncs.log"
@@ -3127,6 +3186,8 @@ def gtf_to_fasta(params, trans_gtf, genome, out_fname):
     - `out_fname`:
     """
     # TODO: Call gtf_to_fasta
+    if resumeStage > currentStage and fileExists(out_fname):
+       return
     g2f_cmd = [prog_path("gtf_to_fasta")]
     g2f_cmd.extend(params.cmd())
     g2f_cmd.append(trans_gtf)
@@ -3246,6 +3307,8 @@ def get_preflt_data(params, ri, target_reads, out_mappings, out_unmapped):
  out_unmapped += ".bam"
  out_bam = out_unmapped
  # no colorspace reads
+ if resumeStage:
+     return (out_mappings, out_unmapped)
  do_use_zpacker = use_zpacker and not out_bam
  prep_cmd=prep_reads_cmd(params, params.preflt_data[ri].unmapped_reads, None,
                      None, None, # right-side mates
@@ -3348,7 +3411,8 @@ def spliced_alignment(params,
             return maps
         # Feed the unmapped reads into spliced_alignment()
         initial_reads = unmapped_gtf_list[:]
-        th_log("Resuming TopHat pipeline with unmapped reads")
+        if currentStage >= resumeStage:
+           th_log("Resuming TopHat pipeline with unmapped reads")
 
         if not nonzeroFile(initial_reads[0]) and \
                 (not initial_reads[1] or not nonzeroFile(initial_reads[1])):
@@ -3432,6 +3496,7 @@ def spliced_alignment(params,
         have_IUM = nonzeroFile(unmapped_reads)
         if ri==0 and have_IUM:
            have_left_IUM = True
+        setRunStage(_stage_map_segments)
         if num_segs > 1 and have_IUM:
             # split up the IUM reads into segments
             # unmapped_reads can be in BAM format
@@ -3441,8 +3506,8 @@ def spliced_alignment(params,
                                         params,
                                         segment_len)
 
-            if not params.system_params.keep_tmp:
-                removeFileWithIndex(unmapped_reads)
+            #if not params.system_params.keep_tmp:
+            #    removeFileWithIndex(unmapped_reads)
 
             # Map each segment file independently with Bowtie
             for i in range(len(read_segments)):
@@ -3503,6 +3568,7 @@ def spliced_alignment(params,
         #TODO: in m2g case, we might want to pass the m2g mappings as well,
         #      or perhaps the GTF file directly
         #      -> this could improve alternative junction detection?
+        setRunStage(_stage_find_juncs)
         juncs = junctions_from_segments(params,
                                         sam_header_filename,
                                         left_reads,
@@ -3531,7 +3597,7 @@ def spliced_alignment(params,
                 possible_fusions.append(juncs[3])
         # Optionally, and for paired reads only, use a closure search to
         # discover addtional junctions
-        if params.closure_search and left_reads and right_reads:
+        if currentStage >= resumeStage and params.closure_search and left_reads and right_reads:
             juncs = junctions_from_closures(params,
                                             sam_header_filename,
                                             [maps[initial_reads[left_reads]].unspliced_sam, maps[initial_reads[left_reads]].seg_maps[-1]],
@@ -3556,8 +3622,16 @@ def spliced_alignment(params,
         th_logp("Warning: junction database is empty!")
     if len(possible_fusions) == 0:
         possible_fusions.append(os.devnull)
+
+    setRunStage(_stage_juncs_db)
+    juncs_bwt_samheader = None
+    juncs_bwt_idx = None
     if junc_idx_prefix:
-        juncs_bwt_idx = build_juncs_index(params.bowtie2,
+        jdb_prefix  = tmp_dir + junc_idx_prefix
+        if currentStage<resumeStage and fileExists(jdb_prefix + ".fa"):
+           juncs_bwt_idx = jdb_prefix
+        else:
+           juncs_bwt_idx = build_juncs_index(params.bowtie2,
                                           3,
                                           max_seg_len,
                                           junc_idx_prefix,
@@ -3567,12 +3641,11 @@ def spliced_alignment(params,
                                           possible_fusions,
                                           ref_fasta,
                                           params.read_params.color)
-
         juncs_bwt_samheader = get_index_sam_header(params, juncs_bwt_idx)
 
     # Now map read segments (or whole IUM reads, if num_segs == 1) to the splice
     # index with Bowtie
-    # for reads in [left_reads, right_reads]:
+    setRunStage(_stage_map2juncs)
     for ri in (0,1):
         reads = initial_reads[ri]
         if not reads:
@@ -3714,6 +3787,10 @@ def main(argv=None):
         if argv is None:
             argv = sys.argv
             args = params.parse_options(argv)
+            if params.resume_dir:
+               newargv=doResume(params.resume_dir)
+               #if not args[0]:
+               args = params.parse_options(newargv)
             params.check()
 
         bwt_idx_prefix = args[0]
@@ -3738,7 +3815,10 @@ def main(argv=None):
         init_logger(logging_dir + "tophat.log")
 
         th_logp()
-        th_log("Beginning TopHat run (v"+get_version()+")")
+        if resumeStage>0:
+           th_log("Resuming TopHat run in directory '"+output_dir+"' stage '"+stageNames[resumeStage]+"'")
+        else:
+           th_log("Beginning TopHat run (v"+get_version()+")")
         th_logp("-----------------------------------------------")
 
         global run_log
@@ -3793,7 +3873,8 @@ def main(argv=None):
 
         (ref_fasta, ref_seq_dict) = check_index(bwt_idx_prefix, params.bowtie2)
 
-        th_log("Generating SAM header for "+bwt_idx_prefix)
+        if currentStage >= resumeStage:
+           th_log("Generating SAM header for "+bwt_idx_prefix)
         # we need to provide another name for this sam header as genome and transcriptome may have the same prefix.
         sam_header_filename = get_index_sam_header(params, bwt_idx_prefix, "genome")
         params.sam_header = sam_header_filename
@@ -3865,8 +3946,10 @@ def main(argv=None):
                           "", _reads_vs_G,  ri )             #  multi-mapped reads will be in params.preflt_data[ri].multihit_reads
                params.preflt_data[ri].mappings = bwt[0] # initial mappings
                params.preflt_data[ri].unmapped_reads = bwt[1] # IUM reads
-
-        th_log("Preparing reads")
+        if currentStage >= resumeStage:
+              th_log("Preparing reads")
+        else:
+              th_log("Prepared reads:")
         prep_info=None
 
         multihit_reads = []
@@ -3909,7 +3992,7 @@ def main(argv=None):
                               user_supplied_juncs,
                               user_supplied_insertions,
                               user_supplied_deletions)
-
+        setRunStage(_stage_tophat_reports)
         compile_reports(params,
                         sam_header_filename,
                         ref_fasta,
