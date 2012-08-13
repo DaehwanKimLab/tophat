@@ -2936,7 +2936,6 @@ void find_insertions_and_deletions(RefSequenceTable& rt,
 				   vector<HitsForRead>& hits_for_read,
 				   std::set<Deletion>& deletions,
 				   std::set<Insertion>& insertions){
-  
   if (hits_for_read.empty())
     return;
 

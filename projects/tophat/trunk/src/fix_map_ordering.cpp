@@ -319,7 +319,7 @@ void driver_bam(string& fname, GBamWriter& bam_writer, GBamWriter* umbam) {
 		 // In case of Bowtie2, some of the mapped reads against either transcriptome or genome
 		 // may have low alignment scores due to gaps, in which case we will remap those.
 		 // Later, we may have better alignments that usually involve splice junctions.
-		 if (bowtie2 && tbscore<bowtie2_min_score) {
+		 if (bowtie2 && tbscore<=bowtie2_min_score) {
 		   //poor mapping, we want to map this read later in the pipeline
 		   //unmapped = true;
 		   if (umbam!=NULL) {
