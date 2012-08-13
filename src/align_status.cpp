@@ -87,7 +87,6 @@ AlignStatus::AlignStatus(const BowtieHit& bh,
 	    if (recalculate_score)
 	      {
 		junc.antisense = bh.antisense_splice();
-		
 		if (gtf_junctions.find(junc) == gtf_junctions.end())
 		  {
 		    JunctionSet::const_iterator itr = junctions.find(junc);
