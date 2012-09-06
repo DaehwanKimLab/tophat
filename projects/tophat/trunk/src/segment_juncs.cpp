@@ -2472,7 +2472,6 @@ void detect_small_insertion(RefSequenceTable& rt,
 			    BowtieHit& rightHit,
 			    std::set<Insertion>& insertions)
 {
-
   RefSequenceTable::Sequence* ref_str = rt.get_seq(leftHit.ref_id());
   if(!ref_str){
     fprintf(stderr, "Error accessing sequence record\n");
@@ -2509,10 +2508,11 @@ void detect_small_insertion(RefSequenceTable& rt,
     vector<int> bestInsertPositions;
     int minErrors = -1;
     simpleSplitAlignment(genomic_sequence, left_read_sequence, right_read_sequence, bestInsertPositions, minErrors);
+
+    if (bestInsertPositions.size() <= 0)
+      return;
     
-    assert (bestInsertPositions.size() > 0);
     int bestInsertPosition = bestInsertPositions[0];
-    
     
     /*
      * Need to decide if the insertion is suitably improves the alignment
@@ -2574,7 +2574,7 @@ void detect_small_deletion(RefSequenceTable& rt,
       return;
     
     size_t read_length = seqan::length(read_sequence);
-    if(rightHit.right() + read_length + begin_offset < 0 )
+    if (rightHit.right() + begin_offset < (int)read_length)
       return;
     
     int discrepancy = (rightHit.right() - leftHit.left()) - read_length;
