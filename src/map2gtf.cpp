@@ -157,6 +157,7 @@ void Map2GTF::convert_coords(const std::string& out_fname, const std::string& sa
       // FIXME: Take frag length into consideration when filtering
       std::sort(read_list.begin(), read_list.end());
       bh_unique_it = std::unique(read_list.begin(), read_list.end());
+      
       for (bh_it = read_list.begin(); bh_it != bh_unique_it; ++bh_it)
         {
 	  bam_writer.write(bh_it->hit, read_id);
