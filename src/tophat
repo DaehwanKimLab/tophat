@@ -193,10 +193,10 @@ _reads_vs_G, _reads_vs_T, _segs_vs_G, _segs_vs_J = range(1,5)
 
 # execution resuming stages (for now, execution can be resumed only for stages
 # after the pre-filter and transcriptome searches):
-_stage_map_segments, _stage_find_juncs, _stage_juncs_db, _stage_map2juncs, _stage_tophat_reports = range(1,6)
-stageNames = ["start", "map_segments", "find_juncs", "juncs_db", "map2juncs", "tophat_reports"]
-#                0           1               2            3           4                5
-runStages = dict([(stageNames[st], st) for st in range(0, 6)])
+_stage_prep, _stage_map_start, _stage_map_segments, _stage_find_juncs, _stage_juncs_db, _stage_map2juncs, _stage_tophat_reports = range(1,8)
+stageNames = ["start", "prep_reads", "map_start", "map_segments", "find_juncs", "juncs_db", "map2juncs", "tophat_reports"]
+#                0           1               2            3           4                5          6           7
+runStages = dict([(stageNames[st], st) for st in range(0, 8)])
 currentStage  = 0
 resumeStage = 0
 
@@ -3226,7 +3226,7 @@ def map2gtf(params, genome_sam_header_filename, ref_fasta, left_reads, right_rea
     gtf_name = getFileBaseName(params.gff_annotation)
     m2g_bwt_idx = None
     t_out_dir = tmp_dir
-    if params.transcriptome_index and not params.transcriptome_outdir:
+    if currentStage < resumeStage or (params.transcriptome_index and not params.transcriptome_outdir):
        m2g_bwt_idx = params.transcriptome_index
        th_log("Using pre-built transcriptome index..")
     else:
@@ -3394,6 +3394,7 @@ def spliced_alignment(params,
     # Before anything, map the reads using Map2GTF (if using annotation)
     m2g_maps = [ None, None ] # left, right
     initial_reads = [ left_reads, right_reads ]
+    setRunStage(_stage_map_start)
 
     if params.gff_annotation:
         (mapped_gtf_list, unmapped_gtf_list) = \
@@ -3946,6 +3947,8 @@ def main(argv=None):
                           "", _reads_vs_G,  ri )             #  multi-mapped reads will be in params.preflt_data[ri].multihit_reads
                params.preflt_data[ri].mappings = bwt[0] # initial mappings
                params.preflt_data[ri].unmapped_reads = bwt[1] # IUM reads
+
+        setRunStage(_stage_prep)
         if currentStage >= resumeStage:
               th_log("Preparing reads")
         else:
