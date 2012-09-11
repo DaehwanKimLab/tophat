@@ -82,15 +82,15 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 		    <ul>
 		      <table width="100%"><tbody><tr>
 		      <td>
-			  </td></tr><tr><td>version 2.0.4 (BETA)</td> <td align="right">6/21/2012</td></tr>
+			  </td></tr><tr><td>version 2.0.5 (BETA)</td> <td align="right">9/17/2012</td></tr>
 				<tr>
-		      		<td><a href="./downloads/tophat-2.0.4.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
+		      		<td><a href="./downloads/tophat-2.0.5.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
 		      	</tr>
 				<tr>
-					<td><a href="./downloads/tophat-2.0.4.Linux_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
+					<td><a href="./downloads/tophat-2.0.5.Linux_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
 				</tr>
 				<tr>
-					<td><a href="./downloads/tophat-2.0.4.OSX_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
+					<td><a href="./downloads/tophat-2.0.5.OSX_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
 				</tr>
 		      
 		      
@@ -145,6 +145,17 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 		
 	</div> <!-- End of "rightside" -->
 	<div id="leftside">
+	  <h2>TopHat 2.0.5 release 9/17/2012</h2>
+	  <p>
+	    The earlier versions of TopHat maps reads against genome (or transcriptome if you provide gene annotations), and then it tries to map only the unmapped reads from the above step in its downstream mapping steps, that is, mapping against novel or known splice variants (a.k.a. segment mapping in TopHat).  Based on real RNA-seq samples, we found out that in the genome mapping step of TopHat a high portion of reads spanning several exons can incorrectly be aligned to processed pseudogenes that are rarely (if any) transcribed or expressed, instead of the genes where they originate from.  This is not a problem when using well annotated genes such as the case with the human genome.  In the version of TopHat 2.0.5, we changed this behavior in a way that in addition to the unmapped reads users can choose to remap some of the mapped reads with mapping edit distance equal to or above user-specified "remapping" edit distance (see --read-realign-edit-dist).  Setting "--read-realign-edit-dist 0" will map every read against transcriptome, genome, and splice variants no matter whether it is mapped or not in any mapping step.  With this remapping strategy, this "pseudogene" problem can be effectively handled.  If you use a genome that has a lot of processed pseudogenes and genes are poorly annotated, you may want to consider using --read-realign-edit-dist option for accurate mapping results. <br/><br/>
+
+Please check new options such as -N/--read-mismatches, --read-gap-length, and --read-edit-dist to limit read alignments to a certain number of mismatches and indels.  For remapping of reads, you can use --read-realign-edit-dist option.  For instance, if you want read alignments with mismatches at two places and no gap.  You can specify --read-mismatches 2, --read-gap-length 0, and --read-edit-dist 2.  On the other hand, if you want read alignments with total length of indels at most 3bp and mismatches at most 2 places.  You can specify --read-mismatches 2, --read-gap-length 3, and --read-edit-dist 3.  If you want to remap all the reads no matter whether they are mapped or not in the earlier steps, you can use --read-realign-edit-dist 0.  You can also use a a higher value for --read-realign-edit-dist if you only want to remap some of the mapped reads with high edit distances. <br/><br/>
+	  </p><ul>
+	    <li> --transcriptome-mismatches and --genome-mismatches are deprecated.
+	    </li>
+	    </ul>
+	    <p></p><br>
+
 	  <h2>TopHat 2.0.4 release 6/21/2012</h2>
 	  <p> Version 2.0.4 is a maintenance release addressing some issues found in the 2.0.3 release:
 	</p><ul>

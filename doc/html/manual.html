@@ -69,15 +69,15 @@
 		    <ul>
 		      <table width="100%"><tbody><tr>
 		      <td>
-</td></tr><tr><td>version 2.0.4 (BETA)</td> <td align="right">6/21/2012</td></tr>
+</td></tr><tr><td>version 2.0.5 (BETA)</td> <td align="right">9/17/2012</td></tr>
 				<tr>
-		      		<td><a href="./downloads/tophat-2.0.4.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
+		      		<td><a href="./downloads/tophat-2.0.5.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
 		      	</tr>
 				<tr>
-					<td><a href="./downloads/tophat-2.0.4.Linux_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
+					<td><a href="./downloads/tophat-2.0.5.Linux_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
 				</tr>
 				<tr>
-					<td><a href="./downloads/tophat-2.0.4.OSX_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
+					<td><a href="./downloads/tophat-2.0.5.OSX_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
 				</tr>
 		      
 		      
@@ -586,6 +586,7 @@ the strand generated during second strand synthesis is sequenced.</td></tr>
 	  </td><td valign="top">
 	  <br>
 </td></tr>
+	      <!--
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>-n/--transcriptome-mismatches</tt>
 	  </td><td valign="top">
@@ -607,11 +608,29 @@ of the reads (by splitting them into segments) with a similar scoring
 threshold scheme as described for the --transcriptome-mismatches option 
 above.<br>
 </td></tr>
+	    -->
 	  <tr><td nowrap="nowrap" valign="top">
-	  <tt>--read-mismatches</tt>
+	  <tt>-N/--read-mismatches</tt>
 	  </td><td valign="top">
 	  Final read alignments having more than these many mismatches are discarded.
 	  The default is 2.
+	  </td></tr>
+	 <tr><td nowrap="nowrap" valign="top">
+	  <tt>--read-gap-length</tt>
+	  </td><td valign="top">
+	  Final read alignments having more than these many total length of gaps are discarded.
+	  The default is 2.
+	  </td></tr>
+	<tr><td nowrap="nowrap" valign="top">
+	  <tt>--read-edit-dist</tt>
+	  </td><td valign="top">
+	  Final read alignments having more than these many edit distance are discarded.
+	  The default is 2.
+	  </td></tr>
+	<tr><td nowrap="nowrap" valign="top">
+	  <tt>--read-realign-edit-dist</tt>
+	  </td><td valign="top">
+	    Some of reads spanning several exons may be mapped to incorrect places in the presence of processed pseudogenes that are rarely (if any) transcribed or expressed.  One possible solution is to remap those reads mapped to the pseudogenes if the edit distance of an alignment is above or equal to this option value.  If you set 0 for this option, TopHat will map every reads in all the mapping steps (transcriptome if you provide gene annotations, genome, and splice variants).  The default is set to a higher number than --read-edit-dist so that TopHat does not try to remap reads already mapped in earlier mapping steps.
 	  </td></tr>
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>--bowtie-n</tt>
