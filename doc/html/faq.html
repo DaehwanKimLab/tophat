@@ -69,6 +69,7 @@
 		    <ul>
 		      <table width="100%"><tbody><tr>
 		      <td>
+<br>
 </td></tr><tr><td>version 2.0.5 (BETA)</td> <td align="right">9/17/2012</td></tr>
 				<tr>
 		      		<td><a href="./downloads/tophat-2.0.5.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
@@ -169,7 +170,7 @@
 		    <ul>
 		      <li style="font-size: x-small; line-height: 130%"><p>Trapnell C, Pachter L, Salzberg SL. <a href="http://bioinformatics.oxfordjournals.org/cgi/content/abstract/btp120"><b>TopHat: discovering splice junctions with RNA-Seq</b></a>. <i><a href="http://bioinformatics.oxfordjournals.org">Bioinformatics</a></i>  doi:10.1093/bioinformatics/btp120</p><br></li>
 		      <li style="font-size: x-small; line-height: 130%"><p>Langmead B, Trapnell C, Pop M, Salzberg SL. <a href="http://genomebiology.com/2009/10/3/R25"><b>Ultrafast and memory-efficient alignment of short DNA sequences to the human genome</b></a>. <i><a href="http://genomebiology.com">Genome Biology</a></i> <b>10</b>:R25.</p><br></li>
-		      <li style="font-size: x-small; line-height: 130%"><p>Kim D and Salzberg SL. <a href="http://genomebiology.com/2011/12/8/R72/abstract"><b>TopHat-Fusion: an algorithm for discovery of novel fusion transcripts</b></a>. <i><a href="http://genomebiology.com/">Genome Biology</a></i> 2011, 12:R72</p><br/></li>
+		      <li style="font-size: x-small; line-height: 130%"><p>Kim D and Salzberg SL. <a href="http://genomebiology.com/2011/12/8/R72/abstract"><b>TopHat-Fusion: an algorithm for discovery of novel fusion transcripts</b></a>. <i><a href="http://genomebiology.com/">Genome Biology</a></i> 2011, 12:R72</p><br></li>
 		    </ul>
 		  </div>
 
@@ -200,27 +201,41 @@
           
     </div> <!-- End of "rightside" -->
     <div id="leftside">
-  	  <table><tr><td cellpadding=7>
-  	  <h1>Frequently Asked Questions</h1><br/>
+  	  <table><tbody><tr><td cellpadding="7">
+  	  <h1>Frequently Asked Questions</h1><br>
       <div id="toc">
   	    <ul>
-	      <li><a href="#mate_inner_dist">If I don't know mate inner distance (-r/--mate-inner-dist), what should I do?</a></li>
- 	      <li><a href="#library_type">What if you are not sure which library type to use (fr-firststrand or fr-secondstrand)?</a></li>
-  	    </ul><br/>
+	      <li><a href="#mate_inner_dist">If I don't know the mate inner distance (-r/--mate-inner-dist option), what should I do?</a></li>
+ 	      <li><a href="#library_type">I am not sure which library type to use (fr-firststrand or fr-secondstrand), what should I do?</a></li>
+  	    </ul><br>
   	  </div>
-      <h2 id="mate_inner_dist">If I don't know mate inner distance (-r/--mate-inner-dist), what should I do?</h2><br/><p>
-	TopHat makes use of the mate inner distance information in several places, for instance, when finding splice sites and fusion break points.  Besides, that information is taken into account when choosing the best candidate alignments for pairs in the final stage of TopHat (tophat_reports).  In case the inner distance is unknown, I suggest you run Bowtie on some of reads and then take a look at their mapped positions to guess the inner mate distance.  As long as you provide a good approximate value, TopHat will work fine.  We hope to add this functionality in the near future.
-      </p><br/>
-      <h2 id="library_type">What if you are not sure which library type to use (fr-firststrand or fr-secondstrand)?</h2><br/><p>
-	    One possible way to figure out the correct library-type is to run TopHat with a small number of reads (e.g., 1M) as follows. <br/>
-(1) run TopHat with fr-firststrand and count the number of junctions in junctions.bed, one of the output files from TopHat <br/>
-(2) run TopHat with fr-secondstrand and count the number of junctions in junctions.bed <br/>
-Since the splice junction finding algorithm of TopHat makes use of library-type information (if provided), one of the two TopHat runs would result in much more splice junctions than the other one.
-You can use the library type that gives more junctions.
-If this is not the case, TopHat may not support your sequencing protocol.  Please let us know more details about your protocol so we can support a new library type. 
-  	  </p><br/>
-	</div>
-  </div>
+      <h2 id="mate_inner_dist">If I don't know the mate inner distance (-r/--mate-inner-dist), what should I do?</h2><br><p>
+	TopHat makes use of the mate inner distance information in several 
+places - for instance, when finding splice sites and fusion break 
+points. This information is also taken into account when choosing the 
+best candidate alignments for pairs in the final stage of TopHat 
+(tophat_reports).  In case the inner distance is unknown you could try 
+to "guess" it by running Bowtie on a small sample (subset) of the reads 
+and&nbsp; taking a look at their mapped positions (we hope to add this functionality in a future version of TopHat). As
+ long as you provide a good approximate value, TopHat will work fine, as
+ it does allow some variance for this distance internally.&nbsp; The 
+default value should also work fine in most cases.<br>
+</p><br>
+      <h2 id="library_type">I am not sure which library type to use (fr-firststrand or fr-secondstrand), what should I do?</h2><br><p>
+	    One possible way to figure out the correct library-type is to run 
+TopHat with a small subset of the reads (e.g., 1M) as follows. <br>
+(1) run TopHat with fr-firststrand and count the number of junctions in junctions.bed (one of the output files from TopHat)<br>
+(2) run TopHat with fr-secondstrand and count the number of junctions in junctions.bed <br>
+Since the splice junction finding algorithm of TopHat makes use of 
+library-type information (if provided), one of the two TopHat runs would
+ result in many more splice junctions than the other one.
+You can then use the library type that gives more junctions.
+If this is not the case, TopHat may not support your sequencing 
+protocol.  Please let us know more details about your protocol so we can
+ add support for new library types. 
+  	  </p><br>
+	
+  
   <div id="footer">
   	<table cellspacing="15" width="100%"><tbody><tr><td>
     This research was supported in part by NIH grants R01-LM06845 and R01-GM083873 and NSF grant CCF-0347992.
@@ -228,7 +243,7 @@ If this is not the case, TopHat may not support your sequencing protocol.  Pleas
     Administrator: <a href="mailto:cole@cs.umd.edu">Cole Trapnell</a>. Design by <a href="http://www.free-css-templates.com" title="Design by David Herreman">David Herreman</a>
     </td></tr></tbody></table>
   </div>
-</div>
+
 
 
 
@@ -244,4 +259,5 @@ pageTracker._trackPageview();
 
 
 
-</body></html>
+
+</td></tr></tbody></table></div></div></div></body></html>
