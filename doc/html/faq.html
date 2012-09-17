@@ -3,10 +3,16 @@
 <title>TopHat :: Center for Bioinformatics and Computational Biology</title>
 
 
+
+
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 
+
+
 <link rel="stylesheet" type="text/css" href="css/style.css" media="screen">
+
+
 
 
 </head>
@@ -205,21 +211,74 @@
   	  <h1>Frequently Asked Questions</h1><br>
       <div id="toc">
   	    <ul>
-	      <li><a href="#mate_inner_dist">If I don't know the mate inner distance (-r/--mate-inner-dist option), what should I do?</a></li>
+	      
+  <li><a href="file:///mylocal/geo/httpd/html/tophat/faq.html#library_type">How to control the alignment of reads in terms of mismatches, gap length etc. ? <br>
+</a></li>
+  <li><a href="file:///mylocal/geo/httpd/html/tophat/faq.html#library_type">How can I maximize sensitivity or accuracy of spliced mapping in TopHat?</a></li>
+
+<li><a href="#mate_inner_dist">If I don't know the mate inner distance (-r/--mate-inner-dist option), what should I do?</a></li>
+
  	      <li><a href="#library_type">I am not sure which library type to use (fr-firststrand or fr-secondstrand), what should I do?</a></li>
   	    </ul><br>
-  	  </div>
+  <h2 id="mate_inner_dist">How to control the alignment of reads in terms of mismatches, gap length etc. ? <br>
+  </h2>
+  <p><br>
+You can use three options: --read-mismatches, --read-gap-length and  
+--read-edit-dist. For instance, if you want read alignments with 
+mismatches at two 
+places and no gap then you can specify --read-mismatches 2, 
+--read-gap-length 0, and --read-edit-dist 2.  On the other hand, if you 
+want read alignments with total length of indels at most 3bp and 
+mismatches at most 2 places you can specify --read-mismatches 2, 
+--read-gap-length 3, and --read-edit-dist 3.<br>
+  </p>
+  <p><br>
+  </p>
+  <h2 id="mate_inner_dist">How can I maximize sensitivity or accuracy of spliced mapping in TopHat?<br>
+  </h2>
+
+
+<br>
+
+
+	Based on real RNA-seq samples we found out that in the genome mapping 
+step of TopHat a high portion of reads spanning several exons can 
+incorrectly be aligned to processed pseudogenes that are rarely (if any)
+ transcribed or expressed, instead of the genes where they originate 
+from. You can use either of the options below to improve the accuracy of spliced mapping in TopHat:<br>
+<ul>
+  <li>If a good gene annotation is available (as the
+ case with the human genome), use it with the -G option<br>
+  </li>
+  
+  <li>For poorly annotated genomes you might want to consider using the "<tt>--read-realign-edit-dist 0</tt>" option <br>
+With the realignment option
+users can choose to remap some (or all) of the mapped reads with mapping edit distance
+equal to or above user-specified "remapping" edit distance (see <b>--read-realign-edit-dist</b> option). Setting "<tt>--read-realign-edit-dist 0</tt>"
+will map every read against transcriptome, genome, and splice variants (or splice junctions)
+that are detected by TopHat, no matter whether it is mapped or not in any mapping step. With this
+remapping strategy, this "pseudogene" problem can be effectively
+handled. If you use a genome that has a lot of processed pseudogenes
+and genes are poorly annotated, you may want to consider using
+this option for accurate mapping results.
+	<ul>
+<ul>
+
+</ul>&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;  <br>
+<br>
+  	  </ul></li>
+</ul></div>
       <h2 id="mate_inner_dist">If I don't know the mate inner distance (-r/--mate-inner-dist), what should I do?</h2><br><p>
 	TopHat makes use of the mate inner distance information in several 
 places - for instance, when finding splice sites and fusion break 
 points. This information is also taken into account when choosing the 
-best candidate alignments for pairs in the final stage of TopHat 
+best candidate alignments for paired reads in the final stage of TopHat 
 (tophat_reports).  In case the inner distance is unknown you could try 
 to "guess" it by running Bowtie on a small sample (subset) of the reads 
-and&nbsp; taking a look at their mapped positions (we hope to add this functionality in a future version of TopHat). As
- long as you provide a good approximate value, TopHat will work fine, as
- it does allow some variance for this distance internally.&nbsp; The 
-default value should also work fine in most cases.<br>
+and&nbsp; taking a look at their mapped positions (we hope to add this functionality in a future version of TopHat). 
+As long as you provide a good approximate value, TopHat will work fine, 
+as it does allow some variance for this distance internally.&nbsp; The 
+default value should work fine in most cases.<br>
 </p><br>
       <h2 id="library_type">I am not sure which library type to use (fr-firststrand or fr-secondstrand), what should I do?</h2><br><p>
 	    One possible way to figure out the correct library-type is to run 
@@ -233,14 +292,17 @@ You can then use the library type that gives more junctions.
 If this is not the case, TopHat may not support your sequencing 
 protocol.  Please let us know more details about your protocol so we can
  add support for new library types. 
-  	  </p><br>
+  	  </p><br><br>
+
 	
   
   <div id="footer">
   	<table cellspacing="15" width="100%"><tbody><tr><td>
     This research was supported in part by NIH grants R01-LM06845 and R01-GM083873 and NSF grant CCF-0347992.
     </td><td align="right">
-    Administrator: <a href="mailto:cole@cs.umd.edu">Cole Trapnell</a>. Design by <a href="http://www.free-css-templates.com" title="Design by David Herreman">David Herreman</a>
+    Administrator: <a href="mailto:cole@cs.umd.edu">Cole Trapnell</a>. Design by <a href="http://www.free-css-templates.com" title="Design by David Herreman">David Herreman</a><br>
+<br>
+
     </td></tr></tbody></table>
   </div>
 
@@ -260,4 +322,6 @@ pageTracker._trackPageview();
 
 
 
-</td></tr></tbody></table></div></div></div></body></html>
+</td></tr></tbody></table></div></div></div>
+
+</body></html>

@@ -1105,7 +1105,7 @@ class TopHatParams:
             raise Usage(use_message)
 
         if self.read_realign_edit_dist == None:
-            self.read_realign_edit_dist = self.read_edit_dist
+            self.read_realign_edit_dist = self.read_edit_dist + 1
 
         return args
 

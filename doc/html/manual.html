@@ -3,10 +3,25 @@
 <title>TopHat :: Center for Bioinformatics and Computational Biology</title>
 
 
+
+
+
+
+
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 
+
+
+
+
+
 <link rel="stylesheet" type="text/css" href="css/style.css" media="screen">
+
+
+
+
+
 
 
 </head>
@@ -249,21 +264,24 @@ possible splice
 	  </p>
 	
 	  
-<p> TopHat generates its database of possible splice junctions from three
-	  sources of evidence. The first and strongest source of evidence for a splice
-	  junction is when two segments from the same read are mapped at a certain distance on the same genomic sequence or
-	  when an internal segment fails to map - again suggesting that such reads are spanning multiple exons. The second source is pairings of "coverage islands", 
-	  which are distinct regions of piled up reads in the initial mapping.  
-	  Neighboring islands are often spliced together in the transcriptome, so 
-	  TopHat looks for ways to join these with an intron. The third	  source is only used when TopHat is run with paired end reads.  When reads 
-	  in a pair come from different exons of a transcript, they will generally
-	  be mapped far apart in the genome coordinate space.  When this happens,
-	  TopHat tries to "close" the gap between them by looking for subsequences
-	  of the genomic interval between mates with a total length about equal to
-	  the expected distance between mates.  The "introns" in this subsequence are added to 
-	  the database. With long (&gt;=75bp) reads, "GT-AG", 
-	  "GC-AG" and "AT-AC" introns will be found ab initio.  With shorter reads, 
-	  TopHat only reports alignments across "GT-AG" introns</p>
+<p> TopHat generates its database of possible splice junctions from two 
+sources of evidence. The first and strongest source of evidence for a 
+splice
+	  junction is when two segments from the same read (for reads of at 
+least 45bp) are mapped at a certain distance on the same genomic 
+sequence or
+	  when an internal segment fails to map - again suggesting that such 
+reads are spanning multiple exons. With this approach, "GT-AG", 
+	  "GC-AG" and "AT-AC" introns will be found ab initio. The second 
+source is pairings of "coverage islands", 
+	  which are distinct regions of piled up reads in the initial mapping. 
+ 
+	  Neighboring islands are often spliced together in the transcriptome, 
+so 
+	  TopHat looks for ways to join these with an intron. We only suggest 
+users use this second option (--coverage-search)&nbsp; for short reads 
+(&lt; 45bp) and with a small number of reads (&lt;= 10 million).&nbsp; 
+This latter option will only report alignments across "GT-AG" introns</p>
 
 	
   	  <br>
@@ -410,6 +428,37 @@ like this:<br>
 	  </td><td valign="top">
 	  Prints the TopHat version number and exits   
 	  </td></tr>
+<tr><td nowrap="nowrap" valign="top">
+<tt>-N/--read-mismatches</tt>
+</td><td valign="top">
+Final read alignments having more than these many mismatches are discarded.
+The default is 2.
+</td></tr>
+<tr><td nowrap="nowrap" valign="top">
+<tt>--read-gap-length</tt>
+</td><td valign="top">
+Final read alignments having more than these many total length of gaps are discarded.
+The default is 2.
+</td></tr>
+<tr><td nowrap="nowrap" valign="top">
+<tt>--read-edit-dist</tt>
+</td><td valign="top">
+Final read alignments having more than these many edit distance are discarded.
+The default is 2.
+</td></tr>
+<tr><td nowrap="nowrap" valign="top">
+<tt>--read-realign-edit-dist</tt>
+</td><td valign="top">
+Some of reads spanning several exons may be mapped to incorrect
+places in the presence of processed pseudogenes that are rarely (if any)
+transcribed or expressed. One possible solution is to remap those
+reads mapped to the pseudogenes if the edit distance of an alignment is
+above or equal to this option value. If you set 0 for this option,
+TopHat will map every read in all the mapping steps (transcriptome if
+you provide gene annotations, genome, and splice variants that are detected by TopHat). The default
+is set in a fashion that TopHat does not
+try to remap reads already mapped in earlier mapping steps.
+</td></tr>
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>--bowtie1</tt>
 	  </td><td valign="top">
@@ -632,37 +681,7 @@ threshold scheme as described for the --transcriptome-mismatches option
 above.<br>
 </td></tr>
 	    -->
-	  <tr><td nowrap="nowrap" valign="top">
-	  <tt>-N/--read-mismatches</tt>
-	  </td><td valign="top">
-	  Final read alignments having more than these many mismatches are discarded.
-	  The default is 2.
-	  </td></tr>
-	 <tr><td nowrap="nowrap" valign="top">
-	  <tt>--read-gap-length</tt>
-	  </td><td valign="top">
-	  Final read alignments having more than these many total length of gaps are discarded.
-	  The default is 2.
-	  </td></tr>
-	<tr><td nowrap="nowrap" valign="top">
-	  <tt>--read-edit-dist</tt>
-	  </td><td valign="top">
-	  Final read alignments having more than these many edit distance are discarded.
-	  The default is 2.
-	  </td></tr>
-	<tr><td nowrap="nowrap" valign="top">
-	  <tt>--read-realign-edit-dist</tt>
-	  </td><td valign="top">
-	    Some of reads spanning several exons may be mapped to incorrect 
-places in the presence of processed pseudogenes that are rarely (if any)
- transcribed or expressed.  One possible solution is to remap those 
-reads mapped to the pseudogenes if the edit distance of an alignment is 
-above or equal to this option value.  If you set 0 for this option, 
-TopHat will map every reads in all the mapping steps (transcriptome if 
-you provide gene annotations, genome, and splice variants).  The default
- is set to a higher number than --read-edit-dist so that TopHat does not
- try to remap reads already mapped in earlier mapping steps.
-	  </td></tr>
+	 
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>--bowtie-n</tt>
 	  </td><td valign="top">
@@ -681,21 +700,6 @@ you provide gene annotations, genome, and splice variants).  The default
 	  Each read is cut up into segments, each at least this long.  These segments
 	  are mapped independently. The default is 25.
 	  </td></tr>
-	  
-	  
-	  
-	  <tr><td nowrap="nowrap" valign="top">
-	  <tt>--min-coverage-intron</tt>
-	  </td><td valign="top">
-	  The minimum intron length that may be found during coverage search.  
-	  The default is 50.
-	  </td></tr>
-	  <tr><td nowrap="nowrap" valign="top">
-	  <tt>--max-coverage-intron</tt>
-	  </td><td valign="top">
-	  The maximum intron length that may be found during coverage search.  
-	  The default is 20000.
-	  </td></tr>
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>--min-segment-intron</tt>
 	  </td><td valign="top">
@@ -708,13 +712,27 @@ you provide gene annotations, genome, and splice variants).  The default
 	  The maximum intron length that may be found during split-segment search.  
 	  The default is 500000.
 	  </td></tr>
-	  <tr><td nowrap="nowrap" valign="top">
-	  <tt>--keep-tmp</tt>
-	  </td><td valign="top">
-	  Causes TopHat to preserve its intermediate files produced during the 
-run (mostly useful for debugging). The default is to delete these 
+
+	<tr><td nowrap="nowrap" valign="top">
+<tt>--min-coverage-intron</tt>
+</td><td valign="top">
+The minimum intron length that may be found during coverage search.
+The default is 50.
+</td></tr>
+<tr><td nowrap="nowrap" valign="top">
+<tt>--max-coverage-intron</tt>
+</td><td valign="top">
+The maximum intron length that may be found during coverage search.
+The default is 20000.
+</td></tr>
+	<tr><td nowrap="nowrap" valign="top">
+<tt>--keep-tmp</tt>
+</td><td valign="top">
+Causes TopHat to preserve its intermediate files produced during the
+run (mostly useful for debugging). The default is to delete these
 temporary files.<br>
 </td></tr>
+
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>--keep-fasta-order</tt>
 	  </td><td valign="top">
@@ -734,6 +752,19 @@ temporary files.<br>
 	  Do not convert to bam format. Output is &lt;output_dir&gt;/accepted_hit.sam.
 	  Implies --no-sort-bam.
 	  </td></tr>
+
+	<tr><td nowrap="nowrap" valign="top">
+<tt>-R/--resume &lt;string&gt;</tt>
+</td><td valign="top">
+In case a TopHat run was terminated prematurely&nbsp; (process failure 
+due 
+to external factors), users can attempt to resume the TopHat run by 
+providing the previous TopHat output directory to this option. For 
+instance:<br>
+&nbsp;&nbsp;&nbsp; <tt>tophat -R tophat_out</tt> <i>(or your TopHat output directory if you use -o)</i><br>
+</td></tr>
+
+
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>-z/--zpacker </tt>
 	  </td><td valign="top">
@@ -1116,6 +1147,11 @@ and exclude such multi-mapped reads (according to the value of the
     </td></tr></tbody></table>
   </div>
 </div>
+
+
+
+
+
 
 
 
