@@ -51,7 +51,7 @@ BamMerge::BamMerge(const vector<string>& bam_fnames,
     bam1_t* b = bam_init1();
     if (samread(fp, b) > 0) {
       _src_files.push_back(fp);
-      CBamLine brec(i, b, fp->header);
+      CBamLine brec(_lines.size(), b, fp->header);
       _lines.push(brec);
     }
     else { bam_destroy1(b); }
@@ -99,8 +99,8 @@ bool BamMerge::next_bam_lines(vector<CBamLine>& bam_lines)
     temp_bam_lines.push_back(brec);
     //reuse brec
     brec.b = bam_init1();
-    if (samread(_src_files[brec.fileno], brec.b)>0) {
-      brec.b_init(_src_files[brec.fileno]->header);
+    if (samread(_src_files[brec.filenum], brec.b)>0) {
+      brec.b_init(_src_files[brec.filenum]->header);
       _lines.push(brec);
     }
     else { //no more BAM records
