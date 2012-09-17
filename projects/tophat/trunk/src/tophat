@@ -71,7 +71,7 @@ Options:
     -j/--raw-juncs                 <filename>
     --insertions                   <filename>
     --deletions                    <filename>
-    -r/--mate-inner-dist           <int>
+    -r/--mate-inner-dist           <int>       [ default: 50                  ]
     --mate-std-dev                 <int>       [ default: 20                  ]
     --no-novel-juncs
     --no-novel-indels

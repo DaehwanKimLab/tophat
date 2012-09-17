@@ -18,7 +18,7 @@
       <tbody><tr><td>
         <a href="./index.html"><h1>TopHat</h1></a>
         <h2>A spliced read mapper for RNA-Seq</h2>
-      </td><td valign="middle" align="right">
+      </td><td align="right" valign="middle">
         <a href="http://bio.math.berkeley.edu/">
         <img style="vertical-align:middle;padding-top:4px" src="images/UCBerkeley-seal.scaled.gif" border="0">
         </a>&nbsp;
@@ -69,6 +69,7 @@
 		    <ul>
 		      <table width="100%"><tbody><tr>
 		      <td>
+<br>
 </td></tr><tr><td>version 2.0.5 (BETA)</td> <td align="right">9/17/2012</td></tr>
 				<tr>
 		      		<td><a href="./downloads/tophat-2.0.5.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
@@ -229,40 +230,41 @@
 	</p>
   	  <br>
 	  <h2 id="whis">How does TopHat find junctions?</h2><br>
-  	  <p> TopHat finds splice junctions without a reference annotation.  
+  	  <p> TopHat can find splice junctions without a reference annotation.  
 By 
 		first mapping RNA-Seq reads to the genome, TopHat identifies potential
 		exons, since many RNA-Seq reads will contiguously align to the genome.
  Using this initial mapping information, TopHat builds a database of 
 possible splice
-		junctions, and then maps the reads against these junctions to confirm
+		junctions and then maps the reads against these junctions to confirm
 		them.  
 	  </p> 
 	
       <p> Short read sequencing machines can currently produce reads 100bp or 
-	  longer, but many exons are shorter than this, and so would be missed in
-	  the initial mapping.  TopHat solves this problem by splitting all input
-	  reads into smaller segments, and then mapping them independently.  The 
-	  segment alignments are "glued" back together in a final step of the 
+	  longer but many exons are shorter than this so they would be missed in
+	  the initial mapping.  TopHat solves this problem mainly by splitting all input
+	  reads into smaller segments which are then mapped independently.  The 
+	  segment alignments are put back together in a final step of the 
 	  program to produce the end-to-end read alignments.
 	  </p>
 	
-	  <p> TopHat generates its database of possible splice junctions from three
-	  sources of evidence.  The first source is pairings of "coverage islands", 
+	  
+<p> TopHat generates its database of possible splice junctions from three
+	  sources of evidence. The first and strongest source of evidence for a splice
+	  junction is when two segments from the same read are mapped at a certain distance on the same genomic sequence or
+	  when an internal segment fails to map - again suggesting that such reads are spanning multiple exons. The second source is pairings of "coverage islands", 
 	  which are distinct regions of piled up reads in the initial mapping.  
 	  Neighboring islands are often spliced together in the transcriptome, so 
-	  TopHat looks for ways to join these with an intron.  The second
-	  source is only used when TopHat is run with paired end reads.  When reads 
+	  TopHat looks for ways to join these with an intron. The third	  source is only used when TopHat is run with paired end reads.  When reads 
 	  in a pair come from different exons of a transcript, they will generally
 	  be mapped far apart in the genome coordinate space.  When this happens,
 	  TopHat tries to "close" the gap between them by looking for subsequences
 	  of the genomic interval between mates with a total length about equal to
 	  the expected distance between mates.  The "introns" in this subsequence are added to 
-	  the database.  The third, and strongest, source of evidence for a splice
-	  junction is when two segments from the same read are mapped far apart, or
-	  when an internal segment fails to map. With long (&gt;=75bp) reads, "GT-AG", 
+	  the database. With long (&gt;=75bp) reads, "GT-AG", 
 	  "GC-AG" and "AT-AC" introns will be found ab initio.  With shorter reads, 
 	  TopHat only reports alignments across "GT-AG" introns</p>
+
 	
   	  <br>
   	  <h2 id="bins">Prerequisites</h2><br>
@@ -339,13 +341,26 @@ so you can invoke this new version of TopHat with the command 'tophat2'.</p>
 		lists, and that the order of the files in the two lists is the same. 
 	
 	  <p><strong>NOTE:</strong> TopHat can align reads that are up to 1024 bp, 
-		and it handles paired end reads, but we <strong>do not recommend</strong> 
-		mixing several "types" of reads in the same TopHat run.  For example,
-		mixing 100bp single end reads and 2x27bp paired ends into the same TopHat
-		run will give bad results. If you'd like to combine results from several
-		"flavors" of RNA-Seq reads, you can run first with one of your sets,
-		and feed the junctions produced by that run into future TopHat runs as
-		externally supplied junctions with the <tt>-j</tt> option (see below)</p>
+		and it handles paired-end reads, but we <strong>do not recommend</strong>
+ 
+		mixing different types of reads in the same TopHat run.  For example,
+		mixing 100bp single end reads and 2x27bp paired ends into the same 
+TopHat
+		run may give bad results. If you'd like to combine results from data 
+sets with different types of RNA-Seq reads, you can follow a protocol 
+like this:<br>
+</p>
+<ul>
+  <li>run TopHat on the first set of reads, with the appropriate parameters for this data set<br>
+  </li>
+  <li>use <b>bed_to_juncs</b> to convert the <b>junctions.bed</b> file obtained in this first run to a junction file usable by Tophat's -j option<br>
+  </li>
+  <li>run Tophat on the 2nd set of reads using the<b> -j</b> option to supply the junctions file produced by bed_to_juncs in the previous step<br>
+  </li>
+</ul>
+<p><br>
+</p>
+
 	  <table cellspacing="15">
 	  <tbody><tr><td valign="top">
 	  <b>Arguments:</b>
@@ -357,13 +372,13 @@ so you can invoke this new version of TopHat with the command 'tophat2'.</p>
 	  </td><td valign="top">
 	  The basename of the index to be searched.  The
       basename is the name of any of the five index
-      files up to but not including the first period.
-      bowtie first looks in the current directory for
+      files up to but not including the first period. Bowtie first looks in the current directory for
       the index files, then looks in the <tt>indexes</tt>
       subdirectory under the directory where the
       currently-running <tt>bowtie</tt> executable is located,
       then looks in the directory specified in the
-      <tt>BOWTIE_INDEXES</tt> environment variable.
+      <tt>BOWTIE_INDEXES</tt>&nbsp;
+      <tt>(</tt>or <tt>BOWTIE2_INDEXES)</tt> environment variable.
 	  </td></tr>
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>&lt;reads1_1[,...,readsN_1]&gt;</tt>
@@ -511,10 +526,16 @@ so you can invoke this new version of TopHat with the command 'tophat2'.</p>
 	  <tt>-g/--max-multihits &lt;int&gt;</tt>
 	  </td><td valign="top">
 	  Instructs TopHat to allow up to this many alignments to the reference
-	  for a given read, and choose the alignments based on their alignment scores if there are more than this number.
-	  The default is 20 for read mapping.  Unless you use --report-secondary-alignments, TopHat will report the alignments with the best alignment score.
-	  If there are more alignments with the same score than this number, TopHat will randomly report only this many alignments.
-	  In case of using --report-secondary-alignments, TopHat will try to report alignments up to this option value, and TopHat may randomly output some of the alignments with the same score to meet this number. 
+	  for a given read, and choose the alignments based on their alignment 
+scores if there are more than this number.
+	  The default is 20 for read mapping.  Unless you use 
+--report-secondary-alignments, TopHat will report the alignments with 
+the best alignment score.
+	  If there are more alignments with the same score than this number, 
+TopHat will randomly report only this many alignments.
+	  In case of using --report-secondary-alignments, TopHat will try to 
+report alignments up to this option value, and TopHat may randomly 
+output some of the alignments with the same score to meet this number. 
 	  </td></tr>
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>--report-secondary-alignments</tt>
@@ -552,7 +573,7 @@ behavior).
 	  <tt>--microexon-search</tt>
 	  </td><td valign="top">
 	  With this option, the pipeline will attempt to find alignments incident 
-	  to microexons.  Works only for reads 50bp or longer.
+	  to micro-exons.  Works only for reads 50bp or longer.
 	  </td></tr>
 	  
 	  <tr><td nowrap="nowrap" valign="top">
@@ -632,7 +653,15 @@ above.<br>
 	<tr><td nowrap="nowrap" valign="top">
 	  <tt>--read-realign-edit-dist</tt>
 	  </td><td valign="top">
-	    Some of reads spanning several exons may be mapped to incorrect places in the presence of processed pseudogenes that are rarely (if any) transcribed or expressed.  One possible solution is to remap those reads mapped to the pseudogenes if the edit distance of an alignment is above or equal to this option value.  If you set 0 for this option, TopHat will map every reads in all the mapping steps (transcriptome if you provide gene annotations, genome, and splice variants).  The default is set to a higher number than --read-edit-dist so that TopHat does not try to remap reads already mapped in earlier mapping steps.
+	    Some of reads spanning several exons may be mapped to incorrect 
+places in the presence of processed pseudogenes that are rarely (if any)
+ transcribed or expressed.  One possible solution is to remap those 
+reads mapped to the pseudogenes if the edit distance of an alignment is 
+above or equal to this option value.  If you set 0 for this option, 
+TopHat will map every reads in all the mapping steps (transcriptome if 
+you provide gene annotations, genome, and splice variants).  The default
+ is set to a higher number than --read-edit-dist so that TopHat does not
+ try to remap reads already mapped in earlier mapping steps.
 	  </td></tr>
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>--bowtie-n</tt>
@@ -983,16 +1012,16 @@ subsequent runs with the same genome and known transcripts but different
 	  (e.g. sample2_2.fq.z etc.), TopHat will no longer spend time building
  the transcriptome index because it can directly use the previously 
 built 
-	  transcriptome index, so the -G option can be even discarded for 
-subsequent runs:
-	  <br>
+	  transcriptome index, so the -G option can be discarded for 
+subsequent runs (however using it again will not force TopHat to build 
+the transcriptome index files again if they are already present)<br>
 	  <tt>tophat -o out_sample2 \<br>
       --transcriptome-index=transcriptome_data/known \<br>
       hg19 sample2_1.fq.z</tt>
       <br>
 	  </td></tr>
 	  <tr><td colspan="2">
-	  (The following options in this section are only used when the transcriptome search was activated with <tt>-G/--GTF</tt> or <tt>--transcriptome-index</tt>)
+	  (The following options in this section are only used when the transcriptome search was activated with <tt>-G/--GTF</tt> and/or <tt>--transcriptome-index</tt>)
 	  </td></tr>
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>-T/--transcriptome-only</tt>
@@ -1099,6 +1128,7 @@ document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.
 var pageTracker = _gat._getTracker("UA-6101038-1");
 pageTracker._trackPageview();
 </script>
+
 
 
 
