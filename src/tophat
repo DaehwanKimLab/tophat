@@ -210,7 +210,7 @@ def doResume(odir):
     thcmd=None
     try:
         thcmd = next(flog)
-    except StopIteration as e:
+    except StopIteration:
         die("Error: cannot resume, run.log is empty.")
     oldargv=thcmd.split()
     resume_tag = None
@@ -228,7 +228,7 @@ def doResume(odir):
     else:
        die("Error: resuming requested but no valid stage found in run.log")
     flog.close()
-  except IOError as e:
+  except IOError:
     die("Error: cannot resume, failed to open "+rlog)
   return oldargv
 
@@ -1922,7 +1922,7 @@ class PrepReadsInfo:
                 self.out_count[1]=int(f.readline().split("=")[-1])
                 if (self.out_count[1]==0) or (self.max_len[1]<16):
                    raise Exception()
-           except Exception, e:
+           except Exception:
              die(fail_str+"Error retrieving prep_reads info.")
            sides=["left", "right"]
            for ri in (0,1):
@@ -2749,6 +2749,8 @@ def compile_reports(params, sam_header_filename, ref_fasta, mappings, readfiles,
                retcode = sam_proc.returncode
                if retcode:
                  die(fail_str+"Error running:\n"+shellcmd)
+            for bam_part in bam_parts:
+                os.remove(bam_part)
         else: # only one file
             os.rename(bam_parts[0], accepted_hits+".bam")
             if not params.report_params.convert_bam:
@@ -2791,6 +2793,9 @@ def compile_reports(params, sam_header_filename, ref_fasta, mappings, readfiles,
                                    stderr=open(logging_dir + "bam_merge_um.log", "w") )
             if ret != 0:
                 die(fail_str+"Error executing: "+" ".join(merge_cmd)+"\n"+log_tail(logging_dir+"bam_merge_um.log"))
+            for um_part in um_parts:
+                os.remove(um_part)
+
     except OSError, o:
           die(fail_str+"Error: "+str(o)+"\n"+log_tail(log_fname))
 
@@ -3775,7 +3780,7 @@ def mlog(msg):
 def test_input_file(filename):
     try:
         test_file = open(filename, "r")
-    except IOError, o:
+    except IOError:
         die("Error: Opening file %s" % filename)
     return
 
@@ -4005,17 +4010,14 @@ def main(argv=None):
 
         if not params.system_params.keep_tmp:
             try:
-              for m in mappings[0]:
-                  os.remove(m)
-              for m in input_reads:
-                  if m and os.path.exists(m): os.remove(m)
-              for m in mappings[1]:
-                  os.remove(m)
               tmp_files = os.listdir(tmp_dir)
               for t in tmp_files:
                   os.remove(tmp_dir+t)
+            except OSError:
+              pass
+            try:
               os.rmdir(tmp_dir)
-            except OSError, o:
+            except OSError:
               th_logp("Warning: couldn't remove all temporary files in "+tmp_dir)
 
         finish_time = datetime.now()
