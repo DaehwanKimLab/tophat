@@ -36,24 +36,24 @@ Usage:
 
 Options:
     -v/--version
-    -o/--output-dir                <string>    [ default: ./tophat_out     ]
-    --bowtie1                                  [ default: bowtie2          ]
-    -N/--read-mismatches           <int>       [ default: 2                ]
-    --read-gap-length              <int>       [ default: 2                ]
-    --read-edit-dist               <int>       [ default: 2                ]
-    --read-realign-edit-dist       <int>       [ default: 2                ]
-    -a/--min-anchor                <int>       [ default: 8                ]
-    -m/--splice-mismatches         <0-2>       [ default: 0                ]
-    -i/--min-intron-length         <int>       [ default: 50               ]
-    -I/--max-intron-length         <int>       [ default: 500000           ]
-    -g/--max-multihits             <int>       [ default: 20               ]
+    -o/--output-dir                <string>    [ default: ./tophat_out         ]
+    --bowtie1                                  [ default: bowtie2              ]
+    -N/--read-mismatches           <int>       [ default: 2                    ]
+    --read-gap-length              <int>       [ default: 2                    ]
+    --read-edit-dist               <int>       [ default: 2                    ]
+    --read-realign-edit-dist       <int>       [ default: "read-edit-dist" + 1 ]
+    -a/--min-anchor                <int>       [ default: 8                    ]
+    -m/--splice-mismatches         <0-2>       [ default: 0                    ]
+    -i/--min-intron-length         <int>       [ default: 50                   ]
+    -I/--max-intron-length         <int>       [ default: 500000               ]
+    -g/--max-multihits             <int>       [ default: 20                   ]
     --suppress-hits
-    -x/--transcriptome-max-hits    <int>       [ default: 60               ]
+    -x/--transcriptome-max-hits    <int>       [ default: 60                   ]
     -M/--prefilter-multihits                   ( for -G/--GTF option, enable
                                                  an initial bowtie search
                                                  against the genome )
-    --max-insertion-length         <int>       [ default: 3                ]
-    --max-deletion-length          <int>       [ default: 3                ]
+    --max-insertion-length         <int>       [ default: 3                    ]
+    --max-deletion-length          <int>       [ default: 3                    ]
     --solexa-quals
     --solexa1.3-quals                          (same as phred64-quals)
     --phred64-quals                            (same as solexa1.3-quals)
