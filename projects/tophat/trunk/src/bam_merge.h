@@ -15,12 +15,12 @@ using namespace std;
 extern bool raw_merge;
 
 struct CBamLine {
-  int fileno;
+  int filenum;
   uint64_t read_id;
   bam1_t* b;
   
 CBamLine(int fno=-1, bam1_t* br=NULL, bam_header_t* header = NULL) :
-  fileno(fno),
+  filenum(fno),
     read_id(0), b(br) {
     b_init(header);
   }

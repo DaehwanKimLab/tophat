@@ -1815,7 +1815,7 @@ struct ConsensusEventsWorker
             
 	    // Process hits for left singleton, select best alignments
 	    read_best_alignments(curr_left_hit_group, best_hits, *gtf_junctions);
-	    update_coverage(best_hits, *coverage);
+	    // update_coverage(best_hits, *coverage);
 	    update_junctions(best_hits, *junctions);
 	    update_insertions_and_deletions(best_hits, *insertions, *deletions);
 	    update_fusions(best_hits, *rt, *fusions);
@@ -1836,7 +1836,7 @@ struct ConsensusEventsWorker
 	      {
 		// Process hit for right singleton, select best alignments
 		read_best_alignments(curr_right_hit_group, best_hits, *gtf_junctions);
-		update_coverage(best_hits, *coverage);
+		// update_coverage(best_hits, *coverage);
 		update_junctions(best_hits, *junctions);
 		update_insertions_and_deletions(best_hits, *insertions, *deletions);
 		update_fusions(best_hits, *rt, *fusions);
@@ -1879,12 +1879,12 @@ struct ConsensusEventsWorker
 		best_right_hit_group.hits = curr_right_hit_group.hits;
 	      }
 
-	    update_coverage(best_left_hit_group, *coverage);
+	    // update_coverage(best_left_hit_group, *coverage);
 	    update_junctions(best_left_hit_group, *junctions);
 	    update_insertions_and_deletions(best_left_hit_group, *insertions, *deletions);
 	    update_fusions(best_left_hit_group, *rt, *fusions);
 
-	    update_coverage(best_right_hit_group, *coverage);
+	    // update_coverage(best_right_hit_group, *coverage);
 	    update_junctions(best_right_hit_group, *junctions);
 	    update_insertions_and_deletions(best_right_hit_group, *insertions, *deletions);
 	    update_fusions(best_right_hit_group, *rt, *fusions);

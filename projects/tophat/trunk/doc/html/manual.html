@@ -512,7 +512,9 @@ so you can invoke this new version of TopHat with the command 'tophat2'.</p>
 	  </td><td valign="top">
 	  Instructs TopHat to allow up to this many alignments to the reference
 	  for a given read, and choose the alignments based on their alignment scores if there are more than this number.
-	  this many alignments. The default is 20 for read mapping.
+	  The default is 20 for read mapping.  Unless you use --report-secondary-alignments, TopHat will report the alignments with the best alignment score.
+	  If there are more alignments with the same score than this number, TopHat will randomly report only this many alignments.
+	  In case of using --report-secondary-alignments, TopHat will try to report alignments up to this option value, and TopHat may randomly output some of the alignments with the same score to meet this number. 
 	  </td></tr>
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>--report-secondary-alignments</tt>
@@ -854,7 +856,7 @@ The default is 4.
 	    <tr><td nowrap="nowrap" valign="top">
 		<tt>--fusion-anchor-length</tt>
 	      </td><td valign="top">
-		A "supporting" read must map to both sides of a fusion by at least this many bases. The default is 20.
+		A "supporting" read must map to both sides of a fusion by at least these many bases. The default is 20.
 	    </td></tr>
 	    <tr><td nowrap="nowrap" valign="top">
 		<tt>--fusion-min-dist</tt>
@@ -865,19 +867,19 @@ The default is 4.
 	    <tr><td nowrap="nowrap" valign="top">
 		<tt>--fusion-read-mismatches</tt>
 	      </td><td valign="top">
-		Reads support fusions if they map across fusion with at most this many mismatches. The default is 2. 
+		Reads support fusions if they map across fusion with at most these many mismatches. The default is 2. 
 	    </td></tr>
 	    <tr><td nowrap="nowrap" valign="top">
 		<tt>--fusion-multireads</tt>
 	      </td><td valign="top">
-		Reads that map to more than this many places will be ignored.
+		Reads that map to more than these many places will be ignored.
 		It may be possible that a fusion is supported by reads (or pairs) that map to multiple places.
 		The default is 2.
 	    </td></tr>
 	    <tr><td nowrap="nowrap" valign="top">
 		<tt>--fusion-multipairs</tt>
 	      </td><td valign="top">
-		Pairs that map to more than this many places will be ignored. The default is 2.
+		Pairs that map to more than these many places will be ignored. The default is 2.
 	    </td></tr>
 	      <tr><td nowrap="nowrap" valign="top">
 		<tt>--fusion-ignore-chromosomes</tt>
