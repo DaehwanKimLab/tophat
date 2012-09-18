@@ -2,9 +2,18 @@
 <html xmlns="http://www.w3.org/1999/xhtml"><head>
 <title>TopHat :: Center for Bioinformatics and Computational Biology</title>
 
+
+
+
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
+
+
+
 <link rel="stylesheet" type="text/css" href="css/style.css" media="screen">
+
+
+
 
 </head>
 <body>
@@ -86,7 +95,7 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 		      <table width="100%"><tbody><tr>
 		      <td>
 			  <br>
-</td></tr><tr><td>version 2.0.5 (BETA)</td> <td align="right">9/17/2012</td></tr>
+</td></tr><tr><td>version 2.0.5 (BETA)</td> <td align="right">9/18/2012</td></tr>
 				<tr>
 		      		<td><a href="./downloads/tophat-2.0.5.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
 		      	</tr>
@@ -149,24 +158,28 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 		
 	</div> <!-- End of "rightside" -->
 	<div id="leftside">
-	  <h2>TopHat 2.0.5 release 9/17/2012</h2>
+	  <h2>TopHat 2.0.5 release 9/18/2012</h2>
 	  <p>
-	    Version 2.0.5 adds new options to better control the read alignment and to improve mapping accuracy:<br>
+	    Version 2.0.5 adds new options to better control the read alignment
+ and to improve mapping accuracy, and the ability to resume partial 
+TopHat runs:<br>
 	  </p><ul>
 	    
-<li>along with -N/---read-mismatches, TopHat introduces new options to 
-control read alignments to a certain number of mismatches and 
-indels.&nbsp; 
+<li>along with <tt>-N/---read-mismatches</tt>, TopHat introduces new options for finer 
+control of the read alignment process by limiting the number of mismatches, 
+indels and indel length.&nbsp; 
 
-Please check new options such as -N/--read-mismatches, 
---read-gap-length, and --read-edit-dist.&nbsp; (FAQ link)<br>
+Please check new options <a href="faq.html#edit_dist">--read-gap-length and --read-edit-dist</a>.<br>
 </li>
-<li>the new <b>--read-realign-edit-dist</b> option can be used to improve mapping accuracy by remapping some or all reads regardless of them being mapped or 
-not in the earlier steps (FAQ link)<br>
+<li>the new <a href="manual.html#read_realign">--read-realign-edit-dist</a> option can be used to greatly <a href="faq.html#accuracy">improve spliced-mapping accuracy</a>
+ (especially in the absence of annotation data) by forcing the 
+re-mapping of some or all reads regardless of them being already mapped 
+in earlier steps of the pipeline.<br>
 </li>
-<li>--transcriptome-mismatches and --genome-mismatches are deprecated.</li>
-<li>a new option to resume a partial TopHat run in cases of process failure due to external factors: <tt>-R/--resume &lt;tophat_out&gt;</tt> (please check the manual for details)<br>
-</li>
+
+<li>we added the option to resume a TopHat run which was prematurely terminated:<tt><a href="manual.html#resume">-R/--resume &lt;tophat_out&gt;</a></tt></li>
+  <li><tt>--transcriptome-mismatches</tt>&nbsp; and <tt>--genome-mismatches</tt> are now deprecated</li>
+
 </ul>
 	    <br>
 
@@ -873,6 +886,9 @@ or pipes) is a workaround.  Users are recommended to use names like
     </td></tr></tbody></table>
   </div>
 </div>
+
+
+
 
 
 <!-- Google analytics code -->
