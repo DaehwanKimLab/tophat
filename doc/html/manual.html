@@ -8,6 +8,9 @@
 
 
 
+
+
+
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 
@@ -16,7 +19,13 @@
 
 
 
+
+
+
 <link rel="stylesheet" type="text/css" href="css/style.css" media="screen">
+
+
+
 
 
 
@@ -85,7 +94,7 @@
 		      <table width="100%"><tbody><tr>
 		      <td>
 <br>
-</td></tr><tr><td>version 2.0.5 (BETA)</td> <td align="right">9/17/2012</td></tr>
+</td></tr><tr><td>version 2.0.5 (BETA)</td> <td align="right">9/18/2012</td></tr>
 				<tr>
 		      		<td><a href="./downloads/tophat-2.0.5.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
 		      	</tr>
@@ -285,7 +294,7 @@ This latter option will only report alignments across "GT-AG" introns</p>
 
 	
   	  <br>
-  	  <h2 id="bins">Prerequisites</h2><br>
+  	  <h2 id="prer">Prerequisites</h2><br>
 	  <p> To use TopHat, you will need the following programs in your <tt>PATH</tt>:
       </p><ul>
          <li><tt>bowtie2 and bowtie2-align (or bowtie)<br>
@@ -345,7 +354,7 @@ so you can invoke this new version of TopHat with the command 'tophat2'.</p>
 		junctions while keeping the number of false positives low.
 
  		</td></tr></tbody></table> </div><br>
-	  <h2 id="algn">Using <tt>TopHat</tt></h2><br>
+	  <h2 id="toph">Using <tt>TopHat</tt></h2><br>
   	  
 	  <p>
 	  The following is a detailed description of the options used to control
@@ -447,17 +456,22 @@ Final read alignments having more than these many edit distance are discarded.
 The default is 2.
 </td></tr>
 <tr><td nowrap="nowrap" valign="top">
-<tt>--read-realign-edit-dist</tt>
+<tt>--read-realign-edit-dist</tt><a name="read_realign"></a>
 </td><td valign="top">
-Some of reads spanning several exons may be mapped to incorrect
-places in the presence of processed pseudogenes that are rarely (if any)
-transcribed or expressed. One possible solution is to remap those
-reads mapped to the pseudogenes if the edit distance of an alignment is
-above or equal to this option value. If you set 0 for this option,
-TopHat will map every read in all the mapping steps (transcriptome if
-you provide gene annotations, genome, and splice variants that are detected by TopHat). The default
-is set in a fashion that TopHat does not
-try to remap reads already mapped in earlier mapping steps.
+Some of the reads spanning multiple exons may be mapped incorrectly as a
+ contiguous alignment to the genome even though the correct alignment 
+should be a spliced one - this can happen in the presence of processed 
+pseudogenes that are rarely (if at all) 
+transcribed or expressed. This option can direct TopHat to re-align 
+reads for which the edit distance of an alignment obtained in a previous
+ mapping step is above or equal to 
+this option value. If you set this option to <tt>0</tt>, TopHat will map
+ every read in all the mapping steps (transcriptome if you provided gene
+ annotations, 
+genome, and finally splice variants detected by TopHat), reporting the 
+best possible alignment found in any of these mapping steps. 
+This may greatly increase the mapping accuracy at the expense of an increase in running time.
+The default value for this option is set such that TopHat will not try to realign reads already mapped in earlier steps.
 </td></tr>
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>--bowtie1</tt>
@@ -753,17 +767,25 @@ temporary files.<br>
 	  Implies --no-sort-bam.
 	  </td></tr>
 
-	<tr><td nowrap="nowrap" valign="top">
+	<tr><td nowrap="nowrap" valign="top"><a name="resume"></a>
 <tt>-R/--resume &lt;string&gt;</tt>
 </td><td valign="top">
-In case a TopHat run was terminated prematurely&nbsp; (process failure 
-due 
-to external factors), users can attempt to resume the TopHat run by 
-providing the previous TopHat output directory to this option. For 
-instance:<br>
-&nbsp;&nbsp;&nbsp; <tt>tophat -R tophat_out</tt> <i>(or your TopHat output directory if you use -o)</i><br>
+In case a TopHat run was terminated prematurely (process failure due to 
+external factors, e.g. running out of memory because of other processes 
+running on the same machine, or the disk getting full), users can 
+attempt to resume the interrupted TopHat run by just providing this 
+option with the output directory for that run. TopHat sets several 
+checkpoints after every lengthy operations in the pipeline and when this
+ option is provided, it will attempt to resume
+the pipeline from the last successful checkpoint.
+This special usage of TopHat only requires this option, e.g. the command
+ line could simply be:<br>
+&nbsp;&nbsp;&nbsp; <tt>tophat -R tophat_out</tt> <i>(or your TopHat output directory if you used the -o/--output-dir option)</i><br>Note
+ that none of the original options used for the original TopHat run 
+should be provided, TopHat will find all the original options (and the 
+checkpoint info) in the logs/run.log file found in the specified 
+directory.
 </td></tr>
-
 
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>-z/--zpacker </tt>
@@ -1147,6 +1169,9 @@ and exclude such multi-mapped reads (according to the value of the
     </td></tr></tbody></table>
   </div>
 </div>
+
+
+
 
 
 
