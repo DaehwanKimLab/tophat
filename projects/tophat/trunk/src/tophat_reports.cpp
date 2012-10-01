@@ -118,7 +118,7 @@ void read_best_alignments(const HitsForRead& hits_for_read,
 			  const FusionSet& fusions = empty_fusions,
 			  const Coverage& coverage = empty_coverage,
 			  bool final_report = false,
-			  boost::random::mt19937* rng = NULL)
+			  boost::mt19937* rng = NULL)
 {
   const vector<BowtieHit>& hits = hits_for_read.hits;
   if (hits.size() >= max_multihits * 5)
@@ -313,7 +313,7 @@ void pair_best_alignments(const HitsForRead& left_hits,
 			  const FusionSet& fusions = empty_fusions,
 			  const Coverage& coverage = empty_coverage,
 			  bool final_report = false,
-			  boost::random::mt19937* rng = NULL)
+			  boost::mt19937* rng = NULL)
 {
   const vector<BowtieHit>& left = left_hits.hits;
   const vector<BowtieHit>& right = right_hits.hits;
@@ -872,7 +872,7 @@ void print_sam_for_single(const RefSequenceTable& rt,
 			  FragmentType frag_type,
 			  const string& alt_name,
 			  GBamWriter& bam_writer,
-			  boost::random::mt19937& rng)
+			  boost::mt19937& rng)
 {
     //assert(!read.alt_name.empty());
     if (hits.hits.empty())
@@ -915,7 +915,7 @@ void print_sam_for_pair(const RefSequenceTable& rt,
                         GBamWriter& bam_writer,
                         const string& left_alt_name,
                         const string& right_alt_name,
-			boost::random::mt19937& rng,
+			boost::mt19937& rng,
 			uint64_t begin_id = 0,
                         uint64_t end_id = std::numeric_limits<uint64_t>::max())
 {
@@ -2212,7 +2212,7 @@ struct ReportWorker
   int64_t right_reads_offset;
   int64_t right_map_offset;
 
-  boost::random::mt19937 rng;
+  boost::mt19937 rng;
 };
 
 void driver(const string& bam_output_fname,
