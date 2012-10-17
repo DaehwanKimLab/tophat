@@ -3007,7 +3007,7 @@ void find_insertions_and_deletions(RefSequenceTable& rt,
       else
 	{
 	  fullRead = read.seq.substr(i * segment_length, 2 * segment_length);
-	  rcRead = read.seq;
+	  rcRead = fullRead;
 	  seqan::reverseComplement(rcRead);
 	}
       
@@ -3046,7 +3046,7 @@ void find_insertions_and_deletions(RefSequenceTable& rt,
 		  modifiedRead = &rcRead;
 		}
 	      
-	      size_t apparent_length = rightHit->right() - leftHit->left();
+	      int apparent_length = rightHit->right() - leftHit->left();
 	      int length_discrepancy = apparent_length - partial_read_length;
 	      if (length_discrepancy > 0 && length_discrepancy <= (int)max_deletion_length)
 		{
