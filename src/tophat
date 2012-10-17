@@ -4010,15 +4010,19 @@ def main(argv=None):
 
         if not params.system_params.keep_tmp:
             try:
-              tmp_files = os.listdir(tmp_dir)
-              for t in tmp_files:
-                  os.remove(tmp_dir+t)
+                tmp_files = os.listdir(tmp_dir)
+                for t in tmp_files:
+                    try:
+                        filename = tmp_dir + t
+                        # print >> sys.stderr, filename, os.stat(filename)
+                        os.remove(filename)
+                    except OSError:
+                        pass
+
+                os.rmdir(tmp_dir)
+                
             except OSError:
-              pass
-            try:
-              os.rmdir(tmp_dir)
-            except OSError:
-              th_logp("Warning: couldn't remove all temporary files in "+tmp_dir)
+                th_logp("Warning: couldn't remove all temporary files in "+tmp_dir)
 
         finish_time = datetime.now()
         duration = finish_time - start_time
