@@ -1236,10 +1236,14 @@ def check_bowtie_index(idx_prefix, is_bowtie2):
     idx_rev_1 = idx_prefix + ".rev.1."+idxext
     idx_rev_2 = idx_prefix + ".rev.2."+idxext
 
+    bwtbotherr = "Warning: we do not recommend to have both Bowtie1 and Bowtie2 indexes in the same directory \n the genome sequence (*.fa) may not be compatible with one of them"
     if os.path.exists(idx_fwd_1) and \
        os.path.exists(idx_fwd_2) and \
        os.path.exists(idx_rev_1) and \
        os.path.exists(idx_rev_2):
+        if os.path.exists(idx_prefix + ".1.ebwt") and os.path.exists(idx_prefix + ".1.bt2"):
+            print >> sys.stderr, bwtbotherr
+                
         return
     else:
         bwtidxerr="Error: Could not find Bowtie "+bowtie_ver+"index files (" + idx_prefix + ".*."+idxext+")"
@@ -1255,6 +1259,8 @@ def check_bowtie_index(idx_prefix, is_bowtie2):
            os.path.exists(bwtidx_env+idx_fwd_2) and \
            os.path.exists(bwtidx_env+idx_rev_1) and \
            os.path.exists(bwtidx_env+idx_rev_2):
+            if os.path.exists(bwtidx_env + idx_prefix + ".1.ebwt") and os.path.exists(bwtidx_env + idx_prefix + ".1.bt2"):
+                print >> sys.stderr, bwtbotherr
             return
         else:
             die(bwtidxerr)

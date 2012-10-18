@@ -1929,7 +1929,6 @@ struct ReportWorker
   {
     HitsForRead best_hits;
     best_hits.insert_id = curr_obs_order;
-    
     realign_reads(curr_hit_group, *rt, *junctions, *rev_junctions,
 		  *insertions, *deletions, *rev_deletions, *fusions);
     
@@ -2049,7 +2048,7 @@ struct ReportWorker
 	    right_hs.next_read_hits(curr_right_hit_group);
 	    curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
 	  }
-	
+
 	// Since we have both left hits and right hits for this insert,
 	// Find the best pairing and print both
 	while (curr_left_obs_order == curr_right_obs_order &&
