@@ -151,6 +151,7 @@ InsertAlignmentGrade(const BowtieHit& h1,
 
     //
     static const int penalty_for_long_inner_dist = bowtie2_max_penalty;
+    static const int penalty_for_discordant = bowtie2_max_penalty;
     alignment_score = h1.alignment_score() + h2.alignment_score();
     if (!fusion)
       {
@@ -174,6 +175,10 @@ InsertAlignmentGrade(const BowtieHit& h1,
 	static const int penalty_for_same_strand = bowtie2_max_penalty;
 	if (!opposite_strands)
 	  alignment_score -= penalty_for_same_strand;
+      }
+    else
+      {
+	alignment_score -= penalty_for_discordant;
       }
   }
   

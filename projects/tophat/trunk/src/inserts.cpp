@@ -21,11 +21,14 @@ using namespace std;
 
 bool InsertAlignmentGrade::operator<(const InsertAlignmentGrade& rhs)
 {
+  // penalty for discordant mapping is reflected in the alignment score.
+#if 0
   if (fusion && !rhs.fusion)
     return true;
 
   if (!fusion && rhs.fusion)
     return false;
+#endif
 
   // We always prefer a insert alignment with both ends mapped than a
   // singleton
