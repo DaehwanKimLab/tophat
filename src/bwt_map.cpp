@@ -1355,7 +1355,35 @@ bool BAMHitFactory::get_hit_from_buf(const char* orig_bwt_buf,
   }
 
   if (!has_alignment_score)
-    alignment_score -= (num_mismatches * (bowtie2_max_penalty + bowtie2_min_penalty) / 2);
+    {
+      ptr = bam_aux_get(hit_buf, "MD");
+      if (ptr && qual) {
+	const char* p = bam_aux2Z(ptr);
+	int bi=0; //base offset position in the read
+	while (*p != 0) {
+	  if (isdigit(*p)) {
+	    int v=atoi(p);
+	    do { p++; } while (isdigit(*p));
+	    bi+=v;
+	  }
+
+	  while (isalpha(*p)) {
+	    p++;
+	    float penalty = bowtie2_min_penalty + (bowtie2_max_penalty - bowtie2_min_penalty) * min((int)(qual[bi] - '!'), 40) / 40.0;
+	    alignment_score -= (int)penalty;
+	    bi++;
+	  }
+	  if (*p=='^') { //reference deletion
+	    p++;
+	    while (isalpha(*p)) { //insert read bases
+	      p++; bi++;
+	    }
+	  }
+	}
+      } else {
+	alignment_score -= (num_mismatches * (bowtie2_max_penalty + bowtie2_min_penalty) / 2);
+      }
+    }
   
   string mrnm;
   if (mate_target_id >= 0) {
@@ -2453,7 +2481,7 @@ void bowtie_sam_extra(const BowtieHit& bh, const RefSequenceTable& rt, vector<st
   bool bSawFusion = false;
 
   int AS_score = 0;
-  
+
   const vector<CigarOp>& cigars = bh.cigar();
   const string& seq = bh.seq();
   const string& qual = bh.qual();
@@ -2505,7 +2533,7 @@ void bowtie_sam_extra(const BowtieHit& bh, const RefSequenceTable& rt, vector<st
 		    str_appendInt(MD, (int)pos_mismatch);
 		    MD.push_back((char)ref_nt);
 		    pos_mismatch = 0;
-		  }
+  		  }
 		else
 		  {
 		    if (ref_nt == 'N')

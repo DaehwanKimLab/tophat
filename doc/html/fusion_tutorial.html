@@ -206,7 +206,7 @@
         <blockquote>
 	  <b>
 	    tophat -o tophat_MCF7 -p 8 --fusion-search --keep-fasta-order --bowtie1
-	    --no-coverage-search -r 0 --mate-std-dev 80
+	    --no-coverage-search -r 0 --mate-std-dev 80 --max-intron-length 100000
 	    --fusion-min-dist 100000 --fusion-anchor-length 13 --fusion-ignore-chromosomes chrM
 	    /path/to/h_sapiens/bowtie_index SRR064286_1.fastq SRR064286_2.fastq
 	  </b>

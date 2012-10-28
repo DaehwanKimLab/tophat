@@ -350,7 +350,7 @@ void pair_best_alignments(const HitsForRead& left_hits,
 
 	  // daehwan - for debugging purposes
 #if 0
-	  if (lh.insert_id() == 325708 && !g.is_fusion() && false)
+	  if (lh.insert_id() == 10790262)
 	    {
 	      fprintf(stderr, "lh %d:%d %s score: %d (from %d) NM: %d\n",
 		      lh.ref_id(), lh.left(), print_cigar(lh.cigar()).c_str(),
@@ -390,7 +390,7 @@ void pair_best_alignments(const HitsForRead& left_hits,
 
   // daehwan - for debugging purposes
 #if 0
-  if (best_hits.size() > 0 && best_hits[0].first.insert_id() == 37239044)
+  if (best_hits.size() > 0 && best_hits[0].first.insert_id() == 10790262)
     {
       for (size_t i = 0; i < best_hits.size(); ++i)
 	{
@@ -412,7 +412,7 @@ void pair_best_alignments(const HitsForRead& left_hits,
 
   // daehwan - for debugging purposes
 #if 0
-  if (best_hits.size() > 0 && best_hits[0].first.insert_id() == 37239044)
+  if (best_hits.size() > 0 && best_hits[0].first.insert_id() == 10790262)
     {
       for (size_t i = 0; i < best_hits.size(); ++i)
 	{
@@ -1653,12 +1653,19 @@ public:
 	  }
 	else
 	  {
-	    for (size_t j = 0; j < (size_t)num_threads; ++j)
+	    size_t j = 0;
+	    while (true)
 	      {
 		char suffix[128];
 		sprintf(suffix, "%lu.bam", j);
 		string temp_fname = fname + suffix;
+
+		ifstream index_file(temp_fname.c_str());
+		if (!index_file.is_open())
+		  break;
+
 		temp_fnames.push_back(temp_fname);
+		++j;
 	      }
 	  }
 
@@ -1684,10 +1691,13 @@ public:
 		  {
 		    offsets.push_back(last_offset);
 
+		    // daehwan - for debugging purposes
 #if 0
 		    fprintf(stderr, "bet %lu and %lu - %s %lu %ld\n",
 			    _begin_id, _end_id, temp_fnames[j].c_str(), last_offset, last_read_id);
 #endif
+
+		    break;
 		  }
 		
 		last_offset = offset;
@@ -1837,6 +1847,7 @@ struct ConsensusEventsWorker
 		// Process hit for right singleton, select best alignments
 		read_best_alignments(curr_right_hit_group, best_hits, *gtf_junctions);
 		// update_coverage(best_hits, *coverage);
+
 		update_junctions(best_hits, *junctions);
 		update_insertions_and_deletions(best_hits, *insertions, *deletions);
 		update_fusions(best_hits, *rt, *fusions);
@@ -1846,7 +1857,7 @@ struct ConsensusEventsWorker
 	    r_hs.next_read_hits(curr_right_hit_group);
 	    curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
 	  }
-        
+
 	// Since we have both left hits and right hits for this insert,
 	// Find the best pairing and print both
 	while (curr_left_obs_order == curr_right_obs_order &&
@@ -1888,7 +1899,7 @@ struct ConsensusEventsWorker
 	    update_junctions(best_right_hit_group, *junctions);
 	    update_insertions_and_deletions(best_right_hit_group, *insertions, *deletions);
 	    update_fusions(best_right_hit_group, *rt, *fusions);
-	            
+
 	    l_hs.next_read_hits(curr_left_hit_group);
 	    curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
             

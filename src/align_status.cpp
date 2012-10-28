@@ -111,8 +111,9 @@ AlignStatus::AlignStatus(const BowtieHit& bh,
 			if (supporting_hits >= 5)
 			  penalty *= min((float)avg_cov/supporting_hits + extent_penalty, 1.f);
 
+			// daehwan - check this out
 			// add two points to prefer junction alignments to other that may span one side of split site.
-			penalty -= 2;
+			// penalty -= 2;
 
 			if (itr->second.gtf_match)
 			  penalty -= bowtie2_max_penalty;

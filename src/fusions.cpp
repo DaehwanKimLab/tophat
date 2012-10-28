@@ -104,7 +104,7 @@ int difference(const string& first, const string& second)
  * Add fusions from an alignment to an FusionSet.
  * This will look for fusion in the alignment specified by bh.
  * @param bh The bowtie hit to be used to specify alignment infromation.
- * @param fusions The FusionSet that will be updated with the insertion information from teh alignment.
+ * @param fusions The FusionSet that will be updated with the insertion information from the alignment.
  */
 void fusions_from_alignment(const BowtieHit& bh,
 			    FusionSet& fusions,
@@ -124,6 +124,15 @@ void fusions_from_alignment(const BowtieHit& bh,
     {
       Fusion fusion = new_fusions[i];
       const vector<CigarOp>& cigars = bh.cigar();
+
+      // daehwan - for debugging purposes
+#if 0
+      if (fusion.left == 99880270)
+	{
+	  fprintf(stderr, "daehwan read_id(%d): %d-%d|%d-%d\n",
+		  bh.insert_id(), fusion.refid1, fusion.refid2, fusion.left, fusion.right);
+	}
+#endif
 
       /*
        * Assume read is in the same direction as fusion.
@@ -896,7 +905,10 @@ void pair_support(const vector<pair<BowtieHit, BowtieHit> >& best_hits, FusionSe
 		    dir_str = "rf";
 		  else if (dir == FUSION_RR)
 		    dir_str = "rr";
-		  
+
+		  cout << "insert id: " << lh.insert_id() << endl;
+                  cout << "left: " << print_cigar(lh.cigar()) << endl;
+                  cout << "right: " << print_cigar(rh.cigar()) << endl;
 		  cout << dir_str << endl;
 		  cout << "dist: " << dist << endl;
 		  cout << lb->first.refid1 << " " << lb->first.refid2 << endl;
