@@ -178,7 +178,8 @@ InsertAlignmentGrade(const BowtieHit& h1,
       }
     else
       {
-	alignment_score -= penalty_for_discordant;
+	if (!fusion_search)
+	  alignment_score -= penalty_for_discordant;
       }
   }
   

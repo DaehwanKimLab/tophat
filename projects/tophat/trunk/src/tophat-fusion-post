@@ -52,7 +52,6 @@ output_dir = "./tophatfusion_out/"
 logging_dir = output_dir + "logs/"
 tmp_dir = output_dir + "tmp/"
 
-
 class TopHatFusionParams:
     def __init__(self,
                  keep_tmp = ""):
@@ -83,7 +82,7 @@ class TopHatFusionParams:
 
     def parse_options(self, argv):
         try:
-            opts, args = getopt.getopt(argv[1:], "hp:", 
+            opts, args = getopt.getopt(argv[1:], "hp:o:", 
                                         ["version",
                                          "help",  
                                          "output-dir=",
@@ -123,6 +122,11 @@ class TopHatFusionParams:
                 self.is_human = False
             if option in ("-p", "--num-threads"):
                 self.num_threads = int(value)
+            if option in ("-o", "--output-dir"):
+                global output_dir, logging_dir, tmp_dir
+                output_dir = value + "/"
+                logging_dir = output_dir + "logs/"
+                tmp_dir = output_dir + "tmp/"
             if option == "--skip-fusion-kmer":
                 self.skip_fusion_kmer = True
             if option == "--skip-filter-fusion":
@@ -472,7 +476,7 @@ def filter_fusion(bwt_idx_prefix, params):
                 continue
 
             if num_reads < params.num_fusion_reads or \
-                    num_pair_ends < params.num_fusion_pairs or\
+                    num_pair_ends < params.num_fusion_pairs or \
                     both < params.num_fusion_both:
                 continue
 
@@ -493,6 +497,7 @@ def filter_fusion(bwt_idx_prefix, params):
             # are the sequences around the breakpoint different enough?
             if int(sim[0]) < 8:
                 continue
+           
 
             # is the reads distributed symmetrically?
             if sym >= 22 + max(0, 6 - num_reads):
