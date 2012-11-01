@@ -1354,7 +1354,13 @@ def get_bowtie_version(is_bowtie2):
             if is_bowtie2:
                 ver_numbers = version_val.split('.')
                 ver_numbers[2:] = ver_numbers[2].split('-')
-                bowtie_version = [int(x) for x in ver_numbers[:3]] + [int(ver_numbers[3][4:])]
+
+                # bowtie2 2.0.0-beta7
+                if len(ver_numbers[2:]) > 1:
+                    bowtie_version = [int(x) for x in ver_numbers[:3]] + [int(ver_numbers[3][4:])]
+                # bowtie2 2.0.2
+                else:
+                    bowtie_version = [int(x) for x in ver_numbers[:3]]
             else:
                 bowtie_version = [int(x) for x in version_val.split('.')]
 
@@ -1487,7 +1493,7 @@ def check_bowtie(params):
     if bowtie_version == None:
            die("Error: Bowtie not found on this system.")
     if params.bowtie2:
-        if bowtie_version[0] < 3 and bowtie_version[1] < 1 and bowtie_version[2] < 1 and bowtie_version[3] < 5:
+        if bowtie_version[0] < 3 and bowtie_version[1] < 1 and bowtie_version[2] < 1 and (len(bowtie_version) >= 4 and bowtie_version[3] < 5):
             die("Error: TopHat requires Bowtie 2.0.0-beta5 or later")
     else:
         if bowtie_version[0] < 1 and bowtie_version[1] < 12 and bowtie_version[2] < 3:
