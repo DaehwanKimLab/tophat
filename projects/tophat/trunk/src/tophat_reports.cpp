@@ -2301,11 +2301,11 @@ void driver(const string& bam_output_fname,
 	num_threads = 1;
     }
 
-  JunctionSet vjunctions[num_threads];
-  InsertionSet vinsertions[num_threads];
-  DeletionSet vdeletions[num_threads];
-  FusionSet vfusions[num_threads];
-  Coverage vcoverages[num_threads];
+  vector<JunctionSet> vjunctions(num_threads);
+  vector<InsertionSet> vinsertions(num_threads);
+  vector<DeletionSet> vdeletions(num_threads);
+  vector<FusionSet> vfusions(num_threads);
+  vector<Coverage> vcoverages(num_threads);
   
   vector<boost::thread*> threads;
   for (int i = 0; i < num_threads; ++i)

@@ -4854,15 +4854,15 @@ void driver(istream& ref_stream,
       exit(0);
     }
   
-  std::set<Junction, skip_count_lt> vseg_juncs[num_threads];
+  vector<std::set<Junction, skip_count_lt> > vseg_juncs(num_threads);
   std::set<Junction, skip_count_lt> cov_juncs;
   std::set<Junction, skip_count_lt> butterfly_juncs;
   
   std::set<Junction> juncs;
   
-  std::set<Deletion> vdeletions[num_threads];
-  std::set<Insertion> vinsertions[num_threads];
-  FusionSimpleSet vfusions[num_threads];
+  vector<std::set<Deletion> > vdeletions(num_threads);
+  vector<std::set<Insertion> > vinsertions(num_threads);
+  vector<FusionSimpleSet> vfusions(num_threads);
   
   RefSequenceTable rt(sam_header, true);
   
