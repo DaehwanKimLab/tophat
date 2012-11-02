@@ -24,7 +24,7 @@ import re
 import glob
 import signal
 from datetime import datetime, date, time
-from shutil import copy
+from shutil import copy, rmtree
 import logging
 
 use_message = '''
@@ -193,23 +193,22 @@ _reads_vs_G, _reads_vs_T, _segs_vs_G, _segs_vs_J = range(1,5)
 
 # execution resuming stages (for now, execution can be resumed only for stages
 # after the pre-filter and transcriptome searches):
-_stage_prep, _stage_map_start, _stage_map_segments, _stage_find_juncs, _stage_juncs_db, _stage_map2juncs, _stage_tophat_reports = range(1,8)
-stageNames = ["start", "prep_reads", "map_start", "map_segments", "find_juncs", "juncs_db", "map2juncs", "tophat_reports"]
-#                0           1               2            3           4                5          6           7
-runStages = dict([(stageNames[st], st) for st in range(0, 8)])
+_stage_prep, _stage_map_start, _stage_map_segments, _stage_find_juncs, _stage_juncs_db, _stage_map2juncs, _stage_tophat_reports, _stage_alldone = range(1,9)
+stageNames = ["start", "prep_reads", "map_start", "map_segments", "find_juncs", "juncs_db", "map2juncs", "tophat_reports", "alldone"]
+#                0           1               2            3           4                5          6           7          ,    8
+runStages = dict([(stageNames[st], st) for st in range(0, 9)])
 currentStage  = 0
 resumeStage = 0
 
-def doResume(odir):
-  #must return the original list of arguments
-  rlog = odir+"/logs/run.log"
+def getResumeStage(rlog):
+  #returns tuple: (resumeStage, old_cmd_args)
   oldargv = None
   try:
     flog=open(rlog)
     #first line must be the actual tophat command used
     thcmd=None
     try:
-        thcmd = next(flog)
+        thcmd = flog.next()
     except StopIteration:
         die("Error: cannot resume, run.log is empty.")
     oldargv=thcmd.split()
@@ -219,10 +218,10 @@ def doResume(odir):
        r=re.match("^#>(\w+):$", line)
        if r:
           resume_tag=r.group(1)
-    global resumeStage
+    #global resumeStage
     if resume_tag:
        if resume_tag in runStages:
-          resumeStage = runStages[resume_tag]
+          resume_stage = runStages[resume_tag]
        else:
           die("Error: unrecognized run stage '"+resume_tag+"'")
     else:
@@ -230,7 +229,34 @@ def doResume(odir):
     flog.close()
   except IOError:
     die("Error: cannot resume, failed to open "+rlog)
-  return oldargv
+  return (resume_stage, oldargv)
+
+def doResume(odir):
+  #must return the original list of arguments
+  rlog = odir+"/logs/run.log"
+  rstage = 0
+  rargv = None
+  r0log = odir+"/logs/run.resume0.log"
+  r0stage = 0
+  r0argv = None
+  if fileExists(r0log):
+     r0stage, r0argv = getResumeStage(r0log)
+  else:
+     if fileExists(rlog, 10):
+       copy(rlog, r0log)
+  rstage, rargv = getResumeStage(rlog)
+  best_stage = rstage
+  best_argv = rargv[:]
+  if r0stage > rstage:
+      best_stage = r0stage
+      best_argv = r0argv[:]
+  if best_stage == _stage_alldone:
+     print >> sys.stderr, "Nothing to resume."
+     sys.exit(1)
+
+  global resumeStage
+  resumeStage = best_stage
+  return best_argv
 
 def setRunStage(stnum):
    global currentStage
@@ -241,7 +267,6 @@ def init_logger(log_fname):
     global tophat_logger
     tophat_logger = logging.getLogger('project')
     formatter = logging.Formatter('%(asctime)s %(message)s', '[%Y-%m-%d %H:%M:%S]')
-    # level = logging.__dict__.get(options.loglevel.upper(),logging.DEBUG)
     tophat_logger.setLevel(logging.DEBUG)
 
     hstream = logging.StreamHandler(sys.stderr)
@@ -1129,7 +1154,7 @@ def nonzeroFile(filepath):
 
 
 # check if a file exists and has non-zero (or minimum) size
-def fileExists(filepath, minfsize=1):
+def fileExists(filepath, minfsize=2):
   if os.path.exists(filepath) and os.path.getsize(filepath)>=minfsize:
      return True
   else:
@@ -1175,7 +1200,6 @@ def right_now():
 
 # The TopHat logging formatter
 def th_log(out_str):
-  #print >> sys.stderr, "[%s] %s" % (right_now(), out_str)
   if tophat_logger:
        tophat_logger.info(out_str)
 
@@ -1243,7 +1267,7 @@ def check_bowtie_index(idx_prefix, is_bowtie2):
        os.path.exists(idx_rev_2):
         if os.path.exists(idx_prefix + ".1.ebwt") and os.path.exists(idx_prefix + ".1.bt2"):
             print >> sys.stderr, bwtbotherr
-                
+
         return
     else:
         bwtidxerr="Error: Could not find Bowtie "+bowtie_ver+"index files (" + idx_prefix + ".*."+idxext+")"
@@ -1329,7 +1353,7 @@ def check_index(idx_prefix, is_bowtie2):
 
 # Retrive a tuple containing the system's version of Bowtie.  Parsed from
 # `bowtie --version`
-def get_bowtie_version(is_bowtie2):
+def get_bowtie_version():
     try:
         # Launch Bowtie to capture its version info
         proc = subprocess.Popen([bowtie_path, "--version"],
@@ -1338,35 +1362,16 @@ def get_bowtie_version(is_bowtie2):
         stdout_value = proc.communicate()[0]
 
         bowtie_version = None
-        bowtie_out = repr(stdout_value)
-
-        # Find the version identifier
-        if is_bowtie2:
-            version_str = "bowtie2-align version "
-        else:
-            version_str = "bowtie version "
-
+        if not stdout_value: stdout_value=''
+        bowtie_out = stdout_value.splitlines()[0]
+        version_str=" version "
         ver_str_idx = bowtie_out.find(version_str)
         if ver_str_idx != -1:
-            nl = bowtie_out.find("\\n", ver_str_idx)
-            version_val = bowtie_out[ver_str_idx + len(version_str):nl]
-
-            if is_bowtie2:
-                ver_numbers = version_val.split('.')
-                ver_numbers[2:] = ver_numbers[2].split('-')
-
-                # bowtie2 2.0.0-beta7
-                if len(ver_numbers[2:]) > 1:
-                    bowtie_version = [int(x) for x in ver_numbers[:3]] + [int(ver_numbers[3][4:])]
-                # bowtie2 2.0.2
-                else:
-                    bowtie_version = [int(x) for x in ver_numbers[:3]]
-            else:
-                bowtie_version = [int(x) for x in version_val.split('.')]
-
-        if len(bowtie_version) == 3:
+            version_val = bowtie_out[(ver_str_idx + len(version_str)):]
+            bvers=re.findall(r'\d+', version_val)
+            bowtie_version = [int(x) for x in bvers]
+        while len(bowtie_version)<4:
             bowtie_version.append(0)
-
         return bowtie_version
     except OSError, o:
        errmsg=fail_str+str(o)+"\n"
@@ -1482,18 +1487,18 @@ def check_bowtie(params):
     bowtie_version = None
     bowtie_path=which(bowtie_bin)
     if bowtie_path:
-      bowtie_version = get_bowtie_version(params.bowtie2)
+      bowtie_version = get_bowtie_version()
     if params.bowtie2 and bowtie_version == None:
         th_logp("  Bowtie 2 not found, checking for older version..")
         #try to fallback on bowtie 1
         params.bowtie2=False
         bowtie_path=which('bowtie')
         if bowtie_path:
-           bowtie_version=get_bowtie_version(params.bowtie2)
+           bowtie_version=get_bowtie_version()
     if bowtie_version == None:
            die("Error: Bowtie not found on this system.")
     if params.bowtie2:
-        if bowtie_version[0] < 3 and bowtie_version[1] < 1 and bowtie_version[2] < 1 and (len(bowtie_version) >= 4 and bowtie_version[3] < 5):
+        if bowtie_version[0] < 3 and bowtie_version[1] < 1 and bowtie_version[2] < 1 and bowtie_version[3] < 5:
             die("Error: TopHat requires Bowtie 2.0.0-beta5 or later")
     else:
         if bowtie_version[0] < 1 and bowtie_version[1] < 12 and bowtie_version[2] < 3:
@@ -3092,11 +3097,6 @@ def join_mapped_segments(params,
                          spliced_seg_maps,
                          alignments_out_name):
     rn=""
-    if len(contig_seg_maps)>1:
-       th_log("Joining segment hits")
-       rn=".segs"
-    else:
-       th_log("Processing bowtie hits")
     contig_seg_maps = ','.join(contig_seg_maps)
 
     possible_juncs = ','.join(possible_juncs)
@@ -3104,6 +3104,12 @@ def join_mapped_segments(params,
     possible_deletions = ",".join(possible_deletions)
     possible_fusions = ",".join(possible_fusions)
 
+    if resumeStage > currentStage: return
+    if len(contig_seg_maps)>1:
+       th_log("Joining segment hits")
+       rn=".segs"
+    else:
+       th_log("Processing bowtie hits")
     log_fname=logging_dir + "long_spanning_reads"+rn+".log"
     align_log = open(log_fname, "w")
     align_cmd = [prog_path("long_spanning_reads")]
@@ -3286,29 +3292,10 @@ def map2gtf(params, genome_sam_header_filename, ref_fasta, left_reads, right_rea
         mapped_gtf_list.append(mapped_gtf_map)
         unmapped_gtf_list.append(unmapped)
 
-#    bam_gtf_list = mapped_gtf_map[]
-
-#     for reads in mapped_gtf_list:
-#         fbasename = getFileBaseName(reads)
-#         bam_out_fname = tmp_dir + fbasename + "_converted.bam"
-#         m2g_convert_coords(params,
-#                            genome_sam_header_filename,
-#                            params.gff_annotation,
-#                            reads,
-#                            bam_out_fname)
-#
-#         bam_gtf_list.append(bam_out_fname)
-#         if not params.system_params.keep_tmp:
-#             removeFileWithIndex(reads)
-
-#    if len(bam_gtf_list) < 2:
-#        bam_gtf_list.append(None)
-#        unmapped_gtf_list.append(None)
     if len(mapped_gtf_list) < 2:
         mapped_gtf_list.append(None)
     if len(unmapped_gtf_list) < 2:
         unmapped_gtf_list.append(None)
-#    return (bam_gtf_list, unmapped_gtf_list)
     return (mapped_gtf_list, unmapped_gtf_list)
 # end Map2GTF
 
@@ -3524,9 +3511,6 @@ def spliced_alignment(params,
                                         params,
                                         segment_len)
 
-            #if not params.system_params.keep_tmp:
-            #    removeFileWithIndex(unmapped_reads)
-
             # Map each segment file independently with Bowtie
             for i in range(len(read_segments)):
                 seg = read_segments[i]
@@ -3666,9 +3650,7 @@ def spliced_alignment(params,
     setRunStage(_stage_map2juncs)
     for ri in (0,1):
         reads = initial_reads[ri]
-        if not reads:
-            continue
-
+        if not reads: continue
         spliced_seg_maps = []
         rfname=getFileBaseName(reads)
         rfdir=getFileDir(reads)
@@ -3693,7 +3675,6 @@ def spliced_alignment(params,
                     #search each segment
                     fsegname = getFileBaseName(seg)
                     seg_out = tmp_dir + fsegname + ".to_spliced"
-                    #if use_zpacker: seg_out += ".z"
                     extra_output = "(%d/%d)" % (i+1, len(maps[ri].segs))
                     (seg_map, unmapped) = bowtie(params,
                                                  tmp_dir + junc_idx_prefix,
@@ -3711,10 +3692,6 @@ def spliced_alignment(params,
                     spliced_seg_maps.append(seg_map)
                     i += 1
 
-                    if not params.system_params.keep_tmp:
-                        removeFileWithIndex(seg)
-
-
                 # Join the contigous and spliced segment hits into full length
                 #   read alignments
                 # -- spliced mappings built from all segment mappings vs genome and junc_db
@@ -3729,14 +3706,11 @@ def spliced_alignment(params,
                                      maps[ri].seg_maps,
                                      spliced_seg_maps,
                                      mapped_reads)
-
-                if not params.system_params.keep_tmp:
-                    for seg_map in maps[ri].seg_maps:
-                        removeFileWithIndex(seg_map)
-
-                    for spliced_seg_map in spliced_seg_maps:
-                        removeFileWithIndex(spliced_seg_map)
-
+                #if not params.system_params.keep_tmp:
+                #    for seg_map in maps[ri].seg_maps:
+                #        removeFileWithIndex(seg_map)
+                #    for spliced_seg_map in spliced_seg_maps:
+                #        removeFileWithIndex(spliced_seg_map)
         maps[ri] = []
         if m2g_map and \
                nonzeroFile(m2g_map):
@@ -3801,15 +3775,15 @@ def main(argv=None):
 
     # Initialize default parameter values
     params = TopHatParams()
+    run_argv = sys.argv[:]
     try:
         if argv is None:
             argv = sys.argv
-            args = params.parse_options(argv)
-            if params.resume_dir:
-               newargv=doResume(params.resume_dir)
-               #if not args[0]:
-               args = params.parse_options(newargv)
-            params.check()
+        args = params.parse_options(argv)
+        if params.resume_dir:
+            run_argv=doResume(params.resume_dir)
+            args = params.parse_options(run_argv)
+        params.check()
 
         bwt_idx_prefix = args[0]
         left_reads_list = args[1]
@@ -3842,7 +3816,7 @@ def main(argv=None):
         global run_log
         run_log = open(logging_dir + "run.log", "w", 0)
         global run_cmd
-        run_cmd = " ".join(argv)
+        run_cmd = " ".join(run_argv)
         print >> run_log, run_cmd
 
         check_bowtie(params)
@@ -3966,12 +3940,11 @@ def main(argv=None):
                params.preflt_data[ri].unmapped_reads = bwt[1] # IUM reads
 
         setRunStage(_stage_prep)
-        if currentStage >= resumeStage:
-              th_log("Preparing reads")
-        else:
-              th_log("Prepared reads:")
         prep_info=None
-
+        if currentStage >= resumeStage:
+             th_log("Preparing reads")
+        else:
+             th_log("Prepared reads:")
         multihit_reads = []
         if params.preflt_data[0].multihit_reads:
            multihit_reads += [params.preflt_data[0].multihit_reads]
@@ -3981,12 +3954,14 @@ def main(argv=None):
                          left_reads_list, left_quals_list,
                          right_reads_list, right_quals_list,
                          multihit_reads)
+        if currentStage < resumeStage and not fileExists(prep_info.kept_reads[0],40):
+             die("Error: prepared reads file missing, cannot resume!")
 
         min_read_len = prep_info.min_len[0]
         if prep_info.min_len[1] > 0 and min_read_len > prep_info.min_len[1]:
            min_read_len = prep_info.min_len[1]
         if min_read_len < 20:
-                  th_logp("Warning: short reads (<20bp) will make TopHat quite slow and take large amount of memory because they are likely to be mapped to too many places")
+                  th_logp("Warning: short reads (<20bp) will make TopHat quite slow and take large amount of memory because they are likely to be mapped in too many places")
 
         max_read_len=max(prep_info.max_len[0], prep_info.max_len[1])
 
@@ -4013,6 +3988,7 @@ def main(argv=None):
                               user_supplied_insertions,
                               user_supplied_deletions)
         setRunStage(_stage_tophat_reports)
+
         compile_reports(params,
                         sam_header_filename,
                         ref_fasta,
@@ -4020,24 +3996,19 @@ def main(argv=None):
                         input_reads,
                         params.gff_annotation)
 
+        setRunStage(_stage_alldone)
+
         if not params.system_params.keep_tmp:
             try:
-                tmp_files = os.listdir(tmp_dir)
-                for t in tmp_files:
-                    try:
-                        filename = tmp_dir + t
-                        # print >> sys.stderr, filename, os.stat(filename)
-                        os.remove(filename)
-                    except OSError:
-                        pass
-
-                os.rmdir(tmp_dir)
-                
+              s=tmp_dir.rstrip('/')
+              rmtree(s, True)
             except OSError:
-                th_logp("Warning: couldn't remove all temporary files in "+tmp_dir)
-
+              pass
+              #th_logp("Warning: couldn't remove all temporary files in "+tmp_dir)
         finish_time = datetime.now()
         duration = finish_time - start_time
+
+
         th_logp("-----------------------------------------------")
         th_log("Run complete: %s elapsed" %  formatTD(duration))
 
