@@ -12,7 +12,7 @@
       <tbody><tr><td>
         <a href="./index.html"><h1>TopHat</h1></a>
         <h2>A spliced read mapper for RNA-Seq</h2>
-      </td><td align="right" valign="middle">
+      </td><td valign="middle" align="right">
         <a href="http://bio.math.berkeley.edu/">
         <img style="vertical-align:middle;padding-top:4px" src="images/UCBerkeley-seal.scaled.gif" border="0">
         </a>&nbsp;
@@ -61,10 +61,7 @@
 		  <a href="./downloads"><h2><u>Releases</u></h2></a>
 		  <div class="box">
 		    <ul>
-		      <table width="100%"><tbody><tr>
-		      <td>
-<br>
-</td></tr><tr><td>version 2.0.6 (BETA)</td> <td align="right">11/02/2012</td></tr>
+		      <table width="100%"><tbody><tr><td>version 2.0.6 (BETA)</td> <td align="right">11/02/2012</td></tr>
 				<tr>
 		      		<td><a href="./downloads/tophat-2.0.6.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
 		      	</tr>
@@ -259,7 +256,9 @@ this option for accurate mapping results.
       
   <h2 id="mate_inner_dist">I don't know the mate inner distance (-r/--mate-inner-dist) for my paired reads, what value should I use?</h2>
 <br><p>The 
-default value should work fine in most cases, for typical RNA-Seq PE experiments, because TopHat allows some variance for this distance internally.&nbsp; 
+default value should work fine in most cases, for typical RNA-Seq PE 
+experiments, because TopHat allows some variance for this distance 
+internally.&nbsp; 
 TopHat makes use of the mate inner distance information in several 
 places - for instance, when finding splice sites and fusion break 
 points. This information is also taken into account when choosing the 
@@ -268,7 +267,13 @@ best candidate alignments for paired reads in the final stage of TopHat
 distance for your reads you can try running Bowtie2 on a small sample 
 (subset) of the paired reads (both mates) 
 and&nbsp; taking a look at their mapped positions (we hope to add this 
-automatic fragment length detection in a future version of TopHat). The SAM output of Bowtie2 for paired reads is especially helpful as the 9th field in the SAM alignment lines should show the estimated fragment length, from which you should subtract twice the read length to get the value of the "inner distance" that can be used with the -r parameter (obviously large absolute values for that field should be ignored as for this estimate we only want to consider mates aligned to the same exon).<br>
+automatic fragment length detection in a future version of TopHat). The 
+SAM output of Bowtie2 for paired reads is especially helpful as the 9th 
+field in the SAM alignment lines should show the estimated fragment 
+length, from which you should subtract twice the read length to get the 
+value of the "inner distance" that can be used with the -r parameter 
+(obviously large absolute values for that field should be ignored as for
+ this estimate we only want to consider mates aligned to the same exon).<br>
 </p><br>
       <h2 id="library_type">I am not sure which library type to use (fr-firststrand or fr-secondstrand), what should I do?</h2><br><p>
 	    One possible way to figure out the correct library-type is to run 
@@ -317,6 +322,7 @@ pageTracker._trackPageview();
 
 
 </td></tr></tbody></table></div></div></div>
+
 
 
 
