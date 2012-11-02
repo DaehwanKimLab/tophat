@@ -46,6 +46,7 @@ endif
 LINKER    := g++
 LIBS = -lz -lbam 
 BLIBS = ${LIBS} -lpthread -lboost_thread
+#BLIBS = ${LIBS} -lpthread -lboost_thread -lboost_system
 
 COM_OBJS = common.o reads.o tokenize.o utils.o
 PREP_OBJS = ${COM_OBJS} qual.o
