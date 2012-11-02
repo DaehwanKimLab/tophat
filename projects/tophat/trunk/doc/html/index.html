@@ -94,7 +94,7 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 		    <ul>
 		      <table width="100%"><tbody><tr>
 		      <td>
-</td></tr><tr><td>version 2.0.6 (BETA)</td> <td align="right">11/XX/2012</td></tr>
+</td></tr><tr><td>version 2.0.6 (BETA)</td> <td align="right">11/02/2012</td></tr>
 				<tr>
 		      		<td><a href="./downloads/tophat-2.0.6.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
 		      	</tr>
@@ -157,13 +157,20 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 		
 	</div> <!-- End of "rightside" -->
 	<div id="leftside">
-	  <h2>TopHat 2.0.6 release 11/XX/2012</h2>
+	  <h2>TopHat 2.0.6 release 11/02/2012</h2>
 	  <p> Version 2.0.6 is a maintenance release addressing some issues found in the 2.0.5 release:
 	</p><ul>
-	  <li> Corrected the indel-finding algorithm that caused segmentation fault in certain cases.
+	  <li> Corrected the indel-finding algorithm that caused segmentation fault in certain cases (long_spanning_reads and tophat_reports).
 	   </li>
-	  <li> (I haven't fixed it yet), Modified the fusion alignment algorithm to use less memory.
+	  <li> Fixed the version checking routine for Bowtie2, this version is compatible with a new version of Bowtie2 (v2.0.2).
 	  </li>
+	  <li> Several minor fixes in the fusion alignment algorithm.
+	  </li>
+	  <li> Added a warning message in case Bowtie1 and Bowtie2 indexes are located in the same place. If they were built based on different genomic sequences,
+	    it can cause unexpected results in TopHat.
+	  </li>
+	  <li>
+	    </li>
 	</ul>
 	  <br>
 
