@@ -24,7 +24,7 @@
       <tbody><tr><td>
         <a href="./index.html"><h1>TopHat</h1></a>
         <h2>A spliced read mapper for RNA-Seq</h2>
-      </td><td align="right" valign="middle">
+      </td><td valign="middle" align="right">
         <a href="http://bio.math.berkeley.edu/">
         <img style="vertical-align:middle;padding-top:4px" src="images/UCBerkeley-seal.scaled.gif" border="0">
         </a>&nbsp;
@@ -50,7 +50,7 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
     at Johns Hopkins University, the <a href="http://math.berkeley.edu">Departments of Mathematics</a> and 
     <a href="http://www.mcb.berkeley.edu">Molecular and Cell Biology</a> at the University of California, Berkeley
     and the Department of Stem Cell and Regenerative Biology at Harvard University.
-	</td><td align="right" valign="middle">
+	</td><td valign="middle" align="right">
   <a href="http://opensource.org"><img alt="Open Source Software" src="images/osi-certified.gif" border="0"></a>
   </td></tr>
   </tbody></table>
@@ -94,6 +94,7 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 		    <ul>
 		      <table width="100%"><tbody><tr>
 		      <td>
+<br>
 </td></tr><tr><td>version 2.0.6 (BETA)</td> <td align="right">11/02/2012</td></tr>
 				<tr>
 		      		<td><a href="./downloads/tophat-2.0.6.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
@@ -160,17 +161,16 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 	  <h2>TopHat 2.0.6 release 11/02/2012</h2>
 	  <p> Version 2.0.6 is a maintenance release addressing some issues found in the 2.0.5 release:
 	</p><ul>
-	  <li> Corrected the indel-finding algorithm that caused segmentation fault in certain cases (long_spanning_reads and tophat_reports).
+	  <li> corrected the indel finding algorithm that caused segmentation fault in certain cases (long_spanning_reads and tophat_reports)
 	   </li>
-	  <li> Fixed the version checking routine for Bowtie2, this release is compatible with a new version of Bowtie2 (v2.0.2).
-	  </li>
-	  <li> Several minor fixes in the fusion alignment algorithm.
-	  </li>
-	  <li> Added a warning message in case Bowtie1 and Bowtie2 indexes are located in the same place. If they were built based on different genomic sequences,
-	    it can cause unexpected results in TopHat.
-	  </li>
-	  <li>
-	    </li>
+	  <li> fixed the Bowtie version checking code, adding support for newer, non-beta Bowtie2 versions</li><li>several minor fixes in the fusion alignment algorithm</li><li>fixed an incompatibility issue with Python versions older than 2.6 (restoring Python 2.4 compatibility)<br>
+</li>
+<li>fixed and improved the resuming option (-R/--resume) to better handle various failure/resume situations</li>
+<li>added a warning about Bowtie1 and Bowtie2 index files in the same 
+directory (causing trouble if they were built for different genomic 
+sequences)<br>
+</li>
+
 	</ul>
 	  <br>
 
@@ -917,6 +917,7 @@ var pageTracker = _gat._getTracker("UA-6101038-1");
 pageTracker._trackPageview();
 </script>
 <!-- End google analytics code -->
+
 
 
 
