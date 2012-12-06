@@ -5324,7 +5324,7 @@ int main(int argc, char** argv)
       print_usage();
       return 1;
     }
-  
+
   string ref_file_name = argv[optind++];
   
   if(optind >= argc)
