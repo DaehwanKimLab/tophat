@@ -1938,6 +1938,9 @@ struct ReportWorker
 				  GBamWriter& um_out,
 				  FragmentType fragment_type)
   {
+    if (is_paired && !report_mixed_alignments)
+      return;
+      
     HitsForRead best_hits;
     best_hits.insert_id = curr_obs_order;
     realign_reads(curr_hit_group, *rt, *junctions, *rev_junctions,
@@ -1962,7 +1965,7 @@ struct ReportWorker
 	    update_junctions(best_hits, *final_junctions);
 	    update_insertions_and_deletions(best_hits, *final_insertions, *final_deletions);
 	    update_fusions(best_hits, *rt, *final_fusions, *fusions);
-	    
+
 	    print_sam_for_single(*rt,
 				 best_hits,
 				 fragment_type,
@@ -1979,6 +1982,8 @@ struct ReportWorker
     
     ReadTable it;
     GBamWriter bam_writer(bam_output_fname.c_str(), sam_header.c_str());
+
+    is_paired = right_map_fnames.size() > 0;
 
     ReadStream left_reads_file(left_reads_fname);
     if (left_reads_file.file() == NULL)
@@ -2036,7 +2041,7 @@ struct ReportWorker
 				       left_reads_file,
 				       bam_writer,
 				       *left_um_out,
-				       right_map_fnames.empty() ? FRAG_UNPAIRED : FRAG_LEFT);
+				       is_paired ? FRAG_LEFT : FRAG_UNPAIRED);
 	    
 	    // Get next hit group
 	    left_hs.next_read_hits(curr_left_hit_group);
@@ -2149,7 +2154,7 @@ struct ReportWorker
 					       left_reads_file,
 					       bam_writer,
 					       *left_um_out,
-					       (right_map_fnames.empty() ? FRAG_UNPAIRED : FRAG_LEFT));
+					       is_paired ? FRAG_LEFT : FRAG_UNPAIRED);
 		  }
 		
 		if (curr_right_hit_group.hits.size() > 0)
@@ -2221,6 +2226,8 @@ struct ReportWorker
   int64_t left_map_offset;
   int64_t right_reads_offset;
   int64_t right_map_offset;
+
+  bool is_paired;
 
   boost::mt19937 rng;
 };

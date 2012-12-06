@@ -807,6 +807,11 @@ class TopHatParams:
             die("Error: the read mismatches (" + str(self.read_mismatches) + ") and the read gap length (" + str(self.read_edit_dist) + ") should be less than or equal to the read edit dist (" + str(self.read_edit_dist) + ")\n" + \
                 "Either decrease --read-mismatches or --read-gap-length, or increase --read-edit-dist")
 
+
+        self.search_params.min_segment_intron_length = min(self.search_params.min_segment_intron_length, self.splice_constraints.min_intron_length)
+        self.search_params.max_segment_intron_length = max(self.search_params.max_segment_intron_length, self.splice_constraints.max_intron_length)
+
+
     def cmd(self):
         cmd = ["--min-anchor", str(self.splice_constraints.min_anchor_length),
                "--splice-mismatches", str(self.splice_constraints.splice_mismatches),
@@ -2256,8 +2261,8 @@ def bowtie(params,
                 # the following parameters seem to work faster than Bowtie1 and as sensitive as Bowtie1,
                 # but room for further improvements remains.
                 bowtie_cmd += ["-N", str(min(num_mismatches, 1))]
-                bowtie_cmd += ["-i", "C,2,0"]
-                bowtie_cmd += ["-L", "20"]
+                bowtie_cmd += ["-i", "C,10000,0"] # allow only one seed
+                bowtie_cmd += ["-L", "14"]
                 # bowtie_cmd += ["-L", str(min(params.segment_length, 20))]
             else:
                 bowtie2_preset = ""
@@ -3758,7 +3763,7 @@ def prog_path(program):
 
 # FIXME: this should get set during the make dist autotools phase of the build
 def get_version():
-   return "2.0.6"
+   return "2.0.7"
 
 def mlog(msg):
   print >> sys.stderr, "[DBGLOG]:"+msg
