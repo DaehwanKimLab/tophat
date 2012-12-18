@@ -1149,7 +1149,10 @@ def nonzeroFile(filepath):
          samtools_view = subprocess.Popen(samtools_view_cmd, stdout=subprocess.PIPE)
          head_cmd = ["head", "-1"]
          head = subprocess.Popen(head_cmd, stdin=samtools_view.stdout, stdout=subprocess.PIPE)
+
+         samtools_view.stdout.close() # as per http://bugs.python.org/issue7678
          output = head.communicate()[0][:-1]
+
          if len(output) > 0:
              return True
      else:
@@ -2715,7 +2718,7 @@ def compile_reports(params, sam_header_filename, ref_fasta, mappings, readfiles,
                     sorted_bam_parts[i] += ".bam"
                     print >> run_log, " ".join(bamsort_cmd)
 
-                    if i + 1 < range(num_bam_parts):
+                    if i + 1 < num_bam_parts:
                         pid = os.fork()
                         if pid == 0:
                             subprocess.call(bamsort_cmd,
@@ -2729,7 +2732,7 @@ def compile_reports(params, sam_header_filename, ref_fasta, mappings, readfiles,
 
             for i in range(len(pids)):
                     if pids[i] > 0:
-                        os.waitpid(pids[i], 0)
+                        result = os.waitpid(pids[i], 0)
                         pids[i] = 0
 
             for bam_part in bam_parts:
