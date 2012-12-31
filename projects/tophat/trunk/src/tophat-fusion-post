@@ -578,6 +578,7 @@ def filter_fusion(bwt_idx_prefix, params):
                 left_dist[i] = '%d' % min(9, int(left_dist[i]))
                 right_dist[i] ='%d' % min(9, int(right_dist[i]))
 
+            """
             swap = False
             if (dir == 'ff' and gene1_sense == '-' and gene2_sense == '-') or \
                     (dir == 'fr' and gene1_sense == '-' and gene2_sense == '+') or \
@@ -599,6 +600,7 @@ def filter_fusion(bwt_idx_prefix, params):
                 for j in range(len(pairs)):
                     pair = pairs[j].split(':')
                     pairs[j] = ':'.join(pair[::-1])
+            """
 
             # check if this is due to trans-splicing.
             if gene1_sense in "+-" and gene2_sense in "+-":
@@ -1219,31 +1221,6 @@ def generate_html(params):
         re_find_identities = re.compile(r'Identities = (\d+)\/\d+ \((\d+)%\)')
         re_find_exon = re.compile(r'exon\d+\((\d+-\d+)\)')
 
-        edgren_list = []
-        if os.path.exists("fusion_info.txt"):
-            edgren_file = open("fusion_info.txt", 'r')
-            for fusion in edgren_file:
-                sample_name, gene1_name, coord1, gene2_name, coord2 = fusion[:-1].split()
-
-                chr1, coord1, sense1 = coord1.split(':')
-                chr1 = "chr" + chr1
-                chr2, coord2, sense2 = coord2.split(':')
-                chr2 = "chr" + chr2
-
-                left1, right1 = coord1.split('-')
-                left2, right2 = coord2.split('-')
-
-                if sense1 == sense2:
-                    dir = "ff"
-                elif sense1 == '1':
-                    dir = "fr"
-                else:
-                    dir = "rf"
-
-                edgren_list.append([sample_name, gene1_name, chr1, int(left1), int(right1), gene2_name, chr2, int(left2), int(right2), dir])
-
-            edgren_file.close()
-
         line_no = 0
         do_not_add = False
         output = {}
@@ -1273,34 +1250,6 @@ def generate_html(params):
                 output["right_coord"] = right
                 output["dir"] = dir
                 output["stats"] = temp_list[5:]
-
-                def found_in_fusion_list(chr1, chr2, left, right, dir):
-                    for fusion in edgren_list:
-                        ref_chr1, ref_left1, ref_right1, ref_chr2, ref_left2, ref_right2, ref_dir = fusion[2:5] + fusion[6:]
-
-                        if dir == "rr":
-                            dir = "ff"
-
-
-                        if dir != ref_dir:
-                            second_event = True
-                        else:
-                            second_event = False
-
-                        if (chr1 == ref_chr1 and chr2 == ref_chr2 and left >= ref_left1 and left <= ref_right1 and right >= ref_left2 and right <= ref_right2) or\
-                                (chr1 == ref_chr2 and chr2 == ref_chr1 and left >= ref_left2 and left <= ref_right2 and right >= ref_left1 and right <= ref_right1):
-                            return True, second_event
-
-                    return False, False
-
-                output["found_in_list"], output["second_event"] = found_in_fusion_list(chr1, chr2, left, right, dir)
-
-                # daehwan - I had decided to delete the following checking routine as of Jul, 2011.
-                if False:
-                # if not output["found_in_list"] and chr1 == chr2:
-                    # if ((dir == "ff" and right - left < 1000000 and right - left > 0) or (dir == "rr" and left - right < 1000000 and left - right > 0)):
-                    if abs(right - left) < 100000:
-                        do_not_add = True
 
             elif line_no % 6 == 1:
                 output["left_seq"] = line[:-1].split(" ")[0]
@@ -1485,10 +1434,6 @@ def generate_html(params):
                         if lcount <= lcount_min or rcount <= rcount_min or lgap / lcount > 0.1 or rgap / rcount > 0.1:
                             if abs(min(lcount, lcount_exon_min) - min(rcount, rcount_exon_min)) > diff_max or lcount < 60 or rcount < 60:
                                 do_not_add = True
-                                # print >> sys.stderr, lcount_min, rcount_min, diff_max
-                                if output["found_in_list"]:
-                                    print >> sys.stderr, output
-                                    print >> sys.stderr, lcount, rcount, abs(lcount - rcount), lgap, rgap
 
                         def derivation(color, length, avg):
                             der = 0.0
@@ -1581,7 +1526,6 @@ def generate_html(params):
             cluster["left1"] = cluster["left2"] = fusion["left_coord"]
             cluster["right1"] = cluster["right2"] = fusion["right_coord"]
             cluster["dir"] = fusion["dir"]
-            cluster["found_in_list"] = fusion["found_in_list"]
 
             cluster_temp_list.append(cluster)
 
@@ -1636,8 +1580,6 @@ def generate_html(params):
                 parent[j] = i
                 cluster_i["index"].extend(cluster_j["index"])
 
-                if cluster_j["found_in_list"]:
-                    cluster_i["found_in_list"] = True
 
         cluster_temp_list2 = []
         for i in range(len(parent)):
@@ -1713,40 +1655,148 @@ def generate_html(params):
                 cluster_temp_list[i]["index"] = sorted(cluster_temp_list[i]["index"], cmp=cmp)
                 cluster_list.append(cluster_temp_list[i])
 
-    def generate_html_impl(fusion_list, cluster_list):
+
+    def read_fusion_genes(fusion_gene_list):
+        sample_names = []
+        sample_list_filename = output_dir + 'sample_list.txt'
+        if not os.path.exists(sample_list_filename):
+            return
+
+        sample_list_file = open(sample_list_filename, "r")
+        for line in sample_list_file:
+            sample_names.append(line[:-1])
+        sample_list_file.close()
+            
+	for sample_name in sample_names:
+            sample_isoform_filename = "tophat_" + sample_name + "/transfuse.txt"
+            if not os.path.exists(sample_isoform_filename):
+                continue
+
+            sample_isoform_file = open(sample_isoform_filename, "r")
+            for line in sample_isoform_file:
+                line = line[:-1].lstrip()
+                fields = line[:-1].split('\t')
+
+                def read_coords(value_dic, value_str):
+                    chr1, chr2 = "", ""
+                    if ' ' in value_str:
+                        chr1, chr2 = value_str.split(' ')
+                    else:
+                        chr1 = value_str
+                        
+                    chr1, chr1_coord = chr1.split(':')
+                    chr1_left, chr1_right = chr1_coord.split('-')
+                    chr1_left, chr1_right = int(chr1_left), int(chr1_right)
+                    value_dic["chr1"] = chr1
+                    value_dic["chr1_left"] = chr1_left
+                    value_dic["chr1_right"] = chr1_right
+                    
+                    if chr2:
+                        chr2, chr2_coord = chr2.split(':')
+                        chr2_left, chr2_right = chr2_coord.split('-')
+                        chr2_left, chr2_right = int(chr2_left), int(chr2_right)
+                        value_dic["chr2"] = chr2
+                        value_dic["chr2_left"] = chr2_left
+                        value_dic["chr2_right"] = chr2_right
+                    
+                def read_values(value_dic, value_str):
+                    values = fields[-1].split(';')
+
+                    for value in values:
+                        value = value.strip()
+                        name, value = value.split(' ')
+
+                        value_dic[name] = value[1:-1]
+
+                type = fields[0]
+                if type == "gene":
+                    value_dic = {}
+                    read_coords(value_dic, fields[1])
+                    read_values(value_dic, fields[-1])
+
+                    fusion_gene_list.append([sample_name, value_dic, []])
+
+                elif type == "transcript":
+                    value_dic = {}
+                    read_coords(value_dic, fields[1])
+                    read_values(value_dic, fields[-1])
+
+                    fusion_gene_list[-1][-1].append([value_dic, []])
+
+
+                elif type in ["exon", "fusion"]:
+                    if type == "exon":
+                        chr, chr_coord = fields[1].split(':')
+                        chr_left, chr_right = chr_coord.split('-')
+                        chr_left, chr_right = int(chr_left), int(chr_right)
+                    
+                        fusion_gene_list[-1][-1][-1][-1].append(["exon", chr, chr_left, chr_right])
+                    else:
+                        fusion_gene_list[-1][-1][-1][-1].append(["fusion"])
+
+            for fusion_gene in fusion_gene_list:
+                sample_name, gene_value_dic, transcripts = fusion_gene
+                
+                saw_fusion_transcript = False
+                for transcript in transcripts:
+                    transcript_value_dic, exons = transcript
+                    
+                    saw_fusion = False
+                    for exon in exons:
+                        if exon[0] == "fusion":
+                            saw_fusion = True
+
+                    transcript_value_dic["is_fusion_transcript"] = saw_fusion
+                    if saw_fusion:
+                        saw_fusion_transcript = True
+
+                    if not saw_fusion and saw_fusion_transcript:
+                        transcript_value_dic["is_after_fusion"] = True
+                    else:
+                        transcript_value_dic["is_after_fusion"] = False
+                        
+                        
+
+            sample_isoform_file.close()
+
+    def find_fusion_gene(fusion_gene_list, sample_name, chr1, chr1_coord, chr2, chr2_coord):
+        # slow linear search through fusion_gene_list
+        fusion_gene_info = ""
+        for fusion_gene in fusion_gene_list:
+            _sample_name = fusion_gene[0]
+            value_dic = fusion_gene[1]
+            _chr1, _chr1_left, _chr1_right, _chr2, _chr2_left, _chr2_right = \
+                   value_dic["chr1"], value_dic["chr1_left"], value_dic["chr1_right"], \
+                   value_dic["chr2"], value_dic["chr2_left"], value_dic["chr2_right"]
+                   
+            if sample_name != _sample_name:
+                continue
+            
+            if chr1 != _chr1 or chr2 != _chr2:
+                continue
+            
+            # daehwan - check the offsets "2"
+            
+            if chr1_coord < _chr1_left - 2 or chr1_coord > _chr1_right + 2:
+                continue
+            
+            if chr2_coord < _chr2_left -2 or chr2_coord > _chr2_right + 2:
+                continue
+
+            return fusion_gene
+
+        return None
+
+    def generate_html_impl(fusion_list, cluster_list, fusion_gene_list):
         html_file_name = output_dir + 'result.html'
         txt_file_name = output_dir + 'result.txt'
         html_file = open(html_file_name, 'w')
         txt_file = open(txt_file_name, 'w')
 
-        if params.tex_table:
-            tex_table_file_name = output_dir + 'table.tex'
-            tex_table_file = open(tex_table_file_name, 'w')
-            print >> tex_table_file, r'\documentclass{article}'
-            print >> tex_table_file, r'\usepackage{graphicx}'
-            print >> tex_table_file, r'\begin{document}'
-            print >> tex_table_file, r'\pagestyle{empty}'
-            print >> tex_table_file, r"\center{\scalebox{0.7}{"
-            print >> tex_table_file, r"\begin{tabular}{| c | c | c | c | c | c | c |}"
-            print >> tex_table_file, r"\hline"
-            print >> tex_table_file, r"SAMPLE ID & Fusion genes (left-right) & Chromosomes (left-right) & " + \
-                r"5$'$ position & 3$'$ position & Spanning reads & Spanning pairs \\"
-
-        print >> html_file, r'<HTML>'
-        print >> html_file, r'<HEAD>'
-        print >> html_file, r'<TITLE>result</TITLE>'
-        print >> html_file, r'<META NAME="description" CONTENT="result">'
-        print >> html_file, r'<META NAME="keywords" CONTENT="result">'
-        print >> html_file, r'<META NAME="resource-type" CONTENT="document">'
-        print >> html_file, r'<META NAME="distribution" CONTENT="global">'
-        print >> html_file, r'<META HTTP-EQUIV="Content-Style-Type" CONTENT="text/css">'
-        print >> html_file, r'</HEAD>'
-        print >> html_file, r'<BODY text="#000000" bgcolor="#FFFFFF">'
-
-        print >> html_file, r'<H1><BR>candidate fusion list</H1>'
-        print >> html_file, r'The following tables show fusion candidates where fusions are grouped based on their genomic locations (<a href="#detail">table description</a>)<BR>'
-        print >> html_file, r'<a href="#sample">sample information</a><BR>'
-        print >> html_file, r'Known fusions are found at <a href="#mcl">Mitelman Database</a> as of Feb 21, 2012<P>'
+        html_prev = []
+        javascript = []
+        html_body = []
+        html_post = []
 
         def cmp(i, j):
             i_left = fusion_list[i]["left_coord"]
@@ -1763,6 +1813,37 @@ def generate_html(params):
         indices_list = sorted(indices_list)
         print >> sys.stderr, "\tnum of fusions: %d" % len(cluster_list)
 
+        if params.tex_table:
+            tex_table_file_name = output_dir + 'table.tex'
+            tex_table_file = open(tex_table_file_name, 'w')
+            print >> tex_table_file, r'\documentclass{article}'
+            print >> tex_table_file, r'\usepackage{graphicx}'
+            print >> tex_table_file, r'\begin{document}'
+            print >> tex_table_file, r'\pagestyle{empty}'
+            print >> tex_table_file, r"\center{\scalebox{0.7}{"
+            print >> tex_table_file, r"\begin{tabular}{| c | c | c | c | c | c | c |}"
+            print >> tex_table_file, r"\hline"
+            print >> tex_table_file, r"SAMPLE ID & Fusion genes (left-right) & Chromosomes (left-right) & " + \
+                r"5$'$ position & 3$'$ position & Spanning reads & Spanning pairs \\"
+
+        html_prev.append(r'<HTML>')
+        html_prev.append(r'<HEAD>')
+        html_prev.append(r'<TITLE>result</TITLE>')
+        html_prev.append(r'<META NAME="description" CONTENT="result">')
+        html_prev.append(r'<META NAME="keywords" CONTENT="result">')
+        html_prev.append(r'<META NAME="resource-type" CONTENT="document">')
+        html_prev.append(r'<META NAME="distribution" CONTENT="global">')
+        html_prev.append(r'<META HTTP-EQUIV="Content-Style-Type" CONTENT="text/css">')
+        html_prev.append(r'<!--[if IE]><script src="excanvas.js"></script><![endif]-->')
+        html_prev.append(r'<style type="text/css">')
+        html_prev.append(r'canvas { border: 1px solid black; }')
+        html_prev.append(r'</style>')
+        html_body.append(r'</HEAD>')
+
+        html_post.append(r'<H1><BR>candidate fusion list</H1>')
+        html_post.append(r'The following tables show fusion candidates where fusions are grouped based on their genomic locations (<a href="#detail">table description</a>)<BR>')
+        html_post.append(r'<a href="#sample">sample information</a><BR>')
+
         num_fusions = 0
         for c in range(len(cluster_list)):
             cluster = cluster_list[c]
@@ -1778,14 +1859,10 @@ def generate_html(params):
             if params.tex_table:
                 print >> tex_table_file, r'\hline'
 
-            found_in_list = ""
-            if cluster["found_in_list"]:
-                found_in_list = "(confirmed)"
+            html_post.append(r'<P><P><P><BR>')
+            html_post.append(r'%d. %s %s' % (c+1, cluster["chr"], cluster["dir"]))
 
-            print >> html_file, r'<P><P><P><BR>'
-            print >> html_file, r'%d. %s %s %s' % (c+1, cluster["chr"], cluster["dir"], found_in_list)
-
-            print >> html_file, r'<TABLE CELLPADDING=3 BORDER="1">'
+            html_post.append(r'<TABLE CELLPADDING=3 BORDER="1">')
             for i in indices:
                 fusion = fusion_list[i]
                 sample_name = fusion["sample_name"]
@@ -1828,58 +1905,66 @@ def generate_html(params):
                        stats[2],
                        fusion["score"])
 
-                print >> html_file, r'<TR><TD ALIGN="LEFT"><a href="#fusion_%d">%s</a></TD>' % (i, sample_name)
-                print >> html_file, r'<TD ALIGN="LEFT">%s</TD>' % fusion["gene1"]
-                print >> html_file, r'<TD ALIGN="LEFT">%s</TD>' % chr1
-                print >> html_file, r'<TD ALIGN="RIGHT">%d</TD>' % fusion["left_coord"]
-                print >> html_file, r'<TD ALIGN="LEFT">%s</TD>' % fusion["gene2"]
-                print >> html_file, r'<TD ALIGN="LEFT">%s</TD>' % chr2
-                print >> html_file, r'<TD ALIGN="RIGHT">%d</TD>' % fusion["right_coord"]
-                print >> html_file, r'<TD ALIGN="RIGHT"><a href="#read_%d">%d</a></TD>' % (i, stats[0])
-                print >> html_file, r'<TD ALIGN="RIGHT"><a href="#pair_%d">%d</a></TD>' % (i, stats[1])
-                print >> html_file, r'<TD ALIGN="RIGHT">%d</TD>' % stats[2]
+                html_post.append(r'<TR><TD ALIGN="LEFT"><a href="#fusion_%d">%s</a></TD>' % (i, sample_name))
+                html_post.append(r'<TD ALIGN="LEFT">%s</TD>' % fusion["gene1"])
+                html_post.append(r'<TD ALIGN="LEFT">%s</TD>' % chr1)
+                html_post.append(r'<TD ALIGN="RIGHT">%d</TD>' % fusion["left_coord"])
+                html_post.append(r'<TD ALIGN="LEFT">%s</TD>' % fusion["gene2"])
+                html_post.append(r'<TD ALIGN="LEFT">%s</TD>' % chr2)
+                html_post.append(r'<TD ALIGN="RIGHT">%d</TD>' % fusion["right_coord"])
+                html_post.append(r'<TD ALIGN="RIGHT"><a href="#read_%d">%d</a></TD>' % (i, stats[0]))
+                html_post.append(r'<TD ALIGN="RIGHT"><a href="#pair_%d">%d</a></TD>' % (i, stats[1]))
+                html_post.append(r'<TD ALIGN="RIGHT">%d</TD>' % stats[2])
 
                 # daehwan - for debugging purposes
-                print >> html_file, r'<TD ALIGN="RIGHT">%.2f</TD></TR>' % fusion["score"]
+                html_post.append(r'<TD ALIGN="RIGHT">%.2f</TD>' % fusion["score"])
+
+                fusion_gene = find_fusion_gene(fusion_gene_list, sample_name, chr1, fusion["left_coord"], chr2, fusion["right_coord"])
+                fusion["fusion_gene"] = fusion_gene
+                if fusion_gene:
+                    html_post.append(r'<TD ALIGN="RIGHT"><a href="#fusion_gene_%d">isoforms</a></TD>' % i)
+
+                html_post.append(r'</TR>')
                 
                 
-            print >> html_file, r'</TABLE>'
+            html_post.append(r'</TABLE>')
 
         # sample
-        print >> html_file, r'<H1><A NAME="sample"></A><BR>sample list</H1>'
-        print >> html_file, r'<TABLE CELLPADDING=3 BORDER="1">'
-        print >> html_file, r'<TR><TD ALIGN="LEFT">sample name</TD>'
-        print >> html_file, r'<TD ALIGN="RIGHT">fragment length</TD>'
-        print >> html_file, r'<TD ALIGN="RIGHT">read length</TD>'
-        print >> html_file, r'<TD ALIGN="RIGHT"># of fragments</TD></TR>'
+        html_post.append(r'<H1><A NAME="sample"></A><BR>sample list</H1>')
+        html_post.append(r'<TABLE CELLPADDING=3 BORDER="1">')
+        html_post.append(r'<TR><TD ALIGN="LEFT">sample name</TD>')
+        html_post.append(r'<TD ALIGN="RIGHT">fragment length</TD>')
+        html_post.append(r'<TD ALIGN="RIGHT">read length</TD>')
+        html_post.append(r'<TD ALIGN="RIGHT"># of fragments</TD></TR>')
 
         if os.path.exists("sample_info.txt"):
             sample_file = open("sample_info.txt", "r")
             for line in sample_file:
                 line = line[:-1].split("\t")
-                print >> html_file, r'<TR><TD ALIGN="LEFT">%s</TD>' % line[0]
-                print >> html_file, r'<TD ALIGN="RIGHT">%s</TD>' % line[1]
-                print >> html_file, r'<TD ALIGN="RIGHT">%s</TD>' % line[2]
-                print >> html_file, r'<TD ALIGN="RIGHT">%s</TD></TR>' % line[3]
+                html_post.append(r'<TR><TD ALIGN="LEFT">%s</TD>' % line[0])
+                html_post.append(r'<TD ALIGN="RIGHT">%s</TD>' % line[1])
+                html_post.append(r'<TD ALIGN="RIGHT">%s</TD>' % line[2])
+                html_post.append(r'<TD ALIGN="RIGHT">%s</TD></TR>' % line[3])
 
             sample_file.close()
 
-        print >> html_file, r'</TABLE>'
+        html_post.append(r'</TABLE>')
 
         # description
-        print >> html_file, r'<H1><A NAME="detail"></A><BR>table description</H1>'
-        print >> html_file, r'1. Sample name in which a fusion is identified <BR>'
-        print >> html_file, r'2. Gene on the "left" side of the fusion <BR>'
-        print >> html_file, r'3. Chromosome ID on the left <BR>'
-        print >> html_file, r'4. Coordinates on the left <BR>'
-        print >> html_file, r'5. Gene on the "right" side <BR>'
-        print >> html_file, r'6. Chromosome ID on the right <BR>'
-        print >> html_file, r'7. Coordinates on the right <BR>'
-        print >> html_file, r'8. Number of spanning reads <BR>'
-        print >> html_file, r'9. Number of spanning mate pairs <BR>'
-        print >> html_file, r'10. Number of spanning mate pairs where one end spans a fusion <BR>'
-        print >> html_file, r'If you follow the the 9th column, it shows coordinates "number1:number2" where one end is located at a distance of "number1" bases from the left genomic coordinate of a fusion and "number2" is similarly defined'
+        html_post.append(r'<H1><A NAME="detail"></A><BR>table description</H1>')
+        html_post.append(r'1. Sample name in which a fusion is identified <BR>')
+        html_post.append(r'2. Gene on the "left" side of the fusion <BR>')
+        html_post.append(r'3. Chromosome ID on the left <BR>')
+        html_post.append(r'4. Coordinates on the left <BR>')
+        html_post.append(r'5. Gene on the "right" side <BR>')
+        html_post.append(r'6. Chromosome ID on the right <BR>')
+        html_post.append(r'7. Coordinates on the right <BR>')
+        html_post.append(r'8. Number of spanning reads <BR>')
+        html_post.append(r'9. Number of spanning mate pairs <BR>')
+        html_post.append(r'10. Number of spanning mate pairs where one end spans a fusion (reads spanning fusion with only a few bases are included) <BR>')
+        html_post.append(r'If you follow the the 9th column, it shows coordinates "number1:number2" where one end is located at a distance of "number1" bases from the left genomic coordinate of a fusion and "number2" is similarly defined')
 
+        fusion_gene_indices = []
         for i in indices_list:
             fusion = fusion_list[i]
             sample_name = fusion["sample_name"]
@@ -1902,56 +1987,221 @@ def generate_html(params):
             right_blast_nt = blast_output(output_dir + "blast_nt", right_seq)
             blast_nt = blast_output(output_dir + "blast_nt", seq)
 
-            print >> html_file, r'<H1></A><A NAME="fusion_%d"></A><BR>%s %s %d %d %s</H1>' % (i, sample_name, chr, left, right, dir)
-            print >> html_file, r'<PRE>'
-            print >> html_file, r' '.join(fusion["stats"])
-            print >> html_file, r'%s %s' % (left_seq, right_seq)
-            print >> html_file, r'%s' % fusion["depth"]
-            print >> html_file, r'%s' % fusion["gene"]
-            print >> html_file, r'</PRE>'
+            html_post.append(r'<H1></A><A NAME="fusion_%d"></A><BR>%s %s %d %d %s</H1>' % (i, sample_name, chr, left, right, dir))
+            html_post.append(r'<PRE>')
+            html_post.append(r' '.join(fusion["stats"]))
+            html_post.append(r'%s %s' % (left_seq, right_seq))
+            html_post.append(r'%s' % fusion["depth"])
+            html_post.append(r'%s' % fusion["gene"])
+            html_post.append(r'</PRE>')
 
-            print >> html_file, r'<H2>blast search - human genome</A></H2>'
-            print >> html_file, r'<H3>left</H3>'
-            print >> html_file, r'<PRE>%s</PRE>' % left_blast_genomic
-            print >> html_file, r'<H3>right</H3>'
-            print >> html_file, r'<PRE>%s</PRE>' % right_blast_genomic
+            fusion_gene = fusion["fusion_gene"]
+            if fusion_gene:
+                fusion_gene_indices.append(i)
 
-            print >> html_file, r'<H2>blast search - nt</A></H2>'
-            print >> html_file, r'<H3>left</H3>'
-            print >> html_file, r'<PRE>%s</PRE>' % left_blast_nt
-            print >> html_file, r'<H3>right</H3>'
-            print >> html_file, r'<PRE>%s</PRE>' % right_blast_nt
+                fg_value_dic, transcripts = fusion_gene[1], fusion_gene[2]
+                html_post.append(r'<A NAME="fusion_gene_%d"></A>' % i)
 
-            print >> html_file, r'<H2><A NAME="read_%d"></A><BR>reads</H2>' % i
+                javascript.append(r'<script type="text/javascript">')
+                javascript.append(r"function fusion_gene_draw%d(){" % i)
+                # javascript.append(r"alert('message')")
+                javascript.append(r"var canvas = document.getElementById('fusion_gene_canvas%d');" % i)
+                javascript.append(r"if (canvas.getContext){")
+                javascript.append(r"var ctx = canvas.getContext('2d');")
+                # javascript.append(r"ctx.fillStyle = 'rgba(0, 0, 200, 0.5)';")
+                # javascript.append(r"ctx.fillRect (30, 30, 55, 50);")
+
+                chr1, chr1_left, chr1_right = fg_value_dic["chr1"], fg_value_dic["chr1_left"], fg_value_dic["chr1_right"]
+                chr2, chr2_left, chr2_right = fg_value_dic["chr2"], fg_value_dic["chr2_left"], fg_value_dic["chr2_right"]
+
+                chr1_exon_list, chr2_exon_list = [], []
+                for transcript in transcripts:
+                    t_value_dic, exons = transcript
+                    """
+                    chr1, chr1_left, chr1_right = t_value_dic["chr1"], t_value_dic["chr1_left"], t_value_dic["chr1_right"]
+                    chr2, chr2_left, chr2_right = None, None, None
+
+                    if "chr2" in t_value_dic:
+                        chr2, chr2_left, chr2_right = t_value_dic["chr2"], t_value_dic["chr2_left"], t_value_dic["chr2_right"]
+                    """
+
+                    is_fusion_transcript, is_after_fusion = t_value_dic["is_fusion_transcript"], t_value_dic["is_after_fusion"]
+                    saw_fusion = False
+                    for exon in exons:
+                        type = exon[0]
+                        if type == "fusion":
+                            saw_fusion = True
+                            continue
+
+                        if is_after_fusion or saw_fusion:
+                            chr2_exon_list.append([exon[-2], exon[-1]])
+                        else:
+                            chr1_exon_list.append([exon[-2], exon[-1]])
+
+                def my_cmp(a, b):
+                    if a[0] != b[0]:
+                        return a[0] - b[0]
+                    else:
+                        return a[1] - b[1]
+                
+                chr1_exon_list = sorted(chr1_exon_list, cmp=my_cmp)
+                chr2_exon_list = sorted(chr2_exon_list, cmp=my_cmp)
+
+                def combine_exon_list(exon_list):
+                    new_exon_list = []
+                    new_exon_list.append(exon_list[0])
+                    for exon in exon_list[1:]:
+                        last_exon = new_exon_list[-1]
+
+                        if last_exon[1] + 1 >= exon[0]:
+                            last_exon[1] = exon[1]
+                        else:
+                            new_exon_list.append(exon)
+
+                    return new_exon_list
+
+                chr1_exon_list = combine_exon_list(chr1_exon_list)
+                chr2_exon_list = combine_exon_list(chr2_exon_list)
+
+                max_intron_length = 100
+                def calculate_chr_coord(exon_list, x = sys.maxint):
+                    exon = exon_list[0]
+                    chr_length = exon[1] - exon[0] + 1
+                    if x <= exon[1]:
+                        return x - exon[0]
+                    
+                    for e_idx in range(1, len(exon_list)):
+                        last_exon, exon = exon_list[e_idx-1], exon_list[e_idx]
+                        intron_length = exon[0] - last_exon[1] - 1
+
+                        chr_length += min(intron_length, max_intron_length)
+
+                        if x <= exon[1]:
+                            return chr_length + x - exon[0]
+                        
+                        chr_length += (exon[1] - exon[0] + 1)
+
+                    return chr_length
+
+                chr1_length = calculate_chr_coord(chr1_exon_list)
+                chr2_length = calculate_chr_coord(chr2_exon_list)
+
+                chr_length = chr1_length + chr2_length
+
+                height_unit = 30
+                
+                html_post.append(r'<canvas id="fusion_gene_canvas%d" width="%d" height="%d"></canvas>' % (i, chr_length, height_unit * len(transcripts)))
+                html_post.append(r"<H3>fusion gene: %s:%d-%d %s:%d-%d</H3>" % (chr1, chr1_left, chr1_right, chr2, chr2_left, chr2_right))
+                html_post.append(r'<ol>')
+
+                def get_coord(chr1_exon_list, chr2_exon_list, x, is_after_fusion):
+                    if is_after_fusion:
+                        coord = calculate_chr_coord(chr2_exon_list, x)
+                        if dir[1] == "r":
+                            coord = chr2_length - coord - 1
+                        coord += chr1_length
+                    else:
+                        coord = calculate_chr_coord(chr1_exon_list, x)
+                        if dir[0] == "r":
+                            coord = chr1_length - coord - 1
+
+                    return coord
+
+                begin_x, begin_y = 0, 0
+                curr_y = begin_y
+                for transcript in transcripts:
+                    t_value_dic, exons = transcript
+                    chr1, chr1_left, chr1_right = t_value_dic["chr1"], t_value_dic["chr1_left"], t_value_dic["chr1_right"]
+                    chr2, chr2_left, chr2_right = None, None, None
+
+                    if "chr2" in t_value_dic:
+                        chr2, chr2_left, chr2_right = t_value_dic["chr2"], t_value_dic["chr2_left"], t_value_dic["chr2_right"]
+                        html_post.append(r"<li><H4>fusion transcript:%s:%d-%d %s:%d-%d</H4></li>" % (chr1, chr1_left, chr1_right, chr2, chr2_left, chr2_right))
+                    else:
+                        html_post.append(r"<li><H4>normal transcript:%s:%d-%d</H4></li>" % (chr1, chr1_left, chr1_right))
+
+                    is_after_fusion = False
+                    html_post.append(r'<ol>')
+
+                    last_left, last_right = -1, -1
+                    for e_idx in range(len(exons)):
+                        exon = exons[e_idx]
+                        type = exon[0]
+
+                        if type == "fusion":
+                            is_after_fusion = True
+                            continue
+                        
+                        html_post.append(r"<li>exon:%s:%d-%d</li>" % (exon[1], exon[2], exon[3]))
+
+                        left = get_coord(chr1_exon_list, chr2_exon_list, exon[-2], is_after_fusion)
+                        right = get_coord(chr1_exon_list, chr2_exon_list, exon[-1], is_after_fusion)
+
+                        if left > right:
+                            left, right = right, left
+
+                        """
+                        if e_idx > 0:
+                            javascript.append(r"ctx.strokeStyle = 'rgb(0,0,0)';")
+                            javascript.append(r"ctx.beginPath ();")
+                            javascript.append(r"ctx.moveTo (%d, %d);" % (last_right, curr_y + 15))
+                            javascript.append(r"ctx.lineTo (%d, %d);" % (left, curr_y + 15))
+                            javascript.append(r"ctx.closePath ();")
+                            javascript.append(r"ctx.stroke ();")
+                        """
+
+                        if is_after_fusion:
+                            javascript.append(r"ctx.fillStyle = 'rgb(200,0,0)';")
+                        else:
+                            javascript.append(r"ctx.fillStyle = 'rgb(0,0,200)';")
+                        
+                        javascript.append(r"ctx.fillRect (%d, %d, %d, 12);" % (left, curr_y + 9, right - left + 1))
+
+                        last_left, last_right = left, right
+
+                        
+                    html_post.append(r'</ol>')
+
+                    curr_y += 30
+                        
+                html_post.append(r'</ol>')
+
+                javascript.append(r"}")
+                javascript.append(r"}")
+                javascript.append(r'</script>')
+                    
+
+            html_post.append(r'<H2>blast search - human genome</A></H2>')
+            html_post.append(r'<H3>left</H3>')
+            html_post.append(r'<PRE>%s</PRE>' % left_blast_genomic)
+            html_post.append(r'<H3>right</H3>')
+            html_post.append(r'<PRE>%s</PRE>' % right_blast_genomic)
+
+            html_post.append(r'<H2>blast search - nt</A></H2>')
+            html_post.append(r'<H3>left</H3>')
+            html_post.append(r'<PRE>%s</PRE>' % left_blast_nt)
+            html_post.append(r'<H3>right</H3>')
+            html_post.append(r'<PRE>%s</PRE>' % right_blast_nt)
+
+            html_post.append(r'<H2><A NAME="read_%d"></A><BR>reads</H2>' % i)
             read_output = fusion["read_output"]
-            print >> html_file, r'<PRE>%s</PRE>' % '\n'.join(read_output)
+            html_post.append(r'<PRE>%s</PRE>' % '\n'.join(read_output))
 
-            print >> html_file, r'<H2><A NAME="pair_%d"></A><BR>%d pairs</H2>' % (i, len(pair_coords))
-            print >> html_file, r'<PRE>%s</PRE>' % '\n'.join(pair_coords)
+            html_post.append(r'<H2><A NAME="pair_%d"></A><BR>%d pairs</H2>' % (i, len(pair_coords)))
+            html_post.append(r'<PRE>%s</PRE>' % '\n'.join(pair_coords))
 
-        if os.path.exists("mcl"):
-            print >> html_file, r'<H1><A NAME="mcl"></A><BR>Mitelman Database of Chromosome Aberrations and Gene Fusions in Cancer</H1>'
-            print >> html_file, r'<TABLE CELLPADDING=3 BORDER="1">'
-            mcl_file = open("mcl", "r")
-            for line in mcl_file:
-                line = line[:-1].split("\t")
-                if len(line) < 8:
-                    continue
+        html_post.append(r'</BODY>')
+        html_post.append(r'</HTML>')
 
-                print >> html_file, r'<TR><TD ALIGN="LEFT">%s</TD>' % line[0]
-                print >> html_file, r'<TD ALIGN="LEFT">%s</TD>' % line[1]
-                print >> html_file, r'<TD ALIGN="RIGHT">%s</TD>' % line[2]
-                print >> html_file, r'<TD ALIGN="RIGHT">%s</TD>' % line[3]
-                print >> html_file, r'<TD ALIGN="LEFT">%s</TD>' % line[4]
-                print >> html_file, r'<TD ALIGN="LEFT">%s</TD>' % line[5]
-                print >> html_file, r'<TD ALIGN="LEFT">%s</TD>' % line[6]
-                print >> html_file, r'<TD ALIGN="LEFT">%s</TD></TR>' % line[7]
+        fusion_gene_draw_str = ""
+        for index in fusion_gene_indices:
+            fusion_gene_draw_str += "fusion_gene_draw%d();" % index
+            
+        html_body.append(r'<BODY text="#000000" bgcolor="#FFFFFF" onload="%s">' % fusion_gene_draw_str)
 
-            mcl_file.close()
-            print >> html_file, r'</TABLE>'
+        for line in html_prev + javascript + html_body + html_post:
+            print >> html_file, line
 
-        print >> html_file, r'</BODY>'
-        print >> html_file, r'</HTML>'
         html_file.close()
         txt_file.close()
         
@@ -1970,8 +2220,12 @@ def generate_html(params):
     cluster_list = []
     cluster_fusion(fusion_list, cluster_list)
 
-    generate_html_impl(fusion_list, cluster_list)
+    fusion_gene_list = []
+    read_fusion_genes(fusion_gene_list)
     
+    generate_html_impl(fusion_list, cluster_list, fusion_gene_list)
+
+
 
 # Format a DateTime as a pretty string.  
 # FIXME: Currently doesn't support days!
@@ -2025,7 +2279,7 @@ def die(msg=None):
 
     
 def prog_path(program):
-    progpath=which(program)
+    progpath = which(program)
     if progpath == None:
         die("Error locating program: "+program)
     return progpath
