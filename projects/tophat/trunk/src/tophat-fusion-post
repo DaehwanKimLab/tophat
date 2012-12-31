@@ -1735,6 +1735,13 @@ def generate_html(params):
                     else:
                         fusion_gene_list[-1][-1][-1][-1].append(["fusion"])
 
+            sample_isoform_cov_filename = "tophat_" + sample_name + "/transfuse_cov.txt"
+            if os.path.exists(sample_isoform_cov_filename):
+                sample_isoform_cov_file = open(sample_isoform_cov_filename, "r")
+                for line in sample_isoform_cov_file:
+                    None
+                sample_isoform_cov_file.close()
+
             for fusion_gene in fusion_gene_list:
                 sample_name, gene_value_dic, transcripts = fusion_gene
                 
