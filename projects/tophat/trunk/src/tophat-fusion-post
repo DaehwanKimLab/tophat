@@ -10,6 +10,7 @@ Copyright (c) 2011 Daehwan Kim. All rights reserved.
 
 import sys, getopt, warnings
 import os, subprocess, errno
+import copy
 import string, re
 from datetime import datetime, date, time
 import math
@@ -1754,8 +1755,6 @@ def generate_html(params):
                         transcript_value_dic["is_after_fusion"] = True
                     else:
                         transcript_value_dic["is_after_fusion"] = False
-                        
-                        
 
             sample_isoform_file.close()
 
@@ -1836,7 +1835,7 @@ def generate_html(params):
         html_prev.append(r'<META HTTP-EQUIV="Content-Style-Type" CONTENT="text/css">')
         html_prev.append(r'<!--[if IE]><script src="excanvas.js"></script><![endif]-->')
         html_prev.append(r'<style type="text/css">')
-        html_prev.append(r'canvas { border: 1px solid black; }')
+        # html_prev.append(r'canvas { border: 1px solid black; }')
         html_prev.append(r'</style>')
         html_body.append(r'</HEAD>')
 
@@ -2054,7 +2053,8 @@ def generate_html(params):
                         last_exon = new_exon_list[-1]
 
                         if last_exon[1] + 1 >= exon[0]:
-                            last_exon[1] = exon[1]
+                            if last_exon[1] < exon[1]:
+                                last_exon[1] = exon[1]
                         else:
                             new_exon_list.append(exon)
 
@@ -2088,9 +2088,10 @@ def generate_html(params):
 
                 chr_length = chr1_length + chr2_length
 
+                begin_x, begin_y = 100, 0
                 height_unit = 30
                 
-                html_post.append(r'<canvas id="fusion_gene_canvas%d" width="%d" height="%d"></canvas>' % (i, chr_length, height_unit * len(transcripts)))
+                html_post.append(r'<canvas id="fusion_gene_canvas%d" width="%d" height="%d"></canvas>' % (i, begin_x + chr_length, height_unit * (len(transcripts) + 1)))
                 html_post.append(r"<H3>fusion gene: %s:%d-%d %s:%d-%d</H3>" % (chr1, chr1_left, chr1_right, chr2, chr2_left, chr2_right))
                 html_post.append(r'<ol>')
 
@@ -2107,10 +2108,10 @@ def generate_html(params):
 
                     return coord
 
-                begin_x, begin_y = 0, 0
                 curr_y = begin_y
-                for transcript in transcripts:
-                    t_value_dic, exons = transcript
+                for t_idx in range(len(transcripts)):
+                    transcript = transcripts[t_idx]
+                    t_value_dic, exons = copy.deepcopy(transcript)
                     chr1, chr1_left, chr1_right = t_value_dic["chr1"], t_value_dic["chr1_left"], t_value_dic["chr1_right"]
                     chr2, chr2_left, chr2_right = None, None, None
 
@@ -2120,8 +2121,22 @@ def generate_html(params):
                     else:
                         html_post.append(r"<li><H4>normal transcript:%s:%d-%d</H4></li>" % (chr1, chr1_left, chr1_right))
 
+                    if t_value_dic["is_after_fusion"]:
+                        if dir[1] == "r":
+                            exons = exons[::-1]
+                    elif not t_value_dic["is_fusion_transcript"]:
+                        if dir[0] == "r":
+                            exons = exons[::-1]
+
                     is_after_fusion = False
+                    if t_value_dic["is_after_fusion"]:
+                        is_after_fusion = True
+                    
                     html_post.append(r'<ol>')
+
+                    javascript.append(r"ctx.font = '10pt Helvetica';")
+                    javascript.append(r"ctx.fillStyle = 'rgb(0 ,0 , 0)';")
+                    javascript.append(r"ctx.fillText('transcript%d', %d, %d);" % (t_idx + 1, 0, curr_y + 25))
 
                     last_left, last_right = -1, -1
                     for e_idx in range(len(exons)):
@@ -2131,31 +2146,34 @@ def generate_html(params):
                         if type == "fusion":
                             is_after_fusion = True
                             continue
-                        
-                        html_post.append(r"<li>exon:%s:%d-%d</li>" % (exon[1], exon[2], exon[3]))
 
-                        left = get_coord(chr1_exon_list, chr2_exon_list, exon[-2], is_after_fusion)
-                        right = get_coord(chr1_exon_list, chr2_exon_list, exon[-1], is_after_fusion)
+                        org_left = left = get_coord(chr1_exon_list, chr2_exon_list, exon[-2], is_after_fusion)
+                        org_right = right = get_coord(chr1_exon_list, chr2_exon_list, exon[-1], is_after_fusion)
 
                         if left > right:
                             left, right = right, left
 
-                        """
-                        if e_idx > 0:
-                            javascript.append(r"ctx.strokeStyle = 'rgb(0,0,0)';")
+                        left += begin_x
+                        right += begin_x
+
+                        html_post.append(r"<li>exon:%s:%d-%d</li>" % (exon[1], exon[2], exon[3]))
+
+
+                        if e_idx > 0 and left - last_right > 1:
+                            javascript.append(r"ctx.strokeStyle = 'rgb(0, 0, 0)';")
                             javascript.append(r"ctx.beginPath ();")
                             javascript.append(r"ctx.moveTo (%d, %d);" % (last_right, curr_y + 15))
                             javascript.append(r"ctx.lineTo (%d, %d);" % (left, curr_y + 15))
                             javascript.append(r"ctx.closePath ();")
                             javascript.append(r"ctx.stroke ();")
-                        """
 
                         if is_after_fusion:
-                            javascript.append(r"ctx.fillStyle = 'rgb(200,0,0)';")
+                            javascript.append(r"ctx.fillStyle = 'rgb(0 , 0, 200)';")
                         else:
-                            javascript.append(r"ctx.fillStyle = 'rgb(0,0,200)';")
+                            javascript.append(r"ctx.fillStyle = 'rgb(200, 0, 0)';")
                         
                         javascript.append(r"ctx.fillRect (%d, %d, %d, 12);" % (left, curr_y + 9, right - left + 1))
+                        javascript.append(r"ctx.fillText('%d-%d', %d, %d);" % (exon[-2], exon[-1], left, curr_y + 32))
 
                         last_left, last_right = left, right
 
