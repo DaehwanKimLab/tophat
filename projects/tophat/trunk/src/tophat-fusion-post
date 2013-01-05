@@ -12,6 +12,7 @@ import sys, getopt, warnings
 import os, subprocess, errno
 import copy
 import string, re
+import random
 from datetime import datetime, date, time
 import math
 
@@ -1511,8 +1512,179 @@ def generate_html(params):
             fusion_list.append(output)
 
         file.close()
+
+    def read_fusion_genes(fusion_gene_list):
+        sample_names = []
+        sample_list_filename = output_dir + 'sample_list.txt'
+        if not os.path.exists(sample_list_filename):
+            return
+
+        sample_list_file = open(sample_list_filename, "r")
+        for line in sample_list_file:
+            sample_names.append(line[:-1])
+        sample_list_file.close()
+            
+	for sample_name in sample_names:
+            sample_isoform_filename = "tophat_" + sample_name + "/transfuse.txt"
+            if not os.path.exists(sample_isoform_filename):
+                continue
+
+            sample_isoform_file = open(sample_isoform_filename, "r")
+            for line in sample_isoform_file:
+                line = line[:-1].lstrip()
+                fields = line[:-1].split('\t')
+
+                def read_coords(value_dic, value_str):
+                    chr1, chr2 = "", ""
+                    if ' ' in value_str:
+                        chr1, chr2 = value_str.split(' ')
+                    else:
+                        chr1 = value_str
+                        
+                    chr1, chr1_coord = chr1.split(':')
+                    chr1_left, chr1_right = chr1_coord.split('-')
+                    chr1_left, chr1_right = int(chr1_left), int(chr1_right)
+                    value_dic["chr1"] = chr1
+                    value_dic["chr1_left"] = chr1_left
+                    value_dic["chr1_right"] = chr1_right
+                    
+                    if chr2:
+                        chr2, chr2_coord = chr2.split(':')
+                        chr2_left, chr2_right = chr2_coord.split('-')
+                        chr2_left, chr2_right = int(chr2_left), int(chr2_right)
+                        value_dic["chr2"] = chr2
+                        value_dic["chr2_left"] = chr2_left
+                        value_dic["chr2_right"] = chr2_right
+                    
+                def read_values(value_dic, value_str):
+                    values = fields[-1].split(';')
+
+                    for value in values:
+                        value = value.strip()
+                        name, value = value.split(' ')
+
+                        value_dic[name] = value[1:-1]
+
+                type = fields[0]
+                if type == "gene":
+                    value_dic = {}
+                    read_coords(value_dic, fields[1])
+                    read_values(value_dic, fields[-1])
+
+                    fusion_gene_list.append([sample_name, value_dic, []])
+
+                elif type == "transcript":
+                    value_dic = {}
+                    read_coords(value_dic, fields[1])
+                    read_values(value_dic, fields[-1])
+
+                    fusion_gene_list[-1][-1].append([value_dic, []])
+
+
+                elif type in ["exon", "fusion"]:
+                    if type == "exon":
+                        chr, chr_coord = fields[1].split(':')
+                        chr_left, chr_right = chr_coord.split('-')
+                        chr_left, chr_right = int(chr_left), int(chr_right)
+                    
+                        fusion_gene_list[-1][-1][-1][-1].append(["exon", chr, chr_left, chr_right])
+                    else:
+                        fusion_gene_list[-1][-1][-1][-1].append(["fusion"])
+
+            transcript_coverage_dic = {}
+            sample_isoform_cov_filename = "tophat_" + sample_name + "/transfuse_cov.txt"
+            if os.path.exists(sample_isoform_cov_filename):
+                sample_isoform_cov_file = open(sample_isoform_cov_filename, "r")
+                for line in sample_isoform_cov_file:
+                    if line[0] == "C":
+                        transcript_id = line.split("\t")[0]
+                        transcript_coverage_dic[transcript_id] = []
+                    else:
+                        base_cov = int(line.strip())
+                        transcript_coverage_dic[transcript_id].append(base_cov)
+
+                sample_isoform_cov_file.close()
+
+            for fusion_gene in fusion_gene_list:
+                sample_name, gene_value_dic, transcripts = fusion_gene
+                
+                saw_fusion_transcript = False
+                for transcript in transcripts:
+                    transcript_value_dic, exons = transcript
+                    transcript_id = transcript_value_dic["transcript_id"]
+
+                    if transcript_id in transcript_coverage_dic:
+                        transcript_coverage = transcript_coverage_dic[transcript_id]
+                    else:
+                        transcript_coverage = None
+                    
+                    saw_fusion = False
+                    max_base_cov = 0
+
+                    exon_offset = 0
+                    for exon in exons:
+                        if exon[0] == "fusion":
+                            saw_fusion = True
+                            continue
+
+                        exon_length = exon[3] - exon[2] + 1
+
+                        if transcript_coverage:
+                            coverage = transcript_coverage[exon_offset:exon_offset + exon_length]
+                        else:
+                            coverage = [0 for z in range(exon_length)]
+
+                        exon.append(coverage)
+                            
+                        for base_cov in exon[-1]:
+                            if base_cov > max_base_cov:
+                                max_base_cov = base_cov
+
+                        exon_offset += exon_length
+
+
+                    transcript_value_dic["max_base_cov"] = max_base_cov
+                    transcript_value_dic["is_fusion_transcript"] = saw_fusion
+                    if saw_fusion:
+                        saw_fusion_transcript = True
+
+                    if not saw_fusion and saw_fusion_transcript:
+                        transcript_value_dic["is_after_fusion"] = True
+                    else:
+                        transcript_value_dic["is_after_fusion"] = False
+
+            sample_isoform_file.close()
+
+    def find_fusion_gene(fusion_gene_list, sample_name, chr1, chr1_coord, chr2, chr2_coord):
+        # slow linear search through fusion_gene_list
+        fusion_gene_info = ""
+        for fusion_gene in fusion_gene_list:
+            _sample_name = fusion_gene[0]
+            value_dic = fusion_gene[1]
+            _chr1, _chr1_left, _chr1_right, _chr2, _chr2_left, _chr2_right = \
+                   value_dic["chr1"], value_dic["chr1_left"], value_dic["chr1_right"], \
+                   value_dic["chr2"], value_dic["chr2_left"], value_dic["chr2_right"]
+                   
+            if sample_name != _sample_name:
+                continue
+            
+            if chr1 != _chr1 or chr2 != _chr2:
+                continue
+            
+            # daehwan - check the offsets "2"
+            
+            if chr1_coord < _chr1_left - 2 or chr1_coord > _chr1_right + 2:
+                continue
+            
+            if chr2_coord < _chr2_left -2 or chr2_coord > _chr2_right + 2:
+                continue
+
+            return fusion_gene
+
+        return None
+
         
-    def cluster_fusion(fusion_list, cluster_list):
+    def cluster_fusion(fusion_list, fusion_gene_list, cluster_list):
         cluster_dist = 500000
 
         cluster_temp_list = []
@@ -1558,7 +1730,7 @@ def generate_html(params):
                 j_left1 = cluster_j["left1"]
                 j_left2 = cluster_j["left2"]
 
-                if abs(i_left1 - j_left1) > cluster_dist or abs(i_left2 - j_left2) > cluster_dist or\
+                if abs(i_left1 - j_left1) > cluster_dist or abs(i_left2 - j_left2) > cluster_dist or \
                         abs(i_left2 - j_left1) > cluster_dist or abs(i_left1 - j_left2) > cluster_dist:
                     continue
 
@@ -1639,6 +1811,13 @@ def generate_html(params):
 
             return b_score - a_score
 
+        for cluster in cluster_temp_list2:
+            for fusion_index in cluster["index"]:
+                fusion = fusion_list[fusion_index]
+                fusion_gene = find_fusion_gene(fusion_gene_list, fusion["sample_name"], fusion["chr1"], fusion["left_coord"], fusion["chr2"], fusion["right_coord"])
+                if fusion_gene:
+                    fusion["score"] += 200
+            
         cluster_temp_list = sorted(cluster_temp_list2, cmp=cmp)
 
         max_num_fusions = 500
@@ -1655,143 +1834,6 @@ def generate_html(params):
 
                 cluster_temp_list[i]["index"] = sorted(cluster_temp_list[i]["index"], cmp=cmp)
                 cluster_list.append(cluster_temp_list[i])
-
-
-    def read_fusion_genes(fusion_gene_list):
-        sample_names = []
-        sample_list_filename = output_dir + 'sample_list.txt'
-        if not os.path.exists(sample_list_filename):
-            return
-
-        sample_list_file = open(sample_list_filename, "r")
-        for line in sample_list_file:
-            sample_names.append(line[:-1])
-        sample_list_file.close()
-            
-	for sample_name in sample_names:
-            sample_isoform_filename = "tophat_" + sample_name + "/transfuse.txt"
-            if not os.path.exists(sample_isoform_filename):
-                continue
-
-            sample_isoform_file = open(sample_isoform_filename, "r")
-            for line in sample_isoform_file:
-                line = line[:-1].lstrip()
-                fields = line[:-1].split('\t')
-
-                def read_coords(value_dic, value_str):
-                    chr1, chr2 = "", ""
-                    if ' ' in value_str:
-                        chr1, chr2 = value_str.split(' ')
-                    else:
-                        chr1 = value_str
-                        
-                    chr1, chr1_coord = chr1.split(':')
-                    chr1_left, chr1_right = chr1_coord.split('-')
-                    chr1_left, chr1_right = int(chr1_left), int(chr1_right)
-                    value_dic["chr1"] = chr1
-                    value_dic["chr1_left"] = chr1_left
-                    value_dic["chr1_right"] = chr1_right
-                    
-                    if chr2:
-                        chr2, chr2_coord = chr2.split(':')
-                        chr2_left, chr2_right = chr2_coord.split('-')
-                        chr2_left, chr2_right = int(chr2_left), int(chr2_right)
-                        value_dic["chr2"] = chr2
-                        value_dic["chr2_left"] = chr2_left
-                        value_dic["chr2_right"] = chr2_right
-                    
-                def read_values(value_dic, value_str):
-                    values = fields[-1].split(';')
-
-                    for value in values:
-                        value = value.strip()
-                        name, value = value.split(' ')
-
-                        value_dic[name] = value[1:-1]
-
-                type = fields[0]
-                if type == "gene":
-                    value_dic = {}
-                    read_coords(value_dic, fields[1])
-                    read_values(value_dic, fields[-1])
-
-                    fusion_gene_list.append([sample_name, value_dic, []])
-
-                elif type == "transcript":
-                    value_dic = {}
-                    read_coords(value_dic, fields[1])
-                    read_values(value_dic, fields[-1])
-
-                    fusion_gene_list[-1][-1].append([value_dic, []])
-
-
-                elif type in ["exon", "fusion"]:
-                    if type == "exon":
-                        chr, chr_coord = fields[1].split(':')
-                        chr_left, chr_right = chr_coord.split('-')
-                        chr_left, chr_right = int(chr_left), int(chr_right)
-                    
-                        fusion_gene_list[-1][-1][-1][-1].append(["exon", chr, chr_left, chr_right])
-                    else:
-                        fusion_gene_list[-1][-1][-1][-1].append(["fusion"])
-
-            sample_isoform_cov_filename = "tophat_" + sample_name + "/transfuse_cov.txt"
-            if os.path.exists(sample_isoform_cov_filename):
-                sample_isoform_cov_file = open(sample_isoform_cov_filename, "r")
-                for line in sample_isoform_cov_file:
-                    None
-                sample_isoform_cov_file.close()
-
-            for fusion_gene in fusion_gene_list:
-                sample_name, gene_value_dic, transcripts = fusion_gene
-                
-                saw_fusion_transcript = False
-                for transcript in transcripts:
-                    transcript_value_dic, exons = transcript
-                    
-                    saw_fusion = False
-                    for exon in exons:
-                        if exon[0] == "fusion":
-                            saw_fusion = True
-
-                    transcript_value_dic["is_fusion_transcript"] = saw_fusion
-                    if saw_fusion:
-                        saw_fusion_transcript = True
-
-                    if not saw_fusion and saw_fusion_transcript:
-                        transcript_value_dic["is_after_fusion"] = True
-                    else:
-                        transcript_value_dic["is_after_fusion"] = False
-
-            sample_isoform_file.close()
-
-    def find_fusion_gene(fusion_gene_list, sample_name, chr1, chr1_coord, chr2, chr2_coord):
-        # slow linear search through fusion_gene_list
-        fusion_gene_info = ""
-        for fusion_gene in fusion_gene_list:
-            _sample_name = fusion_gene[0]
-            value_dic = fusion_gene[1]
-            _chr1, _chr1_left, _chr1_right, _chr2, _chr2_left, _chr2_right = \
-                   value_dic["chr1"], value_dic["chr1_left"], value_dic["chr1_right"], \
-                   value_dic["chr2"], value_dic["chr2_left"], value_dic["chr2_right"]
-                   
-            if sample_name != _sample_name:
-                continue
-            
-            if chr1 != _chr1 or chr2 != _chr2:
-                continue
-            
-            # daehwan - check the offsets "2"
-            
-            if chr1_coord < _chr1_left - 2 or chr1_coord > _chr1_right + 2:
-                continue
-            
-            if chr2_coord < _chr2_left -2 or chr2_coord > _chr2_right + 2:
-                continue
-
-            return fusion_gene
-
-        return None
 
     def generate_html_impl(fusion_list, cluster_list, fusion_gene_list):
         html_file_name = output_dir + 'result.html'
@@ -1970,8 +2012,17 @@ def generate_html(params):
         html_post.append(r'10. Number of spanning mate pairs where one end spans a fusion (reads spanning fusion with only a few bases are included) <BR>')
         html_post.append(r'If you follow the the 9th column, it shows coordinates "number1:number2" where one end is located at a distance of "number1" bases from the left genomic coordinate of a fusion and "number2" is similarly defined')
 
+        fusion_gene_drawn = [False for i in range(len(cluster_list))]
+
         fusion_gene_indices = []
         for i in indices_list:
+            cluster_index = -1
+            for c in range(len(cluster_list)):
+                cluster_indices = cluster_list[c]["index"]
+                if i in cluster_indices:
+                    cluster_index = c
+                    break
+                
             fusion = fusion_list[i]
             sample_name = fusion["sample_name"]
             chr = fusion["chr"]
@@ -2003,19 +2054,20 @@ def generate_html(params):
 
             fusion_gene = fusion["fusion_gene"]
             if fusion_gene:
-                fusion_gene_indices.append(i)
-
+                fusion_gene_indices.append([i, cluster_index])
+                
                 fg_value_dic, transcripts = fusion_gene[1], fusion_gene[2]
                 html_post.append(r'<A NAME="fusion_gene_%d"></A>' % i)
 
-                javascript.append(r'<script type="text/javascript">')
-                javascript.append(r"function fusion_gene_draw%d(){" % i)
-                # javascript.append(r"alert('message')")
-                javascript.append(r"var canvas = document.getElementById('fusion_gene_canvas%d');" % i)
-                javascript.append(r"if (canvas.getContext){")
-                javascript.append(r"var ctx = canvas.getContext('2d');")
-                # javascript.append(r"ctx.fillStyle = 'rgba(0, 0, 200, 0.5)';")
-                # javascript.append(r"ctx.fillRect (30, 30, 55, 50);")
+                if not fusion_gene_drawn[cluster_index]:
+                    javascript.append(r'<script type="text/javascript">')
+                    javascript.append(r"function fusion_gene_draw%d(isoform_index){" % cluster_index)
+                    # javascript.append(r"alert('message')")
+                    javascript.append(r"var canvas = document.getElementById('fusion_gene_canvas' + isoform_index.toString());")
+                    javascript.append(r"if (canvas.getContext){")
+                    javascript.append(r"var ctx = canvas.getContext('2d');")
+                    # javascript.append(r"ctx.fillStyle = 'rgba(0, 0, 200, 0.5)';")
+                    # javascript.append(r"ctx.fillRect (30, 30, 55, 50);")
 
                 chr1, chr1_left, chr1_right = fg_value_dic["chr1"], fg_value_dic["chr1_left"], fg_value_dic["chr1_right"]
                 chr2, chr2_left, chr2_right = fg_value_dic["chr2"], fg_value_dic["chr2_left"], fg_value_dic["chr2_right"]
@@ -2040,9 +2092,9 @@ def generate_html(params):
                             continue
 
                         if is_after_fusion or saw_fusion:
-                            chr2_exon_list.append([exon[-2], exon[-1]])
+                            chr2_exon_list.append([exon[2], exon[3]])
                         else:
-                            chr1_exon_list.append([exon[-2], exon[-1]])
+                            chr1_exon_list.append([exon[2], exon[3]])
 
                 def my_cmp(a, b):
                     if a[0] != b[0]:
@@ -2092,12 +2144,12 @@ def generate_html(params):
 
                 chr1_length = calculate_chr_coord(chr1_exon_list)
                 chr2_length = calculate_chr_coord(chr2_exon_list)
-
                 chr_length = chr1_length + chr2_length
 
-                begin_x, begin_y = 100, 0
-                height_unit = 30
-                
+                begin_x, begin_y = 130, 0
+                height_unit = 80
+                scale_x = min(1000.0 / chr_length, 1)
+
                 html_post.append(r'<canvas id="fusion_gene_canvas%d" width="%d" height="%d"></canvas>' % (i, begin_x + chr_length, height_unit * (len(transcripts) + 1)))
                 html_post.append(r"<H3>fusion gene: %s:%d-%d %s:%d-%d</H3>" % (chr1, chr1_left, chr1_right, chr2, chr2_left, chr2_right))
                 html_post.append(r'<ol>')
@@ -2141,59 +2193,111 @@ def generate_html(params):
                     
                     html_post.append(r'<ol>')
 
-                    javascript.append(r"ctx.font = '10pt Helvetica';")
-                    javascript.append(r"ctx.fillStyle = 'rgb(0 ,0 , 0)';")
-                    javascript.append(r"ctx.fillText('transcript%d', %d, %d);" % (t_idx + 1, 0, curr_y + 25))
+                    if not fusion_gene_drawn[cluster_index]:
+                        javascript.append(r"ctx.font = '10pt Helvetica';")
+                        javascript.append(r"ctx.fillStyle = 'rgb(0 ,0 , 0)';")
 
-                    last_left, last_right = -1, -1
-                    for e_idx in range(len(exons)):
-                        exon = exons[e_idx]
-                        type = exon[0]
+                        if t_value_dic["is_fusion_transcript"]:
+                            transcript_name = "fusion"
+                        else:
+                            transcript_name = "normal"
 
-                        if type == "fusion":
-                            is_after_fusion = True
-                            continue
+                        transcript_name += ("_transcript_%d" % (t_idx + 1))
+                        javascript.append(r"ctx.fillText('%s', %d, %d);" % (transcript_name, 0, curr_y + 45))
 
-                        org_left = left = get_coord(chr1_exon_list, chr2_exon_list, exon[-2], is_after_fusion)
-                        org_right = right = get_coord(chr1_exon_list, chr2_exon_list, exon[-1], is_after_fusion)
+                        last_left, last_right = -1, -1
+                        for e_idx in range(len(exons)):
+                            exon = exons[e_idx]
+                            type = exon[0]
 
-                        if left > right:
-                            left, right = right, left
+                            if type == "fusion":
+                                is_after_fusion = True
+                                html_post.append(r"<li>fusion</li>")
+                                continue
 
-                        left += begin_x
-                        right += begin_x
+                            org_left = left = get_coord(chr1_exon_list, chr2_exon_list, exon[2], is_after_fusion)
+                            org_right = right = get_coord(chr1_exon_list, chr2_exon_list, exon[3], is_after_fusion)
 
-                        html_post.append(r"<li>exon:%s:%d-%d</li>" % (exon[1], exon[2], exon[3]))
+                            left = int(left * scale_x)
+                            right = int(right * scale_x)
+
+                            if left > right:
+                                left, right = right, left
+
+                            left += begin_x
+                            right += begin_x
+
+                            html_post.append(r"<li>exon:%s:%d-%d</li>" % (exon[1], exon[2], exon[3]))
+
+                            # draw intron line
+                            if e_idx > 0 and left - last_right > 1:
+                                javascript.append(r"ctx.strokeStyle = 'rgb(0, 0, 0)';")
+                                javascript.append(r"ctx.beginPath ();")
+                                javascript.append(r"ctx.moveTo (%d, %d);" % (last_right + 1, curr_y + 65))
+                                javascript.append(r"ctx.lineTo (%d, %d);" % (left, curr_y + 65))
+                                javascript.append(r"ctx.closePath ();")
+                                javascript.append(r"ctx.stroke ();")
+
+                            # draw exon
+                            if is_after_fusion:
+                                javascript.append(r"ctx.fillStyle = 'rgb(0, 0, 200)';")
+                            else:
+                                javascript.append(r"ctx.fillStyle = 'rgb(200, 0, 0)';")
+
+                            width = right - left + 1
+                            javascript.append(r"ctx.fillRect (%d, %d, %d, 12);" % (left, curr_y + 59, width))
+                            javascript.append(r"ctx.fillText('%d', %d, %d);" % (e_idx + 1, left, curr_y + 82))
+
+                            # draw base coverage
+                            coverage = copy.deepcopy(exon[-1])
+                            if is_after_fusion:
+                                coverage = coverage[::-1]
 
 
-                        if e_idx > 0 and left - last_right > 1:
-                            javascript.append(r"ctx.strokeStyle = 'rgb(0, 0, 0)';")
+                            max_base_cov = t_value_dic["max_base_cov"]
+                            max_cov_height = 35
+                            javascript.append(r"ctx.strokeStyle = 'rgb(0, 200, 0)';")
+                            javascript.append(r"var cov_array = [")
+                            cov_string = ""
+
+                            coverage_width = len(coverage)
+                            for scaled_cov_idx in range(width):
+                                cov_idx = int(scaled_cov_idx * coverage_width / float(width))
+                                base_cov = coverage[cov_idx]
+                                if max_base_cov > 0:
+                                    rescaled_cov = max(base_cov * max_cov_height / max_base_cov, 1)
+                                else:
+                                    rescaled_cov = 0
+
+                                cov_string += ("%d" % rescaled_cov)
+                                if cov_idx + 1 < len(coverage):
+                                    cov_string += ","
+
+                            javascript.append(cov_string)
+                            javascript.append(r"];")
+
+                            javascript.append("for (var i = 0; i < cov_array.length; ++i) {")
                             javascript.append(r"ctx.beginPath ();")
-                            javascript.append(r"ctx.moveTo (%d, %d);" % (last_right, curr_y + 15))
-                            javascript.append(r"ctx.lineTo (%d, %d);" % (left, curr_y + 15))
+                            javascript.append(r"ctx.moveTo (i + %d, %d);" % (left, curr_y + 55))
+                            javascript.append(r"ctx.lineTo (i + %d, %d - cov_array[i]);" % (left, curr_y + 55))
                             javascript.append(r"ctx.closePath ();")
                             javascript.append(r"ctx.stroke ();")
+                            javascript.append("}")
 
-                        if is_after_fusion:
-                            javascript.append(r"ctx.fillStyle = 'rgb(0 , 0, 200)';")
-                        else:
-                            javascript.append(r"ctx.fillStyle = 'rgb(200, 0, 0)';")
-                        
-                        javascript.append(r"ctx.fillRect (%d, %d, %d, 12);" % (left, curr_y + 9, right - left + 1))
-                        javascript.append(r"ctx.fillText('%d-%d', %d, %d);" % (exon[-2], exon[-1], left, curr_y + 32))
-
-                        last_left, last_right = left, right
-
+                            last_left, last_right = left, right
                         
                     html_post.append(r'</ol>')
 
-                    curr_y += 30
+                    curr_y += height_unit
                         
                 html_post.append(r'</ol>')
 
-                javascript.append(r"}")
-                javascript.append(r"}")
-                javascript.append(r'</script>')
+                if not fusion_gene_drawn[cluster_index]:
+                    javascript.append(r"}")
+                    javascript.append(r"}")
+                    javascript.append(r'</script>')
+
+                    fusion_gene_drawn[cluster_index] = True
                     
 
             html_post.append(r'<H2>blast search - human genome</A></H2>')
@@ -2220,7 +2324,8 @@ def generate_html(params):
 
         fusion_gene_draw_str = ""
         for index in fusion_gene_indices:
-            fusion_gene_draw_str += "fusion_gene_draw%d();" % index
+            isoform_index, cluster_index = index
+            fusion_gene_draw_str += "fusion_gene_draw%d(%d);" % (cluster_index, isoform_index)
             
         html_body.append(r'<BODY text="#000000" bgcolor="#FFFFFF" onload="%s">' % fusion_gene_draw_str)
 
@@ -2242,12 +2347,13 @@ def generate_html(params):
     fusion_list = []
     read_fusion_list(fusion_list)
 
-    cluster_list = []
-    cluster_fusion(fusion_list, cluster_list)
-
+    # Cufflinks-Fusion
     fusion_gene_list = []
     read_fusion_genes(fusion_gene_list)
     
+    cluster_list = []
+    cluster_fusion(fusion_list, fusion_gene_list, cluster_list)
+
     generate_html_impl(fusion_list, cluster_list, fusion_gene_list)
 
 
