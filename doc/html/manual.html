@@ -1087,14 +1087,21 @@ and exclude such multi-mapped reads (according to the value of the
 	 <tr><td nowrap="nowrap" valign="top">
 	  <tt>--insertions/--deletions &lt;.juncs file&gt;</tt>
 	  </td><td valign="top">
-	  <p> Supply TopHat with a list of insertions or deletions with respect to the reference.  Indels are specified 
-		one per line, in a tab-delimited format, identical to that of junctions.  Records look like:
-	  </p> <br>
-		<tt>&lt;chrom&gt;   &lt;left&gt;   &lt;right&gt;   &lt;+/-&gt;</tt>
-		<p><tt>left</tt> and <tt>right</tt> are zero-based coordinates, and 
-			specify the last character of the left sequenced to be spliced to 
-			the first character of the right sequence, inclusive. </p>
-	  </td></tr>
+          <p> Supply TopHat with a list of insertions or deletions with respect to the reference.  Indels are specified
+                one per line, in a tab-delimited format, identical to that of junctions.  Records look like:
+          </p> <br>
+            Fordeletion,<br/>
+                <tt>&lt;chrom&gt;   &lt;left&gt;   &lt;right&gt;</tt>
+                <p><tt>left</tt> and <tt>right</tt> are zero-based coordinates, and
+                        specify the last character of the left sequenced to be spliced to
+                  the first character of the right sequence, inclusive.<br/>
+                  For instance, <tt>"chr1 20564 20567"</tt>, where two base pairs located at 20565 and 20566 are deleted in the sequenced genome. </p><br/>
+
+                For insertion,<br/>
+                <tt>&lt;chrom&gt;   &lt;left&gt;   &lt;dummy&gt;  &lt;inserted sequence&gt;</tt>
+                <p><tt>left</tt> is zero-based coordinate and <tt>dummy</tt> can be set to the same value as <tt>left</tt><br/>.
+                  For instance, <tt>"chr1 17491 17491 CA"</tt>, where two base pairs "CA" are inserted between 17490 and 17491 of the reference genome.</p>
+          </td></tr>
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>--no-novel-indels</tt>
 	  </td><td valign="top">
