@@ -700,6 +700,9 @@ bool ReadStream::getRead(uint64_t r_id,
        //fprintf(um_out, "@%s\n%s\n+\n%s\n", read.alt_name.c_str(),
        //                        read.seq.c_str(), read.qual.c_str());
     	string rname(rdata.read.alt_name);
+	size_t slash_pos=rname.rfind('/');
+	if (slash_pos!=string::npos)
+	  rname.resize(slash_pos);
 
     	GBamRecord bamrec(rname.c_str(), -1, 0, false, rdata.read.seq.c_str(),
     		NULL, rdata.read.qual.c_str());

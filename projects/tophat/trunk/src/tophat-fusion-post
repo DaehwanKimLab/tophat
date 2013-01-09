@@ -1021,7 +1021,6 @@ def read_dist(params):
                     chr_ref, pos1_ref, pos2_ref = check_list[i][:3]
                     chr1_ref, chr2_ref = chr_ref.split('-')
 
-                    # daehwan - check this out
                     """
                     # a fusion point can be given like "chr9-chr1"
                     if (contigs[chr1_ref] < contigs[chr1] or (contigs[chr1_ref] == contigs[chr1] and left_pos - pos1_ref > 1000000)) and \
@@ -1110,14 +1109,6 @@ def read_dist(params):
                     if fusion_read:
                         if dir != dir_ref:
                             continue
-
-                        # daehwan - remove this
-                        if saw_fusion and False:
-                            if abs(pos1 - pos1_ref) < 3 and abs(pos2 - pos2_ref) < 3:
-                                print chr1_ref, chr2_ref, left_pos, right_pos, cigars, mismatch, params.fusion_read_mismatches
-                                print pos1, pos1_ref
-                                print pos2, pos2_ref
-                                sys.exit(1)
 
                         if pos1 != pos1_ref or pos2 != pos2_ref:
                             continue
@@ -1529,6 +1520,7 @@ def generate_html(params):
             if not os.path.exists(sample_isoform_filename):
                 continue
 
+            fusion_gene_begin_index = len(fusion_gene_list)
             sample_isoform_file = open(sample_isoform_filename, "r")
             for line in sample_isoform_file:
                 line = line[:-1].lstrip()
@@ -1578,18 +1570,28 @@ def generate_html(params):
                     read_coords(value_dic, fields[1])
                     read_values(value_dic, fields[-1])
 
-                    fusion_gene_list[-1][-1].append([value_dic, []])
-
+                    curr_gene = fusion_gene_list[-1]
+                    transcript_list = curr_gene[-1]
+                    transcript_list.append([value_dic, []])
 
                 elif type in ["exon", "fusion"]:
+                    curr_gene = fusion_gene_list[-1]
+                    transcript_list = curr_gene[-1]
+                    curr_transcript = transcript_list[-1]
+                    exon_list = curr_transcript[-1]
+                    
                     if type == "exon":
                         chr, chr_coord = fields[1].split(':')
                         chr_left, chr_right = chr_coord.split('-')
                         chr_left, chr_right = int(chr_left), int(chr_right)
-                    
-                        fusion_gene_list[-1][-1][-1][-1].append(["exon", chr, chr_left, chr_right])
+                        exon_list.append(["exon", chr, chr_left, chr_right])
                     else:
-                        fusion_gene_list[-1][-1][-1][-1].append(["fusion"])
+                        fusion_left, fusion_right = fields[1].split(' ')
+                        chr1, chr1_pos = fusion_left.split(':')
+                        chr2, chr2_pos = fusion_right.split(':')
+
+                        chr1_pos, chr2_pos = int(chr1_pos), int(chr2_pos)
+                        exon_list.append(["fusion", chr1, chr1_pos, chr2, chr2_pos])
 
             transcript_coverage_dic = {}
             sample_isoform_cov_filename = "tophat_" + sample_name + "/transfuse_cov.txt"
@@ -1604,10 +1606,12 @@ def generate_html(params):
                         transcript_coverage_dic[transcript_id].append(base_cov)
 
                 sample_isoform_cov_file.close()
+                    
 
-            for fusion_gene in fusion_gene_list:
+            for fusion_gene in fusion_gene_list[fusion_gene_begin_index:]:
                 sample_name, gene_value_dic, transcripts = fusion_gene
-                
+                max_base_cov = 0
+
                 saw_fusion_transcript = False
                 for transcript in transcripts:
                     transcript_value_dic, exons = transcript
@@ -1619,8 +1623,6 @@ def generate_html(params):
                         transcript_coverage = None
                     
                     saw_fusion = False
-                    max_base_cov = 0
-
                     exon_offset = 0
                     for exon in exons:
                         if exon[0] == "fusion":
@@ -1642,8 +1644,6 @@ def generate_html(params):
 
                         exon_offset += exon_length
 
-
-                    transcript_value_dic["max_base_cov"] = max_base_cov
                     transcript_value_dic["is_fusion_transcript"] = saw_fusion
                     if saw_fusion:
                         saw_fusion_transcript = True
@@ -1652,6 +1652,10 @@ def generate_html(params):
                         transcript_value_dic["is_after_fusion"] = True
                     else:
                         transcript_value_dic["is_after_fusion"] = False
+
+                for transcript in transcripts:
+                    transcript_value_dic, exons = transcript
+                    transcript_value_dic["max_base_cov"] = max_base_cov
 
             sample_isoform_file.close()
 
@@ -1670,8 +1674,6 @@ def generate_html(params):
             
             if chr1 != _chr1 or chr2 != _chr2:
                 continue
-            
-            # daehwan - check the offsets "2"
             
             if chr1_coord < _chr1_left - 2 or chr1_coord > _chr1_right + 2:
                 continue
@@ -1885,12 +1887,12 @@ def generate_html(params):
         html_prev.append(r'<!--[if IE]><script src="excanvas.js"></script><![endif]-->')
         html_prev.append(r'<style type="text/css">')
         # html_prev.append(r'canvas { border: 1px solid black; }')
+        html_prev.append(r'H1 { margin: 0 0 0 0; }')
         html_prev.append(r'</style>')
         html_body.append(r'</HEAD>')
 
-        html_post.append(r'<H1><BR>candidate fusion list</H1>')
-        html_post.append(r'The following tables show fusion candidates where fusions are grouped based on their genomic locations (<a href="#detail">table description</a>)<BR>')
-        html_post.append(r'<a href="#sample">sample information</a><BR>')
+        html_post.append(r'<H1><BR>Candidate fusion list</H1>')
+        html_post.append(r'The following tables show fusion candidates where fusions are grouped based on their genomic locations (<a href="#detail">table description</a>).<BR>')
 
         num_fusions = 0
         for c in range(len(cluster_list)):
@@ -1977,6 +1979,7 @@ def generate_html(params):
                 
             html_post.append(r'</TABLE>')
 
+        """
         # sample
         html_post.append(r'<H1><A NAME="sample"></A><BR>sample list</H1>')
         html_post.append(r'<TABLE CELLPADDING=3 BORDER="1">')
@@ -1997,6 +2000,7 @@ def generate_html(params):
             sample_file.close()
 
         html_post.append(r'</TABLE>')
+        """
 
         # description
         html_post.append(r'<H1><A NAME="detail"></A><BR>table description</H1>')
@@ -2011,6 +2015,7 @@ def generate_html(params):
         html_post.append(r'9. Number of spanning mate pairs <BR>')
         html_post.append(r'10. Number of spanning mate pairs where one end spans a fusion (reads spanning fusion with only a few bases are included) <BR>')
         html_post.append(r'If you follow the the 9th column, it shows coordinates "number1:number2" where one end is located at a distance of "number1" bases from the left genomic coordinate of a fusion and "number2" is similarly defined')
+        html_post.append(r'<BR/><BR/><BR/>')
 
         fusion_gene_drawn = [False for i in range(len(cluster_list))]
 
@@ -2030,34 +2035,58 @@ def generate_html(params):
             right = fusion["right_coord"]
             dir = fusion["dir"]
 
+            chr1, chr2 = chr.split("-")
+
             left_seq = fusion["left_seq"]
             right_seq = fusion["right_seq"]
             seq = left_seq + right_seq
 
             pair_coords = fusion["pair_coords"]
+            stats = fusion["stats"]
+            stats = [int(stat) for stat in stats]
 
-            left_blast_genomic = blast_output(output_dir + "blast_genomic", left_seq)
-            right_blast_genomic = blast_output(output_dir + "blast_genomic", right_seq)
-            blast_genomic = blast_output(output_dir + "blast_genomic", seq)
+            html_post.append(r'<TABLE CELLPADDING=3 BORDER="1"><TR><TD ALIGN="LEFT"><H1>%s</H1></TD>' % (sample_name))
+            html_post.append(r'<TD ALIGN="LEFT"><H1>%s</H1></TD>' % fusion["gene1"])
+            html_post.append(r'<TD ALIGN="LEFT"><H1>%s</H1></TD>' % chr1)
+            html_post.append(r'<TD ALIGN="RIGHT"><H1>%d</H1></TD>' % fusion["left_coord"])
+            html_post.append(r'<TD ALIGN="LEFT"><H1>%s</H1></TD>' % fusion["gene2"])
+            html_post.append(r'<TD ALIGN="LEFT"><H1>%s</H1></TD>' % chr2)
+            html_post.append(r'<TD ALIGN="RIGHT"><H1>%d</H1></TD>' % fusion["right_coord"])
+            html_post.append(r'<TD ALIGN="RIGHT"><H1><a href="#read_%d">%d</a></H1></TD>' % (i, stats[0]))
+            html_post.append(r'<TD ALIGN="RIGHT"><H1><a href="#pair_%d">%d</a></H1></TD>' % (i, stats[1]))
+            html_post.append(r'<TD ALIGN="RIGHT"><H1>%d</H1></TD>' % stats[2])
 
-            left_blast_nt = blast_output(output_dir + "blast_nt", left_seq)
-            right_blast_nt = blast_output(output_dir + "blast_nt", right_seq)
-            blast_nt = blast_output(output_dir + "blast_nt", seq)
+            dir_str = ""
+            if dir[0] == "f":
+                dir_str += "-------->"
+            else:
+                dir_str += "<--------"
 
-            html_post.append(r'<H1></A><A NAME="fusion_%d"></A><BR>%s %s %d %d %s</H1>' % (i, sample_name, chr, left, right, dir))
+            dir_str += " "
+
+            if dir[1] == "f":
+                dir_str += "-------->"
+            else:
+                dir_str += "<--------"
+            
+            html_post.append(r'<TD ALIGN="RIGHT"><H1>%s</H1></TD>' % dir_str)
+            html_post.append(r'</TR></TABLE>')
+            html_post.append(r'</BR></BR>')
+
+            """
             html_post.append(r'<PRE>')
-            html_post.append(r' '.join(fusion["stats"]))
             html_post.append(r'%s %s' % (left_seq, right_seq))
             html_post.append(r'%s' % fusion["depth"])
             html_post.append(r'%s' % fusion["gene"])
             html_post.append(r'</PRE>')
+            """
 
             fusion_gene = fusion["fusion_gene"]
             if fusion_gene:
                 fusion_gene_indices.append([i, cluster_index])
                 
                 fg_value_dic, transcripts = fusion_gene[1], fusion_gene[2]
-                html_post.append(r'<A NAME="fusion_gene_%d"></A>' % i)
+                html_post.append(r'<A NAME="fusion_gene_%d"><H1>%s-%s</H1></A>' % (i, fusion["gene1"], fusion["gene2"]))
 
                 if not fusion_gene_drawn[cluster_index]:
                     javascript.append(r'<script type="text/javascript">')
@@ -2071,6 +2100,31 @@ def generate_html(params):
 
                 chr1, chr1_left, chr1_right = fg_value_dic["chr1"], fg_value_dic["chr1_left"], fg_value_dic["chr1_right"]
                 chr2, chr2_left, chr2_right = fg_value_dic["chr2"], fg_value_dic["chr2_left"], fg_value_dic["chr2_right"]
+
+                html_post.append(r'<TABLE CELLPADDING=3 BORDER="1">')
+                html_post.append(r'<TR>')
+                html_post.append(r'<TD ALIGN="LEFT">Type</TD>')
+                html_post.append(r'<TD ALIGN="LEFT">Left Chromosome</TD>')
+                html_post.append(r'<TD ALIGN="LEFT">Range</TD>')
+                html_post.append(r'<TD ALIGN="LEFT">Right Chromosome</TD>')
+                html_post.append(r'<TD ALIGN="LEFT">Range</TD>')
+                html_post.append(r'<TD ALIGN="LEFT">Pairs</TD>')
+                html_post.append(r'<TD ALIGN="RIGHT">Reads (singleton)</TD>')
+                html_post.append(r'<TD ALIGN="RIGHT">FPKM</TD>')
+                html_post.append(r'</TR>')
+
+                """
+                html_post.append(r'<TR>')
+                html_post.append(r'<TD ALIGN="LEFT">fusion gene</TD>')
+                html_post.append(r'<TD ALIGN="CENTER">%s</TD>' % chr1)
+                html_post.append(r'<TD ALIGN="LEFT">%d-%d</TD>' % (chr1_left, chr1_right))
+                html_post.append(r'<TD ALIGN="CENTER">%s</TD>' % chr2)
+                html_post.append(r'<TD ALIGN="LEFT">%d-%d</TD>' % (chr2_left, chr2_right))
+                html_post.append(r'<TD ALIGN="RIGHT">%s</TD>' % fg_value_dic["num_pairs"])
+                html_post.append(r'<TD ALIGN="RIGHT">%s</TD>' % fg_value_dic["num_reads"])
+                html_post.append(r'<TD ALIGN="RIGHT">%.2f</TD>' % float(fg_value_dic["FPKM"]))
+                html_post.append(r'</TR>')
+                """
 
                 chr1_exon_list, chr2_exon_list = [], []
                 for transcript in transcripts:
@@ -2148,11 +2202,10 @@ def generate_html(params):
 
                 begin_x, begin_y = 130, 0
                 height_unit = 80
-                scale_x = min(1000.0 / chr_length, 1)
+                max_width = 900.0
+                scale_x = min(max_width / chr_length, 1)
 
-                html_post.append(r'<canvas id="fusion_gene_canvas%d" width="%d" height="%d"></canvas>' % (i, begin_x + chr_length, height_unit * (len(transcripts) + 1)))
-                html_post.append(r"<H3>fusion gene: %s:%d-%d %s:%d-%d</H3>" % (chr1, chr1_left, chr1_right, chr2, chr2_left, chr2_right))
-                html_post.append(r'<ol>')
+                html_post.append(r'<canvas id="fusion_gene_canvas%d" width="%d" height="%d" name="%s_%s-%s"></canvas>' % (i, begin_x + min(chr_length, max_width), height_unit * (len(transcripts) + 1), sample_name, fusion["gene1"], fusion["gene2"]))
 
                 def get_coord(chr1_exon_list, chr2_exon_list, x, is_after_fusion):
                     if is_after_fusion:
@@ -2173,12 +2226,29 @@ def generate_html(params):
                     t_value_dic, exons = copy.deepcopy(transcript)
                     chr1, chr1_left, chr1_right = t_value_dic["chr1"], t_value_dic["chr1_left"], t_value_dic["chr1_right"]
                     chr2, chr2_left, chr2_right = None, None, None
+                    num_pairs, num_reads, FPKM = t_value_dic["num_pairs"], t_value_dic["num_reads"], t_value_dic["FPKM"]
 
+                    html_post.append(r'<TR>')
                     if "chr2" in t_value_dic:
                         chr2, chr2_left, chr2_right = t_value_dic["chr2"], t_value_dic["chr2_left"], t_value_dic["chr2_right"]
-                        html_post.append(r"<li><H4>fusion transcript:%s:%d-%d %s:%d-%d</H4></li>" % (chr1, chr1_left, chr1_right, chr2, chr2_left, chr2_right))
+                        html_post.append(r'<TD ALIGN="CENTER">%d. fusion transcript</TD>' % (t_idx + 1))
                     else:
-                        html_post.append(r"<li><H4>normal transcript:%s:%d-%d</H4></li>" % (chr1, chr1_left, chr1_right))
+                        html_post.append(r'<TD ALIGN="CENTER">%d. normal transcript</TD>' % (t_idx + 1))
+
+                    html_post.append(r'<TD ALIGN="CENTER">%s</TD>' % chr1)
+                    html_post.append(r'<TD ALIGN="LEFT">%d-%d</TD>' % (chr1_left, chr1_right))
+
+                    if chr2:
+                        html_post.append(r'<TD ALIGN="CENTER">%s</TD>' % chr2)
+                        html_post.append(r'<TD ALIGN="LEFT">%d-%d</TD>' % (chr2_left, chr2_right))
+                    else:
+                        html_post.append(r'<TD ALIGN="LEFT"></TD>')
+                        html_post.append(r'<TD ALIGN="LEFT"></TD>')                       
+
+                    html_post.append(r'<TD ALIGN="RIGHT">%s</TD>' % num_pairs)
+                    html_post.append(r'<TD ALIGN="RIGHT">%s</TD>' % num_reads)
+                    html_post.append(r'<TD ALIGN="RIGHT">%.2f</TD>' % float(FPKM))
+                    html_post.append(r'</TR>')
 
                     if t_value_dic["is_after_fusion"]:
                         if dir[1] == "r":
@@ -2190,9 +2260,7 @@ def generate_html(params):
                     is_after_fusion = False
                     if t_value_dic["is_after_fusion"]:
                         is_after_fusion = True
-                    
-                    html_post.append(r'<ol>')
-
+                
                     if not fusion_gene_drawn[cluster_index]:
                         javascript.append(r"ctx.font = '10pt Helvetica';")
                         javascript.append(r"ctx.fillStyle = 'rgb(0 ,0 , 0)';")
@@ -2203,32 +2271,46 @@ def generate_html(params):
                             transcript_name = "normal"
 
                         transcript_name += ("_transcript_%d" % (t_idx + 1))
-                        javascript.append(r"ctx.fillText('%s', %d, %d);" % (transcript_name, 0, curr_y + 45))
+                        javascript.append(r"ctx.fillText('%s', %d, %d);" % (transcript_name, 0, curr_y + 55))
 
-                        last_left, last_right = -1, -1
-                        for e_idx in range(len(exons)):
-                            exon = exons[e_idx]
-                            type = exon[0]
+                    last_left, last_right = -1, -1
+                    fusion_idx_offset = 0
+                    for e_idx in range(len(exons)):
+                        exon = exons[e_idx]
+                        type = exon[0]
 
-                            if type == "fusion":
-                                is_after_fusion = True
-                                html_post.append(r"<li>fusion</li>")
-                                continue
+                        html_post.append(r'<TR>')
 
-                            org_left = left = get_coord(chr1_exon_list, chr2_exon_list, exon[2], is_after_fusion)
-                            org_right = right = get_coord(chr1_exon_list, chr2_exon_list, exon[3], is_after_fusion)
+                        if type == "fusion":
+                            is_after_fusion = True
+                            fusion_idx_offset = -1
 
-                            left = int(left * scale_x)
-                            right = int(right * scale_x)
+                            html_post.append(r'<TD ALIGN="RIGHT">fusion</TD>')
+                            html_post.append(r'<TD ALIGN="CENTER">%s</TD>' % exon[1])
+                            html_post.append(r'<TD ALIGN="LEFT">%d</TD>' % exon[2])
+                            html_post.append(r'<TD ALIGN="CENTER">%s</TD>' % exon[3])
+                            html_post.append(r'<TD ALIGN="LEFT">%d</TD>' % exon[4])
+                            html_post.append(r'</TR>')
+                            continue
 
-                            if left > right:
-                                left, right = right, left
+                        org_left = left = get_coord(chr1_exon_list, chr2_exon_list, exon[2], is_after_fusion)
+                        org_right = right = get_coord(chr1_exon_list, chr2_exon_list, exon[3], is_after_fusion)
 
-                            left += begin_x
-                            right += begin_x
+                        left = int(left * scale_x)
+                        right = int(right * scale_x)
 
-                            html_post.append(r"<li>exon:%s:%d-%d</li>" % (exon[1], exon[2], exon[3]))
+                        if left > right:
+                            left, right = right, left
 
+                        left += begin_x
+                        right += begin_x
+
+                        html_post.append(r'<TD ALIGN="RIGHT">%d. exon</TD>' % (e_idx + 1 + fusion_idx_offset))
+                        html_post.append(r'<TD ALIGN="CENTER">%s</TD>' % exon[1])
+                        html_post.append(r'<TD ALIGN="LEFT">%d-%d</TD>' % (exon[2], exon[3]))
+                        html_post.append(r'</TR>')
+
+                        if not fusion_gene_drawn[cluster_index]:
                             # draw intron line
                             if e_idx > 0 and left - last_right > 1:
                                 javascript.append(r"ctx.strokeStyle = 'rgb(0, 0, 0)';")
@@ -2246,13 +2328,12 @@ def generate_html(params):
 
                             width = right - left + 1
                             javascript.append(r"ctx.fillRect (%d, %d, %d, 12);" % (left, curr_y + 59, width))
-                            javascript.append(r"ctx.fillText('%d', %d, %d);" % (e_idx + 1, left, curr_y + 82))
+                            javascript.append(r"ctx.fillText('%d', %d, %d);" % (e_idx + 1 + fusion_idx_offset, left, curr_y + 82))
 
                             # draw base coverage
                             coverage = copy.deepcopy(exon[-1])
                             if is_after_fusion:
                                 coverage = coverage[::-1]
-
 
                             max_base_cov = t_value_dic["max_base_cov"]
                             max_cov_height = 35
@@ -2263,7 +2344,13 @@ def generate_html(params):
                             coverage_width = len(coverage)
                             for scaled_cov_idx in range(width):
                                 cov_idx = int(scaled_cov_idx * coverage_width / float(width))
-                                base_cov = coverage[cov_idx]
+                                if cov_idx < coverage_width:
+                                    base_cov = coverage[cov_idx]
+                                elif coverage_width > 0:
+                                    base_cov = coverage[-1]
+                                else:
+                                    base_cov = 1
+
                                 if max_base_cov > 0:
                                     rescaled_cov = max(base_cov * max_cov_height / max_base_cov, 1)
                                 else:
@@ -2284,32 +2371,41 @@ def generate_html(params):
                             javascript.append(r"ctx.stroke ();")
                             javascript.append("}")
 
-                            last_left, last_right = left, right
-                        
-                    html_post.append(r'</ol>')
+                        last_left, last_right = left, right
 
                     curr_y += height_unit
                         
-                html_post.append(r'</ol>')
-
+                html_post.append(r'</TR></TABLE>')
+                html_post.append(r'</BR></BR>')
+                
                 if not fusion_gene_drawn[cluster_index]:
                     javascript.append(r"}")
                     javascript.append(r"}")
                     javascript.append(r'</script>')
 
                     fusion_gene_drawn[cluster_index] = True
-                    
 
-            html_post.append(r'<H2>blast search - human genome</A></H2>')
-            html_post.append(r'<H3>left</H3>')
+            left_blast_genomic = blast_output(output_dir + "blast_genomic", left_seq)
+            right_blast_genomic = blast_output(output_dir + "blast_genomic", right_seq)
+            blast_genomic = blast_output(output_dir + "blast_genomic", seq)
+
+            left_blast_nt = blast_output(output_dir + "blast_nt", left_seq)
+            right_blast_nt = blast_output(output_dir + "blast_nt", right_seq)
+            blast_nt = blast_output(output_dir + "blast_nt", seq)
+
+            html_post.append(r'<TABLE CELLPADDING=3 BORDER="1"><TR><TD ALIGN="CENTER">Left flanking sequence</TD><TD ALIGN="CENTEr">Right flanking sequence</TD></TR>')
+            html_post.append(r'<TR><TD>%s</TD><TD>%s</TD></TR></TABLE>' % (left_seq, right_seq))
+
+            html_post.append(r'<H2>blast search - genome</A></H2>')
+            html_post.append(r'<H3>left flanking sequence - %s</H3>' % left_seq)
             html_post.append(r'<PRE>%s</PRE>' % left_blast_genomic)
-            html_post.append(r'<H3>right</H3>')
+            html_post.append(r'<H3>right flanking sequence - %s</H3>' % right_seq)
             html_post.append(r'<PRE>%s</PRE>' % right_blast_genomic)
 
             html_post.append(r'<H2>blast search - nt</A></H2>')
-            html_post.append(r'<H3>left</H3>')
+            html_post.append(r'<H3>left flanking sequence - %s</H3>' % left_seq)
             html_post.append(r'<PRE>%s</PRE>' % left_blast_nt)
-            html_post.append(r'<H3>right</H3>')
+            html_post.append(r'<H3>right flanking sequence - %s</H3>' % right_seq)
             html_post.append(r'<PRE>%s</PRE>' % right_blast_nt)
 
             html_post.append(r'<H2><A NAME="read_%d"></A><BR>reads</H2>' % i)
@@ -2318,6 +2414,7 @@ def generate_html(params):
 
             html_post.append(r'<H2><A NAME="pair_%d"></A><BR>%d pairs</H2>' % (i, len(pair_coords)))
             html_post.append(r'<PRE>%s</PRE>' % '\n'.join(pair_coords))
+            html_post.append(r'<BR/><BR/><BR/>')
 
         html_post.append(r'</BODY>')
         html_post.append(r'</HTML>')
