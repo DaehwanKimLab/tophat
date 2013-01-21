@@ -92,15 +92,15 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 		  <a href="./downloads"><h2><u>Releases</u></h2></a>
 		  <div class="box">
 		    <ul>
-		      <table width="100%"><tbody><tr><td>version 2.0.6 (BETA)</td> <td align="right">11/02/2012</td></tr>
+		      <table width="100%"><tbody><tr><td>version 2.0.7</td> <td align="right">1/23/2013</td></tr>
 				<tr>
-		      		<td><a href="./downloads/tophat-2.0.6.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
+		      		<td><a href="./downloads/tophat-2.0.7.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
 		      	</tr>
 				<tr>
-					<td><a href="./downloads/tophat-2.0.6.Linux_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
+					<td><a href="./downloads/tophat-2.0.7.Linux_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
 				</tr>
 				<tr>
-					<td><a href="./downloads/tophat-2.0.6.OSX_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
+					<td><a href="./downloads/tophat-2.0.7.OSX_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
 				</tr>
 		      
 		      
@@ -155,6 +155,22 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 		
 	</div> <!-- End of "rightside" -->
 	<div id="leftside">
+	  <h2>TopHat 2.0.7 release 1/23/2013</h2>
+	  <p> Version 2.0.7 is a maintenance release addressing some issues found in the earlier releases:
+	</p><ul>
+	    <li> Please update Bowtie1 or Bowtie2 to the latest releases, 0.12.9 and 2.0.5, respectively.  It may be necessary to download the latest Bowtie genome indexes and to rebuild transcriptome indexes.
+	    </li>
+	    <li> -i/--min-intron-len didn't allow an intron of length  less than 50, which is now fixed.
+	    </li>
+	    <li> --no-mixed is correctly handled. TopHat no longer produces singleton alignments when this option is used.
+	    </li>
+	    <li> Mate pair information (/1 or /2) in the read name in unmapped.bam is removed.  Note SAM flag provides the pairing information.
+	    </li>
+	    <li> Some of the internal processes are correctly terminated, which otherwise sometimes shows a warning message "[main_samview] truncated file.". 
+	    </li>
+	</ul>
+	  <br>
+
 	  <h2>TopHat 2.0.6 release 11/02/2012</h2>
 	  <p> Version 2.0.6 is a maintenance release addressing some issues found in the 2.0.5 release:
 	</p><ul>
