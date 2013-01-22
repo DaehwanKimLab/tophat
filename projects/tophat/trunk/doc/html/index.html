@@ -2,18 +2,9 @@
 <html xmlns="http://www.w3.org/1999/xhtml"><head>
 <title>TopHat :: Center for Bioinformatics and Computational Biology</title>
 
-
-
-
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
-
-
-
 <link rel="stylesheet" type="text/css" href="css/style.css" media="screen">
-
-
-
 
 </head>
 <body>
@@ -37,7 +28,6 @@
     </div>
 
   </div>
-
 
   <div id="subheader">
   <table width="100%"><tbody><tr>
@@ -158,15 +148,16 @@ ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.
 	  <h2>TopHat 2.0.7 release 1/23/2013</h2>
 	  <p> Version 2.0.7 is a maintenance release addressing some issues found in the earlier releases:
 	</p><ul>
-	    <li> Please update Bowtie1 or Bowtie2 to the latest releases, 0.12.9 and 2.0.5, respectively.  It may be necessary to download the latest Bowtie genome indexes and to rebuild transcriptome indexes.
+	    <li> Please update Bowtie1 or Bowtie2 to the latest released versions (0.12.9 and 2.0.5, respectively).
+	    It may be necessary to download the latest Bowtie genome indexes and it is strongly recommended to remove&amp;rebuild the transcriptome indexes.
 	    </li>
-	    <li> -i/--min-intron-len didn't allow an intron of length  less than 50, which is now fixed.
+	    <li> The <code>-i/--min-intron-len</code> option now allows introns of length than 50
 	    </li>
-	    <li> --no-mixed is correctly handled. TopHat no longer produces singleton alignments when this option is used.
+	    <li> The <code>--no-mixed</code> option is now correctly handled. TopHat no longer produces singleton alignments when this option is used.
 	    </li>
-	    <li> Mate pair information (/1 or /2) in the read name in unmapped.bam is removed.  Note SAM flag provides the pairing information.
+	    <li> Explicit mate pairing information (/1 or /2 suffix) in the read name in unmapped.bam is removed. The SAM flag provides the pairing information.
 	    </li>
-	    <li> Some of the internal processes are correctly terminated, which otherwise sometimes shows a warning message "[main_samview] truncated file.". 
+	    <li> TopHat spawned processes which sometimes showed the warning message like "<i>[main_samview] truncated file</i>" are now properly terminated.
 	    </li>
 	</ul>
 	  <br>
