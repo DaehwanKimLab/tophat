@@ -576,7 +576,7 @@ int main(int argc, char *argv[])
       print_usage();
       return 1;
     }
-  
+
   string reads_file_list(argv[optind++]);
   vector<string> reads_filenames;
   tokenize(reads_file_list, ",",reads_filenames);
