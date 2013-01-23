@@ -1506,11 +1506,11 @@ def check_bowtie(params):
     if bowtie_version == None:
            die("Error: Bowtie not found on this system.")
     if params.bowtie2:
-        if bowtie_version[0] < 3 and bowtie_version[1] < 1 and bowtie_version[2] < 1 and bowtie_version[3] < 5:
-            die("Error: TopHat requires Bowtie 2.0.0-beta5 or later")
+        if bowtie_version[2] < 5:
+            die("Error: TopHat requires Bowtie 2.0.5 or later")
     else:
-        if bowtie_version[0] < 1 and bowtie_version[1] < 12 and bowtie_version[2] < 3:
-            die("Error: TopHat requires Bowtie 0.12.3 or later")
+        if bowtie_version[1] < 12 or bowtie_version[2] < 9:
+            die("Error: TopHat requires Bowtie 0.12.9 or later")
     th_logp("\t\t  Bowtie version:\t %s" % ".".join([str(x) for x in bowtie_version]))
 
 

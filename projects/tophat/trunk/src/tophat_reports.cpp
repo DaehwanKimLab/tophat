@@ -206,22 +206,20 @@ void read_best_alignments(const HitsForRead& hits_for_read,
     }
 }
 
-bool set_insert_alignment_grade(const BowtieHit& lh, const BowtieHit& rh, const JunctionSet& junctions, InsertAlignmentGrade& grade)
+bool is_fusion_insert_alignment(const BowtieHit& lh, const BowtieHit& rh)
 {
-  bool fusion = false;
   bool left_fusion = lh.fusion_opcode() != FUSION_NOTHING;
   bool right_fusion = rh.fusion_opcode() != FUSION_NOTHING;
-  if (left_fusion && right_fusion)
-    return false;
+  if (left_fusion || right_fusion)
+    return true;
   
-  fusion = left_fusion || right_fusion;
-  if (!fusion && lh.ref_id() != rh.ref_id())
-    fusion = true;
+  if (lh.ref_id() != rh.ref_id())
+    return true;
   
-  if (!fusion && lh.ref_id() == rh.ref_id())
+  if (lh.ref_id() == rh.ref_id())
     {
       if (lh.antisense_align() == rh.antisense_align())
-	fusion = true;
+	return true;
       else
 	{
 	  int inner_dist = 0;
@@ -233,10 +231,22 @@ bool set_insert_alignment_grade(const BowtieHit& lh, const BowtieHit& rh, const 
 	    inner_dist = rh.left() - lh.left();
 	  
 	  if (inner_dist < 0 || inner_dist > (int)fusion_min_dist)
-	    fusion = true;
+	    return true;
 	}
     }
 
+  return false;
+}
+
+bool set_insert_alignment_grade(const BowtieHit& lh, const BowtieHit& rh, const JunctionSet& junctions, InsertAlignmentGrade& grade)
+{
+  bool left_fusion = lh.fusion_opcode() != FUSION_NOTHING;
+  bool right_fusion = rh.fusion_opcode() != FUSION_NOTHING;
+  if (left_fusion && right_fusion)
+    return false;
+  
+  bool fusion = is_fusion_insert_alignment(lh, rh);
+  
   // a read contains its partner, in which case the paired mapping will be ignored.
   if (!fusion)
     {
@@ -791,10 +801,25 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
 	  mate_contig2 = rt.get_name(partner->ref_id());
       }
 
-    if (partner->fusion_opcode() != FUSION_NOTHING)
+    if (fusion_search)
       {
-	char partner_pos[1024];
-	sprintf(partner_pos, "XP:Z:%s-%s %d", rt.get_name(partner->ref_id()), rt.get_name(partner->ref_id2()), partner->left() + 1);
+	string cigar_str = print_cigar(partner->cigar());
+	char partner_pos[4096];
+	if (partner->fusion_opcode() != FUSION_NOTHING)
+	  {
+	    sprintf(partner_pos, "XP:Z:%s-%s %d %s",
+		    rt.get_name(partner->ref_id()),
+		    rt.get_name(partner->ref_id2()),
+		    partner->left() + 1,
+		    cigar_str.c_str());
+	  }
+	else
+	  {
+	    sprintf(partner_pos, "XP:Z:%s %d %s",
+		    rt.get_name(partner->ref_id()),
+		    partner->left() + 1,
+		    cigar_str.c_str());
+	  }
 	sam_toks.push_back(partner_pos);
       }
   }

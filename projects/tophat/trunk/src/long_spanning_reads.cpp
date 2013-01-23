@@ -1998,9 +1998,18 @@ BowtieHit merge_chain(RefSequenceTable& rt,
       new_hit = new_hit.reverse();
     }
 
+  /*
   if (fusion_dir == FUSION_RF || fusion_dir == FUSION_RR)
     {
       new_hit.antisense_align(!new_hit.antisense_align());
+    }
+  */
+  if (fusion_dir != FUSION_NOTHING)
+    {
+      if (new_hit.seq() != read_seq)
+	new_hit.antisense_align(true);
+      else
+	new_hit.antisense_align(false);
     }
 
   // daehwan
@@ -2594,7 +2603,7 @@ bool join_segments_for_read(RefSequenceTable& rt,
 			    std::set<Fusion>& possible_fusions,
 			    vector<HitsForRead>& seg_hits_for_read,
 			    vector<BowtieHit>& joined_hits)
-{	
+{
   vector<BowtieHit> seg_hit_stack;
   bool join_success = false;
   
@@ -2634,6 +2643,7 @@ bool join_segments_for_read(RefSequenceTable& rt,
 				  seg_hit_stack,
 				  joined_hits,
 				  num_try);
+      
       if (success)
 	join_success = true;
       seg_hit_stack.pop_back();
@@ -2654,37 +2664,6 @@ struct JoinSegmentsWorker
 
     if (read_offset > 0)
       readstream.seek(read_offset);
-
-    bool need_seq = true;
-    bool need_qual = true;
-
-    vector<HitStream> contig_hits;
-    vector<HitStream> spliced_hits;
-    vector<HitFactory*> factories;
-    for (size_t i = 0; i < segmap_fnames.size(); ++i)
-      {
-	HitFactory* fac = new BAMHitFactory(it, *rt);
-	factories.push_back(fac);
-	HitStream hs(segmap_fnames[i], fac, false, false, false, need_seq, need_qual);
-	
-	if (seg_offsets[i] > 0)
-	  hs.seek(seg_offsets[i]);
-
-	contig_hits.push_back(hs);
-      }
-    
-    for (size_t i = 0; i < spliced_segmap_fnames.size(); ++i)
-      {
-	int anchor_length = 0;
-	HitFactory* fac = new SplicedBAMHitFactory(it, *rt, anchor_length);
-	factories.push_back(fac);
-	
-	HitStream hs(spliced_segmap_fnames[i], fac, true, false, false, need_seq, need_qual);
-	if (spliced_seg_offsets[i] > 0)
-	  hs.seek(spliced_seg_offsets[i]);
-
-	spliced_hits.push_back(hs);
-      }
 
     uint32_t curr_contig_obs_order = VMAXINT32;
     HitStream* first_seg_contig_stream = NULL;
@@ -2728,7 +2707,7 @@ struct JoinSegmentsWorker
 	    read_in_process = curr_contig_obs_order;
 	    curr_contig_obs_order = next_order;
 	  }
-	else if  (curr_spliced_obs_order < curr_contig_obs_order)
+	else if (curr_spliced_obs_order < curr_contig_obs_order)
 	  {
 	    first_seg_spliced_stream->next_read_hits(curr_hit_group);
 	    seg_hits_for_read.front() = curr_hit_group;
@@ -2770,7 +2749,7 @@ struct JoinSegmentsWorker
 	  {
 	    break;
 	  }
-	
+
 	if (contig_hits.size() > 1)
 	  {
 	    look_right_for_hit_group(it,
@@ -2781,7 +2760,7 @@ struct JoinSegmentsWorker
 				     seg_hits_for_read);
 	  }
 
-	size_t last_non_empty = seg_hits_for_read.size() - 1;
+	int last_non_empty = seg_hits_for_read.size() - 1;
 	while(last_non_empty >= 0 && seg_hits_for_read[last_non_empty].hits.empty())
 	  {
 	    --last_non_empty;
@@ -2849,12 +2828,6 @@ struct JoinSegmentsWorker
 	    //fprintf(stderr, "Warning: couldn't join segments for read # %d\n", read_in_process);
 	  }
       }
-
-    for (size_t fac = 0; fac < factories.size(); ++fac)
-      {
-	delete factories[fac];
-      }
-    factories.clear();
   }
 
   string bam_output_fname;
@@ -2875,6 +2848,9 @@ struct JoinSegmentsWorker
   int64_t read_offset;
   vector<int64_t> seg_offsets;
   vector<int64_t> spliced_seg_offsets;
+
+  vector<HitStream> contig_hits;
+  vector<HitStream> spliced_hits;
 };
 
 void driver(const string& bam_output_fname,
@@ -2899,7 +2875,7 @@ void driver(const string& bam_output_fname,
   RefSequenceTable rt(sam_header, true);
   fprintf (stderr, "Loading reference sequences...\n");
   get_seqs(ref_stream, rt, true);
-    fprintf (stderr, "        reference sequences loaded.\n");
+  fprintf (stderr, "        reference sequences loaded.\n");
   fprintf(stderr, "Loading junctions...");
   
   std::set<Junction> possible_juncs;
@@ -3048,11 +3024,20 @@ void driver(const string& bam_output_fname,
 	}
       fprintf(stderr, "done\n");
     }
-      
-  vector<boost::thread*> threads;
+
+  vector<HitFactory*> factories;
+  ReadTable it;
+
+  samfile_t* common_spliced_bam_file = NULL;
+  if (spliced_segmap_fnames.size() > 0)
+    {
+      common_spliced_bam_file = samopen(spliced_segmap_fnames[0].c_str(), "rb", 0);
+    }
+
+  vector<JoinSegmentsWorker> workers(num_threads);
   for (int i = 0; i < num_threads; ++i)
     {
-      JoinSegmentsWorker worker;
+      JoinSegmentsWorker& worker = workers[i];
 
       if (num_threads == 1)
 	worker.bam_output_fname = bam_output_fname;
@@ -3066,8 +3051,6 @@ void driver(const string& bam_output_fname,
       
       worker.sam_header_fname = sam_header;
       worker.reads_fname = reads_fname;
-      worker.segmap_fnames = segmap_fnames;
-      worker.spliced_segmap_fnames = spliced_segmap_fnames;
       worker.possible_juncs = &possible_juncs;
       worker.possible_insertions = &possible_insertions;
       worker.possible_fusions = &possible_fusions;
@@ -3093,12 +3076,47 @@ void driver(const string& bam_output_fname,
       
       worker.end_id = (i+1 < num_threads) ? read_ids[i] : std::numeric_limits<uint64_t>::max();
 
-      if (num_threads > 1 && i + 1 < num_threads)
-	threads.push_back(new boost::thread(worker));
-      else
-	worker();
+      // create HitFactory and HitStream one by one, which is necessary due to a huge SAM header from spliced segment mapping,
+      // which happens with fusion option enabled.
+      // otherwise, if we do this each thread, it may create lots of holes in memory alignment
+      // (imagine each thread allocates and deallocates memory for each header line).
+      bool need_seq = true, need_qual = true;
+      for (size_t j = 0; j < segmap_fnames.size(); ++j)
+	{
+	  HitFactory* fac = new BAMHitFactory(it, rt);
+	  factories.push_back(fac);
+	  HitStream hs(segmap_fnames[j], fac, false, false, false, need_seq, need_qual);
+	  
+	  if (worker.seg_offsets[j] > 0)
+	    hs.seek(worker.seg_offsets[j]);
+	  
+	  worker.contig_hits.push_back(hs);
+	}
+      
+      for (size_t j = 0; j < spliced_segmap_fnames.size(); ++j)
+	{
+	  int anchor_length = 0;
+	  HitFactory* fac = new SplicedBAMHitFactory(it, rt, common_spliced_bam_file->header, anchor_length);
+	  factories.push_back(fac);
+	  
+	  HitStream hs(spliced_segmap_fnames[j], fac, true, false, false, need_seq, need_qual);
+	  
+	  if (worker.spliced_seg_offsets[j] > 0)
+	    hs.seek(worker.spliced_seg_offsets[j]);
+	  
+	  worker.spliced_hits.push_back(hs);
+	}
     }
-
+  
+  vector<boost::thread*> threads;
+  for (int i = 0; i < num_threads; ++i)
+    {
+      if (num_threads > 1 && i + 1 < num_threads)
+	threads.push_back(new boost::thread(workers[i]));
+      else
+	workers[i]();
+    }
+  
   for (size_t i = 0; i < threads.size(); ++i)
     {
       threads[i]->join();
@@ -3106,6 +3124,13 @@ void driver(const string& bam_output_fname,
       threads[i] = NULL;
     }
   threads.clear();
+
+  for (size_t fac = 0; fac < factories.size(); ++fac)
+    {
+      delete factories[fac];
+    }
+  factories.clear();
+  samclose(common_spliced_bam_file);
   
 } //driver
 
