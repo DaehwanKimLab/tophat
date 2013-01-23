@@ -976,10 +976,12 @@ class BAMHitFactory : public HitFactory {
   public:
 
     BAMHitFactory(ReadTable& insert_table,
-                  RefSequenceTable& reference_table) :
-        HitFactory(insert_table, reference_table)
+                  RefSequenceTable& reference_table,
+		  bam_header_t* sam_header = NULL) :
+      HitFactory(insert_table, reference_table),
+      _sam_header(sam_header),
+      _sam_header_destroyed(false)
         {
-         _sam_header=NULL;
         }
     void openStream(HitStream& hs);
     void rewind(HitStream& hs);
@@ -1005,14 +1007,16 @@ class BAMHitFactory : public HitFactory {
     bam1_t _next_hit; 
     bam_header_t* _sam_header;
     bool inspect_header(HitStream& hs);
+    bool _sam_header_destroyed;
 };
 
 class SplicedBAMHitFactory : public BAMHitFactory {
  public:
  SplicedBAMHitFactory(ReadTable& insert_table,
 		      RefSequenceTable& reference_table,
-		      int anchor_length) :
-  BAMHitFactory(insert_table, reference_table),
+		      bam_header_t* sam_header = NULL,
+		      int anchor_length = 4) :
+   BAMHitFactory(insert_table, reference_table, sam_header),
     _anchor_length(anchor_length)
     {
     }
@@ -1104,8 +1108,8 @@ public:
       _fzpipe(NULL),
       _eof(false)
 	{
-	    _factory->openStream(*this);
-	    primeStream();
+	  _factory->openStream(*this);
+	  primeStream();
 	}
 
     HitStream(FZPipe& hit_filepipe,
@@ -1157,7 +1161,7 @@ public:
 	bool next_read_hits(HitsForRead& hits_for_read)
 	{
 	  hits_for_read.hits.clear();
-	  hits_for_read.insert_id = 0; 
+	  hits_for_read.insert_id = 0;
 	  
 	  //if (!_hit_file || (feof(_hit_file) && buffered_hit.insert_id() == 0))
 	  //  return false;
