@@ -1275,11 +1275,19 @@ def generate_html(params):
                     read_coords(value_dic, fields[1])
                     read_values(value_dic, fields[-1])
 
-                    curr_gene = fusion_gene_list[-1]
-                    transcript_list = curr_gene[-1]
-                    transcript_list.append([value_dic, []])
+                    # daehwan - for debugging purposes
+                    if float(value_dic["FPKM"]) >= 1.0:
+                        skip_transcript = False
+                        curr_gene = fusion_gene_list[-1]
+                        transcript_list = curr_gene[-1]
+                        transcript_list.append([value_dic, []])
+                    else:
+                        skip_transcript = True
 
                 elif type in ["exon", "fusion"]:
+                    if skip_transcript:
+                        continue
+                    
                     curr_gene = fusion_gene_list[-1]
                     transcript_list = curr_gene[-1]
                     curr_transcript = transcript_list[-1]
@@ -1307,7 +1315,11 @@ def generate_html(params):
                         transcript_id = line.split("\t")[0]
                         transcript_coverage_dic[transcript_id] = []
                     else:
-                        base_cov = int(line.strip())
+                        last_value = line.strip().split()[-1]
+                        base_cov_float = float(last_value)
+                        if math.isnan(base_cov_float):
+                            base_cov_float = 0.1
+                        base_cov = int(base_cov_float + 0.99)
                         transcript_coverage_dic[transcript_id].append(base_cov)
 
                 sample_isoform_cov_file.close()
@@ -2007,7 +2019,7 @@ def generate_html(params):
                 html_post.append(r'<TD ALIGN="RIGHT">%d</TD>' % stats[2])
 
                 # daehwan - for debugging purposes
-                html_post.append(r'<TD ALIGN="RIGHT">%.2f</TD>' % fusion["score"])
+                # html_post.append(r'<TD ALIGN="RIGHT">%.2f</TD>' % fusion["score"])
 
                 fusion_gene = find_fusion_gene(fusion_gene_list, sample_name, chr1, fusion["left_coord"], chr2, fusion["right_coord"])
                 fusion["fusion_gene"] = fusion_gene
@@ -2143,7 +2155,7 @@ def generate_html(params):
                 chr1, chr1_left, chr1_right = fg_value_dic["chr1"], fg_value_dic["chr1_left"], fg_value_dic["chr1_right"]
                 chr2, chr2_left, chr2_right = fg_value_dic["chr2"], fg_value_dic["chr2_left"], fg_value_dic["chr2_right"]
 
-                html_post.append(r'<TABLE CELLPADDING=3 BORDER="1">')
+                html_post.append(r'<TABLE CELLSPACING=0 CELLPADDING=3 BORDER="1">')
                 html_post.append(r'<TR>')
                 html_post.append(r'<TD ALIGN="LEFT">Type</TD>')
                 html_post.append(r'<TD ALIGN="LEFT">Left Chromosome</TD>')
@@ -2556,7 +2568,7 @@ def prog_path(program):
 
 
 def get_version():
-   return "2.0.7"
+   return "2.0.8"
 
 
 def main(argv=None):
