@@ -2264,9 +2264,9 @@ def bowtie(params,
                 # the following parameters seem to work faster than Bowtie1 and as sensitive as Bowtie1,
                 # but room for further improvements remains.
                 bowtie_cmd += ["-N", str(min(num_mismatches, 1))]
-                bowtie_cmd += ["-i", "C,10000,0"] # allow only one seed
-                bowtie_cmd += ["-L", "14"]
-                # bowtie_cmd += ["-L", str(min(params.segment_length, 20))]
+                bowtie_cmd += ["-L", str(min(params.segment_length, 20))]
+                # bowtie_cmd += ["-i", "C,10000,0"] # allow only one seed
+                # bowtie_cmd += ["-L", "14"]
             else:
                 bowtie2_preset = ""
                 if bowtie2_params.very_fast:
@@ -3766,7 +3766,7 @@ def prog_path(program):
 
 # FIXME: this should get set during the make dist autotools phase of the build
 def get_version():
-   return "2.0.7"
+   return "2.0.8"
 
 def mlog(msg):
   print >> sys.stderr, "[DBGLOG]:"+msg
