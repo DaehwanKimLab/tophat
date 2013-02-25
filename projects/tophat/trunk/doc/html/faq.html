@@ -61,15 +61,15 @@
 		  <a href="./downloads"><h2><u>Releases</u></h2></a>
 		  <div class="box">
 		    <ul>
-		      <table width="100%"><tbody><tr><td>version 2.0.7</td> <td align="right">1/23/2013</td></tr>
+		      <table width="100%"><tbody><tr><td>version 2.0.8</td> <td align="right">2/26/2013</td></tr>
 				<tr>
-		      		<td><a href="./downloads/tophat-2.0.7.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
+		      		<td><a href="./downloads/tophat-2.0.8.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
 		      	</tr>
 				<tr>
-					<td><a href="./downloads/tophat-2.0.7.Linux_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
+					<td><a href="./downloads/tophat-2.0.8.Linux_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
 				</tr>
 				<tr>
-					<td><a href="./downloads/tophat-2.0.7.OSX_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
+					<td><a href="./downloads/tophat-2.0.8.OSX_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
 				</tr>
 		      
 		      
@@ -197,17 +197,18 @@
       <div id="toc">
   	    <ul>
 	      
-  <li><a href="#edit_dist">How to control the alignment of reads in terms of number of mismatches, gap length etc. ? <br>
-</a></li>
-  <li><a href="#accuracy">How can I maximize the accuracy of spliced mapping in TopHat?</a></li>
-
-<li><a href="#mate_inner_dist">I don't know the mate inner distance (-r/--mate-inner-dist option) f</a><a href="file:///mylocal/geo/httpd/html/tophat/faq.html#mate_inner_dist">or my paired reads</a><a href="#mate_inner_dist">, what value should I use?</a></li>
-
+	      <li><a href="#edit_dist">How to control the alignment of reads in terms of number of mismatches, gap length etc. ? <br>
+		</a></li>
+	      <li><a href="#accuracy">How can I maximize the accuracy of spliced mapping in TopHat?</a></li>
+	      
+	      <li><a href="#mate_inner_dist">I don't know the mate inner distance (-r/--mate-inner-dist option) f</a><a href="file:///mylocal/geo/httpd/html/tophat/faq.html#mate_inner_dist">or my paired reads</a><a href="#mate_inner_dist">, what value should I use?</a></li>
+	      
  	      <li><a href="#library_type">I am not sure which library type to use (fr-firststrand or fr-secondstrand), what should I do?</a></li>
-  	    </ul><br>
-  <h2 id="edit_dist">How to control the alignment of reads in terms of number of mismatches, gap length etc. ? <br>
-  </h2>
-  <p><br>
+	      <li><a href="#many_file">What should I do if I see a message like "Too many open files"?</a></li>
+  	      </ul><br>
+		<h2 id="edit_dist">How to control the alignment of reads in terms of number of mismatches, gap length etc. ? <br>
+		  </h2>
+		  <p><br>
 You can use three options:<tt> --read-mismatches</tt>, <tt>--read-gap-length</tt> and  
   <tt>--read-edit-dist</tt>. For instance, if you want read alignments with at most 2 base
 mismatches and no gaps then you can specify:<br>
@@ -290,6 +291,14 @@ You can then use the library type that gives more junctions.
 If this is not the case TopHat might not work well with your sequencing 
 protocol.  Please let us know more details about your protocol so we can
  add support for new library types. 
+  	  </p>
+<br><br>
+
+    <h2 id="many_file">What should I do if I see a message like "Too many open files"?</h2><br><p>
+	    This usually happens when using "-p" option with a large value (many threads).
+	    TopHat may produce many intermediate files, the number of which is proportional to this value; sometimes the number of the files may go over the maximum number of files a process is allowed to open.
+	    The solution is to raise the limit to a higher number (e.g. 10000).  For Mac, you can change this using a command, "sudo sysctl -w kern.maxfiles=10240".
+	    </p>
   	  </p>
 <br><br>
 
