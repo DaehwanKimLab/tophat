@@ -2271,6 +2271,9 @@ bool dfs_seg_hits(RefSequenceTable& rt,
 
 	  int dir = prevHit_fused ? prevHit->fusion_opcode() : currHit->fusion_opcode();
 
+	  if (!fusion_search && num_fusions > 0)
+	    continue;
+
 	  /*
 	   * We don't allow reads that span more than two fusion points.
 	   */
@@ -2346,9 +2349,8 @@ bool dfs_seg_hits(RefSequenceTable& rt,
 	   * Switch prevHit and currHit in FUSION_NOTHING and FUSION_FF cases
 	   * to make it easier to check the distance in the gap between the two segments.
 	   */
-	  else if ((num_fusions == 0 && prevHit->antisense_align() && currHit->antisense_align() && prevHit->ref_id() == currHit->ref_id() && prevHit->left() <= currHit->right() + (int)max_report_intron_length && prevHit->left() + (int)max_insertion_length >= currHit->right()) ||
-		   (num_fusions == 1 && (dir == FUSION_FF || dir == FUSION_RR)&&
-		    ((!prevHit_fused && prevHit->antisense_align()) || (!currHit_fused && currHit->antisense_align())))
+	  else if ((num_fusions == 0 && prevHit->antisense_align() && currHit->antisense_align() && prevHit->ref_id() == currHit->ref_id() && (!fusion_search || (prevHit->left() <= currHit->right() + (int)max_report_intron_length && prevHit->left() + (int)max_insertion_length >= currHit->right()))) ||
+		   (num_fusions == 1 && (dir == FUSION_FF || dir == FUSION_RR) && ((!prevHit_fused && prevHit->antisense_align()) || (!currHit_fused && currHit->antisense_align())))
 		   )
 	    {
 	      BowtieHit* tempHit = prevHit;
@@ -2395,6 +2397,9 @@ bool dfs_seg_hits(RefSequenceTable& rt,
 		    *prevHit = prevHit->reverse();
 		}
 	    }
+
+	  if (!fusion_search && dir != FUSION_NOTHING)
+	    continue;
 
 	  // daehwan - test
 	  if (bDebug)
@@ -2508,6 +2513,12 @@ bool dfs_seg_hits(RefSequenceTable& rt,
 	  if (!same_contig && num_fusions > 0)
 	    continue;
 
+	  if (!fusion_search)
+	    {
+	      if (!same_contig || num_fusions > 0)
+		continue;
+	    }
+
 	  if (same_contig && num_fusions >= 1)
 	    {
 	      if (prevHit->antisense_align2() != currHit->antisense_align())
@@ -2571,6 +2582,9 @@ bool dfs_seg_hits(RefSequenceTable& rt,
 	      
 	      if (success)
 		join_success = true;
+
+	      if (num_try <= 0)
+		return join_success;
 	      
 	      seg_hit_stack.pop_back();
 	      seg_hit_stack.back() = tempHit;
