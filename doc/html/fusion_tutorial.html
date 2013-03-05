@@ -153,6 +153,18 @@
   <a href = "http://hgdownload.cse.ucsc.edu/goldenPath/galGal3/database/ensGene.txt.gz">ensGene.txt</a>
 </TD>
 </TR>
+<TR>
+<TD ALIGN="LEFT" rowspan=1>Oryctolagus cuniculus</TD>
+<TD ALIGN="LEFT" rowspan=1>UCSC</TD>
+<TD ALIGN="LEFT">oryCun2</TD>
+<TD ALIGN="RIGHT">
+  <a href = "ftp://ftp.cbcb.umd.edu/pub/data/tophatfusion_indexes/oryCun2.tar.gz">Bowtie1</a>
+</TD>
+<TD ALIGN="LEFT">
+  <a href = "http://hgdownload.cse.ucsc.edu/goldenPath/oryCun2/database/refGene.txt.gz">refGene.txt</a> /
+  <a href = "http://hgdownload.cse.ucsc.edu/goldenPath/oryCun2/database/ensGene.txt.gz">ensGene.txt</a>
+</TD>
+</TR>
 </TABLE>
 
 	<br/>
@@ -267,7 +279,10 @@
 		<li>
 		  Make (top_dir)/blast directory,
 		  download human_genomic*, other_genomic*, and nt* from <a href="ftp://ftp.ncbi.nlm.nih.gov/blast/db/">blast database</a>, and
-		  extract them under (top_dir)/blast_human.
+		  extract them under (top_dir)/blast.
+		</li>
+		<li>
+		  Use --non-human option for genomes other than the human genome.
 		</li>
 	      </ul>
 	    </li>
@@ -278,6 +293,9 @@
 	      You may want to repeat the filtering process with various filtering parameters such as --num-fusion-reads and --num-fusion-pairs
 	      without deleting (top_dir)/tophatfusion_out, which is a database <tt><b>tophat-fusion-post</b><tt> internally uses for fast computation.
 	    </li>
+		<li>
+		  This script uses Bowtie1, meaning it requires Bowtie1 indexes.
+		</li>
   	  </ul>
 	</blockquote>
         <br/>
