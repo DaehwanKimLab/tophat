@@ -1699,9 +1699,7 @@ public:
 	    ifstream reads_index_file((temp_fnames[j] + ".index").c_str());
 	    if (!reads_index_file.is_open())
 	      continue;
-	    
-	    _fnames.push_back(temp_fnames[j]);
-	    
+
 	    int64_t last_offset = 0;
 	    uint64_t last_read_id = 0;
 	    string line;
@@ -1714,6 +1712,7 @@ public:
 		istream >> read_id >> offset;
 		if (read_id > _begin_id && last_read_id <= _begin_id)
 		  {
+		    _fnames.push_back(temp_fnames[j]);
 		    offsets.push_back(last_offset);
 
 		    // daehwan - for debugging purposes
