@@ -1700,36 +1700,39 @@ public:
 	    if (!reads_index_file.is_open())
 	      continue;
 
-	    int64_t last_offset = 0;
-	    uint64_t last_read_id = 0;
+	    int64_t offset = 0, last_offset = 0;
+	    uint64_t read_id = 0, last_read_id = 0;
 	    string line;
 	    while (getline(reads_index_file, line))
 	      {
 		istringstream istream(line);
-		uint64_t read_id;
-		int64_t offset;
-		
 		istream >> read_id >> offset;
 		if (read_id > _begin_id && last_read_id <= _begin_id)
 		  {
 		    _fnames.push_back(temp_fnames[j]);
 		    offsets.push_back(last_offset);
-
+		    
 		    // daehwan - for debugging purposes
 #if 0
 		    fprintf(stderr, "bet %lu and %lu - %s %lu %ld\n",
 			    _begin_id, _end_id, temp_fnames[j].c_str(), last_offset, last_read_id);
 #endif
-
+		    
 		    break;
 		  }
 		
 		last_offset = offset;
 		last_read_id = read_id;
 	      }
-
+	    
 	    if (last_read_id >= _end_id)
 	      break;
+
+	    if (read_id == 0)
+	      {
+		_fnames.push_back(temp_fnames[j]);
+		offsets.push_back(0);
+	      }
 	  }
       }
 
