@@ -1,0 +1,820 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head>
+<title>TopHat :: Center for Bioinformatics and Computational Biology</title>
+
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<link rel="stylesheet" type="text/css" href="css/style.css" media="screen">
+
+</head>
+<body>
+<div id="wrap">
+  <!--#include virtual="topbar.inc.shtml"-->
+  <div id="subheader">
+    <table width="100%"><tbody><tr>
+    <td>
+    <strong>TopHat</strong> is a fast splice junction mapper for RNA-Seq 
+  reads.  It aligns RNA-Seq reads to mammalian-sized genomes using the 
+  ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.net">Bowtie</a>, and then analyzes the mapping results to identify splice junctions between exons. 
+	  <br> <br>
+	  TopHat is a collaborative effort between the <a href="http://genomics.jhu.edu">Institute of Genetic Medicine</a> 
+      at Johns Hopkins University, the <a href="http://math.berkeley.edu">Departments of Mathematics</a> and 
+      <a href="http://www.mcb.berkeley.edu">Molecular and Cell Biology</a> at the University of California, Berkeley
+      and the Department of Stem Cell and Regenerative Biology at Harvard University.
+	  </td><td valign="middle" align="right">
+    <a href="http://opensource.org"><img alt="Open Source Software" src="images/osi-certified.gif" border="0"></a>
+    </td></tr>
+    </tbody></table>
+  </div>
+  <div id="main">
+	<div id="rightside">
+	<!--#include virtual="sidebar.inc.shtml"-->
+	</div> <!-- End of "rightside" -->
+	<div id="leftside">
+	  <h2>TopHat 2.0.8 release 2/26/2013</h2>
+	  <p><b>Note (4/12/2013):</b> patched version 2.0.8b was released in order to provide compatibility with Bowtie v1.0.0</p>
+	  <p> Version 2.0.8 is a quick fix release addressing the following issues:</p>
+	  <ul>
+	    <li> This version correctly handles the newest version of Bowtie2 v2.1.0.
+	    </li>
+	    <li> The segment mapping slow-down introduced by some Bowtie2 parameter changes in version 2.0.7 is now corrected.
+	    </li>
+	</ul>
+	  <br>
+	    
+	  <h2>TopHat 2.0.7 release 1/23/2013</h2>
+	  <p> Version 2.0.7 is a maintenance release addressing some issues found in the earlier releases:
+	</p><ul>
+	    <li> Please update Bowtie1 or Bowtie2 to the latest released 
+versions (0.12.9 and 2.0.5, respectively).
+	    It may be necessary to download the latest Bowtie genome indexes 
+and it is strongly recommended to remove&amp;rebuild the transcriptome 
+indexes.
+	    </li>
+	    <li> The <code>-i/--min-intron-len</code> option now allows introns of length less than 50
+	    </li>
+	    <li> The <code>--no-mixed</code> option is now correctly handled. TopHat no longer produces singleton alignments when this option is used.
+	    </li>
+	    <li> Explicit mate pairing information (/1 or /2 suffix) in the 
+read name in unmapped.bam is removed. The SAM flag provides the pairing 
+information.
+	    </li>
+	    <li> TopHat spawned processes which sometimes showed the warning message like "<i>[main_samview] truncated file</i>" are now properly terminated.
+	    </li>
+	    <li> With a large number of reads and --fusion-search enabled, 
+TopHat consumed a huge amount of memory, in particular, in 
+long_spanning_reads program, which is now fixed.
+	    </li>
+	</ul>
+	  <br>
+
+	  <h2>TopHat 2.0.6 release 11/02/2012</h2>
+	  <p> Version 2.0.6 is a maintenance release addressing some issues found in the 2.0.5 release:
+	</p><ul>
+	  <li> corrected the indel finding algorithm that caused segmentation fault in certain cases (long_spanning_reads and tophat_reports)
+	   </li>
+	  <li> fixed the Bowtie version checking code, adding support for newer, non-beta Bowtie2 versions</li><li>several minor fixes in the fusion alignment algorithm</li><li>fixed an incompatibility issue with Python versions older than 2.6 (restoring Python 2.4 compatibility)<br>
+</li>
+<li>fixed and improved the resuming option (-R/--resume) to better handle various failure/resume situations</li>
+<li>added a warning about Bowtie1 and Bowtie2 index files in the same 
+directory (causing trouble if they were built for different genomic 
+sequences)<br>
+</li>
+
+	</ul>
+	  <br>
+
+	  <h2>TopHat 2.0.5 release 9/18/2012</h2>
+	  <p>
+	    Version 2.0.5 adds new options to better control the read alignment
+ and to improve mapping accuracy, and the ability to resume partial 
+TopHat runs:<br>
+	  </p><ul>
+	    
+<li>along with <tt>-N/--read-mismatches</tt>, TopHat introduces new options for finer 
+control of the read alignment process by limiting the number of mismatches, 
+indels and indel length.&nbsp; 
+
+Please check new options <a href="faq.shtml#edit_dist">--read-gap-length and --read-edit-dist</a>.<br>
+</li>
+<li>the new <a href="manual.shtml#read_realign">--read-realign-edit-dist</a> option can be used to greatly <a href="faq.shtml#accuracy">improve spliced-mapping accuracy</a>
+ (especially in the absence of annotation data) by forcing the 
+re-mapping of some or all reads regardless of them being already mapped 
+in earlier steps of the pipeline.<br>
+</li>
+
+<li>we added the option to resume a TopHat run which was prematurely terminated:<tt><a href="manual.html#resume">-R/--resume &lt;tophat_out&gt;</a></tt></li>
+  <li><tt>--transcriptome-mismatches</tt>&nbsp; and <tt>--genome-mismatches</tt> are now deprecated</li>
+
+</ul>
+	    <br>
+
+	  <h2>TopHat 2.0.4 release 6/21/2012</h2>
+	  <p> Version 2.0.4 is a maintenance release addressing some issues found in the 2.0.3 release:
+	</p><ul>
+	  <li>Fixed a bug that caused the last stage of TopHat (tophat_reports) to occasionally crash for large data sets.<br>
+ </li>
+	  <li>For paired reads found to be incorrectly paired in the input 
+files TopHat now outputs a warning message instead of terminating with 
+an error.<br>
+</li>
+	  <li>Alignments of paired reads mapped discordantly (e.g. on different
+ chromosomes) are now reported by default.  To disable this behavior, 
+--no-discordant option can be used.  Also please check --no-mixed option
+ in the manual, which we borrow from Bowtie2 options.<br>
+ </li><li>--fusion-search with Bowtie2 is still in developmental stage, 
+it may require much memory space and produce many spurious fusions.
+	    You may want to try a combination of --bowtie1 and --fusion-search 
+if it does not work.</li>
+	  <li> Environment variables such as BOWTIE_INDEXES and BOWTIE2_INDEXES
+ are handled properly - please refer to the Bowtie website for more 
+details about the variables. </li>
+	  <li> Prebuilt transcriptome indexes built by older versions of TopHat
+ may not be compatible with this version due to some internal changes in
+ parsing gtf files.  It is strongly recommended to build a new 
+transcriptome index.</li>
+	</ul>
+	  <br>
+	    
+	  <h2>TopHat 2.0.3 release 5/26/2012</h2>
+	  <p> Users are strongly recommended to upgrade to this release as the 
+source distribution and the binary versions of TopHat2.0.2 have some 
+serious issues that cause runtime failure.
+	  </p><br>
+
+	  <h2>iGenomes index and annotation have been updated to include Bowtie2 indexes (in addition to Bowtie1 indexes) - 5/23/2012</h2>
+
+	  <br>
+	  <h2>TopHat 2.0.2 release 5/23/2012</h2>
+	  <p> Version 2.0.2 is a maintenance release:
+	  </p><p><strong>Note (9:50pm EST - 5/23):</strong> this version is slightly updated to remove some debugging code, which caused TopHat to exit abnormally.
+	</p><ul>
+	  <li> Fixed a bug TopHat2 aborts while reads overlapping with introns are being re-aligned, giving an error message like <br>
+	  ./SeqAn-1.3/seqan/sequence/segment_infix.h:81 Assertion failed : 
+data_begin_position &lt;= data_end_position was: 18446744073709551607 
+&gt; 31</li>
+	  <li> Some unique alignments were set as secondary alignments using 0x100 SAM flag, which is now fixed. </li>
+	</ul>
+	  
+	  <br>
+	  <h2>TopHat 2.0.1 maintenance release 5/17/2012</h2>
+	  <p> Version 2.0.1 is a maintenance release addressing some issues found in the 2.0.0 release:
+	</p><ul>
+	  <li> Fixed the problem with some alignments in the BAM output (accepted_hits.bam) missing quality values. </li>
+	  <li> The Read Group tag "RG" is now properly written for each alignment when using --rg-id and related options.</li>
+	  <li> More strict checking for genomic coordinates is performed when retrieving spliced sequences. </li>
+	  <li> Colorspace reads are now correctly handled (--color option).<br></li>
+	  <li> Paired-end input reads are now checked for consistency (proper ordering in the input files).<br>
+</li>
+	  <li> Restored the functionality of options --no-sort-bam and --no-convert-bam.<br>
+</li>
+	  <li> --transcriptome-only option is correctly processed. </li>
+	  <li> Some of alignments that overlap with introns are realigned against those corresponding splice sites.
+	    If those new alignments are better than the previous alignments, they will be reported. </li>
+	  <li> If the reference genome and the transcriptome files have the same prefix like genome (genome.fa and genome.gtf),
+	    it caused some naming problems for chromosomes, which is now fixed. </li>
+	  <li> Some of reads not present in neither accepted_hits.bam nor unmapped.bam are now reported correctly.</li>
+	</ul>
+	  <br>
+	    
+	  <h2>TopHat 2.0.0 release 4/09/2012</h2>
+	  <p> Version 2.0.0 is a major release adding&nbsp; <a href="http://bowtie-bio.sourceforge.net/bowtie2/index.shtml">Bowtie 2</a> support,&nbsp; better parallelization and the ability to align RNA-Seq reads across potential fusion points.<br>
+</p><ul>
+	  <li> TopHat now uses Bowtie2 by default (if found in the system) 
+although it can also fall back on Bowtie 1 (which is still required for 
+SOLiD reads). <br>
+</li>
+<li>Bowtie 2 integration features:<br>
+<ul>
+	      <li> most of the optional SAM fields (AS, MD, NM, and etc.) 
+generated by Bowtie 2 are now reported by TopHat as well (reconstructed 
+as necessary)</li>
+	      
+	      <li> many of the Bowtie 2 options can now be directly given as TopHat options using <a href="manual.html#b2-option"><tt>--b2-&lt;bowtie option name&gt;</tt></a>.
+		These apply to initial read mappings, not to segment mappings - please see the corresponding <a href="manual.html#b2-option">manual section</a>.</li></ul></li>
+<li>
+  <ul>
+
+	    
+  </ul>
+
+	    TopHat 2 maps reads against transcriptome (optional), genome, and 
+novel/known splice sites using Bowtie 2 (or 1)
+	    in a fashion meant to increase the overall mapping sensitivity and 
+accuracy.
+	    In the case of Bowtie 2, reads poorly mapped in the initial stages 
+(with lower scoring alignments due to indels etc.) will be made 
+available for re-mapping in downstream stages. Alignments obtained in 
+all participating stages are pooled and the best alignments will be 
+finally reported for each read. Please note that this TopHat version 
+requires the installation of Bowtie version 2.0.0-beta5 or later; also 
+note that Bowtie1 and Bowtie2 indexes are different, so&nbsp;
+	    it is necessary to use the new Bowtie 2 indexes with TopHat 2 
+(unless --bowtie1 option is used or bowtie 2 is not found in the 
+system). Since the iGenome Bowtie indexes do not include Bowtie 2 indexes,
+ you may want to download Bowtie 2 indexes from <a href="http://bowtie-bio.sourceforge.net/bowtie2/index.shtml">the Bowtie2 website</a> or build them using bowtie2-build.
+	  </li>
+
+	  <li> Most of the time-consuming steps in the TopHat 2 pipeline are 
+now parallelized, reducing the total running time substantially on 
+multi-processor systems.<br>
+</li>
+	  <li> In addition to mapping across splice sites, TopHat 2 can now 
+align reads across fusion points,
+	    which usually occur due to genomic translocations, read-through 
+transcription, or trans-splicing; Tophat 2 integrates the fusion 
+discovery engine previously found in TopHat-Fusion&nbsp; 
+(fusion mapping is optional, please see <a href="fusion_index.html">the separate page</a> for fusion mapping and the <tt><a href="manual.html#fusion">--fusion-...</a></tt> options in the manual).<br>
+</li><li> Colorspace (SOLiD) reads require the older version of Bowtie, since Bowtie 2 does not provide support for this kind of reads.</li>
+<li><tt>--closure-search</tt> and <tt>--butterfly-search</tt> options have been deprecated</li>
+
+	  <li> In addition to reporting the best (or primary) alignments (the original TopHat behavior),
+	    TopHat 2 can report the secondary alignments up to 20 (the default) paired or single alignments
+	    (see --report-secondary-alignments and -g/--max-multihits)</li>
+	  <li> The installation of the Boost package is now required in order to build TopHat 2 from source (see&nbsp; <a href="tutorial.html">Installation</a>).</li>
+	  <li> New options affecting TopHat's output:</li>
+<ul>
+  <li>&nbsp;--keep-fasta-order (for those who prefer the order of 
+reference sequences in the SAM output to match the order of the 
+sequences in the genome fasta file) <br>
+  </li>
+  <li>--report-discordant-pair-alignments </li>
+</ul>
+  <li>  If you had some older versions of TopHat and TopHat-Fusion installed on your system,
+    we suggest that you remove both programs before installing the new version and
+    make sure that your system PATH includes the new version but does not include the other ones.
+  </li>
+	</ul>
+	  <br>
+
+	    <h2>Important notes - 3/26/2012</h2>
+	  <p> For those who want to follow our <em>Nature Protocols</em>, we suggest users use TopHat 1.3.2 (see the download links below)
+	    because TopHat 1.4.1 has some problems with running the protocols when mapping some of the simulated reads (e.g., C2_R2).
+	    These problems do not happen with real data, so reverting back to TopHat 1.3.2 is not necessary.
+	    </p><ul>
+	      <li> <a href="./downloads/tophat-1.3.2.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code (version 1.3.2) </a> </li>
+	      <li> <a href="./downloads/tophat-1.3.2.Linux_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary (version 1.3.2) </a> </li>
+	      <li> <a href="./downloads/tophat-1.3.2.OSX_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary (version 1.3.2) </a> </li>
+	    </ul>
+	  
+	  <br>
+	  <h2>TopHat and Cufflinks protocol published at Nature Protocols - 3/12/2012</h2>
+	  <p>A complete <a href="http://www.nature.com/nprot/journal/v7/n3/full/nprot.2012.016.html">bioinformatic protocol</a> for analysis of RNA-Seq data using our tools 
+	    has been published at <em>Nature Protocols</em>.  The protocol covers read alignment with TopHat, 
+	    gene and transcript discovery with Cufflinks, annotation analysis with Cuffmerge and Cuffcompare, 
+	    differential expression analysis with Cuffdiff, and visualization with CummeRbund.  
+	    Several variants of the protocol are included for those who wish to forgo certain analysis steps, such as gene discovery.
+	  </p>
+	  <br>
+
+	  <h2>TopHat 1.4.1 release 2/2/2012</h2>
+	  <p> Version 1.4.1 is a maintenance release addressing some issues found in the 1.4.0 release:
+	</p><ul>
+	  <li> fixed a bug that prevented the correct functionality of the new transcriptome mapping option for paired reads in cases where 
+	  the user only wanted to map to the transcriptome (-T option) or there were no unmapped reads</li>
+	  <li> fixed the -N/--initial-read-mismatches option to support values 
+larger than 3 (e.g. for mapping on a genome from a different species). </li>
+	  <li> added basic file checks for extreme cases when there are no initially unmapped reads</li>
+	</ul>
+	  <br>
+
+      <h2>TopHat 1.4.0 release 1/5/2012</h2>
+      <p> Version 1.4.0 includes the following new features and fixes:
+	</p><ul>
+	  <li> when a set of known transcripts is provided (-G/--GTF option) 
+Tophat now takes the approach of mapping the reads on the 
+	      transcriptome first, with only the unmapped reads being further 
+aligned to the whole genome and going through the novel junction 
+	      discovery process like before. This new approach was implemented 
+by <a href="http://cs.berkeley.edu/%7Epimentel">Harold Pimentel</a>.</li>
+	  <li> new command line options have been added for the new mapping-to-transcriptome approach; please check
+	       <a href="manual.html#transcriptome">their documentation</a> which includes important notes about the 
+	       new <a href="manual.html#t_idx"><tt>--transcriptome-index</tt></a> option for efficient use of this approach</li>
+	  <li> the unmapped reads are now reported in the output directory as <tt>unmapped_left.fq.z</tt> (and <tt>unmapped_right.fq.z</tt> for paired reads)
+	  </li><li> the --initial-read-mismatches value now also applies to final alignments resulted from joining segment mappings </li>
+	  <li> we adjusted the selection of hits to be reported in case of multi-mapped segments, reads and read pairs </li>
+	  <li> enhancements in junction discovery for the segment-search method in the case of paired-end reads </li>
+	  <li> the reported running time now includes days
+	  </li><li> fixed the non-deterministic behavior that could cause some differences in the output of repeated Tophat runs </li>
+	  <li> fixed a regression bug that prevented the use of SOLiD reads with certain length of quality values </li>
+	</ul>
+      <br>
+
+      <h2>TopHat 1.3.3 release 10/16/2011</h2>
+      <p> Version 1.3.3 is primarily a bug-fix release:
+	</p><ul>
+	  <li> fixed a bug that prevented <i>coverage search</i> from being activated on 
+	       short reads (with fewer than 3 segments, e.g. reads shorter than 75)
+	  </li><li> fixed a samtools path inconsistency that in some system configurations caused tophat to 
+	       exit with an error in the final stage, when sorting the "accepted_hits.bam" file
+	  </li><li> for SOLiD reads, quality value strings should now be accepted with or without a primer value
+	</li></ul>
+      <br>
+
+      <h2>TopHat 1.3.2 release 9/5/2011</h2>
+      <p> Version 1.3.2 includes the following fixes and improvements:
+	</p><ul>
+	  <li> Deprecated -r as a required parameter (defaults to 50)
+	  </li><li> Tophat no longer requires named pipes (<i>mkfifo</i>) to work, which were used in the previous version 
+           to compress some of the temporary files, but was not supported on some file/systems;
+           for systems supporting <i>mkfifo</i> the new -X option can be used to re-enable this functionality
+	  </li><li> coverage-search is now working for a short read (e.g., &lt;40-bp) where a read is split into only one segment.
+	</li></ul>
+      <br>
+
+	  <h2>iGenomes index and annotation packages available for download - 7/31/2011</h2>
+	  <p> Illumina has generously provided a set of freely downloadable 
+packages that contain everything you need to get started working with 
+TopHat and Cufflinks.  
+            These packages contain Bowtie indexes for the human, mouse, 
+and fly genomes as well as many others.  
+          The packages also contain annotation files (in GTF format) 
+from UCSC, Ensembl, NCBI, and other sources.  
+          These files are augmented with the special attributes 
+Cufflinks needs to perform differential splicing and promoter analysis. 
+ 
+          We strongly encourage users to download and try these 
+packages!
+		  </p>
+		  <br>
+      <h2>TopHat 1.3.1 release 6/23/2011</h2>
+      <p> Version 1.3.1 includes the following bug fixes and changes.
+	</p><ul>
+	  <li> Quality value strings beginning or ending with "*" are no longer
+	    truncated to a single quality value "*" in accepted_hits.bam
+	  </li><li> SOLiD reads that have "!" (or 0) as the first quality value caused a
+	    runtime error, which is now fixed
+	  </li><li> --closure-search is compatible with internal file compression
+	  </li><li> --max-deletion-length option is correctly handled
+	  </li><li> A new option --initial-read-mismatch option is introduced that users
+	    specify the number of mismatches allowed in the initial read mapping
+	  </li><li> For short reads (usually &lt;45-bp), it is recommended that users
+	    decrease segment length (--segment-length) to about half the read length
+	    and segment mismatches (--segment-mismatches) to 0 or 1
+	  </li><li> TLEN field in SAM format is correctly output
+	  </li><li> Indel search has been turned on (by default) since TopHat 1.3.0 - users can
+	    disable the functionality using --no-novel-indels
+	</li></ul>
+      <br>
+		<h2>TopHat 1.3.0  release 6/2/2011</h2>
+		<p><strong>Note (10:30 EST):</strong> the binary packages for 1.3.0 have been updated to correct a hardcoded python path.
+		</p><p>This release includes some very substantial performance improvements, bug fixes, and enhancements.
+			</p><ul>
+			<li>Geo Pertea has restructured the internal workflow of TopHat so 
+				that nearly all temporary data is compressed during a run.
+				This greatly reduces the on-disk footprint of TopHat runs, and 
+				also reduces the amount of disk I/O.  These enhancements
+				should improve running time on networked filesystems.
+			</li><li>Thanks to contributions from the <a href="http://picard.sourceforge.net/">Picard</a> team (notably Alec Wysoker at the Broad Institute),
+				TopHat has some needed SAM compliance fixes and some additional
+				command line options that make it easier to incorporate TopHat
+				into sequencing core workflows and automated processing pipelines.
+			</li><li>TopHat can optionally use Bowtie's <tt>-n</tt> flag as an alternative
+				to the read mapping protocol.  The default is still to use <tt>-v</tt>,
+				which can result in better spliced alignment accuracy when reads
+				contain relatively few sequencing errors (particularly at the 3' end)
+			</li><li>TopHat now supports both <a href="http://cufflinks.cbcb.umd.edu/gff.html">GTF2 and GFF3</a>
+			</li><li>TopHat can take gzip or bzip2 compressed FASTQ or FASTA files as input,
+			    decompressing them on the fly (the decompression program is determined based on the file name suffix)
+			</li><li>The initial read inspection stage, used to determine the format, read length
+				and other parameters needed for the run, is now significantly faster.
+			</li><li>A bug in the installer caused the tophat script to be duplicated 
+				(apparently without causing further problems).  Thanks to John
+				Marshall for the fix to this and several other issues.
+			</li><li>Numerous other minor bug fixes
+			</li></ul>
+	    <br>
+      <h2>TopHat-Fusion 0.1.0 (Beta) release 5/09/2011</h2>
+      <p>
+	<a href="http://tophat-fusion.sourceforge.net">TopHat-Fusion</a> is released, mainly developed by
+	Daehwan Kim and Steven Salzberg. TopHat-Fusion is an enhanced version of
+	TopHat with the ability to align reads across fusion points, which
+	results from the breakage and re-joining of two different chromosomes,
+	or from rearrangements within a chromosome. For more information, please visit <a href="http://tophat-fusion.sourceforge.net">the TopHat-Fusion website</a>.
+      </p><br>
+      <h2>New "Getting Help" email address for TopHat and Cufflinks</h2>
+	    <p>In order to more effectively answer user help requests and 
+improve usability and documentation, we have created an email address to
+ which users can send messages for technical support.  If you have 
+questions about Cufflinks or TopHat, please send them to <a href="mailto:tophat.cufflinks@gmail.com">tophat.cufflinks@gmail.com</a>.  We will do our best to answer your question in a timely fashion, although <b>please read the manual carefully</b>
+ before sending your email.  We have very limited time to answer 
+questions, and most questions require careful, technical answers.  
+		
+		</p><p>If you believe you have found a bug in the software, please <b>include a small package of test data</b> with your email so that we can reproduce your problem locally.  A test example makes it much easier to correct the issue.
+		</p><br>
+		<h2>TopHat 1.2.0  release 1/18/2011</h2>
+	    <p>Version 1.2.0 includes some important bug fixes as well as a 
+major new feature.  Thanks to the efforts of Ryan Kelley from Illumina, 
+TopHat now supports detection of insertions and deletions using RNA-Seq 
+data.  TopHat will report reads aligned across discovered indels by 
+taking advantage of <tt>I</tt> and <tt>D</tt> CIGAR operators as 
+specified by the SAM format.  For convenience, the indels discovered 
+during each run are also reported in BED files, similar to the 
+junctions.bed file that TopHat reports for splice junctions.
+		</p><p>Version 1.2.0 also addresses the following issues:
+			</p><ul>
+				<li>A problem with alignment of reads of mixed length has been 
+fixed.  Users with a wide range of read lengths, such as trimmed 454 
+data sets, are strongly encouraged to upgrade.</li>
+				<li>A compatibility issue with samtools version 0.1.12a has been fixed.</li>
+				<li>Runtime validation of input files (e.g. raw junctions files) has been improved.</li>
+			</ul>
+		<br>
+		<h2>TopHat and Cufflinks now supported through Galaxy</h2>
+	    <p>We are very pleased to announce that you can now run TopHat and Cufflinks through <a href="http://usegalaxy.org">Galaxy</a>.
+  The Galaxy project aims to make informatics tools accessible through 
+the web, and allows you to experiment with parameter settings and create
+ sophisticated analysis workflows easily. Galaxy is developed by 
+researchers at Emory University and Penn State in the <a href="http://bx.mathcs.emory.edu/">Taylor</a> and <a href="http://www.bx.psu.edu/%7Eanton/">Nekrutenko</a>
+ labs, respectively.  We are extremely grateful for the Galaxy team's 
+work, and proud to have TopHat and Cufflinks offered through their 
+platform.
+		</p><br>
+		
+		<h2>TopHat 1.1.4  release 11/16/2010</h2>
+	    <p>Version 1.1.4 includes three important bug fixes:
+			</p><ul>
+				<li>Another issue related to strand assignment in strand specific libraries has been fixed</li>
+				<li>A limitation in aligning long reads has been overcome, substantially improving overall alignment sensitivity</li>
+				<li>The <tt>--gtf-annotations</tt> was throwing an error during <tt>prep_reads</tt> due to a bug in internal command line parsing.</li>
+			</ul>
+		
+		<p>Several users pointed out that the recently released version 1.1.3 
+had "1.1.0" listed in the version number on running TopHat.  This has 
+been corrected in the 1.1.4 build. 
+		</p><br>
+		<h2>TopHat 1.1.3  release 11/13/2010</h2>
+	    <p>This is a strongly recommend fix release of TopHat.  Version 
+1.1.2 suffered from a bug related to the addition of strand specific 
+read processing that could result in some reads being incorrectly 
+assigned to the wrong strand.  This bug affected users of unstranded 
+RNA-Seq data as well as users of stranded reads, so 1.1.3 is a 
+recommended update for all users.
+		</p><br>
+		<h2>TopHat 1.1.2  release 10/26/2010</h2>
+	    <p>This release of TopHat adds support for <b>strand-specific RNA-Seq alignment</b> for reads produced by a number of strand-specific protocols.  Please see the manual for details.  This release also supports <b>variable-length reads</b>. Version 1.1.2 also fixes several bugs  
+		</p><ul>
+			<li>A sorting issue for pairs that align in multiple places has been fixed.</li>
+			<li>Some portability issues, which resulted in segfaults on some systems, have been fixed in the precompiled binaries.</li>
+		</ul>
+		
+		<br>
+		<h2>TopHat 1.1.1  release 10/11/2010</h2>
+	    <p>This release of TopHat includes some fixes related to Colorspace read mapping.
+		</p><ul>
+			<li>Negative quality values are now handled correctly.</li>
+			<li>Comments at the beginning of csfasta files no longer trigger an error.</li>
+			<li><tt>--integer-quals</tt> no longer conflicts with <tt>-i</tt></li>
+			<li>The header in TopHat BAM files now correctly lists the sort order as <tt>coordinate</tt>, with group order <tt>reference</tt></li>
+		</ul>
+		
+		<br>
+		<h2>Update - TopHat 1.1.0 packages</h2>
+	    <p>The build of 1.1.0 released yesterday was throwing an exception 
+with single end reads.  This has been corrected and the packages have 
+been updated.  
+		</p><br>
+		<h2>New developers - Daehwan Kim and Geo Pertea</h2>
+		<p>The TopHat team has been joined by Daehwan Kim and Geo Pertea. 
+Daehwan is a Ph.D. student at the Center for Bioinformatics and 
+Computational Biology (CBCB), working with Steven Salzberg.  He is 
+principally responsible for extending TopHat to support SOLiD sequencing
+ reads.  Geo is an informatics engineer at CBCB, and has made numerous 
+contributions to <a href="http://cufflinks.cbcb.umd.edu/">Cufflinks</a> along with a number of other tools built at CBCB.</p>
+			<br>
+		<h2>TopHat 1.1.0  release 10/03/2010</h2>
+	    <p>This release of TopHat includes some major enhancements:
+		</p><ul>
+			<li>TopHat now supports Colorspace reads from Life Technologies' 
+SOLiD sequencer, thanks to the efforts of Daehwan Kim and Geo Pertea.  
+Note that you will need to <a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/">download</a>
+ a Colorspace Bowtie index to use TopHat with SOLiD reads.  Colorspace 
+Bowtie indices typically have "_c" in their name to distinguish them 
+from nucleotide space indices.</li>
+			<li>Alignments are now reported in BAM instead of SAM.  This requires installation of the <a href="http://samtools.sourceforge.net">SAM tools</a>.</li>
+			<li>GFF3 support has been dropped in favor of GTF.  If you are 
+working with an organism that is well annotated, we recommend supplying a
+ GTF from <a href="http://uswest.ensembl.org/info/data/ftp/index.html">Ensembl</a> or <a href="http://genome.ucsc.edu/cgi-bin/hgTables?command=start">UCSC</a> to maximize spliced alignment sensitivity.  TopHat will augment the annotated junctions with those it finds during each run. </li>
+			<li>TopHat no longer outputs the wigglegram after each run, as browsers such as <a href="http://www.broadinstitute.org/igv/">IGV</a>, <a href="http://www.bioviz.org/igb/">IGB</a> and <a href="http://genome.ucsc.edu/">UCSC</a> can display BAM files directly.</li>
+		</ul>  
+		<br>
+		<h2>TopHat 1.0.14 (BETA) release 6/30/2010</h2>
+	    <p>This fix release includes a new FASTQ parser (written by Geo Pertea) and generally improves error checking and reliability.  
+		</p><br>
+	
+		<h2>TopHat 1.0.13 (BETA) release 2/5/2010</h2>
+	    <p>This is a fix release that addresses several bugs.  Notably:
+	    </p><ul>
+			<li>SAM quality strings are now reported on the Phred scale, regardless
+				of whether the input reads were in Phred or Solexa scaling, as require
+				by the SAM spec.  The conversion code in <tt>qual.h/.cpp</tt> was written
+				by Ben Langmead and is borrowed from Bowtie.</li>
+		</ul>
+		<br>
+		  <h2>Bowtie index update 11/14/2009</h2>
+			<p>In response to user requests, <a href="http://faculty.jhsph.edu/default.cfm?faculty_id=2209&amp;grouped=false&amp;searchText=&amp;department_id=3&amp;departmentName=Biostatistics">Ben Langmead</a>
+		 		was kind enough to rebuild the Bowtie indexes for human and mouse
+		 		from UCSC assembly fasta files.  Because UCSC fasta files have 
+				simple record names, such as "chrX", TopHat runs against them
+				are easier to visualize with the <a href="http://genome.ucsc.edu/">
+				UCSC genome browser</a> or the <a href="http://www.broadinstitute.org/igv/">
+				Integrative Genomics Viewer</a>.  We recommend that users who need
+				indexes other than human or mouse build them from UCSC fasta files.
+			</p><br>
+		 	<h2>TopHat 1.0.12 (BETA) release 10/28/2009</h2>
+		    <p>This release includes both critical fixes and new features, including:
+		    </p><ul>
+			<li>A serious bug that hurts sensitivity for short (~36bp) reads 
+				that was introduced in 1.0.11 has been fixed</li>
+				
+			<li>TopHat now automatically <strong>deletes</strong> the 
+				intermediate files it produces during each run, which can be 
+				very large.  You can preserve them by specifying <tt>--keep-tmp</tt> 
+				at the beginning of a run.</li>
+				
+			<li>A new optional search algorithm for short (~36bp) reads, 
+				designed to improve junction detection sensitivity, is now available with
+				<tt>--butterfly-search</tt>.</li>
+				
+			<li>TopHat <strong>no longer calculates gene expression</strong>. 
+				Users interested in expression calculations should consider using 
+				<a href="http://cufflinks.cbcb.umd.edu">Cufflinks</a> for gene- 
+				and isoform-level expression calculations.</li>
+				
+			<li>Numerous performance enhancements and reductions in memory usage.  
+				For reads 75bp or longer, memory usage is dramatically lower, 
+				and should scale much for runs with hundreds of millions of reads.</li>
+			<li>The <a href="manual.html">manual</a> has been updated to better 
+				describe the types of reads TopHat expects.  The manual also 
+				incorrectly stated that TopHat doesn't look for "GC-AG" and 
+				"AT-AC" introns, and this has been corrected.</li>
+			</ul>
+		 <br>
+		 <h2>IMPORTANT - Bowtie update 10/13/2009</h2>
+		    <p>Until recently, there was a bug that could cause TopHat to report
+	        no alignments or junctions with some Bowtie indexes (including) some
+	        indexes downloadable from this site.  All users are strongly 
+	        encouraged to upgrade to Bowtie 0.11.0 or later, and the next 
+	        update to TopHat will force this upgrade.</p><p><br>
+		 </p><h2>TopHat 1.0.11 (BETA) and Cufflinks release 9/26/2009</h2>
+		    <p> We're pleased to announce the release of a sister tool to TopHat, 
+			called <a href="http://cufflinks.cbcb.umd.edu">Cufflinks</a>.  
+			TopHat aligns your RNA-Seq reads; Cufflinks assembles those 
+			alignments into transcripts and also calculates isoform and 
+			gene level expression in your samples. 
+			
+			</p><p>This TopHat release contains a 
+			number of stability improvements, fixes, and some substantial 
+			performance increases.  The disk footprint is also reduced, though
+			it's still large, and further reductions are coming in future 
+			releases.
+			
+			</p><p>We advise all users to adopt Cufflinks to compute expression values.
+			 Cufflinks contains a sophisticated algorithm for this calculation, 
+			 that is far more accurate than TopHat's method.  In an upcoming release
+			 of TopHat, the RPKM calculation in TopHat will be <strong>removed</strong> to simplify maintenance.
+		 </p><br>
+		 <h2>1.0.10 (BETA) release 7/30/2009</h2>
+		 <p> This is a fix release.  Notable changes:
+			</p><ul>
+			<li>More SAM compliance fixes.</li>
+			<li>Reduced the frequency of certain types of false junctions through improved spliced alignment filtering</li>
+			</ul>
+		  
+		<br>
+		 <h2>Minor update to 1.0.9 7/10/2009</h2>
+		 <p> Version 1.0.9 of TopHat released on 7/8/09 had an incorrect default 
+			 value for --max-intron length.  It is now 500,000, as intended.</p><p><br>
+		 </p><h2>1.0.9 (BETA) release - 7/8/2009</h2>
+		 <p>This release includes both fixes and new features.  This upgrade 
+			<strong>requires</strong> Bowtie 0.10.0.0 or later.  Other changes including:
+		    </p><ul>
+			<li>Substantially improved sensitivity for reads shorter than 75bp</li>
+			<li>An optional "gap-filling" phase to map multireads from transcribed repeats</li>
+			<li>Fixed some SAM compliance issues</li>
+			<li>Optional (limited) search for alignments that involve microexons</li>
+			<li>Complex index record names no longer crash the pipeline.</li>
+			<li>The command line options have been overhauled, and the meaning
+				of the <tt>-a/--min-anchor</tt> option has changed.  Please
+				see the <a href="manual.html">manual</a> for further details.</li>
+			<li>Closure search is now off by default for all read types</li>
+			<li>Coverage search is off by default for reads 75bp or longer</li>
+			<li>Previous version could report spliced alignments with gaps longer than
+				<tt>--max-intron</tt>, if any were found.  The <tt>--max-intron</tt> and 
+			    <tt>--min-intron</tt> limits are now strictly enforced.
+			</li></ul>
+		<br>
+		<h2> Bowtie updated to 0.10.0.0 </h2>
+			<p><strong>IMPORTANT</strong>: TopHat 1.0.8 is incompatible with 
+				Bowtie 0.10.0.0, which was released this week.  While the release of 
+				TopHat 1.0.9, which is imminent, will fix the incompatibilities,
+				users are encouraged to stick with Bowtie 0.9.9.3 for now.</p>
+				<br>
+		<h2>1.0.8 (BETA) release - 5/25/2009</h2>
+		 <p> This is mostly a fix release, but all users are encourage to upgrade, 
+			as some of the bugs fixed were fairly major. Other notable improvements include:
+		    </p><ul>
+			<li>If you have reads 50bp or longer, TopHat will look for <tt>GC-AG</tt> and <tt>AT-AC</tt> introns </li>
+			<li>Logging has been improved</li>
+			<li>Fewer false positives in gene families with tandem copies</li>
+			</ul>
+		 <p> <strong>Known issues:</strong>
+			</p><ul>
+				<li> Some users have reported pipeline crashes when using Bowtie 
+indexes with long or complex record names.  This will be fixed in the 
+next release, but for now, using an index with simple names (no spaces 
+or pipes) is a workaround.  Users are recommended to use names like 
+"chr12" to avoid problems. 
+			</li></ul>
+			
+		<br>
+		<h2>1.0 (BETA) release - 5/4/2009</h2>
+		 <p> TopHat has been almost entirely redesigned and rewritten to handle
+			"second-generation" RNA-Seq data. Reads longer than 50bp and paired
+			end reads are substantially more powerful for finding splice 
+			junctions, and TopHat needed new algorithms to take advantage of them.
+			While this release should be considered a beta, and still contains bugs,
+			it has been under development for several months and has been 
+			tested by several groups on both first- and second-generation RNA-Seq
+			data in multiple organisms.  Longer and/or paired end reads provide
+			a dramatic leap in sensitivity and specificity. Notable improvements include:
+		 </p><ul>
+			<li>Paired-end RNA-Seq read support</li>
+			<li>Long read support</li>
+			<li>Improved SAM output</li>
+			<li>No longer depends on Maq</li>
+			<li>Mismatches near splicing anchors now allowed</li>
+			<li>Much more of the pipeline is multithreaded, yielding a massive performance boost</li>
+			<li>Compiles under GCC 4.3</li>
+			</ul>
+			
+		<br>
+		<h2>TopHat paper published - 3/16/2009</h2>
+		<p>
+			Our <a href="http://bioinformatics.oxfordjournals.org/cgi/content/abstract/btp120">
+			paper</a> on discovering splice junctions has appeared at 
+			<a href="http://bioinformatics.oxfordjournals.org/">Bioinformatics</a>. 
+		</p>	
+		<br>
+		<h2>0.8.3 release - 3/12/2009</h2>
+		 <p> This release contains the following enhancements and fixes:
+		 </p><ul>
+			<li>Reporting now has a smaller memory footprint</li>
+			<li>A possible source of erroneous alignments due to hashing collisions has been eliminated</li>
+			<li>The install scripts now correctly detects whether to build TopHat with 64-bit compiler flags.</li>
+			</ul>
+			
+		<br>
+		<h2>TopHat paper accepted - 3/1/2009</h2>
+		 <p> Our paper on discovering splice junctions has been accepted at 
+			<a href="http://bioinformatics.oxfordjournals.org/">Bioinformatics</a>, 
+			and should appear soon.
+		</p>
+		<br>
+		<h2>0.8.2 release - 3/1/2009</h2>
+		 <p> This release contains the following enhancements and fixes:
+		 </p><ul>
+			<li>TopHat now reports the alignments it finds in the <a href="http://samtools.sourceforge.net%0A%09%09%09%09">SAM format</a>.  The SAM tools were written primarily by 
+				Heng Li at Sanger, and will allow TopHat users to call 
+				expressed SNPs from their RNA-Seq reads.  The SAM tools 
+				themselves are still under development, so TopHat's SAM 
+				support should be considered experimental.</li>
+			<li>You can now specify a list of junctions for TopHat to check
+				in a raw format, without using a GFF file of genes</li>
+			<li>The new <tt>-o</tt> option allows you to change where TopHat
+				puts its output, instead of always writing to "./tophat_out"</li>
+			</ul>
+			
+		<br>
+		<h2>0.8.1 release - 1/30/2009</h2>
+		 <p> This release contains the following enhancements and fixes:
+		 </p><ul>
+			<li>New experimental support for user-supplied annotations. 
+				TopHat will accept a GFF file, and will look for junctions 
+				contained in the GFF file.  TopHat will also perform a basic 
+				RPKM calculation on the regions in the annotation, normalized 
+				to those annotations only (rather than the whole map).  The 
+				file must contain "gene", "exon" and "mRNA" records, in the 
+				normal record ID, Parent heirarchy.  Users are encouraged to 
+				treat GFF support as unstable and interpret their results with
+				caution.</li>
+			<li>Several minor bugfixes.</li>
+			</ul>
+		
+		<p> TopHat 0.8.1 uses some code kindly provided by <a href="http://math.berkeley.edu/%7Erbradley/">Robert Bradley</a>. The
+        code originally came from Rob's statistical alignment package <a href="http://fsa.sourceforge.net/">FSA</a>. </p>
+			
+		
+		<br>
+		<h2>0.8.0 release - 1/19/2009</h2>
+		 <p> This release contains the following enhancements and fixes:
+		 </p><ul>
+			<li>Dramatic reduction in false positives.</li>
+			<li>TopHat now estimates a minor isoform frequency for each splice
+				junction, and filters infrequent events to cut down dramatically
+				on the false positives. By default, minor isoforms must occur
+				at at least 15 percent of the major isoform.</li>
+			<li>The new output file coverage.wig is a UCSC wigglegram of alignment
+				coverage.</li>
+			<li>TopHat supports multithreading, though not all stages of the 
+				pipeline use multiple threads.</li>
+			<li>TopHat now allows reads to have multiple alignments, and it
+				suppresses alignments for reads that have more than a user-specified
+				number (10, by default).</li>
+			<li>The memory exhaustion problem associated with converting 
+				Bowtie alignments to Maq has been fixed.</li>
+			<li>You are no longer required to concatenate your reads into a 
+				single input file.</li>
+			<li>TopHat will attempt to automatically determine seed length,
+				quality scale, and FASTA/FASTQ format from your input reads.</li>
+			<li>If you are missing a Maq binary fasta file for your reference,
+				one will be created in the output directory 
+				using <tt>bowtie-inspect</tt>.  You can copy this file to the
+				location of your bowtie index to avoid this step in your next 
+				run.</li>
+			</ul>
+		
+			
+		
+		<br>
+		<h2>0.7.2 release - 12/05/2008</h2>
+		 <p> The following issues have been fixed:
+		 </p><ul>
+			<li>Bowtie 0.9.8 renamed <tt>bowtie-convert</tt> to 
+				<tt>bowtie-maqconvert</tt>, and TopHat is now compatible with 
+				both the new and old name.</li>
+			<li>Minor cosmetic improvements in the TopHat output log.</li>
+			<li>Improved checking in the installer to emit sensible error 
+				messages when compiling on Solaris.  Solaris is currently not
+				supported, but hopefully will be in the next release.</li>
+			</ul>
+		
+		<p> Known issues:
+		</p><ul>
+			<li>TopHat can exhaust memory when run with many (&gt; 50 million) 
+				reads on some machines.  This will be fixed in the next release. </li>
+		</ul>	
+		
+		<br>
+	  <h2>0.7.1 release - 11/08/2008</h2>
+	  <p> The following issues have been fixed:
+		</p><ul>
+			<li>Maq 0.7.0 changed the Maq map file format.  Bowtie 0.9.7 now 
+				supports both the new and old mapping format, and thus so now
+				does TopHat.  
+				TopHat now checks the version of Maq on the system and uses the
+				correct format. </li>
+			<li>Minor command line interface improvements</li>
+			<li>The <tt>-X</tt> option has been added to allow the use of FASTQ
+				files that are scaled on the Solexa quality scale, as opposed
+				to Phred (the default).  Note that TopHat doesn't support FASTQ-int,
+				only ASCII-encoded qualities are used.
+			</li><li>The <tt>-D</tt> option has been added, allowing users to 
+				specify when to look for junctions within single islands, as 
+				opposed to just between two distinct islands</li>
+			<li>The <tt>-Q</tt> option allows the user to specify a Phred quality character
+				below which the island consensus caller will use the reference 
+				base call.  That is, TopHat will not allow SNPs to be called
+				where base quality drops below a certain threshold.
+			</li><li>TopHat now includes Heng Li's <tt>fq_all2std.pl</tt> format
+				conversion script to make installation easier.</li>
+		</ul>
+	  <br>
+	
+      <h2>0.7.0 release - 10/27/08</h2>
+      
+      <p> The first public release of TopHat is now available for download.
+      To use TopHat, you will need to install <a href="http://bowtie-bio.sourceforge.net">Bowtie</a> and <a href="http://maq.sourceforge.net">Maq</a>. Both are open source and
+      freely available under the Artistic license.
+      When you install Bowtie, you should also install the Bowtie index for
+      the genome in your RNA-Seq experiment, if one is available. If there is
+      no pre-built index for the organism you're interested in, you can follow
+      the Bowtie manual's section on <a href="http://bowtie-bio.sourceforge.net/manual.html#indx">how to build one yourself</a>. </p>
+      
+	  <p> Because this is the first release, the manual is very limited. Only the
+		basic options have been described. However, we will be updating it frequently,
+		so please check back. If you find something unclear, or have questions about
+		how TopHat works, please email <a href="mailto:cole@cs.umd.edu">Cole
+		Trapnell</a>.  We will be posting a list of frequently asked questions soon.  
+	
+		</p><p> In this release, TopHat <strong>does not consider mate pairing</strong>
+			between reads. You can analyze paired-end RNA-Seq data with TopHat, but the
+			program won't make use of the mate information. Yet. Use of mate pair
+			information is our <strong>top development priority</strong>.  
+			Check back soon for a release with full paired-end support
+	</p></div>
+  </div>
+  <!--#include virtual="footer.inc.html"-->
+</div>
+
+<!-- Google analytics code -->
+<script type="text/javascript">
+var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+</script>
+<script type="text/javascript">
+var pageTracker = _gat._getTracker("UA-6101038-1");
+pageTracker._trackPageview();
+</script>
+<!-- End google analytics code -->
+</body></html>

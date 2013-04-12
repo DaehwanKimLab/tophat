@@ -1,0 +1,350 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head>
+<title>TopHat :: Center for Bioinformatics and Computational Biology</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<link rel="stylesheet" type="text/css" href="css/style.css" media="screen">
+
+</head>
+<body>
+<div id="wrap">
+    <!--#include virtual="topbar.inc.shtml"-->
+  <div id="main">
+	<div id="rightside">
+	<!--#include virtual="sidebar.inc.shtml"-->
+	</div> <!-- End of "rightside" -->
+    <div id="leftside">
+  	<table><tbody><tr><td cellpadding="7">
+  	<h1> Getting started</h1><br>
+      <div id="toc">
+  	    <ul>
+  	    <li><a href="#inst">Install quick-start</a></li>
+	    <li><a href="#ref">Test the installation</a></li>
+	    <li><a href="#ref">Preparing your reference</a></li>
+  	    <li><a href="#reads">Preparing your reads</a></li>
+  	    <li><a href="#toph">Running TopHat</a></li>
+  	    <li><a href="#exam">Examining your results</a></li>
+  	    </ul><br>
+  	  </div>
+
+      <h2 id="inst">Install quick-start</h2>
+	<p><strong>Download and extract the latest
+	    <a href="http://sourceforge.net/projects/bowtie-bio/files/bowtie2/">Bowtie 2</a>
+	    (or <a href="http://sourceforge.net/projects/bowtie-bio/files/bowtie/">Bowtie</a>) releases.</strong></p>
+	Note that you can use either Bowtie 2 (the default) or Bowtie (--bowtie1)
+	and you will need the following Bowtie 2 (or Bowtie) programs in your <tt>PATH</tt>:
+        <ul>
+          <li><tt>bowtie2 (or bowtie)</tt></li>
+          <li><tt>bowtie2-build (or bowtie-build)</tt></li>
+	  <li><tt>bowtie2-inspect (or bowtie-inspect)</tt></li>
+        </ul>
+	<br>
+	
+        <strong>Installing a pre-compiled binary release</strong><br>
+		<p>In order to make it easy to install TopHat, we
+		  provide a few binary packages to save users from
+		  occasionally frustrating process of building
+		  TopHat, which requires that you have <a href="http://www.boost.org">Boost</a> and <a href="http://samtools.sourceforge.net/">SAM tools</a> 
+		  libraries installed.
+		  To use the binary packages, simply download the appropriate one for your platform, unpack
+		  it, and make sure the <tt>TopHat</tt> binaries are in a
+		  directory in your PATH environment variable. <b><br>
+Note:</b> if you want to be able to install and run this new version 
+without 
+overwriting a previous TopHat version already installed on your system, 
+make sure you unpack the new version into a different directory 
+from the old version, then instead of copying the new programs in a 
+directory in your PATH just create a symbolic link from the <tt>tophat2</tt>
+wrapper
+ script in this new directory to a directory in your shell's PATH. 
+For example, assuming the ~/bin directory is in your PATH and you unpack
+ tophat-2.0.0.Linux_x86_64.tar.gz under your home directory:<br>
+</p>
+  <blockquote><tt>cd <br>
+tar xvfz tophat-2.0.0.Linux_x86_64.tar.gz<br>
+cd ~/bin<br>
+ln -s ~/tophat-2.0.0.Linux_x86_64/tophat2 .</tt><br>
+  </blockquote>
+Now you can start the new version of TopHat with the <tt>tophat2</tt> command, 
+while the previous version, if present, can still be launched with the regular 
+"tophat" command (assuming this is how you used it before). <br>
+  <pre><br></pre>
+
+		
+		
+	<strong>Building TopHat from source</strong><br>
+		<p> In order to build TopHat, you must have the following installed on your system: <br>
+</p>
+  <ul>
+    <li>the&nbsp; <a href="http://www.boost.org">Boost C++ libraries</a>
+		  (we recommend version 1.47 or higher so you can use it for Cufflinks as well) <br>
+    </li>
+    <li>the <a href="http://samtools.sourceforge.net/">SAM tools library</a> .</li>
+  </ul>
+  <p>
+  </p>
+
+		
+		<br>
+<h3 id="boost">Installing Boost</h3>
+
+		<br>
+		<ol>
+		  <li><a href="http://www.boost.org/users/download/">Download</a>
+a recent		    Boost source tarball, unpack it and <tt>cd</tt> to the newly unpacked Boost source directory.</li>
+		  <li>Prepare the build: <br>
+<tt>./bootstrap.sh</tt><br>
+</li>
+		  
+<li>Build Boost. Note that you can specify where to install Boost with the <tt>--prefix</tt>
+ option, which specifies the base path (prefix) under which
+         subdirectories ./include/ and ./lib/ will host the Boost 
+headers and library files. The default Boost installation directory 
+prefix is <tt>/usr/local</tt>. 
+                    Take note of this installation directory (if you 
+specify your own) because you will need to provide it to the <tt>--with-boost</tt> option 
+                    of TopHat's <tt>./configure</tt> script. Run the build and install command:<br>
+		    
+		    <blockquote><tt>./bjam
+		              --prefix=&lt;YOUR_BOOST_INSTALL_DIRECTORY&gt; link=static \<br>
+&nbsp;runtime-link=static stage install</tt></blockquote>
+		  </li>
+</ol><br>
+		<h3 id="samtools">Installing the SAM tools</h3>
+		<br>
+		<ol>
+		  <li><a href="http://samtools.sourceforge.net/">Download</a>
+		    the SAM tools</li>
+		  <li>Unpack the SAM tools tarball and <tt>cd</tt> to
+		    the SAM tools source directory.</li>
+		  <li>Build the SAM tools with the command <tt>make</tt> at
+		    the command line. This also builds the library file <tt>libbam.a</tt><br></li>
+                  <li>Copy the <tt>samtools</tt> executable to a directory which is in your shell's PATH</li>
+		  <li>Choose a base directory (prefix) where you want to have the 
+./lib/ and ./include/ subdirectories which will host the development 
+files 
+                    for the SAMTools API. A common choice is <tt>/usr/local</tt>,
+ but if you don't have permissions to copy files under 
+/usr/local/include 
+                    and /usr/local/lib, you could choose another base 
+directory (e.g. your home directory). Take note of this directory prefix
+ because 
+                    you will need to provide it to the <tt>--with-bam</tt> option of TopHat's <tt>./configure</tt> script later.
+		  </li>
+		  <li>Copy libbam.a to the <tt>./lib/</tt> subdirectory under the base (prefix) directory you've chosen above (e.g. <tt>cp *.a /usr/local/lib/</tt>)
+		  </li><li>Create a directory called "<tt>bam</tt>" under the <tt>./include/</tt> subdirectory in the base directory (e.g. 
+		<tt>mkdir /usr/local/include/bam/</tt>) </li>
+		  <li>Copy the headers (files ending in .h) to the <tt>./include/bam/</tt> subdirectory you've just created above
+                      (e.g. <tt>cp *.h /usr/local/include/bam/</tt>)
+		  </li>
+		</ol>
+		<br>
+		<h3 id="boost">Building TopHat</h3>
+		<br>
+		<ol>
+		  <li>Unpack the TopHat source tarball:
+		    <blockquote>tar zxvf tophat-2.0.0.tar.gz</blockquote>
+		  </li>
+		  <li>Change to the TopHat directory:
+		    <blockquote>cd tophat-2.0.0</blockquote>
+		  </li>
+		  
+  <li>Configure TopHat using the <tt>./configure</tt> script. If Boost libraries were installed
+		    somewhere other than under<tt>/usr/local</tt>, you will need to tell the installer where to find Boost
+		    using the <tt>--with-boost</tt> option, specifying the base 
+(prefix) install directory for the Boost library as discussed 
+		in the Boost installation section above. In a similar fashion, to 
+indicate the location of SAM tools development files, use the <tt>--with-bam</tt>
+ 
+		option to the specify the base (prefix) directory which contains 
+./lib/libbam.a and ./include/bam as discussed above in the SAMTools
+		installation section. The <tt>--prefix</tt> option specifies where TopHat programs will be installed, and it should point to a base directory path that 
+		will end up having a <tt>./bin/</tt> subdirectory containing the new TopHat programs. 
+                A common prefix choice can be, again,  <tt>/usr/local</tt>, which will cause the final <tt>tophat</tt> program and binaries to be installed in
+		 <tt>/usr/local/bin/</tt>. 
+		<br><b>Note:</b> if you want to preserve (i.e. not overwrite) a 
+previous TopHat installation and be able to use both the new version and
+ the old version, 
+		you can specify a different prefix directory which doesn't even have 
+to be in your shell's PATH (e.g. <tt>--prefix=/home/username/tophat_new/</tt>, 
+                    which will install the new TopHat programs in <tt>/home/username/tophat_new/bin/</tt>). After installing the new TopHat, the wrapper script <tt>&lt;tophat_prefix&gt;/bin/tophat2</tt>
+ can be copied somewhere
+ 		in your shell's PATH and can be used to launch this new 
+version of TopHat (assuming the older version of TopHat is launched
+ using 
+		the regular <tt>tophat</tt> script installed in a different directory). The <tt>tophat2</tt> wrapper makes sure that the local execution PATH gives 
+		priority to the new binaries and it should not interfere with the TopHat programs from the previous installation.
+		    
+  <blockquote>./configure
+                      --prefix=/path/to/tophat_base_dir
+                      --with-boost=/path/to/boost_prefix_dir
+\<br>
+&nbsp;--with-bam=/path/to/libbam_prefix_dir<br>
+    <br>
+  </blockquote>
+</li>
+
+		  <li>Finally, make and install TopHat.
+		    <blockquote>make</blockquote>
+		    <blockquote>make install</blockquote>
+		  </li>
+		  <p>This will install tophat and its modules into <tt>/path/to/tophat_base_dir/bin</tt> directory. 
+		    You may want to add that directory to your shell's <tt>PATH</tt> 
+if it's not there already. Alternatively, you can just copy the <tt>tophat2</tt> wrapper script from this ./bin directory somewhere in a directory which is 
+in your shell's PATH (this is especially useful if an older&nbsp; <tt>tophat</tt> script from a previous TopHat installation is already found in your shell's PATH). 
+If you prefer this alternative please&nbsp; make sure you use the <tt><b>tophat2</b></tt> command instead of <tt><b>tophat</b></tt> for the rest of this tutorial.<br>
+</p><p>
+		</p></ol>
+		<br>
+
+		<h2 id="test">Testing the installation</h2><br>
+		<p>
+		After you installed Bowtie, Samtools and TopHat, you should 
+		test the pipeline on a simple test data set, which you can download 
+		<a href="./downloads/test_data.tar.gz">here</a>.  This data is not meant
+		to exhaustively test all the features of TopHat.  It's just to 
+		verify that the installation worked.  Unzip the data, change 
+		to the test_data directory and then run tophat:
+		</p>  		
+		<br>
+		<blockquote>tar zxvf test_data.tar.gz</blockquote>
+		<blockquote>cd test_data</blockquote>
+		<blockquote>tophat -r 20 test_ref reads_1.fq reads_2.fq</blockquote>
+		<br>
+		<p>
+		If TopHat ran successfully, you should see some lines of 
+		output, like this:
+		</p>
+		<br>
+		<pre>			
+[Mon May  4 11:07:23 2009] Beginning TopHat run (v1.1.1)
+-----------------------------------------------
+[Mon May  4 11:07:23 2009] Preparing output location ./tophat_out/
+[Mon May  4 11:07:23 2009] Checking for Bowtie index files
+[Mon May  4 11:07:23 2009] Checking for reference FASTA file
+[Mon May  4 11:07:23 2009] Checking for Bowtie
+	Bowtie version:		 0.9.9.1
+[Mon May  4 11:07:23 2009] Checking reads
+	seed length:	 75bp
+	format:		 fastq
+	quality scale:	 phred
+	Splitting reads into 3 segments
+[Mon May  4 11:07:23 2009] Mapping reads against test_ref with Bowtie
+[Mon May  4 11:07:24 2009] Mapping reads against test_ref with Bowtie
+[Mon May  4 11:07:24 2009] Mapping reads against test_ref with Bowtie
+	Splitting reads into 3 segments
+[Mon May  4 11:07:24 2009] Mapping reads against test_ref with Bowtie
+[Mon May  4 11:07:24 2009] Mapping reads against test_ref with Bowtie
+[Mon May  4 11:07:24 2009] Mapping reads against test_ref with Bowtie
+[Mon May  4 11:07:24 2009] Searching for junctions via coverage islands
+[Mon May  4 11:07:24 2009] Searching for junctions via mate-pair closures
+[Mon May  4 11:07:24 2009] Retrieving sequences for splices
+[Mon May  4 11:07:24 2009] Indexing splices
+[Mon May  4 11:07:24 2009] Mapping reads against segment_juncs with Bowtie
+[Mon May  4 11:07:24 2009] Mapping reads against segment_juncs with Bowtie
+[Mon May  4 11:07:24 2009] Mapping reads against segment_juncs with Bowtie
+[Mon May  4 11:07:24 2009] Joining segment hits
+[Mon May  4 11:07:24 2009] Mapping reads against segment_juncs with Bowtie
+[Mon May  4 11:07:24 2009] Mapping reads against segment_juncs with Bowtie
+[Mon May  4 11:07:24 2009] Mapping reads against segment_juncs with Bowtie
+[Mon May  4 11:07:24 2009] Joining segment hits
+[Mon May  4 11:07:24 2009] Reporting output tracks
+-----------------------------------------------
+Run complete [00:00:00 elapsed]
+		</pre>
+		<p>
+		In the directory <tt>tophat_out</tt> should be a file <tt>junctions.bed</tt>.
+		This file should contain a pair of junctions, on the reference sequence
+		"test_chromosome".
+	    </p>
+		<br>
+		<h2 id="ref">Preparing your reference</h2><br>
+		
+		<p> To find junctions with TopHat, you'll first need to <a href="http://bowtie-bio.sourceforge.net/tutorial.html#preb">install
+        a Bowtie index</a> for the organism in your RNA-Seq experiment. The
+        Bowtie site provides pre-built indices for human, mouse, fruit fly,
+        and others. If there's no index for your organism, it's easy to <a href="http://bowtie-bio.sourceforge.net/tutorial.html#newi">build one
+        yourself</a>. If you have Bowtie 2 installed and want to use it 
+with Tophat v2.0 or later, you must create Bowtie 2 indexes for your 
+data (using bowtie2-build). </p><br>
+		
+		<p> TopHat also requires a fasta file
+        (.fa) for your reference. If this file is not found alongside the 
+		other index files, the program will use the Bowtie
+		index you give it to build this file and save it to the output directory.  This 
+		step can take up to an hour for a human-sized genome.  To skip this
+		step in future runs, you can move the fasta file from the 
+		<tt>tophat_out</tt> directory to the directory containing the Bowtie index
+		files. 
+		</p>
+
+		<br>
+    	<h2 id="reads">Preparing your reads</h2><br>
+      	
+		<p>TopHat currently accepts reads in FASTA or FASTQ format, though
+        FASTQ is recommended. You may need to convert your reads from another
+        format to one of these. Maq's <tt>fq_all2std.pl</tt> converts many
+        formats into FASTQ. For reads in <a href="http://srf.sourceforge.net/">SRF format</a>, we recommend using
+        the tools bundled with the <a href="https://sourceforge.net/project/showfiles.php?group_id=100316&amp;package_id=108243&amp;release_id=340318">
+        Staden io_lib</a> package. </p>
+        
+        <p> <strong>Note:</strong> TopHat does not support mixing FASTA and
+        FASTQ reads in the same input file, so <strong>don't</strong>
+        run TopHat on FASTQ and FASTA files in the same run. </p>
+        <br>
+      	
+      	<h2 id="toph">Running TopHat</h2><br>
+      	<p> TopHat will map your reads first by running Bowtie to identify
+        places where reads map end to end. Since your reads came from spliced
+        transcripts in an RNA-Seq experiment, Bowtie will identify "islands"
+        in your reference genomewhere reads piled up. Many of these islands
+        will be exons. </p>
+        
+        <p> TopHat will then run a program to find splice junctions using the
+        reads that did not get mapped to an island. So to identify junctions,
+        you do <strong>not</strong> need to run Bowtie yourself, as TopHat
+        will do it for you.</p>
+                
+        <p> TopHat needs you specify a path to the <a href="#ref">index
+        files</a> and an input file containing your reads. The first argument
+        should be the full path to the directory containing the index plus the
+        <strong>prefix</strong> of the index files. To start the TopHat
+        pipeline, enter the command: </p>
+        
+        <br>
+        <blockquote>tophat /path/to/h_sapiens reads1.fq,reads2.fq,reads3.fq</blockquote>
+        <br>
+        
+        <p> 
+            Be sure to check out the TopHat <a href="./manual.shtml">manual</a>,
+            as the pipeline has a few options you might want to use to get 
+            better results or get them more quickly.
+        </p> 
+      	<br>
+      	
+      	<h2 id="exam">Examining your output</h2><br>
+      	<p>TopHat produces <a href="./manual.shtml#output">several files </a>
+ of 
+	    output.  Because TopHat reports output in widely adopted formats, 
+you can import it directly into a number of genome browsers and data 
+viewers, including <a href="http://www.broadinstitute.org/igv/">IGV</a>, <a href="http://www.bioviz.org/igb/">IGB</a>, and the <a href="http://genome.ucsc.edu/">UCSC genome browser</a>.  TopHat can be run on free servers through <a href=" http://usegalaxy.org">Galaxy</a>, which also provides a web-based genome/track browser for mapped reads produced from TopHat.
+	 	</p>
+		<br>
+  
+<!--#include virtual="footer.inc.html"-->
+
+<!-- Google analytics code -->
+<script type="text/javascript">
+var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+</script>
+<script type="text/javascript">
+var pageTracker = _gat._getTracker("UA-6101038-1");
+pageTracker._trackPageview();
+</script>
+
+<!-- End google analytics code -->
+
+</td></tr></tbody></table></div></div></div>
+
+
+</body></html>

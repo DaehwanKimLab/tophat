@@ -1,0 +1,163 @@
+<h2>Site Map</h2>
+<div class="box">
+ <ul>
+   <li><a href="index.shtml">Home</a></li>
+   <li><a href="tutorial.shtml">Getting started</a></li>
+   <li><a href="manual.shtml">Manual</a></li>
+   <li><a href="igenomes.shtml">Index and annotation downloads</a></li>
+   <li><a href="faq.shtml">FAQ</a></li>
+   <li><a href="http://www.nature.com/nprot/journal/v7/n3/full/nprot.2012.016.html">Protocol</a></li>
+ </ul>
+</div>
+
+<h2><u>News and updates</u></h2>
+<div class="box">
+ <ul>
+   <table width="100%">
+	 <tbody><tr><td>New releases and related tools will be announced through the Bowtie
+     <a href="https://lists.sourceforge.net/lists/listinfo/bowtie-bio-announce"><b>mailing list</b></a>.</td></tr>
+   </tbody></table>
+ </ul>
+</div>
+
+<h2><u>Getting Help</u></h2>
+<div class="box">
+ <ul>
+   <table width="100%">
+	 <tbody><tr><td>Questions about TopHat should be sent to <a href="mailto:tophat.cufflinks@gmail.com"><b>tophat.cufflinks@gmail.com</b></a>.  Please do not email technical questions to TopHat contributors directly.</td></tr>
+   </tbody></table>
+ </ul>
+</div>
+
+<a href="./downloads"><h2><u>Releases</u></h2></a>
+<div class="box">
+ <ul>
+   <table width="100%"><tbody><tr><td>version 2.0.8b</td> <td align="right">4/12/2013</td></tr>
+	 <tr>
+		 <td><a href="./downloads/tophat-2.0.8b.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
+	 </tr>
+	 <tr>
+		 <td><a href="./downloads/tophat-2.0.8b.Linux_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
+	 </tr>
+	 <tr>
+		 <td><a href="./downloads/tophat-2.0.8b.OSX_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
+	 </tr>
+
+
+   </tbody></table>
+ </ul>
+</div>
+
+<h2>Related Tools</h2>
+<div class="box">
+ <ul>
+   <li><a href="http://cufflinks.cbcb.umd.edu/">Cufflinks</a>: Isoform assembly and quantitation for RNA-Seq</li>
+   <li><a href="http://bowtie.cbcb.umd.edu">Bowtie</a>: Ultrafast short read alignment</li>
+   <li><a href="http://tophat-fusion.sourceforge.net">TopHat-Fusion</a>: An algorithm for Discovery of Novel Fusion Transcripts</li>
+   <li><a href="http://compbio.mit.edu/cummeRbund/">CummeRbund</a>:
+ Visualization of RNA-Seq differential analysis</li>
+ </ul>
+</div>
+<!--#if expr="$BwtIndexes" -->
+<a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/"><h2><u>Pre-built Bowtie indexes</u></h2></a>
+<div class="box">
+ <table width="100%">
+
+   <!-- hg18 -->
+
+   <tbody><tr><td>
+	 <a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/hg18.ebwt.zip"><i>H. sapiens</i>, UCSC hg18</a>
+	 </td><td align="right">
+	   <b>2.7 GB</b>
+   </td></tr>
+   <tr><td colspan="2"><table width="100%"><tbody><tr>
+
+   </tr><tr>
+	 <td>&nbsp;colorspace:
+	   <a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/hg18_c.ebwt.zip">full</a></td>
+   </tr></tbody></table>
+   </td></tr>
+
+   <!-- hg19 -->
+
+   <tr><td>
+	 <a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/hg19.ebwt.zip"><i>H. sapiens</i>, UCSC hg19</a>
+	 </td><td align="right">
+	   <b>2.7 GB</b>
+   </td></tr>
+   <tr><td colspan="2"><table width="100%"><tbody><tr>
+
+   </tr><tr>
+	 <td>&nbsp;colorspace:
+	   <a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/hg19_c.ebwt.zip">full</a></td>
+   </tr></tbody></table>
+
+   <!-- mm9 -->
+
+   </td></tr><tr><td>
+	 <a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/mm9.ebwt.zip"><i>M. musculus</i>, UCSC mm9</a>
+	 </td><td align="right">
+	   <b>2.4 GB</b>
+   </td></tr>
+   <tr><td colspan="2"><table width="100%"><tbody><tr>
+
+
+   </tr><tr>
+	 <td>&nbsp;colorspace:
+	   <a href="ftp://ftp.cbcb.umd.edu/pub/data/bowtie_indexes/mm9_c.ebwt.zip">full</a></td>
+   </tr></tbody></table>
+   </td></tr>
+
+
+</tbody></table>
+
+
+<p style="font-size: x-small; line-height: 130%">
+All indexes are for assemblies, not contigs.  Unplaced or unlocalized 
+sequences and alternate haplotype assemblies are excluded.</p>
+<p style="font-size: x-small; line-height: 130%">
+Some unzip programs cannot handle archives &gt;2 GB.  If you have
+problems downloading or unzipping a &gt;2 GB index, try downloading
+in two parts.</p>
+<p style="font-size: x-small; line-height: 130%">Check .zip file 
+ integrity with <a href="./md5s.shtml">MD5s</a>.</p>
+
+<p style="font-size: x-small; line-height: 130%">Pre-built indexes are
+compatible with Bowtie versions 0.9.8 and later.  For older indexes, please contact us.</p>
+
+</div>
+<!--#endif -->
+
+<h2>Publications</h2>
+<div class="box">
+ <ul>
+   <li style="font-size: x-small; line-height: 130%"><p>Trapnell C, Pachter L, Salzberg SL. <a href="http://bioinformatics.oxfordjournals.org/cgi/content/abstract/btp120"><b>TopHat: discovering splice junctions with RNA-Seq</b></a>. <i><a href="http://bioinformatics.oxfordjournals.org">Bioinformatics</a></i>  doi:10.1093/bioinformatics/btp120</p><br></li>
+   <li style="font-size: x-small; line-height: 130%"><p>Langmead B, Trapnell C, Pop M, Salzberg SL. <a href="http://genomebiology.com/2009/10/3/R25"><b>Ultrafast and memory-efficient alignment of short DNA sequences to the human genome</b></a>. <i><a href="http://genomebiology.com">Genome Biology</a></i> <b>10</b>:R25.</p><br></li>
+   <li style="font-size: x-small; line-height: 130%"><p>Kim D and Salzberg SL. <a href="http://genomebiology.com/2011/12/8/R72/abstract"><b>TopHat-Fusion: an algorithm for discovery of novel fusion transcripts</b></a>. <i><a href="http://genomebiology.com/">Genome Biology</a></i> 2011, 12:R72</p><br></li>
+ </ul>
+</div>
+
+<h2>Contributors</h2>
+<div class="box">
+ <ul>
+   <li><a href="http://www.cs.umd.edu/%7Ecole/">Cole Trapnell</a></li>
+   <li><a href="http://www.umiacs.umd.edu/%7Einfphilo/">Daehwan Kim</a></li>
+   <li>Geo Pertea</li>
+   <li><a href="http://cs.berkeley.edu/%7Epimentel">Harold Pimentel</a></li>
+   <li>Ryan Kelley</li>
+   <li><a href="http://www.math.berkeley.edu/%7Elpachter/">Lior Pachter</a></li>
+   <li><a href="http://www.cbcb.umd.edu/%7Esalzberg/">Steven Salzberg</a></li>
+ </ul>
+</div>
+
+<h2>Links</h2>
+<div class="box">
+ <ul>
+   <li><a href="http://www.umd.edu/">University of Maryland</a></li>
+   <li><a href="http://www.berkeley.edu/">University of California, Berkeley</a></li>
+   <li><a href="http://www.cbcb.umd.edu/">UMD CBCB</a></li>
+   <li><a href="http://www.cs.umd.edu/">UMD Computer Science</a></li>
+   <li><a href="http://www.math.berkeley.edu/">Berkeley Mathematics</a></li>
+   <li><a href="http://www.umiacs.umd.edu/">UMIACS</a></li>
+ </ul>
+</div>        

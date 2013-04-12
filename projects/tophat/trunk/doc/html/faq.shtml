@@ -1,0 +1,139 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head>
+<title>TopHat :: Center for Bioinformatics and Computational Biology</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<link rel="stylesheet" type="text/css" href="css/style.css" media="screen">
+</head>
+<body>
+<div id="wrap">
+  <!--#include virtual="topbar.inc.shtml"-->
+  <div id="main">
+	<div id="rightside">
+	<!--#include virtual="sidebar.inc.shtml"-->
+	</div> <!-- End of "rightside" -->
+    <div id="leftside">
+  	  <table><tbody><tr><td cellpadding="7">
+  	  <h1>Frequently Asked Questions</h1><br>
+      <div id="toc">
+  	    <ul>
+	      
+	      <li><a href="#edit_dist">How to control the alignment of reads in terms of number of mismatches, gap length etc. ? <br>
+		</a></li>
+	      <li><a href="#accuracy">How can I maximize the accuracy of spliced mapping in TopHat?</a></li>
+	      
+	      <li><a href="#mate_inner_dist">I don't know the mate inner distance (-r/--mate-inner-dist option) f</a><a href="faq.shtml#mate_inner_dist">or my paired reads</a><a href="#mate_inner_dist">, what value should I use?</a></li>
+	      
+ 	      <li><a href="#library_type">I am not sure which library type to use (fr-firststrand or fr-secondstrand), what should I do?</a></li>
+	      <li><a href="#many_file">What should I do if I see a message like "Too many open files"?</a></li>
+  	      </ul><br>
+		<h2 id="edit_dist">How to control the alignment of reads in terms of number of mismatches, gap length etc. ? <br>
+		  </h2>
+		  <p><br>
+You can use three options:<tt> --read-mismatches</tt>, <tt>--read-gap-length</tt> and  
+  <tt>--read-edit-dist</tt>. For instance, if you want read alignments with at most 2 base
+mismatches and no gaps then you can specify:<br>
+&nbsp; <tt>--read-mismatches 2 
+--read-gap-length 0 --read-edit-dist 2</tt><br>
+Or if you 
+want read alignments with total length of indels (alignment gaps) of at 
+most 3bp and at most 2 base mismatches you can use these options:<br>
+  <tt>&nbsp;--read-mismatches 2 
+--read-gap-length 3 --read-edit-dist 3</tt><br>
+  </p>
+  <p><br>
+  </p>
+  
+  <h2 id="accuracy">How can I maximize the accuracy of spliced mapping in TopHat?<br>
+  </h2>
+
+<br>
+	Based on real RNA-seq samples we found out that in the genome mapping 
+step of TopHat a high portion of reads spanning several exons can 
+incorrectly be aligned to processed pseudogenes that are rarely (if any)
+ transcribed or expressed, instead of the genes where they originate 
+from. You can use either of the options below to improve the accuracy of spliced mapping in TopHat:<br>
+<ul>
+  <li>If a good gene annotation is available (as the
+ case with the human genome), use it with the -G option<br>
+  </li>
+  
+  <li>For poorly annotated genomes you might want to consider using the "<tt>--read-realign-edit-dist 0</tt>" option <br>
+With the realignment option
+users can choose to remap some (or all) of the mapped reads with mapping edit distance
+equal to or above user-specified "remapping" edit distance (see <a href="manual.shtml#read_realign">--read-realign-edit-dist</a> option). Setting "<tt>--read-realign-edit-dist 0</tt>"
+will map every read against transcriptome, genome, and splice variants (or splice junctions)
+that are detected by TopHat, no matter whether it is mapped or not in any mapping step. With this
+remapping strategy, this "pseudogene" problem can be effectively
+handled. If you use a genome that has processed pseudogenes
+and you cannot provide good gene annotation to TopHat, you may want to consider using
+this option for accurate mapping results.
+	<ul>
+<ul>
+
+</ul>&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;  <br>
+<br>
+  	  </ul></li>
+</ul></div>
+      
+  <h2 id="mate_inner_dist">I don't know the mate inner distance (-r/--mate-inner-dist) for my paired reads, what value should I use?</h2>
+<br><p>The 
+default value should work fine in most cases, for typical RNA-Seq PE 
+experiments, because TopHat allows some variance for this distance 
+internally.&nbsp; 
+TopHat makes use of the mate inner distance information in several 
+places - for instance, when finding splice sites and fusion break 
+points. This information is also taken into account when choosing the 
+best candidate alignments for paired reads in the final stage of TopHat 
+(tophat_reports). If you want to find a good approximation of this 
+distance for your reads you can try running Bowtie2 on a small sample 
+(subset) of the paired reads (both mates) 
+and&nbsp; taking a look at their mapped positions (we hope to add this 
+automatic fragment length detection in a future version of TopHat). The 
+SAM output of Bowtie2 for paired reads is especially helpful as the 9th 
+field in the SAM alignment lines should show the estimated fragment 
+length, from which you should subtract twice the read length to get the 
+value of the "inner distance" that can be used with the -r parameter 
+(obviously large absolute values for that field should be ignored as for
+ this estimate we only want to consider mates aligned to the same exon).<br>
+</p><br>
+      <h2 id="library_type">I am not sure which library type to use (fr-firststrand or fr-secondstrand), what should I do?</h2><br><p>
+	    One possible way to figure out the correct library-type is to run 
+TopHat with a small subset of the reads (e.g., 1M) as follows.&nbsp;</p>
+<ol>
+  <li>run TopHat with fr-firststrand and count the number of junctions in junctions.bed (one of the output files from TopHat)</li>
+  <li>run TopHat with fr-secondstrand and count the number of junctions in junctions.bed&nbsp;</li>
+</ol>
+<p>
+Since the splice junction finding algorithm of TopHat makes use of 
+library-type information (if provided), one of the two TopHat runs would
+ result in many more splice junctions than the other one.
+You can then use the library type that gives more junctions.
+If this is not the case TopHat might not work well with your sequencing 
+protocol.  Please let us know more details about your protocol so we can
+ add support for new library types. 
+  	  </p>
+<br><br>
+
+    <h2 id="many_file">What should I do if I see a message like "Too many open files"?</h2><br><p>
+	    This usually happens when using "-p" option with a large value (many threads).
+	    TopHat may produce many intermediate files, the number of which is proportional to this value; sometimes the number of the files may go over the maximum number of files a process is allowed to open.
+	    The solution is to raise the limit to a higher number (e.g. 10000).  For Mac, you can change this using a command, "sudo sysctl -w kern.maxfiles=10240".
+	    </p>
+  	  </p>
+<br><br>
+
+  <!--#include virtual="footer.inc.html"-->
+
+<!-- Google analytics code -->
+<script type="text/javascript">
+var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+</script>
+<script type="text/javascript">
+var pageTracker = _gat._getTracker("UA-6101038-1");
+pageTracker._trackPageview();
+</script>
+
+</td></tr></tbody></table></div></div></div>
+
+</body></html>
