@@ -2568,7 +2568,7 @@ def prog_path(program):
 
 
 def get_version():
-   return "2.0.8"
+   return "2.0.8b"
 
 
 def main(argv=None):
