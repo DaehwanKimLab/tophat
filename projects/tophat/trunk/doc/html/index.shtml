@@ -31,6 +31,11 @@
 	<!--#include virtual="sidebar.inc.shtml"-->
 	</div> <!-- End of "rightside" -->
 	<div id="leftside">
+	  <h2> TopHat2 paper published 4/25/2013 </h2>
+	  <p>
+	    The TopHat2 <a href="http://genomebiology.com/2013/14/4/R36/abstract">paper</a> has been published in <a href="http://genomebiology.com/"><i>Genome Biology</i></a>.
+	  </p>
+	  <br/>
 	  <h2>TopHat 2.0.8 release 2/26/2013</h2>
 	  <p><b>Note (4/12/2013):</b> patched version 2.0.8b was released in order to provide compatibility with Bowtie v1.0.0</p>
 	  <p> Version 2.0.8 is a quick fix release addressing the following issues:</p>
