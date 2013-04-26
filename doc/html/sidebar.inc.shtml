@@ -134,6 +134,7 @@ compatible with Bowtie versions 0.9.8 and later.  For older indexes, please cont
    <li style="font-size: x-small; line-height: 130%"><p>Trapnell C, Pachter L, Salzberg SL. <a href="http://bioinformatics.oxfordjournals.org/cgi/content/abstract/btp120"><b>TopHat: discovering splice junctions with RNA-Seq</b></a>. <i><a href="http://bioinformatics.oxfordjournals.org">Bioinformatics</a></i>  doi:10.1093/bioinformatics/btp120</p><br></li>
    <li style="font-size: x-small; line-height: 130%"><p>Langmead B, Trapnell C, Pop M, Salzberg SL. <a href="http://genomebiology.com/2009/10/3/R25"><b>Ultrafast and memory-efficient alignment of short DNA sequences to the human genome</b></a>. <i><a href="http://genomebiology.com">Genome Biology</a></i> <b>10</b>:R25.</p><br></li>
    <li style="font-size: x-small; line-height: 130%"><p>Kim D and Salzberg SL. <a href="http://genomebiology.com/2011/12/8/R72/abstract"><b>TopHat-Fusion: an algorithm for discovery of novel fusion transcripts</b></a>. <i><a href="http://genomebiology.com/">Genome Biology</a></i> 2011, 12:R72</p><br></li>
+   <li style="font-size: x-small; line-height: 130%"><p>Kim D, Pertea G, Trapnell C, Pimentel H, Kelley R, Salzberg SL.  <a href="http://genomebiology.com/2013/14/4/R36/abstract"><b>TopHat2: accurate alignment of transcriptomes in the presence of insertions, deletions and gene fusions.  </b></a>. <i><a href="http://genomebiology.com/">Genome Biology</a></i> 2011, 14:R36</p><br></li>
  </ul>
 </div>
 
