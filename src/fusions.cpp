@@ -555,9 +555,10 @@ void pair_support(const vector<pair<BowtieHit, BowtieHit> >& best_hits, FusionSe
       
       // int inner_dist = max_report_intron_length * 2;
 
-      int inner_dist = 10000;
-      int outer_dist = 10000 * 2;
-      int max_dist = 10000 * 2;
+      const int range = min((int)fusion_min_dist, 10000);
+      int inner_dist = range;
+      int outer_dist = range * 2;
+      int max_dist = range * 2;
       int left1 = 0, left2 = 0, right1 = 0, right2 = 0;
       
       if (fusionSpanned)
@@ -895,8 +896,8 @@ void pair_support(const vector<pair<BowtieHit, BowtieHit> >& best_hits, FusionSe
 	      // daehwan
 #if 0
 	      // if(!fusionSpanned)
-	      // if (pass && !unsupport)
-	      if (lb->first.left == 6994359 && lb->first.right == 17581683)
+	      if (pass && !unsupport)
+	      //if (lb->first.left == 6994359 && lb->first.right == 17581683)
 		{
 		  const char* dir_str = "ff";
 		  if (dir == FUSION_FR)
@@ -907,8 +908,8 @@ void pair_support(const vector<pair<BowtieHit, BowtieHit> >& best_hits, FusionSe
 		    dir_str = "rr";
 
 		  cout << "insert id: " << lh.insert_id() << endl;
-                  cout << "left: " << print_cigar(lh.cigar()) << endl;
-                  cout << "right: " << print_cigar(rh.cigar()) << endl;
+                  cout << "left: " << lh.left() << " " << print_cigar(lh.cigar()) << endl;
+                  cout << "right: " << rh.left() << " " << print_cigar(rh.cigar()) << endl;
 		  cout << dir_str << endl;
 		  cout << "dist: " << dist << endl;
 		  cout << lb->first.refid1 << " " << lb->first.refid2 << endl;
@@ -916,6 +917,7 @@ void pair_support(const vector<pair<BowtieHit, BowtieHit> >& best_hits, FusionSe
 		  cout << "unsupport: " << (unsupport ? "yes" : "no") << endl;
 		  cout << "pass: " << (pass ? "yes" : "no") << endl;
 		  cout << "ids: " << lh.insert_id() << " : " << rh.insert_id() << endl;
+		  cout << "left dist: " << left_dist << "\tright dist: " << right_dist << endl;
 		  cout << endl << endl;
 		}
 #endif
