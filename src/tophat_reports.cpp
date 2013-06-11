@@ -246,18 +246,9 @@ bool set_insert_alignment_grade(const BowtieHit& lh, const BowtieHit& rh, const 
     return false;
   
   bool fusion = is_fusion_insert_alignment(lh, rh);
-  
-  // a read contains its partner, in which case the paired mapping will be ignored.
-  if (!fusion)
-    {
-      if (lh.left() <= rh.left() && lh.right() >= rh.right() && lh.right() - lh.left() > rh.right() - rh.left())
-	return false;
-      else if (rh.left() <= lh.left() && rh.right() >= lh.right() && rh.right() - rh.left() > lh.right() - lh.left())
-	return false;
-    }
 
   grade = InsertAlignmentGrade(lh, rh, junctions, fusion);
-  
+ 
   return true;
 }
 
@@ -780,8 +771,14 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
     if (partner->ref_id() == bh.ref_id()) {
       mate_contig = "="; //same chromosome
       //TLEN:
-      tlen = bh.left() < partner->left() ? partner->right() - bh.left() :
-	partner->left() - bh.right();
+
+      // a read contains its partner
+      if (bh.left() <= partner->left() && bh.right() >= partner->right() && bh.right() - bh.left() > partner->right() - partner->left())
+	tlen = bh.right() - bh.left();
+      else if (partner->left() <= bh.left() && partner->right() >= bh.right() && partner->right() - partner->left() > bh.right() - bh.left())
+	tlen = partner->left() - partner->right();
+      else
+	tlen = bh.left() < partner->left() ? partner->right() - bh.left() : partner->left() - bh.right();
     }
     
     else { //partner on different chromosome/contig
