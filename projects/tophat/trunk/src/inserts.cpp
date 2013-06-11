@@ -104,6 +104,11 @@ bool gap_lt(const pair<int, int>& lhs, const pair<int, int>& rhs)
 
 pair<int, int> pair_distances(const BowtieHit& h1, const BowtieHit& h2)
 {
+  if (h1.left() <= h2.left() && h1.right() >= h2.right())
+    return make_pair(h1.right() - h1.left(), 0);
+  else if (h2.left() <= h1.left() && h2.right() >= h1.right())
+    return make_pair(h2.right() - h2.left(), 0);
+      
   int minor_hit_start, major_hit_start;
   int minor_hit_end, major_hit_end;
   if (h1.left() < h2.left())
