@@ -6,14 +6,26 @@ if [[ -z "$1" ]]; then
  exit 1
 fi
 echo "packing up $1.tar.gz, using BAM installation in $2, BOOST installation in $3"
+/bin/rm -rf $1 $1.tar.gz
 mkdir $1
 make clean
 make distclean
 if [[ $(uname -m) = "x86_64" ]]; then
  echo "Linking statically on x86_64.."
  export LDFLAGS="-static-libgcc -static-libstdc++"
-fi 
-./configure --prefix=`pwd`/$1 --with-bam=$2 --with-boost=$3
+fi
+if [[ $(uname) = "Darwin" ]]; then
+ export CFLAGS="-mmacosx-version-min=10.6"
+fi
+
+
+l2="$2"
+l3="$3"
+if [[ -z "$l3" ]]; then
+  l3="$l2"
+fi
+
+./configure --prefix=`pwd`/$1 --with-bam=$l2 --with-boost=$l3
 sed -e 's|__PREFIX__||' src/tophat2.in > src/tophat2
 make
 make install
@@ -23,6 +35,6 @@ cp README $1
 cp COPYING $1
 cp AUTHORS $1
 
-rm -r $1/bin
+/bin/rm -rf $1/bin
 
 tar cvfz $1.tar.gz $1

@@ -8,23 +8,80 @@
 
 void m2g_print_usage()
 {
-    std::cerr << "Usage: map2gtf\tannotation.gtf "
+    std::cerr << "Usage: map2gtf annotation.gtf "
             << " alignments.bam out_file.bam" << std::endl;
 }
 
+void tline_parserr(const std::string& tline, std::string add="") {
+	std::cerr << "Error at parsing .tlst line " << add << ":"
+			<< std::endl << '\t' << tline << std::endl;
+	exit(1);
+}
+
+GffTranscript::GffTranscript(const std::string& tline): exons(1),
+		numID(-1), gffID(), refID(), strand(0) {
+
+	std::istringstream f(tline);
+	std::string token;
+	std::vector<std::string> tokens;
+  while (std::getline(f, token, ' ')) {
+	  tokens.push_back(token);
+  }
+
+  if (tokens.size()!=4) {
+  	tline_parserr(tline);
+  }
+  numID=atoi(tokens[0].c_str());
+  gffID=tokens[1];
+  refID=tokens[2];
+  if (refID.length()<1) {
+  	tline_parserr(tline, "(refID empty)");
+  }
+  strand=refID[refID.length()-1];
+  if (strand!='-' && strand!='+') {
+  	tline_parserr(tline, "(invalid strand)");
+  }
+  refID.erase(refID.length()-1);
+
+  f.clear(); //to reset the std::getline() iterator
+  f.str(tokens[3]);
+  while (std::getline(f, token, ',')) {
+    size_t sp_pos=token.find('-');
+    if (sp_pos == std::string::npos) {
+       std::string s("(invalid exon str: ");
+       s+=token;s+=")";
+       tline_parserr(tline, s);
+    }
+    std::string s_start=token.substr(0,sp_pos);
+    std::string s_end=token.substr(sp_pos+1);
+    GSeg exon(atoi(s_start.c_str()), atoi(s_end.c_str()));
+    if (exon.start==0 || exon.end==0 || exon.end<=exon.start) {
+         std::string s("(invalid exon: ");
+         s+=token;s+=")";
+         tline_parserr(tline, s);
+    }
+    if (start==0 || start>exon.start) start=exon.start;
+    if (end==0 || end<exon.end) end=exon.end;
+    exons.Add(exon);
+  } //while exons
+}
+
 Map2GTF::Map2GTF(const std::string& gtf_fname, const std::string& in_fname) :
-    gtf_fname_(gtf_fname), in_fname_(in_fname), refSeqTable_(true)
+    gtf_fname_(gtf_fname), in_fname_(in_fname), out_sam_header_(NULL), refSeqTable_(true)
 {
+	/*
   gtf_fhandle_ = fopen(gtf_fname_.c_str(), "r");
   if (gtf_fhandle_ == NULL)
+  */
+	tlststream.open(gtf_fname_.c_str(), std::ios::in);
+	if (!tlststream.good())
     {
-      std::cerr << "FATAL: Couldn't open annotation: " << gtf_fname_
-                << std::endl;
+      std::cerr << "FATAL: Couldn't open transcript data: " << gtf_fname_ << std::endl;
       exit(1);
     }
-  std::cout << "Reading the annotation file: " << gtf_fname_ << std::endl;
-  gtfReader_.init(gtf_fhandle_, true); //only recognizable transcripts will be loaded
-  gtfReader_.readAll();
+
+	std::ios::sync_with_stdio(false);
+
   if (in_fname_=="-") {
     in_fhandle_=samopen(in_fname_.c_str(), "rbu", 0);
     }
@@ -33,24 +90,37 @@ Map2GTF::Map2GTF(const std::string& gtf_fname, const std::string& in_fname) :
   }
   if (in_fhandle_ == NULL)
     {
-      std::cerr << "FATAL: Couldn't open input bam file: " << in_fname_
-		<< std::endl;
+      std::cerr << "FATAL: Couldn't open input bam file: " << in_fname_ << std::endl;
       exit(1);
     }
   in_sam_header_ = in_fhandle_->header;
-  
-  std::cout << "Done with initializtion. " << std::endl;
+  std::cout << "Reading the transcript data: " << gtf_fname_ << std::endl;
+  //gtfReader_.init(gtf_fhandle_, true); //only recognizable transcripts will be loaded
+  //gtfReader_.readAll();
+
+  std::string tline;
+  while (std::getline(tlststream, tline)) {
+    if (tline.length()>4) {
+    	GffTranscript* t=new GffTranscript(tline);
+      transcripts.Add(t);
+      tidx_to_t[t->numID]=t;
+    }
+  }
+  tlststream.close();
+
+  std::cout << "Transcript data loaded." << std::endl;
 }
 
 Map2GTF::~Map2GTF()
 {
   std::cout << "map2gtf has completed. Cleaning up." << std::endl;
+  /*
   if (gtf_fhandle_ != NULL && fclose(gtf_fhandle_))
     {
       std::cerr << "Warning: Error closing annotation: " << gtf_fname_
                 << std::endl;
     }
-  
+  */
   if (in_fhandle_ != NULL)
     {
       samclose(in_fhandle_);
@@ -126,7 +196,8 @@ void Map2GTF::convert_coords(const std::string& out_fname, const std::string& sa
     }
   
   std::vector<TranscriptomeHit> read_list;
-  GffObj* p_trans = NULL;
+  //GffObj* p_trans = NULL;
+  GffTranscript* p_trans = NULL;
   
   HitsForRead hit_group;
   std::vector<TranscriptomeHit>::iterator bh_it;
@@ -143,9 +214,10 @@ void Map2GTF::convert_coords(const std::string& out_fname, const std::string& sa
         {
 	  bam1_t* hit = hits[i];
 	  const char* target_name = in_sam_header_->target_name[hit->core.tid];
-	  size_t trans_idx = atoi(target_name);
+	  int trans_idx = atoi(target_name);
 	    
-	  p_trans = gtfReader_.gflst.Get(trans_idx);
+	  //p_trans = gtfReader_.gflst.Get(trans_idx);
+	  p_trans = tidx_to_t[trans_idx];
 	  TranscriptomeHit converted_out(hit, p_trans);
 	  bool success = trans_to_genomic_coords(converted_out);
 
@@ -178,9 +250,11 @@ bool Map2GTF::trans_to_genomic_coords(TranscriptomeHit& hit)
   // read start in genomic coords
   size_t read_start = 0;
 
-  GList<GffExon>& exon_list = hit.trans->exons;
-  GffExon* cur_exon;
-  GffExon* next_exon;
+  //GList<GffExon>& exon_list = hit.trans->exons;
+  GVec<GSeg>& exon_list = hit.trans->exons;
+  //GffExon* cur_exon;
+  //GffExon* next_exon;
+  GSeg* next_exon=NULL;
   int cur_pos;
   int match_length;
   int miss_length;
@@ -192,7 +266,7 @@ bool Map2GTF::trans_to_genomic_coords(TranscriptomeHit& hit)
   int num_cigars = 0;
 
   // TODO: Check this return value
-  bool ret_val = get_read_start(&exon_list, hit.hit->core.pos, read_start, i);
+  bool ret_val = get_read_start(exon_list, hit.hit->core.pos, read_start, i);
   if (!ret_val)
   {
   }
@@ -215,9 +289,9 @@ bool Map2GTF::trans_to_genomic_coords(TranscriptomeHit& hit)
 	int remaining_length = length;
 	for (; i < exon_list.Count(); ++i)
 	{
-	  cur_exon = exon_list.Get(i);
-	  if (cur_pos >= (int)cur_exon->start &&
-		  cur_pos + remaining_length - 1 <= (int)cur_exon->end) // read ends in this exon
+	  GSeg& cur_exon = exon_list[i];
+	  if (cur_pos >= (int)cur_exon.start &&
+		  cur_pos + remaining_length - 1 <= (int)cur_exon.end) // read ends in this exon
 		  {
 		cigars[num_cigars] = opcode | (remaining_length << BAM_CIGAR_SHIFT);
 		++num_cigars;
@@ -226,8 +300,8 @@ bool Map2GTF::trans_to_genomic_coords(TranscriptomeHit& hit)
 		  }
 
 	  // shouldn't need the check... can switch to a regular "else"
-	  else if (cur_pos >= (int)cur_exon->start &&
-		  cur_pos + remaining_length - 1 > (int)cur_exon->end)// read is spliced and overlaps this exon
+	  else if (cur_pos >= (int)cur_exon.start &&
+		  cur_pos + remaining_length - 1 > (int)cur_exon.end)// read is spliced and overlaps this exon
 	  {
 		// XXX: This should _never_ go out of range.
 		// get the max length that fits in this exon, go to next exon
@@ -235,7 +309,7 @@ bool Map2GTF::trans_to_genomic_coords(TranscriptomeHit& hit)
 		// set assertion to check this
 
 		// TODO: check this
-		match_length = cur_exon->end - cur_pos + 1;
+		match_length = (int)cur_exon.end - cur_pos + 1;
 		if (match_length > 0)
 		{
 		  cigars[num_cigars] = opcode | (match_length << BAM_CIGAR_SHIFT);
@@ -253,10 +327,10 @@ bool Map2GTF::trans_to_genomic_coords(TranscriptomeHit& hit)
 		}
 
 		else
-		  next_exon = exon_list.Get(i + 1);
+		  next_exon = & (exon_list[i + 1]);
 
 		// and this
-		miss_length = next_exon->start - cur_exon->end - 1;
+		miss_length = next_exon->start - cur_exon.end - 1;
 		cur_intron_len += miss_length;
 
 		cigars[num_cigars] = BAM_CREF_SKIP | (miss_length << BAM_CIGAR_SHIFT);
@@ -310,17 +384,17 @@ bool Map2GTF::trans_to_genomic_coords(TranscriptomeHit& hit)
   return true;
 }
 
-void print_trans(GffObj* trans, const bam1_t* in, size_t rem_len,
+void print_trans(GffTranscript* trans, const bam1_t* in, size_t rem_len,
 		 size_t match_len, size_t cur_pos, size_t start_pos)
 {
-    GffExon* p_exon;
+    GSeg* p_exon;
     std::cerr << "\tCur_pos: " << cur_pos << " remaining: " << rem_len
             << " match_len: " << match_len << std::endl;
     std::cerr << "\tTranscript:\t" << trans->start << "\t" << trans->end
             << std::endl;
     for (int i = 0; i < trans->exons.Count(); ++i)
     {
-        p_exon = trans->exons.Get(i);
+        p_exon = & (trans->exons[i]);
         std::cerr << "\t\t" << p_exon->start << "\t" << p_exon->end
                 << std::endl;
     }
@@ -332,16 +406,20 @@ void print_trans(GffObj* trans, const bam1_t* in, size_t rem_len,
 }
 
 // Returns false if not in this exon list
-bool get_read_start(GList<GffExon>* exon_list, size_t gtf_start,
+//bool get_read_start(GList<GffExon>* exon_list, size_t gtf_start,
+bool get_read_start(GVec<GSeg>& exon_list, size_t gtf_start,
         size_t& genome_start, int& exon_idx)
 {
-    GffExon* cur_exon;
+    //GffExon* cur_exon;
+	  const GSeg* cur_exon;
     size_t cur_intron_dist = 0;
-    size_t trans_start = exon_list->First()->start;
+    //size_t trans_start = exon_list->First()->start;
+    size_t trans_start = exon_list[0].start;
     int trans_offset = 0;
-    for (int i = 0; i < exon_list->Count(); ++i)
+    for (int i = 0; i < exon_list.Count(); ++i)
     {
-        cur_exon = exon_list->Get(i);
+        //cur_exon = exon_list->Get(i);
+        cur_exon = & (exon_list[i]);
         trans_offset = trans_start + cur_intron_dist;
 
         if (gtf_start >= cur_exon->start - trans_offset && gtf_start
@@ -353,9 +431,9 @@ bool get_read_start(GList<GffExon>* exon_list, size_t gtf_start,
         }
         else
         {
-            if (i + 1 < exon_list->Count())
-                cur_intron_dist += exon_list->Get(i + 1)->start - cur_exon->end
-                        - 1;
+            if (i + 1 < exon_list.Count())
+                //cur_intron_dist += exon_list->Get(i + 1)->start - cur_exon->end - 1;
+            	   cur_intron_dist += exon_list[i + 1].start - cur_exon->end - 1;
             else
                 return false;
         }

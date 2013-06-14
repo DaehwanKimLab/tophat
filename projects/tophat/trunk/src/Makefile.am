@@ -5,6 +5,7 @@
 # run from src
 # - and tophat2.in added
 EXTRA_DIST = \
+tophat.py \
 tophat2.in \
 SeqAn-1.3/COPYING \
 SeqAn-1.3/README \
@@ -531,21 +532,25 @@ bin_PROGRAMS = \
 	sam_juncs
 
 bin_SCRIPTS = \
-	tophat2
+	tophat2 \
+	tophat
 
 #-- scripts to be installed in $prefix/bin
 dist_bin_SCRIPTS = \
 	contig_to_chr_coords \
-	tophat \
 	bed_to_juncs \
 	sra_to_solid \
 	tophat-fusion-post
 
 CLEANFILES = \
-	tophat2
+	tophat2 \
+	tophat
 
 tophat2: tophat2.in
 	sed -e 's|__PREFIX__|$(prefix)|' tophat2.in > tophat2
+
+tophat: tophat.py
+	sed -e 's|__VERSION__|$(VERSION)|' tophat.py > tophat
 
 #SUFFIXES = .py
 #.py:

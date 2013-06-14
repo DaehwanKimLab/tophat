@@ -24,13 +24,13 @@ FastaReader::~FastaReader()
 }
 
 void FastaReader::init(std::string fname)
-{    
+{
     if (isPrimed_) {
         std::cerr << "Warning: object has already FastaReader has already been "
             << "initialized with file: " << fname_ << std::endl;
         return;
     }
-    
+    std::ios::sync_with_stdio(false); //to speed up slow iostream reading
     fname_ = fname;
     ifstream_.open(fname_.c_str(), std::ios::in);
     if (!ifstream_.good()) {
@@ -38,7 +38,7 @@ void FastaReader::init(std::string fname)
             " in FastaReader" << std::endl;
         exit(1);
     }
-    
+
     // Check the first character to see if it is valid
     char c = ifstream_.peek();
     if (c != '>')
@@ -48,9 +48,7 @@ void FastaReader::init(std::string fname)
         exit(1);
     }
 
-    
     isPrimed_ = true;
-    
 }
 
 
@@ -59,12 +57,9 @@ bool FastaReader::good() const
     return ifstream_.good() && !ifstream_.eof();
 }
 
-// TODO: Make it read the description
-//       Right now only reads the ID and sequence
 //       Up to caller to allocate memory. 
 //       Only deallocates memory when there are no more records left
-void FastaReader::next(FastaRecord* rec)
-{
+bool FastaReader::next(FastaRecord& rec) {
     if (!isPrimed_)
     {
         std::cerr << "ERROR: Stream has not been primed (FastaReader)" 
@@ -72,32 +67,41 @@ void FastaReader::next(FastaRecord* rec)
         exit(1);
     }
     // Get the entire first line and description
-    ifstream_.getline(line_buf_, LINE_BUF_SIZE);
-    sscanf(line_buf_, "%s", id_buf_);
-    char *cur_id = new char[strlen(id_buf_) + 1];
-    strncpy(cur_id, id_buf_ + 1, strlen(id_buf_));
-    std::string id(static_cast<const char*>(cur_id));
-    delete cur_id;
-    
-    std::string seq;
-    std::string cur_line;
-    
-    if (!good()) {
-        delete rec;
-        rec = NULL;
-        return;
-    }
-    
-    // Read until you see another ">"
-    while (ifstream_.peek() != '>' && ifstream_.good() && !ifstream_.eof()) {
-        ifstream_ >> cur_line >> std::ws;
-        seq += cur_line;
+    //ifstream_.getline(line_buf_, LINE_BUF_SIZE);
+    if (ifstream_.eof() || !std::getline(ifstream_, line_buf_)) {
+      rec.clear();
+      return false;
     }
 
-    rec->id_ = id;
-    rec->seq_ = seq;
-    
-    return;
+    if (line_buf_.empty() || !good()) {
+        rec.clear();
+        return false;
+    }
+    if (line_buf_.length()>0 && line_buf_[0]!='>') {
+      std::cerr << "ERROR: no FASTA record start found (FastaReader)" << std::endl;
+      exit(1);
+    }
+    size_t sp_pos = line_buf_.find(' ');
+    if (sp_pos != std::string::npos) {
+       rec.id_=line_buf_.substr(1, sp_pos-1);
+       rec.desc_=line_buf_.substr(sp_pos+1);
+    }
+    else {
+       rec.id_=line_buf_.substr(1);
+       rec.desc_.clear();
+    }
+    rec.seq_.clear();
+
+    // Read until you see another ">"
+    while (ifstream_.peek() != '>') {
+        //ifstream_ >> cur_line >> std::ws;
+       if (std::getline(ifstream_, line_buf_))
+           rec.seq_ += line_buf_;
+       else {
+           break; // if ifstream_.good() && !ifstream_.eof() &&
+       }
+    }
+    return true;
 }
 
 
@@ -140,21 +144,21 @@ void FastaWriter::init(std::string fname)
     isPrimed_ = true;
 }
 
-void FastaWriter::write(FastaRecord* rec, size_t column_size)
+void FastaWriter::write(FastaRecord& rec, size_t column_size)
 {
-    if (rec->seq_.length() == 0)
+    if (rec.seq_.length() == 0)
         return; //don't write empty records
-    ofstream_ << ">" << rec->id_; //<< std::endl;
-    if (rec->desc_.length()) {
-      ofstream_ << " " << rec->desc_;
+    ofstream_ << ">" << rec.id_; //<< std::endl;
+    if (rec.desc_.length()) {
+      ofstream_ << " " << rec.desc_;
       }
     ofstream_ << std::endl;
 
     // iterate throught the string and print out the string
     size_t start = 0;
-    while (start < rec->seq_.length())
+    while (start < rec.seq_.length())
     {
-        ofstream_ << rec->seq_.substr(start, column_size) << std::endl;
+        ofstream_ << rec.seq_.substr(start, column_size) << std::endl;
         start += column_size;
     }
 }

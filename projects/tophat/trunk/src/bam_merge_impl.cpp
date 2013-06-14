@@ -87,7 +87,7 @@ bool BamMerge::next_bam_lines(vector<CBamLine>& bam_lines)
   vector<CBamLine> temp_bam_lines;
   while (_lines.size() > 0) {
     CBamLine brec(_lines.top()); //should have the smallest read_id
-    assert (brec.fileno>=0 && brec.b!=NULL);
+    assert (brec.filenum>=0 && brec.b!=NULL);
 
     if ((raw_merge || _last_id != brec.read_id) && temp_bam_lines.size() > 0)
       {

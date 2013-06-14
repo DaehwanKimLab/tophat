@@ -18,7 +18,6 @@
 #include "bam/bam.h"
 #include "bam/sam.h"
 
-
 #define MAX_READ_LEN 1024
 
 //for fastq and bam indexing by read# (multi-threading)

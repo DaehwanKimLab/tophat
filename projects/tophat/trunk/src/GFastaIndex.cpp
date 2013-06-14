@@ -1,5 +1,5 @@
 /*
- * GFaIdx.cpp
+ * GFastaIndex.cpp
  *
  *  Created on: Aug 25, 2010
  *      Author: gpertea
@@ -22,7 +22,7 @@ void GFastaIndex::addRecord(const char* seqname, uint seqlen, off_t foffs, int l
          records.Add(seqname,farec);
          farec->seqname=records.getLastKey();
          }
-     }
+}
 
 int GFastaIndex::loadIndex(const char* finame) { //load record info from existing fasta index
     if (finame==NULL) finame=fai_name;
@@ -47,13 +47,13 @@ int GFastaIndex::loadIndex(const char* finame) { //load record info from existin
       p++;
       uint len=0;
       int line_len=0, line_blen=0;
-      #ifdef __WIN32__
+#ifdef __WIN32__
          long offset=-1;
          sscanf(p, "%d%ld%d%d", &len, &offset, &line_len, &line_blen);
-      #else
+#else
          long long offset=-1;
          sscanf(p, "%d%lld%d%d", &len, &offset, &line_len, &line_blen);
-      #endif
+#endif
       if (len==0 || line_len==0 || line_blen==0 || line_blen<line_len)
           GError(ERR_FAIDXLINE,p);
       addRecord(s,len,offset,line_len, line_blen);
@@ -61,7 +61,7 @@ int GFastaIndex::loadIndex(const char* finame) { //load record info from existin
     fclose(fi);
     haveFai=(records.Count()>0);
     return records.Count();
-    }
+}
 
 int GFastaIndex::buildIndex() {
     //this parses the whole fasta file, so it could be slow
@@ -128,7 +128,7 @@ int GFastaIndex::buildIndex() {
     GFREE(seqname);
     fclose(fa);
     return records.Count();
-    }
+}
 
 
 int GFastaIndex::storeIndex(const char* finame) { //write the hash to a file
@@ -140,7 +140,7 @@ int GFastaIndex::storeIndex(const char* finame) { //write the hash to a file
     GFREE(fai_name);
     fai_name=Gstrdup(finame);
     return rcount;
-    }
+}
 
 int GFastaIndex::storeIndex(FILE* fai) {
   int rcount=0;
