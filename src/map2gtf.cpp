@@ -8,8 +8,8 @@
 
 void m2g_print_usage()
 {
-    std::cerr << "Usage: map2gtf annotation.gtf "
-            << " alignments.bam out_file.bam" << std::endl;
+    std::cerr << "Usage: map2gtf annotation.tlst "
+            << "alignments.bam out_file.bam" << std::endl;
 }
 
 void tline_parserr(const std::string& tline, std::string add="") {
