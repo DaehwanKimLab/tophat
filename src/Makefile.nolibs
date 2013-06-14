@@ -87,9 +87,9 @@ bwt2sam: ${COM_OBJS} bwt_map.o bwt2sam.o
 	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
 bam2bed: ./bam2bed.o
 	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
-bam2fastx: ./bam2fastx.o
+bam2fastx: bam2fastx.o
 	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
-bam_merge: ./common.o ./GBase.o ./bam_merge.o
+bam_merge: ${COM_OBJS} bam_merge.o bam_merge_impl.o
 	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
 bwt_map.o: bwt_map.h
 fix_map_ordering: ${COM_OBJS} bwt_map.o fix_map_ordering.o
@@ -110,7 +110,7 @@ segment_juncs: ${SEG_OBJS} segment_juncs.o
 	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${BLIBS}
 juncs_db: ${SEG_OBJS} juncs_db.o
 	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${LIBS}
-tophat_reports: ${SEG_OBJS} inserts.o tophat_reports.o 
+tophat_reports: ${SEG_OBJS} inserts.o qual.o bam_merge_impl.o tophat_reports.o
 	${LINKER} ${LDFLAGS} -o $@ ${filter-out %.a %.so, $^} ${BLIBS}
 tophat_reports.o prep_reads.o fix_map_ordering.o map2gtf.o bam_merge.o bam2fastx.o bwt_map.o common.o: common.h
 bwt_map.o: common.h bwt_map.h

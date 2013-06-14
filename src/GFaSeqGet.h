@@ -23,6 +23,11 @@ class GSubSeq {
      xstart=0;
      xlen=0;*/
      }
+  void forget() { //forget about pointer data, so we can reuse it
+  	sq=NULL;
+  	sqstart=0;
+  	sqlen=0;
+  }
   ~GSubSeq() {
      GFREE(sq);
      }
@@ -86,11 +91,29 @@ class GFaSeqGet {
       return subseq(cstart, clen);
       }
 
-  char* copyRange(uint cstart, uint cend, bool revCmpl=false, bool upCase=false);
   //caller is responsible for deallocating the return string
+  char* copyRange(uint cstart, uint cend, bool revCmpl=false, bool upCase=false);
+
+  //uncached, read and return allocated buffer
+  //caller is responsible for deallocating the return string
+  char* fetchSeq(int* retlen=NULL) {
+  	int clen=(seq_len>0) ? seq_len : MAX_FASUBSEQ;
+  	if (lastsub) { delete lastsub; lastsub=NULL; }
+  	subseq(1, clen);
+  	if (retlen) *retlen=clen;
+  	char* r=lastsub->sq;
+  	lastsub->forget();
+  	if (clen>0) {
+  	   r[clen]=0;
+  	}
+  	else {
+  		r=NULL;
+  	}
+  	return r;
+  }
 
   void loadall(uint32 max_len=0) {
-    //TODO: must read the whole sequence differently here - line by line
+    //TODO: better read the whole sequence differently here - line by line
     //so when EOF or another '>' line is found, the reading stops!
     int clen=(seq_len>0) ? seq_len : ((max_len>0) ? max_len : MAX_FASUBSEQ);
     subseq(1, clen);
@@ -102,6 +125,7 @@ class GFaSeqGet {
       subseq(cstart, clen);
      }
   int getsublen() { return lastsub!=NULL ? lastsub->sqlen : 0 ; }
+  int getseqlen() { return seq_len; } //known when loaded with GFastaIndex
   off_t getseqofs() { return fseqstart; }
   int getLineLen() { return line_len; }
   int getLineBLen() { return line_blen; }

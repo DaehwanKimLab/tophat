@@ -30,9 +30,30 @@
 
 #include "bwt_map.h"
 #include "common.h"
-#include "gff.h"
+
+//#include "gff.h"
+#include "GVec.hh"
 
 #define MAX_READ_NAME_LEN 2048
+
+//simplified version of GffObj
+//parsed from a simple text line
+struct GffTranscript: public GSeg {
+	GVec<GSeg> exons;
+	int numID; //numeric ID in tlst
+	std::string gffID;
+	std::string refID;
+	char strand;
+	GffTranscript():exons(1), numID(-1), gffID(),
+			refID(), strand(0) { }
+
+	string& getRefName() {
+		return refID;
+	}
+	GffTranscript(const std::string& tline);
+};
+
+
 
 /*
  * XXX: This class currently assumes someone used the script in TopHat to map
@@ -50,12 +71,14 @@ public:
     bool trans_to_genomic_coords(TranscriptomeHit& hit);
 
 private:
-    GffReader gtfReader_;
-
+    //GffReader gtfReader_;
+    GPVec<GffTranscript> transcripts;
+    map<int, GffTranscript*> tidx_to_t;
     std::string gtf_fname_;
     std::string in_fname_;
 
-    FILE* gtf_fhandle_;
+    //FILE* gtf_fhandle_; //actually a tlst handle
+    std::ifstream tlststream;
     samfile_t* in_fhandle_;
     bam_header_t* in_sam_header_;
 
@@ -72,12 +95,10 @@ class TranscriptomeHit
 {
  public:
   bam1_t* hit;
-  GffObj* trans;
-  TranscriptomeHit(bam1_t* h = NULL, GffObj* t = NULL)
-    {
-      hit = h;
-      trans = t;
-    }
+  GffTranscript* trans;
+  TranscriptomeHit(bam1_t* h = NULL, GffTranscript* t=NULL): //GffObj* t = NULL)
+  	hit(h), trans(t)
+    { }
   bool operator==(const TranscriptomeHit& th) const
   {
     if (hit->core.tid != th.hit->core.tid)
@@ -118,10 +139,11 @@ class TranscriptomeHit
   }  
 };
 
-bool get_read_start(GList<GffExon>* exon_list, size_t gtf_start,
-		    size_t& genome_start, int& exon_idx);
+//bool get_read_start(GList<GffExon>* exon_list, size_t gtf_start,
+bool get_read_start(GVec<GSeg>& exon_list, size_t gtf_start,
+		 size_t& genome_start, int& exon_idx);
 
-void print_trans(GffObj* trans, const bam1_t* in, size_t rem_len,
+void print_trans(GffTranscript* trans, const bam1_t* in, size_t rem_len,
 		 size_t match_len, size_t cur_pos, size_t start_pos);
 
 #endif /* _MAP2GTF_H_ */
