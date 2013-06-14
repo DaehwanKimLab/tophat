@@ -24,7 +24,11 @@
 <div class="box">
  <ul>
    <table width="100%">
-	 <tbody><tr><td>Questions about TopHat should be sent to <a href="mailto:tophat.cufflinks@gmail.com"><b>tophat.cufflinks@gmail.com</b></a>.  Please do not email technical questions to TopHat contributors directly.</td></tr>
+	 <tbody><tr><td>
+     Questions and comments about TopHat can be posted on the 
+     <a href="https://groups.google.com/forum/#!forum/tuxedo-tools-users"><b>Tuxedo Tools Users Google Group</b></a>. 
+     Please use <a href="mailto:tophat.cufflinks@gmail.com">tophat.cufflinks@gmail.com</a> for 
+     private communications only. Please do not email technical questions to TopHat contributors directly.</td></tr>
    </tbody></table>
  </ul>
 </div>
@@ -32,15 +36,15 @@
 <a href="./downloads"><h2><u>Releases</u></h2></a>
 <div class="box">
  <ul>
-   <table width="100%"><tbody><tr><td>version 2.0.8b</td> <td align="right">4/12/2013</td></tr>
+   <table width="100%"><tbody><tr><td>version 2.0.9</td> <td align="right">6/14/2013</td></tr>
 	 <tr>
-		 <td><a href="./downloads/tophat-2.0.8b.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
+		 <td><a href="./downloads/tophat-2.0.9.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
 	 </tr>
 	 <tr>
-		 <td><a href="./downloads/tophat-2.0.8b.Linux_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
+		 <td><a href="./downloads/tophat-2.0.9.Linux_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Linux x86_64 binary</a></td>
 	 </tr>
 	 <tr>
-		 <td><a href="./downloads/tophat-2.0.8b.OSX_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
+		 <td><a href="./downloads/tophat-2.0.9.OSX_x86_64.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Mac OS X x86_64 binary</a></td>
 	 </tr>
 
 

@@ -31,6 +31,21 @@
 	<!--#include virtual="sidebar.inc.shtml"-->
 	</div> <!-- End of "rightside" -->
 	<div id="leftside">
+	  <h2>TopHat 2.0.9 release 6/14/2013</h2>
+	  <p> Version 2.0.9 is a maintenance release providing better management of the transcriptome data files 
+      and fixes a few problems found in earlier releases:</p>
+	  <ul>
+	    <li> Fixed parsing of some GFF3 files that could produce a crash with previous versions.
+	    </li>
+	    <li> Starting with this version TopHat2 will automatically check for consistency and, if needed, rebuild the existing transcriptome 
+	    data files after an update of the GFF parser or a detected change of the underlying annotation data.
+	    </li>
+	    <li> Fixed a bug that added an extra XS tag in the output SAM files.
+	    </li>
+	    <li> Fixed a read pairing bug for cases where a read contained its mate.
+	    </li>
+	</ul>
+	  <br>
 	  <h2> TopHat2 paper published 4/25/2013 </h2>
 	  <p>
 	    The TopHat2 <a href="http://genomebiology.com/2013/14/4/R36/abstract">paper</a> has been published in <a href="http://genomebiology.com/"><i>Genome Biology</i></a>.
