@@ -569,6 +569,7 @@ noinst_HEADERS = \
 	GFaSeqGet.h \
 	gff.h \
 	GHash.hh \
+	GVec.hh \
 	GList.hh \
 	GStr.h \
 	FastaTools.h \
