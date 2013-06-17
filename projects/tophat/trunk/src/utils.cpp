@@ -35,12 +35,20 @@ bool calculate_offsets(const vector<string>& fnames,
 	}
       else
 	{
-	  for (size_t j = 0; j < (size_t)num_threads; ++j)
+	  size_t j = 0;
+	  while (true)
 	    {
 	      char suffix[128];
 	      sprintf(suffix, "%lu.bam", j);
 	      string temp_fname = fname + suffix;
 	      temp_fnames.push_back(temp_fname);
+
+	      string temp_index_fname = temp_fname + ".index";
+	      ifstream index_file(temp_index_fname.c_str());
+	      if (!index_file.is_open())
+		break;
+
+	      ++j;
 	    }
 	}
       

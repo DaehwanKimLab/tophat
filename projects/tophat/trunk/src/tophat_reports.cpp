@@ -1178,7 +1178,7 @@ void realign_reads(HitsForRead& hits,
 		    }
 
 		  {
-		    static const size_t max_temp_juncs = 3;
+		    static const size_t max_temp_juncs = 5;
 		    
 		    JunctionSet::const_iterator lb, ub;
 		    JunctionSet temp_junctions;
@@ -1214,6 +1214,30 @@ void realign_reads(HitsForRead& hits,
 			  }
 		      }
 
+		    // daehwan - for debugging purposes
+		    /*
+		    if (bh.insert_id() == 15461 && cigars.size() == 1)
+		      {
+			printf("%d: %s\n",
+			       bh.insert_id(), print_cigar(bh.cigar()).c_str());
+
+			printf("candidate junctions: %d - max junctions: %d\n",
+			       temp_junctions.size(),
+			       max_temp_juncs);
+
+			JunctionSet::const_iterator junc_iter = temp_junctions.begin();
+			for (; junc_iter != temp_junctions.end(); ++junc_iter)
+			  {
+			    Junction junc = junc_iter->first;
+			    fprintf(stderr, "%d %d-%d %s (AS:%d XM:%d) with junc %u-%u\n",
+				    bh.insert_id(), bh.left(), bh.right(),
+				    print_cigar(bh.cigar()).c_str(),
+				    bh.alignment_score(), bh.edit_dist(),
+				    junc.left, junc.right);
+			  }
+		      }
+		    */
+
 		    if (temp_junctions.size() > max_temp_juncs)
 		      continue;
 
@@ -1222,14 +1246,14 @@ void realign_reads(HitsForRead& hits,
 		      {
 			Junction junc = junc_iter->first;
 			
-			/*
+#if 0
 			fprintf(stderr, "%d %d-%d %s (AS:%d XM:%d) with junc %u-%u\n",
 				bh.insert_id(), bh.left(), bh.right(),
 				print_cigar(bh.cigar()).c_str(),
 				bh.alignment_score(), bh.edit_dist(),
 				junc.left, junc.right);
-			//*/
-
+#endif
+			
 			int new_left = bh.left();
 			int intron_length = junc.right - junc.left - 1;
 			vector<CigarOp> new_cigars;
@@ -1356,13 +1380,13 @@ void realign_reads(HitsForRead& hits,
 			    if (new_bh.edit_dist() <= bh.edit_dist())
 			      additional_hits.push_back(new_bh);
 
-			    /*
-			      fprintf(stderr, "\t%d %d-%d %s (AS:%d XM:%d) with junc %u-%u\n",
-			      new_bh.insert_id(), new_bh.left(), new_bh.right(),
-			      print_cigar(new_bh.cigar()).c_str(),
-			      new_bh.alignment_score(), new_bh.edit_dist(),
-			      junc.left, junc.right);
-			    //*/
+#if 0
+			    fprintf(stderr, "\t%d %d-%d %s (AS:%d XM:%d) with junc %u-%u\n",
+				    new_bh.insert_id(), new_bh.left(), new_bh.right(),
+				    print_cigar(new_bh.cigar()).c_str(),
+				    new_bh.alignment_score(), new_bh.edit_dist(),
+				    junc.left, junc.right);
+#endif
 			  }
 		      }
 		  }
@@ -1673,10 +1697,13 @@ public:
       {
 	const string& fname = fnames[i];
 
+	vector<uint64_t> next_file_read_ids;
+
 	vector<string> temp_fnames;
 	if (fname.substr(fname.length() - 4) == ".bam")
 	  {
 	    temp_fnames.push_back(fname);
+	    next_file_read_ids.push_back(0);
 	  }
 	else
 	  {
@@ -1686,12 +1713,34 @@ public:
 		char suffix[128];
 		sprintf(suffix, "%lu.bam", j);
 		string temp_fname = fname + suffix;
+		string temp_index_fname = temp_fname + ".index";
 
-		ifstream index_file(temp_fname.c_str());
+		ifstream index_file(temp_index_fname.c_str());
 		if (!index_file.is_open())
-		  break;
+		  {
+		    next_file_read_ids.push_back(0);
+		    break;
+		  }
 
 		temp_fnames.push_back(temp_fname);
+		
+		if (j > 0)
+		  {
+		    string line;
+		    int64_t offset = 0;
+		    uint64_t read_id = 0;
+		    if (getline(index_file, line))
+		      {
+			istringstream istream(line);
+			istream >> read_id >> offset;
+			next_file_read_ids.push_back(read_id);
+		      }
+		    else
+		      {
+			next_file_read_ids.push_back(0);
+		      }
+		  }
+		
 		++j;
 	      }
 	  }
@@ -1702,6 +1751,8 @@ public:
 	    if (!reads_index_file.is_open())
 	      continue;
 
+	    bool pushed = false;
+	    
 	    int64_t offset = 0, last_offset = 0;
 	    uint64_t read_id = 0, last_read_id = 0;
 	    string line;
@@ -1711,10 +1762,10 @@ public:
 		istream >> read_id >> offset;
 		if (read_id > _begin_id && last_read_id <= _begin_id)
 		  {
+		    pushed = true;
 		    _fnames.push_back(temp_fnames[j]);
 		    offsets.push_back(last_offset);
 		    
-		    // daehwan - for debugging purposes
 #if 0
 		    fprintf(stderr, "bet %lu and %lu - %s %lu %ld\n",
 			    _begin_id, _end_id, temp_fnames[j].c_str(), last_offset, last_read_id);
@@ -1726,8 +1777,23 @@ public:
 		last_offset = offset;
 		last_read_id = read_id;
 	      }
+
+	    if (!pushed)
+	      {
+		if(next_file_read_ids[j] > _begin_id && last_read_id <= _begin_id)
+		  {
+		    pushed = true;
+		    _fnames.push_back(temp_fnames[j]);
+		    offsets.push_back(last_offset);
+
+#if 0
+		    fprintf(stderr, "2 bet %lu and %lu - %s %lu %ld\n",
+			    _begin_id, _end_id, temp_fnames[j].c_str(), last_offset, last_read_id);
+#endif
+		  }
+	      }
 	    
-	    if (last_read_id >= _end_id)
+	    if (read_id >= _end_id)
 	      break;
 
 	    if (read_id == 0)
@@ -1871,6 +1937,7 @@ struct ConsensusEventsWorker
 	  {
 	    HitsForRead best_hits;
 	    best_hits.insert_id = curr_right_obs_order;
+	    
 	    if (curr_right_obs_order >= begin_id)
 	      {
 		// Process hit for right singleton, select best alignments
