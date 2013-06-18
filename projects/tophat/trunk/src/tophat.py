@@ -3282,6 +3282,7 @@ def map2gtf(params, genome_sam_header_filename, ref_fasta, left_reads, right_rea
        m2g_ref_name  = t_out_dir + gtf_name
        m2g_ref_fasta = gtf_to_fasta(params, params.gff_annotation, ref_fasta, m2g_ref_name)
        m2g_bwt_idx = build_idx_from_fa(params.bowtie2, m2g_ref_fasta, t_out_dir, params.read_params.color)
+       params.transcriptome_index = m2g_bwt_idx
 
     transcriptome_header_filename = get_index_sam_header(params, m2g_bwt_idx)
 
