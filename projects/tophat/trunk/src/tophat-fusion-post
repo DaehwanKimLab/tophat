@@ -1753,6 +1753,8 @@ def generate_html(params):
                     output["ravg"] = 0
                     output["rgap"] = 0
                     output["rder"] = 0
+                    output["score"] = 0
+                    output["assembled"] = False
 
             line_no += 1
 
