@@ -137,7 +137,7 @@ void getRead(const bam1_t *b, samfile_t* fp, Read& rd) {
 
   if ((b->core.flag & BAM_FQCFAIL) && !ignoreQC) return;
   bool ismapped=((b->core.flag & BAM_FUNMAP) == 0);
-  if (ismapped && !all_reads) return;
+  if (ismapped && !(all_reads || mapped_only)) return;
   if (mapped_only && !ismapped) return;
 
   bool isreversed=((b->core.flag & BAM_FREVERSE) != 0);
