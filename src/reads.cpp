@@ -649,77 +649,83 @@ bool ReadStream::get_direct(Read& r, ReadFormat read_format) {
 
 // reads must ALWAYS be requested in increasing order of their ID
 bool ReadStream::getRead(uint64_t r_id,
-			 Read& read,
-			 ReadFormat read_format,
-			 bool strip_slash,
-			 uint64_t begin_id,
-			 uint64_t end_id,
-			 GBamWriter* um_out, //unmapped reads output
-			 bool um_write_found //write the found ones
-			 ) {
-  if (!fstream.file)
-       err_die("Error: calling ReadStream::getRead() with no file handle!");
-  if (r_id<last_id)
-      err_die("Error: ReadStream::getRead() called with out-of-order id#!");
-  last_id=r_id;
-  bool found=false;
-  read.clear();
-  while (!found) {
-    QReadData rdata;
-    if (!next_read(rdata, read_format))
-        break;
-    /*
+		Read& read,
+		ReadFormat read_format,
+		bool strip_slash,
+		uint64_t begin_id,
+		uint64_t end_id,
+		GBamWriter* um_out, //unmapped reads output
+		char um_code, //if non-zero, write the found read to um_out with this code
+		int64_t* unmapped_counter //update this counter for skipped reads *only*
+) {
+	if (!fstream.file)
+		err_die("Error: calling ReadStream::getRead() with no file handle!");
+	if (r_id<last_id)
+		err_die("Error: ReadStream::getRead() called with out-of-order id#!");
+	last_id=r_id;
+	bool found=false;
+	read.clear();
+	while (!found) {
+		QReadData rdata;
+		if (!next_read(rdata, read_format))
+			break;
+		/*
     if (strip_slash) {
        string::size_type slash = rdata.read.name.rfind("/");
        if (slash != string::npos)
           rdata.read.name.resize(slash);
        }
     uint64_t id = (uint64_t)atol(read.name.c_str());
-    */
-    if (rdata.id >= end_id)
-      return false;
+		 */
+		if (rdata.id >= end_id)
+			return false;
 
-    if (rdata.id < begin_id)
-      continue;
+		if (rdata.id < begin_id)
+			continue;
 
-    if (rdata.id == r_id)
-      {
-      read=rdata.read;
-	  found=true;
-      }
-    else if (rdata.id > r_id)
-      { //can't find it, went too far
-      //only happens when reads [mates] were removed for some reason
-      //read_pq.push(make_pair(id, read));
-      read_pq.push(rdata);
-      break;
-      }
-    if (um_out && ((um_write_found && found) ||
-    	           (!um_write_found && !found))) {
-       //write unmapped reads
-       //fprintf(um_out, "@%s\n%s\n+\n%s\n", read.alt_name.c_str(),
-       //                        read.seq.c_str(), read.qual.c_str());
-    	string rname(rdata.read.alt_name);
-	size_t slash_pos=rname.rfind('/');
-	if (slash_pos!=string::npos)
-	  rname.resize(slash_pos);
-
-    	GBamRecord bamrec(rname.c_str(), -1, 0, false, rdata.read.seq.c_str(),
-    		NULL, rdata.read.qual.c_str());
-    	if (rdata.matenum) {
-    	  bamrec.set_flag(BAM_FPAIRED);
-    	  if (rdata.matenum==1) bamrec.set_flag(BAM_FREAD1);
-    	  else bamrec.set_flag(BAM_FREAD2);
-    	}
-    	if (rdata.trashCode) {
-    	  if (rdata.trashCode!='M') {
-    		   //multi-mapped reads did not really QC-fail
-  		       bamrec.set_flag(BAM_FQCFAIL);
-    	  }
-    	  bamrec.add_aux("ZT", 'A', 1, (uint8_t*)&rdata.trashCode);
-    	}
-        um_out->write(&bamrec);
-      }
-    } //while reads
-  return found;
+		if (rdata.id == r_id)
+		{
+			read=rdata.read;
+			found=true;
+		}
+		else if (rdata.id > r_id)
+		{ //can't find it, went too far
+			//only happens when reads [mates] were removed for some reason
+			//read_pq.push(make_pair(id, read));
+			read_pq.push(rdata);
+			break;
+		}
+		if (unmapped_counter && um_out && !found) {
+			(*unmapped_counter)++;
+		}
+		if (um_out && ((um_code && found) || !found )) {
+			// (!um_write_found && !found))) {
+			//write unmapped reads (or inadequately mapped if um_code>0)
+			//fprintf(um_out, "@%s\n%s\n+\n%s\n", read.alt_name.c_str(),
+			//                        read.seq.c_str(), read.qual.c_str());
+			string rname(rdata.read.alt_name);
+			size_t slash_pos=rname.rfind('/');
+			if (slash_pos!=string::npos)
+				rname.resize(slash_pos);
+			GBamRecord bamrec(rname.c_str(), -1, 0, false, rdata.read.seq.c_str(),
+					NULL, rdata.read.qual.c_str());
+			if (rdata.matenum) {
+				bamrec.set_flag(BAM_FPAIRED);
+				if (rdata.matenum==1) bamrec.set_flag(BAM_FREAD1);
+				else bamrec.set_flag(BAM_FREAD2);
+			}
+			if (found && um_code) {
+				rdata.trashCode=um_code;
+			}
+			if (rdata.trashCode) {
+				if (rdata.trashCode!='M') {
+					//multi-mapped reads did not really QC-fail
+					bamrec.set_flag(BAM_FQCFAIL);
+				}
+				bamrec.add_aux("ZT", 'A', 1, (uint8_t*)&rdata.trashCode);
+			}
+			um_out->write(&bamrec);
+		}
+	} //while reads
+	return found;
 }
