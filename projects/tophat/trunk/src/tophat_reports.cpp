@@ -29,7 +29,7 @@
 #include <seqan/find.h>
 #include <seqan/file.h>
 #include <getopt.h>
-
+#include <inttypes.h>
 #include <boost/thread.hpp>
 #include <boost/random/mersenne_twister.hpp>
 
@@ -109,101 +109,107 @@ struct cmp_read_equal
   }
 };
 
-void read_best_alignments(const HitsForRead& hits_for_read,
-			  HitsForRead& best_hits,
-			  const JunctionSet& gtf_junctions,
-			  const JunctionSet& junctions = empty_junctions,
-			  const InsertionSet& insertions = empty_insertions,
-			  const DeletionSet& deletions = empty_deletions,
-			  const FusionSet& fusions = empty_fusions,
-			  const Coverage& coverage = empty_coverage,
-			  bool final_report = false,
-			  boost::mt19937* rng = NULL)
+char read_best_alignments(const HitsForRead& hits_for_read,
+		HitsForRead& best_hits,
+		const JunctionSet& gtf_junctions,
+		const JunctionSet& junctions = empty_junctions,
+		const InsertionSet& insertions = empty_insertions,
+		const DeletionSet& deletions = empty_deletions,
+		const FusionSet& fusions = empty_fusions,
+		const Coverage& coverage = empty_coverage,
+		bool final_report = false,
+		boost::mt19937* rng = NULL)
 {
-  const vector<BowtieHit>& hits = hits_for_read.hits;
-  if (hits.size() >= max_multihits * 5)
-    return;
-
-  for (size_t i = 0; i < hits.size(); ++i)
-    {
-      if (hits[i].mismatches() > read_mismatches ||
-	  hits[i].gap_length() > read_gap_length ||
-	  hits[i].edit_dist() > read_edit_dist)
-	continue;
-
-      BowtieHit hit = hits[i];
-      AlignStatus align_status(hit, gtf_junctions,
-			       junctions, insertions, deletions, fusions, coverage);
-      hit.alignment_score(align_status._alignment_score);
-
-      if (report_secondary_alignments || !final_report)
+	char ret_code=0;
+	const vector<BowtieHit>& hits = hits_for_read.hits;
+	/* if (hits.size() >= max_multihits * 5) {
+		ret_code |= 16;
+		return ret_code; //too many hits
+	}*/
+ unsigned int nhits=0;
+	for (size_t i = 0; i < hits.size(); ++i)
 	{
-	  best_hits.hits.push_back(hit);
+			if (hits[i].mismatches() > read_mismatches ||
+					hits[i].gap_length() > read_gap_length ||
+					hits[i].edit_dist() > read_edit_dist)
+				continue;
+			ret_code |= 1; //read has a valid mapping
+			nhits++;
+			if (nhits>1) ret_code |= 4; //read has multiple valid mappings
+			if (nhits>max_multihits) ret_code |= 16; //read has too many valid mappings
+			BowtieHit hit = hits[i];
+			AlignStatus align_status(hit, gtf_junctions,
+					junctions, insertions, deletions, fusions, coverage);
+			hit.alignment_score(align_status._alignment_score);
+			if (report_secondary_alignments || !final_report)
+			{
+				best_hits.hits.push_back(hit);
+			}
+			else
+			{
+				// Is the new status better than the current best one?
+				if (best_hits.hits.size() == 0 || cmp_read_alignment()(hit, best_hits.hits[0]))
+				{
+					best_hits.hits.clear();
+					best_hits.hits.push_back(hit);
+				}
+				else if (!cmp_read_alignment()(best_hits.hits[0], hit)) // is it just as good?
+				{
+					best_hits.hits.push_back(hit);
+				}
+			}
 	}
-      else
+
+	// due to indel alignments, there may be alignments with the same location
+	std::sort(best_hits.hits.begin(), best_hits.hits.end());
+	vector<BowtieHit>::iterator new_end = std::unique(best_hits.hits.begin(), best_hits.hits.end(), cmp_read_equal());
+	best_hits.hits.erase(new_end, best_hits.hits.end());
+
+	if ((report_secondary_alignments || !final_report) && best_hits.hits.size() > 0)
 	{
-	  // Is the new status better than the current best one?
-	  if (best_hits.hits.size() == 0 || cmp_read_alignment()(hit, best_hits.hits[0]))
-	    {
-	      best_hits.hits.clear();
-	      best_hits.hits.push_back(hit);
-	    }
-	  else if (!cmp_read_alignment()(best_hits.hits[0], hit)) // is it just as good?
-	    {
-	      best_hits.hits.push_back(hit);
-	    }
+			sort(best_hits.hits.begin(), best_hits.hits.end(), cmp_read_alignment());
 	}
-    }
 
-  // due to indel alignments, there may be alignments with the same location
-  std::sort(best_hits.hits.begin(), best_hits.hits.end());
-  vector<BowtieHit>::iterator new_end = std::unique(best_hits.hits.begin(), best_hits.hits.end(), cmp_read_equal());
-  best_hits.hits.erase(new_end, best_hits.hits.end());
-
-  if ((report_secondary_alignments || !final_report) && best_hits.hits.size() > 0)
-    {
-      sort(best_hits.hits.begin(), best_hits.hits.end(), cmp_read_alignment());
-    }
-
-  if (final_report)
-    {
-      if (suppress_hits && best_hits.hits.size() > max_multihits)
-	best_hits.hits.clear();
-      
-      if (best_hits.hits.size() > max_multihits)
+	if (final_report)
 	{
-	  // there may be several alignments with the same alignment scores,
-	  // all of which we can not include because of this limit.
-	  // let's pick up some of them randomly up to this many max multihits.
-	  vector<size_t> tie_indexes;
-	  int tie_alignment_score = best_hits.hits[max_multihits - 1].alignment_score();
-	  int count_better_alignments = 0;
-	  for (size_t i = 0; i < best_hits.hits.size(); ++i)
-	    {
-	      int temp_alignment_score = best_hits.hits[i].alignment_score();
-	      if (temp_alignment_score == tie_alignment_score)
-		tie_indexes.push_back(i);
-	      else if (temp_alignment_score < tie_alignment_score)
-		break;
-	      else
-		++count_better_alignments;
-	    }
-	  
-	  while (count_better_alignments + tie_indexes.size() > max_multihits)
-	    {
-	      int random_index = (*rng)() % tie_indexes.size();
-	      tie_indexes.erase(tie_indexes.begin() + random_index);
-	    }
+			if (suppress_hits && best_hits.hits.size() > max_multihits)
+				best_hits.hits.clear();
 
-	  for (size_t i = 0; i < tie_indexes.size(); ++i)
-	    {
-	      if (count_better_alignments + i != tie_indexes[i])
-		best_hits.hits[count_better_alignments + i] = best_hits.hits[tie_indexes[i]];
-	    }
-	  
-	  best_hits.hits.erase(best_hits.hits.begin() + max_multihits, best_hits.hits.end());
+			if (best_hits.hits.size() > max_multihits)
+			{
+				// there may be several alignments with the same alignment scores,
+				// all of which we can not include because of this limit.
+				// let's pick up some of them randomly up to this many max multihits.
+				vector<size_t> tie_indexes;
+				int tie_alignment_score = best_hits.hits[max_multihits - 1].alignment_score();
+				int count_better_alignments = 0;
+				for (size_t i = 0; i < best_hits.hits.size(); ++i)
+				{
+					int temp_alignment_score = best_hits.hits[i].alignment_score();
+					if (temp_alignment_score == tie_alignment_score)
+						tie_indexes.push_back(i);
+					else if (temp_alignment_score < tie_alignment_score)
+						break;
+					else
+						++count_better_alignments;
+				}
+
+				while (count_better_alignments + tie_indexes.size() > max_multihits)
+				{
+					int random_index = (*rng)() % tie_indexes.size();
+					tie_indexes.erase(tie_indexes.begin() + random_index);
+				}
+
+				for (size_t i = 0; i < tie_indexes.size(); ++i)
+				{
+					if (count_better_alignments + i != tie_indexes[i])
+						best_hits.hits[count_better_alignments + i] = best_hits.hits[tie_indexes[i]];
+				}
+
+				best_hits.hits.erase(best_hits.hits.begin() + max_multihits, best_hits.hits.end());
+			}
 	}
-    }
+	return ret_code;
 }
 
 bool is_fusion_insert_alignment(const BowtieHit& lh, const BowtieHit& rh)
@@ -303,7 +309,34 @@ struct cmp_pair_less
   }
 };
 
-void pair_best_alignments(const HitsForRead& left_hits,
+struct SAlignStats {
+	int64_t num_aligned_left; //total left reads aligned
+	int64_t num_unmapped_left; //total left reads unmapped, or mapped in too many places (!)
+	int64_t num_aligned_left_multi; //total left reads mapped in more than 1 place
+	int64_t num_aligned_right; //total right reads aligned
+	int64_t num_unmapped_right; //total right reads unmapped, or mapped in too many places (!)
+	int64_t num_aligned_right_multi; //total right reads in more than 1 place
+	int64_t num_aligned_pairs; //total pairs aligned
+	int64_t num_aligned_pairs_multi; //total pairs aligned in more than 1 place
+	int64_t num_aligned_pairs_disc; //total pairs aligned discordantly only
+	SAlignStats():num_aligned_left(0), num_unmapped_left(0), num_aligned_left_multi(0), num_aligned_right(0),
+			num_unmapped_right(0), num_aligned_right_multi(0), num_aligned_pairs(0), num_aligned_pairs_multi(0),
+			num_aligned_pairs_disc(0) { }
+	void add(SAlignStats& a) {
+		num_aligned_left+=a.num_aligned_left;
+		num_unmapped_left+=a.num_aligned_left;
+		num_aligned_left_multi+=a.num_aligned_left_multi;
+		num_aligned_right+=a.num_aligned_right;
+		num_unmapped_right+=a.num_unmapped_right;
+		num_aligned_right_multi+=a.num_aligned_right_multi;
+		num_aligned_pairs+=a.num_aligned_pairs;
+		num_aligned_pairs_multi+=a.num_aligned_pairs_multi;
+		num_aligned_pairs_disc+=a.num_aligned_pairs_disc;
+	}
+
+};
+
+char pair_best_alignments(const HitsForRead& left_hits,
 			  const HitsForRead& right_hits,
 			  InsertAlignmentGrade& best_grade,
 			  vector<pair<BowtieHit, BowtieHit> >& best_hits,
@@ -314,172 +347,188 @@ void pair_best_alignments(const HitsForRead& left_hits,
 			  const FusionSet& fusions = empty_fusions,
 			  const Coverage& coverage = empty_coverage,
 			  bool final_report = false,
-			  boost::mt19937* rng = NULL)
+			  boost::mt19937* rng = NULL
+			  )
 {
-  const vector<BowtieHit>& left = left_hits.hits;
-  const vector<BowtieHit>& right = right_hits.hits;
-
-  if (left.size() >= max_multihits * 5 || right.size() >= max_multihits * 5)
-    return;
-
-  for (size_t i = 0; i < left.size(); ++i)
-    {
-      if (left[i].mismatches() > read_mismatches ||
-	  left[i].gap_length() > read_gap_length ||
-	  left[i].edit_dist() > read_edit_dist)
-	continue;
-
-      BowtieHit lh = left[i];
-      AlignStatus align_status(lh, gtf_junctions,
-			       junctions, insertions, deletions, fusions, coverage);
-      lh.alignment_score(align_status._alignment_score);
-
-      for (size_t j = 0; j < right.size(); ++j)
+	const vector<BowtieHit>& left = left_hits.hits;
+	const vector<BowtieHit>& right = right_hits.hits;
+	char ret_code=0;
+	/*
+	if (left.size() >= max_multihits * 5) {
+		ret_code |= 1;
+	}
+	if (right.size() >= max_multihits * 5) {
+		ret_code |= 2;
+	}
+	if (ret_code)
+		return ret_code;
+	*/
+	unsigned int l_nhits=0, r_nhits=0;
+	for (size_t i = 0; i < left.size(); ++i)
 	{
-	  if (right[j].mismatches() > read_mismatches ||
-	      right[j].gap_length() > read_gap_length ||
-	      right[j].edit_dist() > read_edit_dist)
-	    continue;
-	  
-	  BowtieHit rh = right[j];
-	  AlignStatus align_status(rh, gtf_junctions,
-				   junctions, insertions, deletions, fusions, coverage);
-	  rh.alignment_score(align_status._alignment_score);
-	  InsertAlignmentGrade g;
-	  bool allowed;
-	  allowed = set_insert_alignment_grade(lh, rh, final_report ? junctions : gtf_junctions, g);
+		if (left[i].mismatches() > read_mismatches ||
+				left[i].gap_length() > read_gap_length ||
+				left[i].edit_dist() > read_edit_dist)
+			continue;
+		l_nhits++;
+		ret_code|=1; //left read has acceptable mappings
+		if (l_nhits>1) ret_code |= 4; //left read has multiple valid mappings
+		if (l_nhits>max_multihits) ret_code |= 16; //left read has too many mappings
+		BowtieHit lh = left[i];
+		AlignStatus align_status(lh, gtf_junctions,
+				junctions, insertions, deletions, fusions, coverage);
+		lh.alignment_score(align_status._alignment_score);
 
-	  // daehwan - for debugging purposes
-#if 0
-	  if (lh.insert_id() == 10790262)
-	    {
-	      fprintf(stderr, "lh %d:%d %s score: %d (from %d) NM: %d\n",
-		      lh.ref_id(), lh.left(), print_cigar(lh.cigar()).c_str(),
-		      lh.alignment_score(), left[i].alignment_score(), lh.edit_dist());
-	      fprintf(stderr, "rh %d:%d %s score: %d (from %d) NM: %d\n",
-		      rh.ref_id(), rh.left(), print_cigar(rh.cigar()).c_str(),
-		      rh.alignment_score(), right[j].alignment_score(), rh.edit_dist());
-	      fprintf(stderr, "combined score: %d is_fusion(%d)\n", g.align_score(), g.is_fusion());
-	    }
-#endif
-
-	  if (!allowed) continue;
-	  if (!fusion_search && !report_discordant_pair_alignments && g.is_fusion()) continue;
-
-	  if (report_secondary_alignments || !final_report)
-	    {
-	      best_hits.push_back(make_pair(lh, rh));
-	    }
-	  else
-	    {
-	      // Is the new status better than the current best one?
-	      if (best_grade < g)
+		for (size_t j = 0; j < right.size(); ++j)
 		{
-		  best_hits.clear();
-		  best_grade = g;
-		  best_hits.push_back(make_pair(lh, rh));
+			if (right[j].mismatches() > read_mismatches ||
+					right[j].gap_length() > read_gap_length ||
+					right[j].edit_dist() > read_edit_dist)
+				continue;
+			r_nhits++;
+			ret_code|=2; //right read has acceptable mappings
+			if (r_nhits>1) ret_code |= 8; //right read has multiple valid mappings
+			if (r_nhits>max_multihits) ret_code |= 32; //left read has too many mappings
+			BowtieHit rh = right[j];
+			AlignStatus align_status(rh, gtf_junctions,
+					junctions, insertions, deletions, fusions, coverage);
+			rh.alignment_score(align_status._alignment_score);
+			InsertAlignmentGrade g;
+			bool allowed;
+			allowed = set_insert_alignment_grade(lh, rh, final_report ? junctions : gtf_junctions, g);
+
+			// daehwan - for debugging purposes
+#if 0
+if (lh.insert_id() == 10790262)
+{
+	fprintf(stderr, "lh %d:%d %s score: %d (from %d) NM: %d\n",
+			lh.ref_id(), lh.left(), print_cigar(lh.cigar()).c_str(),
+			lh.alignment_score(), left[i].alignment_score(), lh.edit_dist());
+	fprintf(stderr, "rh %d:%d %s score: %d (from %d) NM: %d\n",
+			rh.ref_id(), rh.left(), print_cigar(rh.cigar()).c_str(),
+			rh.alignment_score(), right[j].alignment_score(), rh.edit_dist());
+	fprintf(stderr, "combined score: %d is_fusion(%d)\n", g.align_score(), g.is_fusion());
+}
+#endif
+
+if (!allowed) continue;
+if (!fusion_search && !report_discordant_pair_alignments && g.is_fusion()) continue;
+
+if (report_secondary_alignments || !final_report)
+{
+	best_hits.push_back(make_pair(lh, rh));
+}
+else
+{
+	// Is the new status better than the current best one?
+	if (best_grade < g)
+	{
+		best_hits.clear();
+		best_grade = g;
+		best_hits.push_back(make_pair(lh, rh));
+	}
+	else if (!(g < best_grade))
+	{
+		best_hits.push_back(make_pair(lh, rh));
+	}
+}
 		}
-	      else if (!(g < best_grade))
+	}
+
+	std::sort(best_hits.begin(), best_hits.end(), cmp_pair_less());
+
+	// daehwan - for debugging purposes
+#if 0
+	if (best_hits.size() > 0 && best_hits[0].first.insert_id() == 10790262)
+	{
+		for (size_t i = 0; i < best_hits.size(); ++i)
 		{
-		  best_hits.push_back(make_pair(lh, rh));
+			const BowtieHit& lh = best_hits[i].first;
+			const BowtieHit& rh = best_hits[i].second;
+
+			fprintf(stderr, "%d %d:%d %s %d:%d %s\n",
+					i,
+					lh.ref_id(), lh.left(), print_cigar(lh.cigar()).c_str(),
+					rh.ref_id(), rh.left(), print_cigar(rh.cigar()).c_str());
 		}
-	    }
+
+		fprintf(stderr, "\n\n\n");
 	}
-    }
-
-  std::sort(best_hits.begin(), best_hits.end(), cmp_pair_less());
-
-  // daehwan - for debugging purposes
-#if 0
-  if (best_hits.size() > 0 && best_hits[0].first.insert_id() == 10790262)
-    {
-      for (size_t i = 0; i < best_hits.size(); ++i)
-	{
-	  const BowtieHit& lh = best_hits[i].first;
-	  const BowtieHit& rh = best_hits[i].second;
-
-	  fprintf(stderr, "%d %d:%d %s %d:%d %s\n",
-		  i,
-		  lh.ref_id(), lh.left(), print_cigar(lh.cigar()).c_str(),
-		  rh.ref_id(), rh.left(), print_cigar(rh.cigar()).c_str());
-	}
-
-      fprintf(stderr, "\n\n\n");
-    }
 #endif
 
-  vector<pair<BowtieHit, BowtieHit> >::iterator new_end = std::unique(best_hits.begin(), best_hits.end(), cmp_pair_equal());
-  best_hits.erase(new_end, best_hits.end());
+	vector<pair<BowtieHit, BowtieHit> >::iterator new_end = std::unique(best_hits.begin(), best_hits.end(), cmp_pair_equal());
+	best_hits.erase(new_end, best_hits.end());
 
-  // daehwan - for debugging purposes
+	// daehwan - for debugging purposes
 #if 0
-  if (best_hits.size() > 0 && best_hits[0].first.insert_id() == 10790262)
-    {
-      for (size_t i = 0; i < best_hits.size(); ++i)
+	if (best_hits.size() > 0 && best_hits[0].first.insert_id() == 10790262)
 	{
-	  const BowtieHit& lh = best_hits[i].first;
-	  const BowtieHit& rh = best_hits[i].second;
-	  
-	  fprintf(stderr, "%d %d:%d %s %d:%d %s\n",
-		  i,
-		  lh.ref_id(), lh.left(), print_cigar(lh.cigar()).c_str(),
-		  rh.ref_id(), rh.left(), print_cigar(rh.cigar()).c_str());
-	}
+		for (size_t i = 0; i < best_hits.size(); ++i)
+		{
+			const BowtieHit& lh = best_hits[i].first;
+			const BowtieHit& rh = best_hits[i].second;
 
-      fprintf(stderr, "\n\n\n");
-    }
+			fprintf(stderr, "%d %d:%d %s %d:%d %s\n",
+					i,
+					lh.ref_id(), lh.left(), print_cigar(lh.cigar()).c_str(),
+					rh.ref_id(), rh.left(), print_cigar(rh.cigar()).c_str());
+		}
+
+		fprintf(stderr, "\n\n\n");
+	}
 #endif
 
 
-  if ((report_secondary_alignments || !final_report) && best_hits.size() > 0)
-    {
-      cmp_pair_alignment cmp(final_report ? junctions : gtf_junctions);
-      sort(best_hits.begin(), best_hits.end(), cmp);
-      set_insert_alignment_grade(best_hits[0].first, best_hits[0].second, final_report ? junctions : gtf_junctions, best_grade);
-    }
-
-  if (final_report)
-    {
-      if (suppress_hits && best_hits.size() > max_multihits)
-	best_hits.clear();
-	
-      if (best_hits.size() > max_multihits)
+	if ((report_secondary_alignments || !final_report) && best_hits.size() > 0)
 	{
-	  vector<size_t> tie_indexes;
-	  InsertAlignmentGrade temp_grade;
-	  set_insert_alignment_grade(best_hits[max_multihits - 1].first, best_hits[max_multihits - 1].second, junctions, temp_grade);
-	  int tie_alignment_score = temp_grade.align_score();
-	  int count_better_alignments = 0;
-
-	  for (size_t i = 0; i < best_hits.size(); ++i)
-	    {
-	      set_insert_alignment_grade(best_hits[i].first, best_hits[i].second, junctions, temp_grade);
-	      int temp_alignment_score = temp_grade.align_score();
-	      if (temp_alignment_score == tie_alignment_score)
-		tie_indexes.push_back(i);
-	      else if (temp_alignment_score < tie_alignment_score)
-		break;
-	      else
-		++count_better_alignments;
-	    }
-
-	  while (count_better_alignments + tie_indexes.size() > max_multihits)
-	    {
-	      int random_index = (*rng)() % tie_indexes.size();
-	      tie_indexes.erase(tie_indexes.begin() + random_index);
-	    }
-
-	  for (size_t i = 0; i < tie_indexes.size(); ++i)
-	    {
-	      if (count_better_alignments + i != tie_indexes[i])
-		best_hits[count_better_alignments + i] = best_hits[tie_indexes[i]];
-	    }
-	  
-	  best_hits.erase(best_hits.begin() + max_multihits, best_hits.end());
+		cmp_pair_alignment cmp(final_report ? junctions : gtf_junctions);
+		sort(best_hits.begin(), best_hits.end(), cmp);
+		set_insert_alignment_grade(best_hits[0].first, best_hits[0].second, final_report ? junctions : gtf_junctions, best_grade);
 	}
-    }
-  
-  best_grade.num_alignments = best_hits.size();
+
+	if (final_report)
+	{
+		if (suppress_hits && best_hits.size() > max_multihits)
+			best_hits.clear();
+
+		if (best_hits.size() > max_multihits)
+		{
+			vector<size_t> tie_indexes;
+			InsertAlignmentGrade temp_grade;
+			set_insert_alignment_grade(best_hits[max_multihits - 1].first, best_hits[max_multihits - 1].second, junctions, temp_grade);
+			int tie_alignment_score = temp_grade.align_score();
+			int count_better_alignments = 0;
+
+			for (size_t i = 0; i < best_hits.size(); ++i)
+			{
+				set_insert_alignment_grade(best_hits[i].first, best_hits[i].second, junctions, temp_grade);
+				int temp_alignment_score = temp_grade.align_score();
+				if (temp_alignment_score == tie_alignment_score)
+					tie_indexes.push_back(i);
+				else if (temp_alignment_score < tie_alignment_score)
+					break;
+				else
+					++count_better_alignments;
+			}
+
+			while (count_better_alignments + tie_indexes.size() > max_multihits)
+			{
+				int random_index = (*rng)() % tie_indexes.size();
+				tie_indexes.erase(tie_indexes.begin() + random_index);
+			}
+
+			for (size_t i = 0; i < tie_indexes.size(); ++i)
+			{
+				if (count_better_alignments + i != tie_indexes[i])
+					best_hits[count_better_alignments + i] = best_hits[tie_indexes[i]];
+			}
+
+			best_hits.erase(best_hits.begin() + max_multihits, best_hits.end());
+		}
+	}
+
+	best_grade.num_alignments = best_hits.size();
+	return ret_code;
 }
 
 enum FragmentType {FRAG_UNPAIRED, FRAG_LEFT, FRAG_RIGHT};
@@ -1679,1006 +1728,1083 @@ void realign_reads(HitsForRead& hits,
 class MultipleBAMReader
 {
 public:
-  MultipleBAMReader(ReadTable& it,
-		    RefSequenceTable& rt,
-		    const vector<string>& fnames,
-		    long begin_id,
-		    long end_id) :
-    _it(it),
-    _rt(rt),
-    _begin_id(begin_id),
-    _end_id(end_id),
-    _bam_hit_factory(it, rt),
-    _bam_merge(NULL)
-  {
-    // calculate file offsets
-    vector<int64_t> offsets;
-    for (size_t i = 0; i < fnames.size(); ++i)
-      {
-	const string& fname = fnames[i];
+	MultipleBAMReader(ReadTable& it,
+			RefSequenceTable& rt,
+			const vector<string>& fnames,
+			long begin_id,
+			long end_id) :
+				_it(it),
+				_rt(rt),
+				_begin_id(begin_id),
+				_end_id(end_id),
+				_bam_hit_factory(it, rt),
+				_bam_merge(NULL)
+	{
+			// calculate file offsets
+			vector<int64_t> offsets;
+			for (size_t i = 0; i < fnames.size(); ++i)
+			{
+				const string& fname = fnames[i];
 
-	vector<uint64_t> next_file_read_ids;
+				vector<uint64_t> next_file_read_ids;
 
-	vector<string> temp_fnames;
-	if (fname.substr(fname.length() - 4) == ".bam")
-	  {
-	    temp_fnames.push_back(fname);
-	    next_file_read_ids.push_back(0);
-	  }
-	else
-	  {
-	    size_t j = 0;
-	    while (true)
-	      {
-		char suffix[128];
-		sprintf(suffix, "%lu.bam", j);
-		string temp_fname = fname + suffix;
-		string temp_index_fname = temp_fname + ".index";
+				vector<string> temp_fnames;
+				if (fname.substr(fname.length() - 4) == ".bam")
+				{
+					temp_fnames.push_back(fname);
+					next_file_read_ids.push_back(0);
+				}
+				else
+				{
+					size_t j = 0;
+					while (true)
+					{
+						char suffix[128];
+						sprintf(suffix, "%lu.bam", j);
+						string temp_fname = fname + suffix;
+						string temp_index_fname = temp_fname + ".index";
 
-		ifstream index_file(temp_index_fname.c_str());
-		if (!index_file.is_open())
-		  {
-		    next_file_read_ids.push_back(0);
-		    break;
-		  }
+						ifstream index_file(temp_index_fname.c_str());
+						if (!index_file.is_open())
+						{
+							next_file_read_ids.push_back(0);
+							break;
+						}
 
-		temp_fnames.push_back(temp_fname);
-		
-		if (j > 0)
-		  {
-		    string line;
-		    int64_t offset = 0;
-		    uint64_t read_id = 0;
-		    if (getline(index_file, line))
-		      {
-			istringstream istream(line);
-			istream >> read_id >> offset;
-			next_file_read_ids.push_back(read_id);
-		      }
-		    else
-		      {
-			next_file_read_ids.push_back(0);
-		      }
-		  }
-		
-		++j;
-	      }
-	  }
+						temp_fnames.push_back(temp_fname);
 
-	for (size_t j = 0; j < temp_fnames.size(); ++j)
-	  {
-	    ifstream reads_index_file((temp_fnames[j] + ".index").c_str());
-	    if (!reads_index_file.is_open())
-	      continue;
+						if (j > 0)
+						{
+							string line;
+							int64_t offset = 0;
+							uint64_t read_id = 0;
+							if (getline(index_file, line))
+							{
+								istringstream istream(line);
+								istream >> read_id >> offset;
+								next_file_read_ids.push_back(read_id);
+							}
+							else
+							{
+								next_file_read_ids.push_back(0);
+							}
+						}
 
-	    bool pushed = false;
-	    
-	    int64_t offset = 0, last_offset = 0;
-	    uint64_t read_id = 0, last_read_id = 0;
-	    string line;
-	    while (getline(reads_index_file, line))
-	      {
-		istringstream istream(line);
-		istream >> read_id >> offset;
-		if (read_id > _begin_id && last_read_id <= _begin_id)
-		  {
-		    pushed = true;
-		    _fnames.push_back(temp_fnames[j]);
-		    offsets.push_back(last_offset);
-		    
-#if 0
-		    fprintf(stderr, "bet %lu and %lu - %s %lu %ld\n",
-			    _begin_id, _end_id, temp_fnames[j].c_str(), last_offset, last_read_id);
-#endif
-		    
-		    break;
-		  }
-		
-		last_offset = offset;
-		last_read_id = read_id;
-	      }
+						++j;
+					}
+				}
 
-	    if (!pushed)
-	      {
-		if(next_file_read_ids[j] > _begin_id && last_read_id <= _begin_id)
-		  {
-		    pushed = true;
-		    _fnames.push_back(temp_fnames[j]);
-		    offsets.push_back(last_offset);
+				for (size_t j = 0; j < temp_fnames.size(); ++j)
+				{
+					ifstream reads_index_file((temp_fnames[j] + ".index").c_str());
+					if (!reads_index_file.is_open())
+						continue;
 
-#if 0
-		    fprintf(stderr, "2 bet %lu and %lu - %s %lu %ld\n",
-			    _begin_id, _end_id, temp_fnames[j].c_str(), last_offset, last_read_id);
-#endif
-		  }
-	      }
-	    
-	    if (read_id >= _end_id)
-	      break;
+					bool pushed = false;
 
-	    if (read_id == 0)
-	      {
-		_fnames.push_back(temp_fnames[j]);
-		offsets.push_back(0);
-	      }
-	  }
-      }
+					int64_t offset = 0, last_offset = 0;
+					uint64_t read_id = 0, last_read_id = 0;
+					string line;
+					while (getline(reads_index_file, line))
+					{
+						istringstream istream(line);
+						istream >> read_id >> offset;
+						if (read_id > _begin_id && last_read_id <= _begin_id)
+						{
+							pushed = true;
+							_fnames.push_back(temp_fnames[j]);
+							offsets.push_back(last_offset);
 
-    _bam_merge = new BamMerge(_fnames, offsets);
-    _bam_hit_factory.set_sam_header(_bam_merge->get_sam_header());
-  }
+	#if 0
+							fprintf(stderr, "bet %lu and %lu - %s %lu %ld\n",
+									_begin_id, _end_id, temp_fnames[j].c_str(), last_offset, last_read_id);
+	#endif
 
-  ~MultipleBAMReader()
-  {
-    if (_bam_merge)
-      delete _bam_merge;
-  }
+							break;
+						}
 
-  bool next_read_hits(HitsForRead& hits)
-  {
-    hits.insert_id = 0;
-    
-    if (!_bam_merge)
-      return false;
+						last_offset = offset;
+						last_read_id = read_id;
+					}
 
-    vector<CBamLine> bam_lines;
-    while (true)
-      {
-	if (!_bam_merge->next_bam_lines(bam_lines))
-	  return false;
+					if (!pushed)
+					{
+						if(next_file_read_ids[j] > _begin_id && last_read_id <= _begin_id)
+						{
+							pushed = true;
+							_fnames.push_back(temp_fnames[j]);
+							offsets.push_back(last_offset);
 
-	if (bam_lines.size() <= 0)
-	  return false;
+	#if 0
+							fprintf(stderr, "2 bet %lu and %lu - %s %lu %ld\n",
+									_begin_id, _end_id, temp_fnames[j].c_str(), last_offset, last_read_id);
+	#endif
+						}
+					}
 
-	uint64_t read_id = bam_lines[0].read_id;
-	if (read_id >= _begin_id && read_id < _end_id)
-	  {
-	    hits.hits.clear();
-	    for (size_t i = 0; i < bam_lines.size(); ++i)
-	      {
-		CBamLine& bam_line = bam_lines[i];
-		BowtieHit bh;
-		
-		char seq[MAX_READ_LEN + 1] = {0};
-		char qual[MAX_READ_LEN + 1] = {0};
-		
-		bool success = _bam_hit_factory.get_hit_from_buf((const char*)bam_line.b, bh, true, NULL, NULL, seq, qual);
-		if (success)
-		  {
-		    bh.seq(seq);
-		    bh.qual(qual);
-		    
-		    char* sam_line = bam_format1(_bam_merge->get_sam_header(), bam_line.b);
-		    bh.hitfile_rec(sam_line);
-		    free(sam_line);
-		    
-		    hits.insert_id = bh.insert_id();
-		    hits.hits.push_back(bh);
-		  }
+					if (read_id >= _end_id)
+						break;
 
-		bam_line.b_free();
-	      }
-	    bam_lines.clear();
+					if (read_id == 0)
+					{
+						_fnames.push_back(temp_fnames[j]);
+						offsets.push_back(0);
+					}
+				}
+			}
 
-	    if (hits.hits.size() > 0)
-	      return true;
-	  }
+			_bam_merge = new BamMerge(_fnames, offsets);
+			_bam_hit_factory.set_sam_header(_bam_merge->get_sam_header());
+	}
 
-	for (size_t i = 0; i < bam_lines.size(); ++i)
-	  bam_lines[i].b_free();
+	~MultipleBAMReader()
+	{
+		if (_bam_merge)
+			delete _bam_merge;
+	}
 
-	bam_lines.clear();
+	bool next_read_hits(HitsForRead& hits)
+	{
+		hits.insert_id = 0;
 
-	if (read_id >= _end_id)
-	  break;
-      }
+		if (!_bam_merge)
+			return false;
 
-    return false;
-  }
+		vector<CBamLine> bam_lines;
+		while (true)
+		{
+			if (!_bam_merge->next_bam_lines(bam_lines))
+				return false;
+
+			if (bam_lines.size() <= 0)
+				return false;
+
+			uint64_t read_id = bam_lines[0].read_id;
+			if (read_id >= _begin_id && read_id < _end_id)
+			{
+				hits.hits.clear();
+				for (size_t i = 0; i < bam_lines.size(); ++i)
+				{
+					CBamLine& bam_line = bam_lines[i];
+					BowtieHit bh;
+
+					char seq[MAX_READ_LEN + 1] = {0};
+					char qual[MAX_READ_LEN + 1] = {0};
+
+					bool success = _bam_hit_factory.get_hit_from_buf((const char*)bam_line.b, bh, true, NULL, NULL, seq, qual);
+					if (success)
+					{
+						bh.seq(seq);
+						bh.qual(qual);
+
+						char* sam_line = bam_format1(_bam_merge->get_sam_header(), bam_line.b);
+						bh.hitfile_rec(sam_line);
+						free(sam_line);
+
+						hits.insert_id = bh.insert_id();
+						hits.hits.push_back(bh);
+					}
+
+					bam_line.b_free();
+				}
+				bam_lines.clear();
+
+				if (hits.hits.size() > 0)
+					return true;
+			}
+
+			for (size_t i = 0; i < bam_lines.size(); ++i)
+				bam_lines[i].b_free();
+
+			bam_lines.clear();
+
+			if (read_id >= _end_id)
+				break;
+		}
+
+		return false;
+	}
 
 private:
-  ReadTable& _it;
-  RefSequenceTable& _rt;
-  vector<string> _fnames;
-  uint64_t _begin_id;
-  uint64_t _end_id;
+	ReadTable& _it;
+	RefSequenceTable& _rt;
+	vector<string> _fnames;
+	uint64_t _begin_id;
+	uint64_t _end_id;
 
-  BAMHitFactory _bam_hit_factory;
-  BamMerge* _bam_merge;
+	BAMHitFactory _bam_hit_factory;
+	BamMerge* _bam_merge;
 };
 
 
 // events include splice junction, indels, and fusion points.
 struct ConsensusEventsWorker
 {
-  void operator()()
-  {
-    ReadTable it;
-    MultipleBAMReader l_hs(it, *rt, left_map_fnames, begin_id, end_id);
-    MultipleBAMReader r_hs(it, *rt, right_map_fnames, begin_id, end_id);
+	void operator()()
+	{
+		ReadTable it;
+		MultipleBAMReader l_hs(it, *rt, left_map_fnames, begin_id, end_id);
+		MultipleBAMReader r_hs(it, *rt, right_map_fnames, begin_id, end_id);
 
-    HitsForRead curr_left_hit_group;
-    HitsForRead curr_right_hit_group;
-    
-    l_hs.next_read_hits(curr_left_hit_group);
-    r_hs.next_read_hits(curr_right_hit_group);
-    
-    uint32_t curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
-    uint32_t curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
+		HitsForRead curr_left_hit_group;
+		HitsForRead curr_right_hit_group;
 
-    // While we still have unreported hits...
-    while((curr_left_obs_order != VMAXINT32 || curr_right_obs_order != VMAXINT32) &&
-	  (curr_left_obs_order < end_id || curr_right_obs_order < end_id))
-      {
-	// Chew up left singletons
-	while (curr_left_obs_order < curr_right_obs_order &&
-	       curr_left_obs_order < end_id &&
-	       curr_left_obs_order != VMAXINT32)
-	  {
-	    HitsForRead best_hits;
-	    best_hits.insert_id = curr_left_obs_order;
-            
-	    // Process hits for left singleton, select best alignments
-	    read_best_alignments(curr_left_hit_group, best_hits, *gtf_junctions);
-	    // update_coverage(best_hits, *coverage);
-	    update_junctions(best_hits, *junctions);
-	    update_insertions_and_deletions(best_hits, *insertions, *deletions);
-	    update_fusions(best_hits, *rt, *fusions);
-	                
-	    // Get next hit group
-	    l_hs.next_read_hits(curr_left_hit_group);
-	    curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
-	  }
-        
-	// Chew up right singletons
-	while (curr_left_obs_order > curr_right_obs_order &&
-	       curr_right_obs_order < end_id &&
-	       curr_right_obs_order != VMAXINT32)
-	  {
-	    HitsForRead best_hits;
-	    best_hits.insert_id = curr_right_obs_order;
-	    
-	    if (curr_right_obs_order >= begin_id)
-	      {
-		// Process hit for right singleton, select best alignments
-		read_best_alignments(curr_right_hit_group, best_hits, *gtf_junctions);
-		// update_coverage(best_hits, *coverage);
+		l_hs.next_read_hits(curr_left_hit_group);
+		r_hs.next_read_hits(curr_right_hit_group);
 
-		update_junctions(best_hits, *junctions);
-		update_insertions_and_deletions(best_hits, *insertions, *deletions);
-		update_fusions(best_hits, *rt, *fusions);
-	      }
-            
-	    // Get next hit group
-	    r_hs.next_read_hits(curr_right_hit_group);
-	    curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
-	  }
+		uint32_t curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
+		uint32_t curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
 
-	// Since we have both left hits and right hits for this insert,
-	// Find the best pairing and print both
-	while (curr_left_obs_order == curr_right_obs_order &&
-	       curr_left_obs_order < end_id &&
-	       curr_left_obs_order != VMAXINT32)
-	  {
-	    vector<pair<BowtieHit, BowtieHit> > best_hits;
+		// While we still have unreported hits...
+		while((curr_left_obs_order != VMAXINT32 || curr_right_obs_order != VMAXINT32) &&
+				(curr_left_obs_order < end_id || curr_right_obs_order < end_id))
+		{
+			// Chew up left singletons
+			while (curr_left_obs_order < curr_right_obs_order &&
+					curr_left_obs_order < end_id &&
+					curr_left_obs_order != VMAXINT32)
+			{
+				HitsForRead best_hits;
+				best_hits.insert_id = curr_left_obs_order;
 
-	    InsertAlignmentGrade grade;
-	    pair_best_alignments(curr_left_hit_group,
-				 curr_right_hit_group,
-				 grade,
-				 best_hits,
-				 *gtf_junctions);
+				// Process hits for left singleton, select best alignments
+				read_best_alignments(curr_left_hit_group, best_hits, *gtf_junctions);
+				// update_coverage(best_hits, *coverage);
+				update_junctions(best_hits, *junctions);
+				update_insertions_and_deletions(best_hits, *insertions, *deletions);
+				update_fusions(best_hits, *rt, *fusions);
 
-	    HitsForRead best_left_hit_group; best_left_hit_group.insert_id = curr_left_obs_order;
-	    HitsForRead best_right_hit_group; best_right_hit_group.insert_id = curr_left_obs_order;
+				// Get next hit group
+				l_hs.next_read_hits(curr_left_hit_group);
+				curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
+			}
 
-	    if (best_hits.size() > 0)
-	      {
-		for (size_t i = 0; i < best_hits.size(); ++i)
-		  {
-		    best_left_hit_group.hits.push_back(best_hits[i].first);
-		    best_right_hit_group.hits.push_back(best_hits[i].second);
-		  }
-	      }
-	    else
-	      {
-		best_left_hit_group.hits = curr_left_hit_group.hits;
-		best_right_hit_group.hits = curr_right_hit_group.hits;
-	      }
+			// Chew up right singletons
+			while (curr_left_obs_order > curr_right_obs_order &&
+					curr_right_obs_order < end_id &&
+					curr_right_obs_order != VMAXINT32)
+			{
+				HitsForRead best_hits;
+				best_hits.insert_id = curr_right_obs_order;
 
-	    // update_coverage(best_left_hit_group, *coverage);
-	    update_junctions(best_left_hit_group, *junctions);
-	    update_insertions_and_deletions(best_left_hit_group, *insertions, *deletions);
-	    update_fusions(best_left_hit_group, *rt, *fusions);
+				if (curr_right_obs_order >= begin_id)
+				{
+					// Process hit for right singleton, select best alignments
+					read_best_alignments(curr_right_hit_group, best_hits, *gtf_junctions);
+					// update_coverage(best_hits, *coverage);
 
-	    // update_coverage(best_right_hit_group, *coverage);
-	    update_junctions(best_right_hit_group, *junctions);
-	    update_insertions_and_deletions(best_right_hit_group, *insertions, *deletions);
-	    update_fusions(best_right_hit_group, *rt, *fusions);
+					update_junctions(best_hits, *junctions);
+					update_insertions_and_deletions(best_hits, *insertions, *deletions);
+					update_fusions(best_hits, *rt, *fusions);
+				}
 
-	    l_hs.next_read_hits(curr_left_hit_group);
-	    curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
-            
-	    r_hs.next_read_hits(curr_right_hit_group);
-	    curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
-	  }
-      }
-  }
+				// Get next hit group
+				r_hs.next_read_hits(curr_right_hit_group);
+				curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
+			}
 
-  vector<string> left_map_fnames;
-  vector<string> right_map_fnames;
+			// Since we have both left hits and right hits for this insert,
+			// Find the best pairing and print both
+			while (curr_left_obs_order == curr_right_obs_order &&
+					curr_left_obs_order < end_id &&
+					curr_left_obs_order != VMAXINT32)
+			{
+				vector<pair<BowtieHit, BowtieHit> > best_hits;
 
-  RefSequenceTable* rt;
+				InsertAlignmentGrade grade;
+				pair_best_alignments(curr_left_hit_group,
+						curr_right_hit_group,
+						grade,
+						best_hits,
+						*gtf_junctions);
 
-  JunctionSet* gtf_junctions;
+				HitsForRead best_left_hit_group; best_left_hit_group.insert_id = curr_left_obs_order;
+				HitsForRead best_right_hit_group; best_right_hit_group.insert_id = curr_left_obs_order;
 
-  uint64_t begin_id;
-  uint64_t end_id;
-  int64_t left_map_offset;
-  int64_t right_map_offset;
+				if (best_hits.size() > 0)
+				{
+					for (size_t i = 0; i < best_hits.size(); ++i)
+					{
+						best_left_hit_group.hits.push_back(best_hits[i].first);
+						best_right_hit_group.hits.push_back(best_hits[i].second);
+					}
+				}
+				else
+				{
+					best_left_hit_group.hits = curr_left_hit_group.hits;
+					best_right_hit_group.hits = curr_right_hit_group.hits;
+				}
 
-  JunctionSet* junctions;
-  InsertionSet* insertions;
-  DeletionSet* deletions;
-  FusionSet* fusions;
+				// update_coverage(best_left_hit_group, *coverage);
+				update_junctions(best_left_hit_group, *junctions);
+				update_insertions_and_deletions(best_left_hit_group, *insertions, *deletions);
+				update_fusions(best_left_hit_group, *rt, *fusions);
 
-  Coverage* coverage;
-};
+				// update_coverage(best_right_hit_group, *coverage);
+				update_junctions(best_right_hit_group, *junctions);
+				update_insertions_and_deletions(best_right_hit_group, *insertions, *deletions);
+				update_fusions(best_right_hit_group, *rt, *fusions);
 
-struct ReportWorker
-{
-  void write_singleton_alignments(uint64_t curr_obs_order,
-				  HitsForRead& curr_hit_group,
-				  ReadStream& reads_file,
-				  GBamWriter& bam_writer,
-				  GBamWriter& um_out,
-				  FragmentType fragment_type)
-  {
-    if (is_paired && !report_mixed_alignments)
-      return;
-      
-    HitsForRead best_hits;
-    best_hits.insert_id = curr_obs_order;
-    realign_reads(curr_hit_group, *rt, *junctions, *rev_junctions,
-		  *insertions, *deletions, *rev_deletions, *fusions);
-    
-    exclude_hits_on_filtered_junctions(*junctions, curr_hit_group);
-    
-    // Process hits for singleton, select best alignments
-    const bool final_report = true;
-    read_best_alignments(curr_hit_group, best_hits, *gtf_junctions,
-			 *junctions, *insertions, *deletions, *fusions, *coverage,
-			 final_report, &rng);
-    
-    if (best_hits.hits.size() > 0)
-      {
-	Read read;
-	bool got_read = reads_file.getRead(curr_obs_order, read,
-					   reads_format, false, begin_id, end_id,
-					   &um_out, false);
-	if (got_read)
-	  {
-	    update_junctions(best_hits, *final_junctions);
-	    update_insertions_and_deletions(best_hits, *final_insertions, *final_deletions);
-	    update_fusions(best_hits, *rt, *final_fusions, *fusions);
+				l_hs.next_read_hits(curr_left_hit_group);
+				curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
 
-	    print_sam_for_single(*rt,
-				 best_hits,
-				 fragment_type,
-				 read.alt_name,
-				 bam_writer,
-				 rng);
-	  }
-      }
-  }
-  
-  void operator()()
-  {
-    rng.seed(1);
-    
-    ReadTable it;
-    GBamWriter bam_writer(bam_output_fname.c_str(), sam_header.c_str());
-
-    is_paired = right_map_fnames.size() > 0;
-
-    ReadStream left_reads_file(left_reads_fname);
-    if (left_reads_file.file() == NULL)
-      err_die("Error: cannot open %s for reading\n", left_reads_fname.c_str());
-    if (left_reads_file.isBam()) {
-        left_reads_file.use_alt_name();
-        left_reads_file.ignoreQC();
-        }
-    if (left_reads_offset > 0)
-      left_reads_file.seek(left_reads_offset);
-    
-    GBamWriter* left_um_out=new GBamWriter(left_um_fname.c_str(), sam_header.c_str());
-    GBamWriter* right_um_out=NULL;
-    
-    ReadStream right_reads_file(right_reads_fname);
-    if (right_reads_offset > 0)
-      right_reads_file.seek(right_reads_offset);
-    
-    if (!right_reads_fname.empty())
-      {
-	if (right_reads_file.isBam()) {
-	  right_reads_file.use_alt_name();
-	  right_reads_file.ignoreQC();
-	  right_um_out=new GBamWriter(right_um_fname.c_str(), sam_header.c_str());
+				r_hs.next_read_hits(curr_right_hit_group);
+				curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
+			}
+		}
 	}
-      }
 
-    MultipleBAMReader left_hs(it, *rt, left_map_fnames, begin_id, end_id);
-    MultipleBAMReader right_hs(it, *rt, right_map_fnames, begin_id, end_id);
+	vector<string> left_map_fnames;
+	vector<string> right_map_fnames;
 
-    HitsForRead curr_left_hit_group;
-    HitsForRead curr_right_hit_group;
-    
-    left_hs.next_read_hits(curr_left_hit_group);
-    right_hs.next_read_hits(curr_right_hit_group);
-    
-    uint64_t curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
-    uint64_t curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
+	RefSequenceTable* rt;
 
-    const bool final_report = true;
+	JunctionSet* gtf_junctions;
 
-    // While we still have unreported hits...
-    Read l_read;
-    Read r_read;
-    while((curr_left_obs_order != VMAXINT32 || curr_right_obs_order != VMAXINT32) &&
-	  (curr_left_obs_order < end_id || curr_right_obs_order < end_id))
-      {
-	// Chew up left singletons (pairs with right reads unmapped)
-	while (curr_left_obs_order < curr_right_obs_order &&
-	       curr_left_obs_order < end_id &&
-	       curr_left_obs_order != VMAXINT32)
-	  {
-	    write_singleton_alignments(curr_left_obs_order,
-				       curr_left_hit_group,
-				       left_reads_file,
-				       bam_writer,
-				       *left_um_out,
-				       is_paired ? FRAG_LEFT : FRAG_UNPAIRED);
-	    
-	    // Get next hit group
-	    left_hs.next_read_hits(curr_left_hit_group);
-	    curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
-	  } //left singletons 
-	
-	// Chew up right singletons
-	while (curr_left_obs_order > curr_right_obs_order &&
-	       curr_right_obs_order < end_id &&
-	       curr_right_obs_order != VMAXINT32)
-	  {
-	    write_singleton_alignments(curr_right_obs_order,
-				       curr_right_hit_group,
-				       right_reads_file,
-				       bam_writer,
-				       *right_um_out,
-				       FRAG_RIGHT);
+	uint64_t begin_id;
+	uint64_t end_id;
+	int64_t left_map_offset;
+	int64_t right_map_offset;
 
-	    // Get next hit group
-	    right_hs.next_read_hits(curr_right_hit_group);
-	    curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
-	  }
+	JunctionSet* junctions;
+	InsertionSet* insertions;
+	DeletionSet* deletions;
+	FusionSet* fusions;
 
-	// Since we have both left hits and right hits for this insert,
-	// Find the best pairing and print both
-	while (curr_left_obs_order == curr_right_obs_order &&
-	       curr_left_obs_order < end_id &&
-	       curr_left_obs_order != VMAXINT32)
-	  {
-	    realign_reads(curr_left_hit_group, *rt, *junctions, *rev_junctions,
-			  *insertions, *deletions, *rev_deletions, *fusions);
-	    exclude_hits_on_filtered_junctions(*junctions, curr_left_hit_group);
-	    
-	    realign_reads(curr_right_hit_group, *rt, *junctions, *rev_junctions,
-			    *insertions, *deletions, *rev_deletions, *fusions);
-	    exclude_hits_on_filtered_junctions(*junctions, curr_right_hit_group);
-	    
-	    vector<pair<BowtieHit, BowtieHit> > best_hits;
+	Coverage* coverage;
+};
+void print_alnStats(SAlignStats& alnStats) {
+	string fname(output_dir);
+	fname+="/align_summary.txt";
+	FILE* f = fopen(fname.c_str(), "w");
+	int64_t total_left=alnStats.num_aligned_left+alnStats.num_unmapped_left;
+	int64_t total_right=alnStats.num_aligned_right+alnStats.num_unmapped_right;
+	string rdn(" left reads");
+	if (total_right==0) rdn="reads";
+	fprintf(f, " Input %s: %9ld\n", rdn.c_str(), total_left);
+	double perc=(100.0*alnStats.num_aligned_left)/total_left;
+	fprintf(f, "Mapped %s: %9ld (%4.2f%% of input)\n", rdn.c_str(),
+			alnStats.num_aligned_left, perc);
+	if (alnStats.num_aligned_left) {
+		perc=(100.0*alnStats.num_aligned_left_multi)/alnStats.num_aligned_left;
+		fprintf(f, "          of these: %9ld (%4.2f%%) have multiple alignments\n",
+			alnStats.num_aligned_left_multi, perc);
+	}
+	int64_t total_mapped=alnStats.num_aligned_left;
+	int64_t total_input=total_left;
+	int64_t total_pairs=0;
+	if (total_right) {
+		fprintf(f, " Input right reads: %9ld\n", total_right);
+		total_input+=total_right;
+		perc=(100.0*alnStats.num_aligned_right)/total_right;
+		fprintf(f, "Mapped right reads: %9ld (%4.2f%% of input)\n",
+				alnStats.num_aligned_right, perc);
+		if (alnStats.num_aligned_right) {
+			perc=(100.0* alnStats.num_aligned_right_multi)/alnStats.num_aligned_right;
+			fprintf(f, "          of these: %9ld (%4.2f%%) have multiple alignments\n",
+					alnStats.num_aligned_right_multi, perc);
+		}
+		total_mapped+=alnStats.num_aligned_right;
+		total_pairs=(total_right<total_left)? total_right : total_left;
+	}
+	perc=(100.0*total_mapped)/total_input;
+	fprintf(f, "%4.2f overall read alignment rate.\n", perc);
+	if (alnStats.num_aligned_pairs) {
+		fprintf(f, "Mapped pairs: %9ld\n", alnStats.num_aligned_pairs);
+		perc=(100.0*alnStats.num_aligned_pairs_multi)/alnStats.num_aligned_pairs;
+		fprintf(f, "    of these: %9ld (%4.2f) have multiple alignments\n",
+				alnStats.num_aligned_pairs_multi, perc);
+		perc=(100.0*alnStats.num_aligned_pairs_disc)/alnStats.num_aligned_pairs;
+		fprintf(f, "         and: %9ld (%4.2f) are discordant alignments\n",
+				alnStats.num_aligned_pairs_disc, perc);
+		perc=(100.0*(alnStats.num_aligned_pairs-alnStats.num_aligned_pairs_disc))/total_pairs;
+		fprintf(f, "%4.2f concordant pair alignment rate.\n", perc);
+	}
+	fclose(f);
+}
+struct ReportWorker {
 
-	    bool paired_alignments = curr_left_hit_group.hits.size() > 0 && curr_right_hit_group.hits.size() > 0;
-	    InsertAlignmentGrade grade;
+	ReportWorker(RefSequenceTable* r=NULL, SAlignStats* s=NULL):  gtf_junctions(NULL), junctions(NULL), rev_junctions(NULL),
+			insertions(NULL), deletions(NULL), rev_deletions(NULL), fusions(NULL), coverage(NULL),
+			final_junctions(NULL), final_insertions(NULL), final_deletions(NULL), final_fusions(NULL),
+			rt(r), begin_id(0), end_id(0),  left_reads_offset(0), left_map_offset(0), right_reads_offset(0),
+			right_map_offset(0), alnStats(s), is_paired(false) {  }
 
-	    if (paired_alignments)
-	      {
-		pair_best_alignments(curr_left_hit_group,
-				     curr_right_hit_group,
-				     grade, best_hits, *gtf_junctions,
-				     *junctions, *insertions, *deletions, *fusions, *coverage,
-				     final_report, &rng);
+	void write_singleton_alignments(uint64_t curr_obs_order,
+	    HitsForRead& curr_hit_group, ReadStream& reads_file,
+	    GBamWriter& bam_writer, GBamWriter& um_out,
+	    FragmentType fragment_type, Read* gotRead=NULL) {
+		int64_t* unmapped_counter = & alnStats->num_unmapped_left;
+		int64_t* aligned_counter = & alnStats->num_aligned_left;
+		int64_t* aligned_counter_multi = & alnStats->num_aligned_left_multi;
+		if (fragment_type == FRAG_RIGHT) {
+			unmapped_counter = & alnStats->num_unmapped_right;
+			aligned_counter = & alnStats->num_aligned_right;
+			aligned_counter_multi = & alnStats->num_aligned_right_multi;
+		}
+		if (is_paired && !report_mixed_alignments) {
+			// FIXME: how did we get here?
+			// can this be a problem if input reads are mixed: paired + single ?
+			if (curr_hit_group.hits.size()>1) {
+				(*aligned_counter_multi)++;
+			}
+			else {
+				(*aligned_counter)++;
+			}
+			return;
+		}
+		HitsForRead best_hits;
+		best_hits.insert_id = curr_obs_order;
+		realign_reads(curr_hit_group, *rt, *junctions, *rev_junctions, *insertions,
+		    *deletions, *rev_deletions, *fusions);
 
-		if (report_mixed_alignments)
-		  {
-		    if (best_hits.size() <= 0 ||
-			(grade.fusion && !fusion_search && !report_discordant_pair_alignments))
-		      paired_alignments = false;
-		  }
-	      }
+		exclude_hits_on_filtered_junctions(*junctions, curr_hit_group);
 
-	    if (paired_alignments)
-	      {
-		HitsForRead best_left_hit_group; best_left_hit_group.insert_id = curr_left_obs_order;
-		HitsForRead best_right_hit_group; best_right_hit_group.insert_id = curr_left_obs_order;
-		
-		for (size_t i = 0; i < best_hits.size(); ++i)
-		  {
-		    best_left_hit_group.hits.push_back(best_hits[i].first);
-		    best_right_hit_group.hits.push_back(best_hits[i].second);
-		  }
-		
-		if (best_hits.size() > 0)
-		  {
-		    bool got_left_read = left_reads_file.getRead(best_hits[0].first.insert_id(), l_read,
-								 reads_format, false, begin_id, end_id,
-								 left_um_out, false);
-		    
-		    bool got_right_read = right_reads_file.getRead(best_hits[0].first.insert_id(), r_read,
-								   reads_format, false, begin_id, end_id,
-								   right_um_out, false);
-		    
-		    if (got_left_read && got_right_read)
-		      {
-			update_junctions(best_left_hit_group, *final_junctions);
-			update_insertions_and_deletions(best_left_hit_group, *final_insertions, *final_deletions);
-			update_fusions(best_left_hit_group, *rt, *final_fusions, *fusions);
-			
-			update_junctions(best_right_hit_group, *final_junctions);
-			update_insertions_and_deletions(best_right_hit_group, *final_insertions, *final_deletions);
-			update_fusions(best_right_hit_group, *rt, *final_fusions, *fusions);
-			
-			pair_support(best_hits, *final_fusions, *fusions);
-			
-			print_sam_for_pair(*rt,
-					   best_hits,
-					   grade,
-					   bam_writer,
-					   l_read.alt_name,
-					   r_read.alt_name,
-					   rng,
-					   begin_id,
-					   end_id);
-		      }
-		  }
-	      }
-	    else
-	      {
-		if (curr_left_hit_group.hits.size() > 0)
-		  {
-		    write_singleton_alignments(curr_left_obs_order,
-					       curr_left_hit_group,
-					       left_reads_file,
-					       bam_writer,
-					       *left_um_out,
-					       is_paired ? FRAG_LEFT : FRAG_UNPAIRED);
-		  }
-		
-		if (curr_right_hit_group.hits.size() > 0)
-		  {   //only right read mapped
-		    //write it in the mapped file with the #MAPPED# flag
-		    write_singleton_alignments(curr_right_obs_order,
-					       curr_right_hit_group,
-					       right_reads_file,
-					       bam_writer,
-					       *right_um_out,
-					       FRAG_RIGHT);
-		  }
-	      }
-	    
-	    left_hs.next_read_hits(curr_left_hit_group);
-	    curr_left_obs_order = it.observation_order(curr_left_hit_group.insert_id);
-	    
-	    right_hs.next_read_hits(curr_right_hit_group);
-	    curr_right_obs_order = it.observation_order(curr_right_hit_group.insert_id);
-	  }
-      } //while we still have unreported hits..
-    //print the remaining unmapped reads at the end of each reads' stream
+		// Process hits for singleton, select best alignments
+		const bool final_report = true;
+		char map_flags=read_best_alignments(curr_hit_group, best_hits, *gtf_junctions, *junctions,
+		    *insertions, *deletions, *fusions, *coverage, final_report, &rng);
+		char map_code=0;
+		if (map_flags & 4) {
+			(*aligned_counter_multi)++;
+		}
+		if ((map_flags & 16) && best_hits.hits.size()==0) map_code='M';
+		if (map_flags & 1) (*aligned_counter)++; //acceptable mappings found
+		else (*unmapped_counter)++;
 
-    left_reads_file.getRead(VMAXINT32, l_read,
-			    reads_format, false, begin_id, end_id,
-			    left_um_out, false);
-    if (right_reads_file.file())
-      right_reads_file.getRead(VMAXINT32, r_read,
-			       reads_format, false, begin_id, end_id,
-			       right_um_out, false);
+		string read_alt_name;
+		bool got_read = false;
+		if (gotRead!=NULL) {
+			read_alt_name=gotRead->alt_name;
+		}
+		else {
+			Read read;
+			reads_file.getRead(curr_obs_order, read, reads_format,
+			    false, begin_id, end_id, &um_out, map_code, unmapped_counter);
+			read_alt_name=read.alt_name;
+		}
+		if (best_hits.hits.size() > 0) {
+			if (got_read) {
+				update_junctions(best_hits, *final_junctions);
+				update_insertions_and_deletions(best_hits, *final_insertions,
+				    *final_deletions);
+				update_fusions(best_hits, *rt, *final_fusions, *fusions);
 
-    // pclose (pipe close), which waits for a process to end, seems to conflict with boost::thread::join somehow,
-    // resulting in deadlock like behavior.
-    delete left_um_out;
-    delete right_um_out;
-  }
+				print_sam_for_single(*rt, best_hits, fragment_type, read_alt_name,
+				    bam_writer, rng);
+			}
+		}
+		//else reads_file.
+	}
 
-  string bam_output_fname;
-  string sam_header_fname;
+	void operator()() {
+		rng.seed(1);
 
-  string left_reads_fname;
-  vector<string> left_map_fnames;
-  string right_reads_fname;
-  vector<string> right_map_fnames;
+		ReadTable it;
+		GBamWriter bam_writer(bam_output_fname.c_str(), sam_header.c_str());
 
-  string left_um_fname;
-  string right_um_fname;
+		is_paired = right_map_fnames.size() > 0;
 
-  JunctionSet* gtf_junctions;
-  
-  JunctionSet* junctions;
-  JunctionSet* rev_junctions;
-  InsertionSet* insertions;
-  DeletionSet* deletions;
-  DeletionSet* rev_deletions;
-  FusionSet* fusions;
-  Coverage* coverage;
+		ReadStream left_reads_file(left_reads_fname);
+		if (left_reads_file.file() == NULL)
+			err_die("Error: cannot open %s for reading\n", left_reads_fname.c_str());
+		if (left_reads_file.isBam()) {
+			left_reads_file.use_alt_name();
+			left_reads_file.ignoreQC();
+		}
+		if (left_reads_offset > 0)
+			left_reads_file.seek(left_reads_offset);
 
-  JunctionSet* final_junctions;
-  InsertionSet* final_insertions;
-  DeletionSet* final_deletions;
-  FusionSet* final_fusions;
+		GBamWriter* left_um_out = new GBamWriter(left_um_fname.c_str(),
+		    sam_header.c_str());
+		GBamWriter* right_um_out = NULL;
 
-  RefSequenceTable* rt;
+		ReadStream right_reads_file(right_reads_fname);
+		if (right_reads_offset > 0)
+			right_reads_file.seek(right_reads_offset);
 
-  uint64_t begin_id;
-  uint64_t end_id;
-  int64_t left_reads_offset;
-  int64_t left_map_offset;
-  int64_t right_reads_offset;
-  int64_t right_map_offset;
+		if (!right_reads_fname.empty()) {
+			if (right_reads_file.isBam()) {
+				right_reads_file.use_alt_name();
+				right_reads_file.ignoreQC();
+				right_um_out = new GBamWriter(right_um_fname.c_str(),
+				    sam_header.c_str());
+			}
+		}
 
-  bool is_paired;
+		MultipleBAMReader left_hs(it, *rt, left_map_fnames, begin_id, end_id);
+		MultipleBAMReader right_hs(it, *rt, right_map_fnames, begin_id, end_id);
 
-  boost::mt19937 rng;
+		HitsForRead curr_left_hit_group;
+		HitsForRead curr_right_hit_group;
+
+		left_hs.next_read_hits(curr_left_hit_group);
+		right_hs.next_read_hits(curr_right_hit_group);
+
+		uint64_t curr_left_obs_order = it.observation_order(
+		    curr_left_hit_group.insert_id);
+		uint64_t curr_right_obs_order = it.observation_order(
+		    curr_right_hit_group.insert_id);
+
+		const bool final_report = true;
+
+		// While we still have unreported hits...
+		Read l_read;
+		Read r_read;
+		while ((curr_left_obs_order != VMAXINT32
+		    || curr_right_obs_order != VMAXINT32)
+		    && (curr_left_obs_order < end_id || curr_right_obs_order < end_id)) {
+			// Chew up left singletons (pairs with right reads unmapped)
+			while (curr_left_obs_order < curr_right_obs_order
+			    && curr_left_obs_order < end_id && curr_left_obs_order != VMAXINT32) {
+				write_singleton_alignments(curr_left_obs_order, curr_left_hit_group,
+				    left_reads_file, bam_writer, *left_um_out,
+				    is_paired ? FRAG_LEFT : FRAG_UNPAIRED);
+
+				// Get next hit group
+				left_hs.next_read_hits(curr_left_hit_group);
+				curr_left_obs_order = it.observation_order(
+				    curr_left_hit_group.insert_id);
+			} //left singletons
+
+			// Chew up right singletons
+			while (curr_left_obs_order > curr_right_obs_order
+			    && curr_right_obs_order < end_id && curr_right_obs_order != VMAXINT32) {
+				write_singleton_alignments(curr_right_obs_order, curr_right_hit_group,
+				    right_reads_file, bam_writer, *right_um_out, FRAG_RIGHT);
+
+				// Get next hit group
+				right_hs.next_read_hits(curr_right_hit_group);
+				curr_right_obs_order = it.observation_order(
+				    curr_right_hit_group.insert_id);
+			}
+
+			// Since we have both left hits and right hits for this insert,
+			// Find the best pairing and print both
+			while (curr_left_obs_order == curr_right_obs_order
+			    && curr_left_obs_order < end_id && curr_left_obs_order != VMAXINT32) {
+				realign_reads(curr_left_hit_group, *rt, *junctions, *rev_junctions,
+				    *insertions, *deletions, *rev_deletions, *fusions);
+				exclude_hits_on_filtered_junctions(*junctions, curr_left_hit_group);
+
+				realign_reads(curr_right_hit_group, *rt, *junctions, *rev_junctions,
+				    *insertions, *deletions, *rev_deletions, *fusions);
+				exclude_hits_on_filtered_junctions(*junctions, curr_right_hit_group);
+
+				vector<pair<BowtieHit, BowtieHit> > best_hits;
+
+				bool paired_alignments = curr_left_hit_group.hits.size() > 0
+				    && curr_right_hit_group.hits.size() > 0;
+				InsertAlignmentGrade grade;
+				bool got_left_read = false;
+				bool got_right_read = false;
+				if (paired_alignments) {
+					char pair_map_flags=pair_best_alignments(curr_left_hit_group, curr_right_hit_group, grade,
+					    best_hits, *gtf_junctions, *junctions, *insertions, *deletions,
+					    *fusions, *coverage, final_report, &rng);
+					if (pair_map_flags & 1) alnStats->num_aligned_left++;
+					else alnStats->num_unmapped_left++;
+					if (pair_map_flags & 2) alnStats->num_aligned_right++;
+					else alnStats->num_unmapped_right++;
+					if ((pair_map_flags & 3)==3) //at least one acceptable alignment was found for each read
+						alnStats->num_aligned_pairs++;
+					if (pair_map_flags & 4) alnStats->num_aligned_left_multi++;
+					if (pair_map_flags & 8) alnStats->num_aligned_right_multi++;
+					if ((pair_map_flags & 12) == 12) alnStats->num_aligned_pairs_multi++;
+					char left_map_code=(pair_map_flags & 16) ? 'M' : 0;
+					char right_map_code=(pair_map_flags & 32) ? 'M' : 0;
+					got_left_read = left_reads_file.getRead(
+							curr_left_obs_order, l_read, reads_format, false,
+					    begin_id, end_id, left_um_out, left_map_code, &(alnStats->num_unmapped_left));
+
+					got_right_read = right_reads_file.getRead(
+							curr_right_obs_order, r_read, reads_format, false,
+					    begin_id, end_id, right_um_out, right_map_code, &(alnStats->num_unmapped_right));
+
+					//FIXME: what's the best way to check here if the pair alignment is discordant?
+					if (((pair_map_flags & 3)==3) && (best_hits.size() <= 0 || grade.fusion)) {
+						alnStats->num_aligned_pairs_disc++;
+					}
+
+					if (report_mixed_alignments) {
+						if (best_hits.size() <= 0
+						    || (grade.fusion && !fusion_search
+						        && !report_discordant_pair_alignments))
+							paired_alignments = false;
+					}
+				}
+				if (paired_alignments) {
+					HitsForRead best_left_hit_group;
+					best_left_hit_group.insert_id = curr_left_obs_order;
+					HitsForRead best_right_hit_group;
+					best_right_hit_group.insert_id = curr_left_obs_order;
+
+					for (size_t i = 0; i < best_hits.size(); ++i) {
+						best_left_hit_group.hits.push_back(best_hits[i].first);
+						best_right_hit_group.hits.push_back(best_hits[i].second);
+					}
+
+					if (best_hits.size() > 0) {
+/*
+						bool got_left_read = left_reads_file.getRead(
+						    best_hits[0].first.insert_id(), l_read, reads_format, false,
+						    begin_id, end_id, left_um_out, 0, &(alnStats->num_unmapped_left));
+
+						bool got_right_read = right_reads_file.getRead(
+						    best_hits[0].first.insert_id(), r_read, reads_format, false,
+						    begin_id, end_id, right_um_out, 0, &(alnStats->num_unmapped_right));
+*/
+						if (got_left_read && got_right_read) {
+							update_junctions(best_left_hit_group, *final_junctions);
+							update_insertions_and_deletions(best_left_hit_group,
+							    *final_insertions, *final_deletions);
+							update_fusions(best_left_hit_group, *rt, *final_fusions,
+							    *fusions);
+
+							update_junctions(best_right_hit_group, *final_junctions);
+							update_insertions_and_deletions(best_right_hit_group,
+							    *final_insertions, *final_deletions);
+							update_fusions(best_right_hit_group, *rt, *final_fusions,
+							    *fusions);
+
+							pair_support(best_hits, *final_fusions, *fusions);
+
+							print_sam_for_pair(*rt, best_hits, grade, bam_writer,
+							    l_read.alt_name, r_read.alt_name, rng, begin_id, end_id);
+						}
+					}
+				} else { //alignments not paired properly
+					if (curr_left_hit_group.hits.size() > 0) {
+						write_singleton_alignments(curr_left_obs_order, curr_left_hit_group,
+						    left_reads_file, bam_writer, *left_um_out,
+						    is_paired ? FRAG_LEFT : FRAG_UNPAIRED, &l_read);
+					}
+
+					if (curr_right_hit_group.hits.size() > 0) {   //only right read mapped
+						write_singleton_alignments(curr_right_obs_order,
+						    curr_right_hit_group, right_reads_file, bam_writer,
+						    *right_um_out, FRAG_RIGHT, &r_read);
+					}
+				}
+
+				left_hs.next_read_hits(curr_left_hit_group);
+				curr_left_obs_order = it.observation_order(
+				    curr_left_hit_group.insert_id);
+
+				right_hs.next_read_hits(curr_right_hit_group);
+				curr_right_obs_order = it.observation_order(
+				    curr_right_hit_group.insert_id);
+			}
+		} //while we still have unreported hits..
+		//print the remaining unmapped reads at the end of each reads' stream
+
+		left_reads_file.getRead(VMAXINT32, l_read, reads_format, false, begin_id,
+		    end_id, left_um_out, 0, &(alnStats->num_unmapped_left));
+		if (right_reads_file.file())
+			right_reads_file.getRead(VMAXINT32, r_read, reads_format, false, begin_id,
+			    end_id, right_um_out, 0, &(alnStats->num_unmapped_right));
+
+		// pclose (pipe close), which waits for a process to end, seems to conflict with boost::thread::join somehow,
+		// resulting in deadlock like behavior.
+		delete left_um_out;
+		delete right_um_out;
+	}
+
+	string bam_output_fname;
+	string sam_header_fname;
+
+	string left_reads_fname;
+	vector<string> left_map_fnames;
+	string right_reads_fname;
+	vector<string> right_map_fnames;
+
+	string left_um_fname;
+	string right_um_fname;
+
+	JunctionSet* gtf_junctions;
+
+	JunctionSet* junctions;
+	JunctionSet* rev_junctions;
+	InsertionSet* insertions;
+	DeletionSet* deletions;
+	DeletionSet* rev_deletions;
+	FusionSet* fusions;
+	Coverage* coverage;
+
+	JunctionSet* final_junctions;
+	InsertionSet* final_insertions;
+	DeletionSet* final_deletions;
+	FusionSet* final_fusions;
+
+	RefSequenceTable* rt;
+
+	uint64_t begin_id;
+	uint64_t end_id;
+	int64_t left_reads_offset;
+	int64_t left_map_offset;
+	int64_t right_reads_offset;
+	int64_t right_map_offset;
+	//read alignment accounting:
+	SAlignStats* alnStats;
+
+	bool is_paired;
+
+	boost::mt19937 rng;
 };
 
 void driver(const string& bam_output_fname,
-	    istream& ref_stream,
-	    const vector<string>& left_map_fnames,
-	    const string& left_reads_fname,
-	    const vector<string>& right_map_fnames,
-	    const string& right_reads_fname,
-	    FILE* junctions_out,
-	    FILE* insertions_out,
-	    FILE* deletions_out,
-	    FILE* fusions_out)
+		istream& ref_stream,
+		const vector<string>& left_map_fnames,
+		const string& left_reads_fname,
+		const vector<string>& right_map_fnames,
+		const string& right_reads_fname,
+		FILE* junctions_out,
+		FILE* insertions_out,
+		FILE* deletions_out,
+		FILE* fusions_out)
 {
-  if (!parallel)
-    num_threads = 1;
+	if (!parallel)
+		num_threads = 1;
 
-  RefSequenceTable rt(sam_header, true);
-  get_seqs(ref_stream, rt, true);
+	RefSequenceTable rt(sam_header, true);
+	get_seqs(ref_stream, rt, true);
 
-  srandom(1);
-  
-  JunctionSet gtf_junctions;
-  if (!gtf_juncs.empty())
-    {
-      char splice_buf[4096];
-      FILE* splice_coords = fopen(gtf_juncs.c_str(), "r");
-      if (splice_coords)
-        {
-          while (fgets(splice_buf, sizeof(splice_buf), splice_coords))
-            {
-              char* nl = strrchr(splice_buf, '\n');
-              char* buf = splice_buf;
-              if (nl) *nl = 0;
+	srandom(1);
 
-              char* ref_name = get_token((char**)&buf, "\t");
-              char* scan_left_coord = get_token((char**)&buf, "\t");
-              char* scan_right_coord = get_token((char**)&buf, "\t");
-              char* orientation = get_token((char**)&buf, "\t");
-
-              if (!scan_left_coord || !scan_right_coord || !orientation)
-                {
-                  fprintf(stderr,"Error: malformed splice coordinate record in %s\n:%s\n",
-                        gtf_juncs.c_str(), buf);
-                  exit(1);
-                }
-
-              uint32_t ref_id = rt.get_id(ref_name, NULL, 0);
-              uint32_t left_coord = atoi(scan_left_coord);
-              uint32_t right_coord = atoi(scan_right_coord);
-              bool antisense = *orientation == '-';
-
-	      JunctionStats junction_stat;
-	      junction_stat.gtf_match = true;
-	      junction_stat.accepted = true;
-	      
-              gtf_junctions.insert(make_pair<Junction, JunctionStats>(Junction(ref_id, left_coord, right_coord, antisense), junction_stat));
-            }
-        }
-      fprintf(stderr, "Loaded %d GFF junctions from %s.\n", (int)(gtf_junctions.size()), gtf_juncs.c_str());
-    }
-
-  vector<uint64_t> read_ids;
-  vector<vector<int64_t> > offsets;
-  if (num_threads > 1)
-    {
-      vector<string> fnames;
-      if (right_map_fnames.size() > 0)
+	JunctionSet gtf_junctions;
+	if (!gtf_juncs.empty())
 	{
-	  fnames.push_back(right_reads_fname);
-	  fnames.push_back(right_map_fnames.back());
+		char splice_buf[4096];
+		FILE* splice_coords = fopen(gtf_juncs.c_str(), "r");
+		if (splice_coords)
+		{
+			while (fgets(splice_buf, sizeof(splice_buf), splice_coords))
+			{
+				char* nl = strrchr(splice_buf, '\n');
+				char* buf = splice_buf;
+				if (nl) *nl = 0;
+
+				char* ref_name = get_token((char**)&buf, "\t");
+				char* scan_left_coord = get_token((char**)&buf, "\t");
+				char* scan_right_coord = get_token((char**)&buf, "\t");
+				char* orientation = get_token((char**)&buf, "\t");
+
+				if (!scan_left_coord || !scan_right_coord || !orientation)
+				{
+					fprintf(stderr,"Error: malformed splice coordinate record in %s\n:%s\n",
+							gtf_juncs.c_str(), buf);
+					exit(1);
+				}
+
+				uint32_t ref_id = rt.get_id(ref_name, NULL, 0);
+				uint32_t left_coord = atoi(scan_left_coord);
+				uint32_t right_coord = atoi(scan_right_coord);
+				bool antisense = *orientation == '-';
+
+				JunctionStats junction_stat;
+				junction_stat.gtf_match = true;
+				junction_stat.accepted = true;
+
+				gtf_junctions.insert(make_pair<Junction, JunctionStats>(Junction(ref_id, left_coord, right_coord, antisense), junction_stat));
+			}
+		}
+		fprintf(stderr, "Loaded %d GFF junctions from %s.\n", (int)(gtf_junctions.size()), gtf_juncs.c_str());
 	}
-      fnames.push_back(left_reads_fname);
-      fnames.push_back(left_map_fnames.back());
-      bool enough_data = calculate_offsets(fnames, read_ids, offsets);
-      if (!enough_data)
-	num_threads = 1;
-    }
 
-  vector<JunctionSet> vjunctions(num_threads);
-  vector<InsertionSet> vinsertions(num_threads);
-  vector<DeletionSet> vdeletions(num_threads);
-  vector<FusionSet> vfusions(num_threads);
-  vector<Coverage> vcoverages(num_threads);
-  
-  vector<boost::thread*> threads;
-  for (int i = 0; i < num_threads; ++i)
-    {
-      ConsensusEventsWorker worker;
-
-      worker.left_map_fnames = left_map_fnames;
-      worker.right_map_fnames = right_map_fnames;
-      worker.rt = &rt;
-      worker.gtf_junctions = &gtf_junctions;
-      
-      worker.junctions = &vjunctions[i];
-      worker.insertions = &vinsertions[i];
-      worker.deletions = &vdeletions[i];
-      worker.fusions = &vfusions[i];
-      worker.coverage = &vcoverages[i];
-
-      worker.right_map_offset = 0;
-      
-      if (i == 0)
+	vector<uint64_t> read_ids;
+	vector<vector<int64_t> > offsets;
+	if (num_threads > 1)
 	{
-	  worker.begin_id = 0;
-	  worker.left_map_offset = 0;
+		vector<string> fnames;
+		if (right_map_fnames.size() > 0)
+		{
+			fnames.push_back(right_reads_fname);
+			fnames.push_back(right_map_fnames.back());
+		}
+		fnames.push_back(left_reads_fname);
+		fnames.push_back(left_map_fnames.back());
+		bool enough_data = calculate_offsets(fnames, read_ids, offsets);
+		if (!enough_data)
+			num_threads = 1;
 	}
-      else
+
+	vector<JunctionSet> vjunctions(num_threads);
+	vector<InsertionSet> vinsertions(num_threads);
+	vector<DeletionSet> vdeletions(num_threads);
+	vector<FusionSet> vfusions(num_threads);
+	vector<Coverage> vcoverages(num_threads);
+
+	vector<boost::thread*> threads;
+	for (int i = 0; i < num_threads; ++i)
 	{
-	  size_t offsets_size = offsets[i-1].size();
+		ConsensusEventsWorker worker;
 
-	  worker.begin_id = read_ids[i-1];
-	  worker.left_map_offset = offsets[i-1].back();
-	  if (offsets_size == 4)
-	    worker.right_map_offset = offsets[i-1][1];
+		worker.left_map_fnames = left_map_fnames;
+		worker.right_map_fnames = right_map_fnames;
+		worker.rt = &rt;
+		worker.gtf_junctions = &gtf_junctions;
+
+		worker.junctions = &vjunctions[i];
+		worker.insertions = &vinsertions[i];
+		worker.deletions = &vdeletions[i];
+		worker.fusions = &vfusions[i];
+		worker.coverage = &vcoverages[i];
+
+		worker.right_map_offset = 0;
+
+		if (i == 0)
+		{
+			worker.begin_id = 0;
+			worker.left_map_offset = 0;
+		}
+		else
+		{
+			size_t offsets_size = offsets[i-1].size();
+
+			worker.begin_id = read_ids[i-1];
+			worker.left_map_offset = offsets[i-1].back();
+			if (offsets_size == 4)
+				worker.right_map_offset = offsets[i-1][1];
+		}
+
+		worker.end_id = (i+1 < num_threads) ? read_ids[i] : std::numeric_limits<uint64_t>::max();
+
+		if (num_threads > 1 && i + 1 < num_threads)
+			threads.push_back(new boost::thread(worker));
+		else
+			worker();
 	}
-      
-      worker.end_id = (i+1 < num_threads) ? read_ids[i] : std::numeric_limits<uint64_t>::max();
 
-      if (num_threads > 1 && i + 1 < num_threads)
-	threads.push_back(new boost::thread(worker));
-      else
-	worker();
-    }
+	for (size_t i = 0; i < threads.size(); ++i)
+	{
+		threads[i]->join();
+		delete threads[i];
+		threads[i] = NULL;
+	}
+	threads.clear();
 
-  for (size_t i = 0; i < threads.size(); ++i)
-    {
-      threads[i]->join();
-      delete threads[i];
-      threads[i] = NULL;
-    }
-  threads.clear();
+	JunctionSet& junctions = vjunctions[0];
+	InsertionSet& insertions = vinsertions[0];
+	DeletionSet& deletions = vdeletions[0];
+	FusionSet& fusions = vfusions[0];
+	Coverage& coverage = vcoverages[0];
+	for (int i = 1; i < num_threads; ++i)
+	{
+		merge_with(junctions, vjunctions[i]);
+		vjunctions[i].clear();
 
-  JunctionSet& junctions = vjunctions[0];
-  InsertionSet& insertions = vinsertions[0];
-  DeletionSet& deletions = vdeletions[0];
-  FusionSet& fusions = vfusions[0];
-  Coverage& coverage = vcoverages[0];
-  for (int i = 1; i < num_threads; ++i)
-    {
-      merge_with(junctions, vjunctions[i]);
-      vjunctions[i].clear();
+		merge_with(insertions, vinsertions[i]);
+		vinsertions[i].clear();
 
-      merge_with(insertions, vinsertions[i]);
-      vinsertions[i].clear();
-      
-      merge_with(deletions, vdeletions[i]);
-      vdeletions[i].clear();
+		merge_with(deletions, vdeletions[i]);
+		vdeletions[i].clear();
 
-      merge_with(fusions, vfusions[i]);
-      vfusions[i].clear();
+		merge_with(fusions, vfusions[i]);
+		vfusions[i].clear();
 
-      coverage.merge_with(vcoverages[i]);
-      vcoverages[i].clear();
-    }
+		coverage.merge_with(vcoverages[i]);
+		vcoverages[i].clear();
+	}
 
-  merge_with(junctions, gtf_junctions);
-  coverage.calculate_coverage();
+	merge_with(junctions, gtf_junctions);
+	coverage.calculate_coverage();
 
-  JunctionSet rev_junctions;
-  JunctionSet::const_iterator junction_iter = junctions.begin();
-  for (; junction_iter != junctions.end(); ++junction_iter)
-    {
-      const Junction& junction = junction_iter->first;
-      Junction rev_junction = junction;
-      rev_junction.left = junction.right;
-      rev_junction.right = junction.left;
-      rev_junctions[rev_junction] = junction_iter->second;
-    }
+	JunctionSet rev_junctions;
+	JunctionSet::const_iterator junction_iter = junctions.begin();
+	for (; junction_iter != junctions.end(); ++junction_iter)
+	{
+		const Junction& junction = junction_iter->first;
+		Junction rev_junction = junction;
+		rev_junction.left = junction.right;
+		rev_junction.right = junction.left;
+		rev_junctions[rev_junction] = junction_iter->second;
+	}
 
-  DeletionSet rev_deletions;
+	DeletionSet rev_deletions;
 #if 0
-  DeletionSet::const_iterator deletion_iter = deletions.begin();
-  for (; deletion_iter != deletions.end(); ++deletion_iter)
-    {
-      const Deletion& deletion = deletion_iter->first;
-      Deletion rev_deletion = deletion;
-      rev_deletion.left = deletion.right;
-      rev_deletion.right = deletion.left;
-      rev_deletions[rev_deletion] = deletion_iter->second;
-    }
+DeletionSet::const_iterator deletion_iter = deletions.begin();
+for (; deletion_iter != deletions.end(); ++deletion_iter)
+{
+	const Deletion& deletion = deletion_iter->first;
+	Deletion rev_deletion = deletion;
+	rev_deletion.left = deletion.right;
+	rev_deletion.right = deletion.left;
+	rev_deletions[rev_deletion] = deletion_iter->second;
+}
 #endif
 
-  size_t num_unfiltered_juncs = junctions.size();
-  fprintf(stderr, "Loaded %lu junctions\n", (long unsigned int) num_unfiltered_juncs);
+	size_t num_unfiltered_juncs = junctions.size();
+	fprintf(stderr, "Loaded %lu junctions\n", (long unsigned int) num_unfiltered_juncs);
 
-  // Read hits, extract junctions, and toss the ones that arent strongly enough supported.
-  filter_junctions(junctions, gtf_junctions);
-  
-  //size_t num_juncs_after_filter = junctions.size();
-  //fprintf(stderr, "Filtered %lu junctions\n",
-  //     num_unfiltered_juncs - num_juncs_after_filter);
+	// Read hits, extract junctions, and toss the ones that arent strongly enough supported.
+	filter_junctions(junctions, gtf_junctions);
 
-  /*
-    size_t small_overhangs = 0;
-    for (JunctionSet::iterator i = junctions.begin(); i != junctions.end(); ++i)
-    {
-    if (i->second.accepted &&
-    (i->second.left_extent < min_anchor_len || i->second.right_extent < min_anchor_len))
-    {
-    small_overhangs++;
-    }
-    }
-    
-    if (small_overhangs >0)
-    fprintf(stderr, "Warning: %lu small overhang junctions!\n", (long unsigned int)small_overhangs);
-  */
+	//size_t num_juncs_after_filter = junctions.size();
+	//fprintf(stderr, "Filtered %lu junctions\n",
+	//     num_unfiltered_juncs - num_juncs_after_filter);
 
-  JunctionSet vfinal_junctions[num_threads];
-  InsertionSet vfinal_insertions[num_threads];
-  DeletionSet vfinal_deletions[num_threads];
-  FusionSet vfinal_fusions[num_threads];
+	/*
+			size_t small_overhangs = 0;
+			for (JunctionSet::iterator i = junctions.begin(); i != junctions.end(); ++i)
+			{
+			if (i->second.accepted &&
+			(i->second.left_extent < min_anchor_len || i->second.right_extent < min_anchor_len))
+			{
+			small_overhangs++;
+			}
+			}
 
-  for (int i = 0; i < num_threads; ++i)
-    {
-      ReportWorker worker;
+			if (small_overhangs >0)
+			fprintf(stderr, "Warning: %lu small overhang junctions!\n", (long unsigned int)small_overhangs);
+	 */
 
-      worker.sam_header_fname = sam_header;
-      char filename[1024] = {0};
-      sprintf(filename, "%s%d.bam", bam_output_fname.c_str(), i);
-      worker.bam_output_fname = filename;
-      string tmpoutdir = getFdir(worker.bam_output_fname);
-      worker.left_um_fname = tmpoutdir;
-      sprintf(filename, "unmapped_left_%d.bam", i);
-      worker.left_um_fname+=filename;
-      
-      if (right_reads_fname != "")
+	JunctionSet vfinal_junctions[num_threads];
+	InsertionSet vfinal_insertions[num_threads];
+	DeletionSet vfinal_deletions[num_threads];
+	FusionSet vfinal_fusions[num_threads];
+
+	vector<SAlignStats> alnStats(num_threads);
+
+	for (int i = 0; i < num_threads; ++i)
 	{
-	  sprintf(filename, "unmapped_right_%d.bam", i);
-	  worker.right_um_fname = tmpoutdir;
-	  worker.right_um_fname += filename;
-	}
-      
-      worker.left_reads_fname = left_reads_fname;
-      worker.left_map_fnames = left_map_fnames;
-      worker.right_reads_fname = right_reads_fname;
-      worker.right_map_fnames = right_map_fnames;
+		ReportWorker worker(&rt, &alnStats[i]);
 
-      worker.gtf_junctions = &gtf_junctions;
-      worker.junctions = &junctions;
-      worker.rev_junctions = &rev_junctions;
-      worker.insertions = &insertions;
-      worker.deletions = &deletions;
-      worker.rev_deletions = &rev_deletions;
-      worker.fusions = &fusions;
-      worker.coverage = &coverage;
-      
-      worker.final_junctions = &vfinal_junctions[i];
-      worker.final_insertions = &vfinal_insertions[i];
-      worker.final_deletions = &vfinal_deletions[i];
-      worker.final_fusions = &vfinal_fusions[i];
-      worker.rt = &rt;
+		worker.sam_header_fname = sam_header;
+		char filename[1024] = {0};
+		sprintf(filename, "%s%d.bam", bam_output_fname.c_str(), i);
+		worker.bam_output_fname = filename;
+		string tmpoutdir = getFdir(worker.bam_output_fname);
+		worker.left_um_fname = tmpoutdir;
+		sprintf(filename, "unmapped_left_%d.bam", i);
+		worker.left_um_fname+=filename;
 
-      worker.right_reads_offset = 0;
-      worker.right_map_offset = 0;
-      
-      if (i == 0)
+		if (right_reads_fname != "")
+		{
+			sprintf(filename, "unmapped_right_%d.bam", i);
+			worker.right_um_fname = tmpoutdir;
+			worker.right_um_fname += filename;
+		}
+
+		worker.left_reads_fname = left_reads_fname;
+		worker.left_map_fnames = left_map_fnames;
+		worker.right_reads_fname = right_reads_fname;
+		worker.right_map_fnames = right_map_fnames;
+
+		worker.gtf_junctions = &gtf_junctions;
+		worker.junctions = &junctions;
+		worker.rev_junctions = &rev_junctions;
+		worker.insertions = &insertions;
+		worker.deletions = &deletions;
+		worker.rev_deletions = &rev_deletions;
+		worker.fusions = &fusions;
+		worker.coverage = &coverage;
+
+		worker.final_junctions = &vfinal_junctions[i];
+		worker.final_insertions = &vfinal_insertions[i];
+		worker.final_deletions = &vfinal_deletions[i];
+		worker.final_fusions = &vfinal_fusions[i];
+
+		//worker.rt = &rt;
+		//worker.right_reads_offset = 0;
+		//worker.right_map_offset = 0;
+
+		/*if (i == 0)
+		{
+			worker.begin_id = 0;
+			worker.left_reads_offset = 0;
+			worker.left_map_offset = 0;
+		}
+		else */
+		if (i != 0)
+		{
+			size_t offsets_size = offsets[i-1].size();
+
+			worker.begin_id = read_ids[i-1];
+			worker.left_reads_offset = offsets[i-1][offsets_size - 2];
+			worker.left_map_offset = offsets[i-1].back();
+			if (offsets_size == 4)
+			{
+				worker.right_reads_offset = offsets[i-1][0];
+				worker.right_map_offset = offsets[i-1][1];
+			}
+		}
+
+		worker.end_id = (i+1 < num_threads) ? read_ids[i] : std::numeric_limits<uint64_t>::max();
+
+		if (num_threads > 1 && i + 1 < num_threads)
+			threads.push_back(new boost::thread(worker));
+		else
+			worker();
+	} //for each thread
+
+	for (size_t i = 0; i < threads.size(); ++i)
 	{
-	  worker.begin_id = 0;
-	  worker.left_reads_offset = 0;
-	  worker.left_map_offset = 0;
+		threads[i]->join();
+		delete threads[i];
+		threads[i] = NULL;
 	}
-      else
+	threads.clear();
+
+	JunctionSet& final_junctions = vfinal_junctions[0];
+	InsertionSet& final_insertions = vfinal_insertions[0];
+	DeletionSet& final_deletions = vfinal_deletions[0];
+	FusionSet& final_fusions = vfinal_fusions[0];
+	for (int i = 1; i < num_threads; ++i)
 	{
-	  size_t offsets_size = offsets[i-1].size();
-	  
-	  worker.begin_id = read_ids[i-1];
-	  worker.left_reads_offset = offsets[i-1][offsets_size - 2];
-	  worker.left_map_offset = offsets[i-1].back();
-	  if (offsets_size == 4)
-	    {
-	      worker.right_reads_offset = offsets[i-1][0];
-	      worker.right_map_offset = offsets[i-1][1];
-	    }
+		alnStats[0].add(alnStats[i]); //merge alignment stats
+
+		merge_with(final_junctions, vfinal_junctions[i]);
+		vfinal_junctions[i].clear();
+
+		merge_with(final_insertions, vfinal_insertions[i]);
+		vfinal_insertions[i].clear();
+
+		merge_with(final_deletions, vfinal_deletions[i]);
+		vfinal_deletions[i].clear();
+
+		merge_with(final_fusions, vfinal_fusions[i]);
+		vfinal_fusions[i].clear();
 	}
-      
-      worker.end_id = (i+1 < num_threads) ? read_ids[i] : std::numeric_limits<uint64_t>::max();
 
-      if (num_threads > 1 && i + 1 < num_threads)
-	threads.push_back(new boost::thread(worker));
-      else
-	worker();
-    }
-
-  for (size_t i = 0; i < threads.size(); ++i)
-    {
-      threads[i]->join();
-      delete threads[i];
-      threads[i] = NULL;
-    }
-  threads.clear();
-
-  JunctionSet& final_junctions = vfinal_junctions[0];
-  InsertionSet& final_insertions = vfinal_insertions[0];
-  DeletionSet& final_deletions = vfinal_deletions[0];
-  FusionSet& final_fusions = vfinal_fusions[0];
-  for (int i = 1; i < num_threads; ++i)
-    {
-      merge_with(final_junctions, vfinal_junctions[i]);
-      vfinal_junctions[i].clear();
-
-      merge_with(final_insertions, vfinal_insertions[i]);
-      vfinal_insertions[i].clear();
-      
-      merge_with(final_deletions, vfinal_deletions[i]);
-      vfinal_deletions[i].clear();
-
-      merge_with(final_fusions, vfinal_fusions[i]);
-      vfinal_fusions[i].clear();
-    }
-
-  fprintf (stderr, "Reporting final accepted alignments...");
-  fprintf (stderr, "done.\n");
-  
-  //small_overhangs = 0;
-  for (JunctionSet::iterator i = final_junctions.begin(); i != final_junctions.end();)
-    {
-      if (i->second.supporting_hits == 0 || i->second.left_extent < 8 || i->second.right_extent < 8)
+	//small_overhangs = 0;
+	for (JunctionSet::iterator i = final_junctions.begin(); i != final_junctions.end();)
 	{
-	  final_junctions.erase(i++);
+		if (i->second.supporting_hits == 0 || i->second.left_extent < 8 || i->second.right_extent < 8)
+		{
+			final_junctions.erase(i++);
+		}
+		else
+		{
+			++i;
+		}
 	}
-      else
+
+	//	if (small_overhangs > 0)
+	//		fprintf(stderr, "Warning: %lu small overhang junctions!\n", small_overhangs);
+	print_alnStats(alnStats[0]);
+	fprintf (stderr, "Printing junction BED track...");
+	print_junctions(junctions_out, final_junctions, rt);
+	fprintf (stderr, "done\n");
+
+	fprintf (stderr, "Printing insertions...");
+	print_insertions(insertions_out, final_insertions,rt);
+	fclose(insertions_out);
+	fprintf (stderr, "done\n");
+
+	fprintf (stderr, "Printing deletions...");
+	print_deletions(deletions_out, final_deletions, rt);
+	fclose(deletions_out);
+	fprintf (stderr, "done\n");
+
+	if (fusion_search)
 	{
-	  ++i;
+		fprintf (stderr, "Printing fusions...");
+		print_fusions(fusions_out, final_fusions, rt);
+		fclose(fusions_out);
+		fprintf (stderr, "done\n");
 	}
-    }
-  
-  //	if (small_overhangs > 0)
-  //		fprintf(stderr, "Warning: %lu small overhang junctions!\n", small_overhangs);
 
-  fprintf (stderr, "Printing junction BED track...");
-  print_junctions(junctions_out, final_junctions, rt);
-  fprintf (stderr, "done\n");
-  
-  fprintf (stderr, "Printing insertions...");
-  print_insertions(insertions_out, final_insertions,rt);
-  fclose(insertions_out);
-  fprintf (stderr, "done\n");
-  
-  fprintf (stderr, "Printing deletions...");
-  print_deletions(deletions_out, final_deletions, rt);
-  fclose(deletions_out);
-  fprintf (stderr, "done\n");
-
-  if (fusion_search)
-    {
-      fprintf (stderr, "Printing fusions...");
-      print_fusions(fusions_out, final_fusions, rt);
-      fclose(fusions_out);
-      fprintf (stderr, "done\n");
-    }
-  
-  fprintf(stderr, "Found %lu junctions from happy spliced reads\n", (long unsigned int)final_junctions.size());
+	fprintf(stderr, "Found %lu junctions from happy spliced reads\n", (long unsigned int)final_junctions.size());
 }
 
 void print_usage()

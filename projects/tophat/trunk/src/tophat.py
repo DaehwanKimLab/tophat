@@ -4059,6 +4059,7 @@ def main(argv=None):
 
 
         th_logp("-----------------------------------------------")
+        th_log("A summary of the alignment counts can be found in %salign_summary.txt" % output_dir);
         th_log("Run complete: %s elapsed" %  formatTD(duration))
 
     except Usage, err:
