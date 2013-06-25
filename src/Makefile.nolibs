@@ -22,7 +22,7 @@ ifeq ($(findstring nodebug,$(MAKECMDGOALS)),)
   CFLAGS = -g -DMEM_DEBUG -DDEBUG $(BASEFLAGS)
   LDFLAGS = -g -L/opt/geo/lib
 else
-  CFLAGS = -O2 -DNDEBUG $(BASEFLAGS)
+  CFLAGS = -O3 -DNDEBUG $(BASEFLAGS)
   LDFLAGS = -L/opt/geo/lib
 endif
 

@@ -219,7 +219,10 @@ InsertAlignmentGrade(const BowtieHit& h1,
   {
     return num_mapped == 2 && opposite_strands && (num_spliced != 2 || consistent_splices) && !too_far;
   }
-
+ bool concordant() const
+ {
+	 return (num_mapped == 2 && opposite_strands && inner_dist<=max_report_intron_length);
+ }
   int align_score() { return alignment_score; }
 
   bool is_fusion() const { return fusion; }

@@ -210,125 +210,125 @@ void writePrepBam(GBamWriter* wbam, Read& read, uint32_t rid, char trashcode=0, 
 }
 
 bool processRead(int matenum, Read& read, uint32_t next_id,  int& num_reads_chucked,
-	int& multimap_chucked, GBamWriter* wbam, FILE* fout, FILE* fqindex,
-	int& min_read_len, int& max_read_len, uint64_t& fout_offset, vector<bool>& rmap) {
-  if (read.seq.length()<12) {
-            ++num_reads_chucked;
-	  writePrepBam(wbam, read, next_id, 'S', matenum);
-	  return false;
+		int& multimap_chucked, GBamWriter* wbam, FILE* fout, FILE* fqindex,
+		int& min_read_len, int& max_read_len, uint64_t& fout_offset, vector<bool>& rmap) {
+	if (read.seq.length()<12) {
+		++num_reads_chucked;
+		writePrepBam(wbam, read, next_id, 'S', matenum);
+		return false;
 	}
-        if ((int)read.seq.length()<min_read_len)
-             min_read_len=read.seq.length();
-        if ((int)read.seq.length()>max_read_len)
-             max_read_len=read.seq.length();
+	if ((int)read.seq.length()<min_read_len)
+		min_read_len=read.seq.length();
+	if ((int)read.seq.length()>max_read_len)
+		max_read_len=read.seq.length();
 
-        if (color && read.seq[1] == '4') {
-          ++num_reads_chucked;
-	writePrepBam(wbam, read, next_id, 'c', matenum);
-	return false;
-          }
-
-  if (readmap_loaded && check_readmap(rmap, next_id)) {
-          ++num_reads_chucked;
-          ++multimap_chucked;
-	writePrepBam(wbam, read, next_id, 'M', matenum);
-	return false;
-          }
-        format_qual_string(read.qual);
-        std::transform(read.seq.begin(), read.seq.end(), read.seq.begin(), ::toupper);
-        char counts[256];
-        memset(counts, 0, sizeof(counts));
-        // Count up the bad characters
-        for (unsigned int i = 0; i != read.seq.length(); ++i)
-          {
-            char c = (char)toupper(read.seq[i]);
-            counts[(size_t)c]++;
-          }
-
-        double percent_A = (double)(counts[(size_t)'A']) / read.seq.length();
-        double percent_C = (double)(counts[(size_t)'C']) / read.seq.length();
-        double percent_G = (double)(counts[(size_t)'G']) / read.seq.length();
-        double percent_T = (double)(counts[(size_t)'T']) / read.seq.length();
-        double percent_N = (double)(counts[(size_t)'N']) / read.seq.length();
-        double percent_4 = (double)(counts[(size_t)'4']) / read.seq.length();
-
-        // Chuck the read if there are at least 5 'N's or if it's mostly
-        // (>90%) 'N's and 'A's
-        char trash_code=0;
-        if (percent_A > 0.9 ||
-            percent_C > 0.9 ||
-            percent_G > 0.9 ||
-            percent_T > 0.9)
-              trash_code='L';
-        else if (percent_N >= 0.1 || percent_4 >=0.1)
-              trash_code='N';
-        if (trash_code) {
-          ++num_reads_chucked;
-	writePrepBam(wbam, read, next_id, trash_code, matenum);
-	return false;
-        }
-
-        if (wbam) {
-	  if (reads_format == FASTA && !quals)
-	    read.qual = string(read.seq.length(), 'I').c_str();
-	  else if (color && quals)
-	    read.qual = "!" + read.qual;
-	  
-          writePrepBam(wbam, read, next_id, 0, matenum);
-        }
-        else {
-		  // daehwan - we should not use buf in printf function
-		  // because it may contain some control characters such as "\" from quality values.
-		  // Here, buf is only used for calculating the file offset
-		  char buf[2048] = {0};
-		  if (reads_format == FASTQ or (reads_format == FASTA && quals))
-				{
-		  sprintf(buf, "@%u\n%s\n+%s\n%s\n",
-			  next_id,
-			  read.seq.c_str(),
-			  read.name.c_str(),
-			  read.qual.c_str());
-
-		  fprintf(fout, "@%u\n%s\n+%s\n%s\n",
-				 next_id,
-				 read.seq.c_str(),
-				 read.name.c_str(),
-				 read.qual.c_str());
-				}
-			  else if (reads_format == FASTA)
-				{
-				  string qual;
-				  if (color)
-					qual = string(read.seq.length()-1, 'I').c_str();
-				  else
-					qual = string(read.seq.length(), 'I').c_str();
-
-				  sprintf(buf, "@%u\n%s\n+%s\n%s\n",
-			  next_id,
-			  read.seq.c_str(),
-			  read.name.c_str(),
-			  qual.c_str());
-
-		  fprintf(fout, "@%u\n%s\n+%s\n%s\n",
-			  next_id,
-			  read.seq.c_str(),
-			  read.name.c_str(),
-			  qual.c_str());
-				}
-		  else
-			{
-		  assert(0);
-			}
-
-	if (fqindex != NULL)
-			{
-		  if ((next_id - num_reads_chucked) % INDEX_REC_COUNT == 0)
-		fprintf(fqindex, "%d\t%lu\n", next_id, (long unsigned)fout_offset);
+	if (color && read.seq[1] == '4') {
+		++num_reads_chucked;
+		writePrepBam(wbam, read, next_id, 'c', matenum);
+		return false;
 	}
 
-	fout_offset += strlen(buf);
-  }
-  return true;
+	if (readmap_loaded && check_readmap(rmap, next_id)) {
+		++num_reads_chucked;
+		++multimap_chucked;
+		writePrepBam(wbam, read, next_id, 'M', matenum);
+		return false;
+	}
+	format_qual_string(read.qual);
+	std::transform(read.seq.begin(), read.seq.end(), read.seq.begin(), ::toupper);
+	char counts[256];
+	memset(counts, 0, sizeof(counts));
+	// Count up the bad characters
+	for (unsigned int i = 0; i != read.seq.length(); ++i)
+	{
+		char c = (char)toupper(read.seq[i]);
+		counts[(size_t)c]++;
+	}
+
+	double percent_A = (double)(counts[(size_t)'A']) / read.seq.length();
+	double percent_C = (double)(counts[(size_t)'C']) / read.seq.length();
+	double percent_G = (double)(counts[(size_t)'G']) / read.seq.length();
+	double percent_T = (double)(counts[(size_t)'T']) / read.seq.length();
+	double percent_N = (double)(counts[(size_t)'N']) / read.seq.length();
+	double percent_4 = (double)(counts[(size_t)'4']) / read.seq.length();
+
+	// Chuck the read if there are at least 5 'N's or if it's mostly
+	// (>90%) 'N's and 'A's
+	char trash_code=0;
+	if (percent_A > 0.9 ||
+			percent_C > 0.9 ||
+			percent_G > 0.9 ||
+			percent_T > 0.9)
+		trash_code='L';
+	else if (percent_N >= 0.1 || percent_4 >=0.1)
+		trash_code='N';
+	if (trash_code) {
+		++num_reads_chucked;
+		writePrepBam(wbam, read, next_id, trash_code, matenum);
+		return false;
+	}
+
+	if (wbam) {
+		if (reads_format == FASTA && !quals)
+			read.qual = string(read.seq.length(), 'I').c_str();
+		else if (color && quals)
+			read.qual = "!" + read.qual;
+
+		writePrepBam(wbam, read, next_id, 0, matenum);
+	}
+	else {
+		// daehwan - we should not use buf in printf function
+		// because it may contain some control characters such as "\" from quality values.
+		// Here, buf is only used for calculating the file offset
+		char buf[2048] = {0};
+		if (reads_format == FASTQ or (reads_format == FASTA && quals))
+		{
+			sprintf(buf, "@%u\n%s\n+%s\n%s\n",
+					next_id,
+					read.seq.c_str(),
+					read.name.c_str(),
+					read.qual.c_str());
+
+			fprintf(fout, "@%u\n%s\n+%s\n%s\n",
+					next_id,
+					read.seq.c_str(),
+					read.name.c_str(),
+					read.qual.c_str());
+		}
+		else if (reads_format == FASTA)
+		{
+			string qual;
+			if (color)
+				qual = string(read.seq.length()-1, 'I').c_str();
+			else
+				qual = string(read.seq.length(), 'I').c_str();
+
+			sprintf(buf, "@%u\n%s\n+%s\n%s\n",
+					next_id,
+					read.seq.c_str(),
+					read.name.c_str(),
+					qual.c_str());
+
+			fprintf(fout, "@%u\n%s\n+%s\n%s\n",
+					next_id,
+					read.seq.c_str(),
+					read.name.c_str(),
+					qual.c_str());
+		}
+		else
+		{
+			assert(0);
+		}
+
+		if (fqindex != NULL)
+		{
+			if ((next_id - num_reads_chucked) % INDEX_REC_COUNT == 0)
+				fprintf(fqindex, "%d\t%lu\n", next_id, (long unsigned)fout_offset);
+		}
+
+		fout_offset += strlen(buf);
+	}
+	return true;
 } //validate read
 
 

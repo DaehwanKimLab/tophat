@@ -287,7 +287,8 @@ class ReadStream {
 		 uint64_t end_id=std::numeric_limits<uint64_t>::max(),
 		 GBamWriter* um_out=NULL, //unmapped reads output
 		 char um_code=0,
-		 int64_t* unmapped_counter=NULL
+		 int64_t* unmapped_counter=NULL,
+		 int64_t* multimapped_counter=NULL
 		 );
 
     void rewind() {

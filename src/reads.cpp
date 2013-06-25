@@ -656,7 +656,8 @@ bool ReadStream::getRead(uint64_t r_id,
 		uint64_t end_id,
 		GBamWriter* um_out, //unmapped reads output
 		char um_code, //if non-zero, write the found read to um_out with this code
-		int64_t* unmapped_counter //update this counter for skipped reads *only*
+		int64_t* unmapped_counter, //update this counter for unmapped/skipped reads *only*
+		int64_t* multimapped_counter //update this counter for too multi-mapped reads
 ) {
 	if (!fstream.file)
 		err_die("Error: calling ReadStream::getRead() with no file handle!");
@@ -695,15 +696,16 @@ bool ReadStream::getRead(uint64_t r_id,
 			read_pq.push(rdata);
 			break;
 		}
-		if (unmapped_counter && um_out && !found) {
-			(*unmapped_counter)++;
-		}
 		if (um_out && ((um_code && found) || !found )) {
 			// (!um_write_found && !found))) {
 			//write unmapped reads (or inadequately mapped if um_code>0)
 			//fprintf(um_out, "@%s\n%s\n+\n%s\n", read.alt_name.c_str(),
 			//                        read.seq.c_str(), read.qual.c_str());
 			string rname(rdata.read.alt_name);
+			/* //-- DEBUG
+			fprintf(stderr, ">WUM\t%c\t%s\t%c\t/%d\n", found?'F':'U',
+					rname.c_str(), (um_code && found) ? um_code: '-', rdata.matenum);
+			///-- DEBUG */
 			size_t slash_pos=rname.rfind('/');
 			if (slash_pos!=string::npos)
 				rname.resize(slash_pos);
@@ -718,13 +720,19 @@ bool ReadStream::getRead(uint64_t r_id,
 				rdata.trashCode=um_code;
 			}
 			if (rdata.trashCode) {
-				if (rdata.trashCode!='M') {
+				if (rdata.trashCode=='M') {
+				}
+				else {
 					//multi-mapped reads did not really QC-fail
 					bamrec.set_flag(BAM_FQCFAIL);
 				}
 				bamrec.add_aux("ZT", 'A', 1, (uint8_t*)&rdata.trashCode);
 			}
 			um_out->write(&bamrec);
+		}
+		if (unmapped_counter && um_out && !found) {
+			if (rdata.trashCode!='M') (*unmapped_counter)++;
+			else if (multimapped_counter) (*multimapped_counter)++;
 		}
 	} //while reads
 	return found;
