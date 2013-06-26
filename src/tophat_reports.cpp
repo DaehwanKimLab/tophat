@@ -382,7 +382,7 @@ char pair_best_alignments(const HitsForRead& left_hits,
 			if (r_nhits>1) ret_code |= 8; //right read has multiple valid mappings
 			if (r_nhits>max_multihits) {
 				ret_code |= 32; //left read has too many mappings
-				if (r_nhits > (max_multihits<<2))
+				//if (r_nhits > (max_multihits<<2))
 					break;
 			}
 			BowtieHit rh = right[j];
@@ -403,7 +403,7 @@ char pair_best_alignments(const HitsForRead& left_hits,
 		if (l_nhits>1) ret_code |= 4; //left read has multiple valid mappings
 		if (l_nhits>max_multihits) {
 			ret_code |= 16; //left read has too many mappings
-			if (l_nhits > (max_multihits<<2))
+			//if (l_nhits > (max_multihits<<2))
 				break;
 		}
 		BowtieHit lh = left[i];
