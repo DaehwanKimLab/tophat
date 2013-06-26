@@ -2105,8 +2105,8 @@ void print_alnStats(SAlignStats& alnStats) {
 	FILE* f = fopen(fname.c_str(), "w");
 	int64_t total_left=alnStats.num_aligned_left+alnStats.num_unmapped_left;
 	int64_t total_right=alnStats.num_aligned_right+alnStats.num_unmapped_right;
-	int64_t accepted_left =alnStats.num_aligned_left -alnStats.num_aligned_left_xmulti; //accepted mappings, < max_multihits
-	int64_t accepted_right=alnStats.num_aligned_right-alnStats.num_aligned_right_xmulti; //accepted right mappings
+	//int64_t accepted_left =alnStats.num_aligned_left -alnStats.num_aligned_left_xmulti; //accepted mappings, < max_multihits
+	//int64_t accepted_right=alnStats.num_aligned_right-alnStats.num_aligned_right_xmulti; //accepted right mappings
 	string rdn("Left reads");
 	if (total_right==0) rdn="Reads";
 	fprintf(f, "%s:\n", rdn.c_str());
@@ -2160,6 +2160,50 @@ void print_alnStats(SAlignStats& alnStats) {
 	}
 	fclose(f);
 }
+
+struct CReadProc: public GetReadProc {
+	CReadProc(GBamWriter* bamw=NULL, int64_t* um_counter=NULL, int64_t* mm_counter=NULL):
+		GetReadProc(bamw, um_counter, mm_counter) {}
+	virtual bool process(QReadData& rdata, bool& found, bool is_unmapped) {
+		//if (um_out && ((um_code && found) || !found )) {
+		string rname(rdata.read.alt_name);
+		//-- DEBUG
+		//fprintf(stderr, ">WUM\t%c\t%s\t%c\t/%d\n", found?'F':'U',
+		//		rname.c_str(), (um_code && found) ? um_code: '-', rdata.matenum);
+		//-- DEBUG.
+		size_t slash_pos=rname.rfind('/');
+		if (slash_pos!=string::npos)
+			rname.resize(slash_pos);
+		GBamRecord bamrec(rname.c_str(), -1, 0, false, rdata.read.seq.c_str(),
+				NULL, rdata.read.qual.c_str());
+		if (rdata.matenum) {
+			bamrec.set_flag(BAM_FPAIRED);
+			if (rdata.matenum==1) bamrec.set_flag(BAM_FREAD1);
+			else bamrec.set_flag(BAM_FREAD2);
+		}
+		//if (found && um_code && !rdata.trashCode) {
+		//rdata.trashCode=um_code;
+		//}
+		if (rdata.trashCode) {
+			//multi-mapped reads did not really QC-fail
+			//should also not be written to unmapped.bam
+			bamrec.add_aux("ZT", 'A', 1, (uint8_t*)&rdata.trashCode);
+			if (rdata.trashCode!='M') {
+				bamrec.set_flag(BAM_FQCFAIL); //to be excluded from further processing?
+			}
+		}
+		if (is_unmapped || (rdata.trashCode!='M' && !found)) {
+			um_out->write(&bamrec);
+		}
+		//
+		if (unmapped_counter && !found) {
+			if (rdata.trashCode!='M') (*unmapped_counter)++;
+			else if (multimapped_counter) (*multimapped_counter)++;
+		}
+		return true;
+	}
+};
+
 struct ReportWorker {
 
 	ReportWorker(RefSequenceTable* r=NULL, SAlignStats* s=NULL):  gtf_junctions(NULL), junctions(NULL), rev_junctions(NULL),
@@ -2170,8 +2214,9 @@ struct ReportWorker {
 
 	void write_singleton_alignments(uint64_t curr_obs_order,
 	    HitsForRead& curr_hit_group, ReadStream& reads_file,
-	    GBamWriter& bam_writer, GBamWriter& um_out,
-	    FragmentType fragment_type, Read* gotRead=NULL) {
+	    GBamWriter& bam_writer, FragmentType fragment_type,
+	    GetReadProc* readProc=NULL,
+	    Read* gotRead=NULL) {
 		int64_t* unmapped_counter = & alnStats->num_unmapped_left;
 		int64_t* aligned_counter = & alnStats->num_aligned_left;
 		int64_t* aligned_counter_multi = & alnStats->num_aligned_left_multi;
@@ -2225,8 +2270,10 @@ struct ReportWorker {
 			}
 			if (map_flags & 1) (*aligned_counter)++; //acceptable mappings found
 			else (*unmapped_counter)++;
+			//CReadProc readProc(&um_out, unmapped_counter, aligned_counter_xmulti);
 			got_read=reads_file.getRead(curr_obs_order, read, reads_format,
-			    false, begin_id, end_id, &um_out, map_code, unmapped_counter, aligned_counter_xmulti);
+			    false, begin_id, end_id, readProc, (map_flags & 1)==0 );
+			    //&um_out, map_code, unmapped_counter, aligned_counter_xmulti);
 			read_alt_name=read.alt_name;
 		}
 		if (best_hits.hits.size() > 0) {
@@ -2301,15 +2348,24 @@ struct ReportWorker {
 		// While we still have unreported hits...
 		Read l_read;
 		Read r_read;
+		CReadProc l_readProc(left_um_out, &(alnStats->num_unmapped_left),
+		    &(alnStats->num_aligned_left_xmulti));
+		CReadProc r_readProc(right_um_out, &(alnStats->num_unmapped_right),
+		    &(alnStats->num_aligned_right_xmulti));
+
 		while ((curr_left_obs_order != VMAXINT32
 		    || curr_right_obs_order != VMAXINT32)
 		    && (curr_left_obs_order < end_id || curr_right_obs_order < end_id)) {
+
+			/*if (curr_left_obs_order >= 3463 || curr_right_obs_order >= 3463) {
+				fprintf(stderr, "Debug target reached!\n");
+			}*/
 			// Chew up left singletons (pairs with right reads unmapped)
 			while (curr_left_obs_order < curr_right_obs_order
 			    && curr_left_obs_order < end_id && curr_left_obs_order != VMAXINT32) {
 				write_singleton_alignments(curr_left_obs_order, curr_left_hit_group,
-				    left_reads_file, bam_writer, *left_um_out,
-				    is_paired ? FRAG_LEFT : FRAG_UNPAIRED);
+				    left_reads_file, bam_writer, //*left_um_out,
+				    is_paired ? FRAG_LEFT : FRAG_UNPAIRED, &l_readProc);
 
 				// Get next hit group
 				left_hs.next_read_hits(curr_left_hit_group);
@@ -2321,7 +2377,7 @@ struct ReportWorker {
 			while (curr_left_obs_order > curr_right_obs_order
 			    && curr_right_obs_order < end_id && curr_right_obs_order != VMAXINT32) {
 				write_singleton_alignments(curr_right_obs_order, curr_right_hit_group,
-				    right_reads_file, bam_writer, *right_um_out, FRAG_RIGHT);
+				    right_reads_file, bam_writer, FRAG_RIGHT, &r_readProc);
 
 				// Get next hit group
 				right_hs.next_read_hits(curr_right_hit_group);
@@ -2373,13 +2429,15 @@ struct ReportWorker {
 					}
 					got_left_read = left_reads_file.getRead(
 							curr_left_obs_order, l_read, reads_format, false,
-					    begin_id, end_id, left_um_out, left_map_code, &(alnStats->num_unmapped_left),
-					    &(alnStats->num_aligned_left_xmulti));
+					    begin_id, end_id, &l_readProc, (pair_map_flags & 1)==0);
+					    //left_um_out, left_map_code, &(alnStats->num_unmapped_left),
+					    //&(alnStats->num_aligned_left_xmulti));
 
 					got_right_read = right_reads_file.getRead(
 							curr_right_obs_order, r_read, reads_format, false,
-					    begin_id, end_id, right_um_out, right_map_code, &(alnStats->num_unmapped_right),
-					    &(alnStats->num_aligned_right_xmulti));
+					    begin_id, end_id, &r_readProc, (pair_map_flags & 2)==0);
+					    //right_um_out, right_map_code, &(alnStats->num_unmapped_right),
+					    //&(alnStats->num_aligned_right_xmulti));
 					//FIXME: what's the best way to check here if the pair alignment is discordant?
 					//if (((pair_map_flags & 3)==3) && (best_hits.size() <= 0 || grade.fusion)) {
 					if (((pair_map_flags & 3)==3) && !grade.concordant()) {
@@ -2440,14 +2498,14 @@ struct ReportWorker {
 				else { //alignments not paired properly
 					if (curr_left_hit_group.hits.size() > 0) {
 						write_singleton_alignments(curr_left_obs_order, curr_left_hit_group,
-						    left_reads_file, bam_writer, *left_um_out,
-						    is_paired ? FRAG_LEFT : FRAG_UNPAIRED, &l_read);
+						    left_reads_file, bam_writer, //*left_um_out,
+						    is_paired ? FRAG_LEFT : FRAG_UNPAIRED, &l_readProc, &l_read);
 					}
 
 					if (curr_right_hit_group.hits.size() > 0) {   //only right read mapped
 						write_singleton_alignments(curr_right_obs_order,
-						    curr_right_hit_group, right_reads_file, bam_writer,
-						    *right_um_out, FRAG_RIGHT, &r_read);
+						    curr_right_hit_group, right_reads_file, bam_writer, //*right_um_out,
+						    FRAG_RIGHT, &r_readProc, &r_read);
 					}
 				}
 
@@ -2460,13 +2518,16 @@ struct ReportWorker {
 				    curr_right_hit_group.insert_id);
 			} //both mates have alignments
 		} //while we still have unreported hits..
+
 		//print the remaining unmapped reads at the end of each reads' stream
 
 		left_reads_file.getRead(VMAXINT32, l_read, reads_format, false, begin_id,
-		    end_id, left_um_out, 0, &(alnStats->num_unmapped_left), &(alnStats->num_aligned_left_xmulti));
+		    end_id, &l_readProc);
+		    //left_um_out, 0, &(alnStats->num_unmapped_left), &(alnStats->num_aligned_left_xmulti));
 		if (right_reads_file.file())
 			right_reads_file.getRead(VMAXINT32, r_read, reads_format, false, begin_id,
-			    end_id, right_um_out, 0, &(alnStats->num_unmapped_right), &(alnStats->num_aligned_right_xmulti));
+			    end_id, &r_readProc);
+			    //right_um_out, 0, &(alnStats->num_unmapped_right), &(alnStats->num_aligned_right_xmulti));
 
 		// pclose (pipe close), which waits for a process to end, seems to conflict with boost::thread::join somehow,
 		// resulting in deadlock like behavior.

@@ -286,7 +286,7 @@ void reverse_complement(string& seq)
 	//fprintf(stderr, "rev: %s\n", seq.c_str());
 }
 
-string convert_color_to_bp(const string& color)
+string str_convert_color_to_bp(const string& color)
 {
   if (color.length() <= 0)
     return "";
@@ -654,11 +654,15 @@ bool ReadStream::getRead(uint64_t r_id,
 		bool strip_slash,
 		uint64_t begin_id,
 		uint64_t end_id,
+		/*
 		GBamWriter* um_out, //unmapped reads output
 		char um_code, //if non-zero, write the found read to um_out with this code
 		int64_t* unmapped_counter, //update this counter for unmapped/skipped reads *only*
 		int64_t* multimapped_counter //update this counter for too multi-mapped reads
-) {
+		*/
+		GetReadProc* rProc,
+		bool is_unmapped )
+ {
 	if (!fstream.file)
 		err_die("Error: calling ReadStream::getRead() with no file handle!");
 	if (r_id<last_id)
@@ -682,11 +686,12 @@ bool ReadStream::getRead(uint64_t r_id,
 			return false;
 
 		if (rdata.id < begin_id)
-			continue;
+			continue; //silently skip until begin_id found
+		//does not trigger rProc->process() until begin_id
 
 		if (rdata.id == r_id)
 		{
-			read=rdata.read;
+			read=rdata.read; //it will be returned
 			found=true;
 		}
 		else if (rdata.id > r_id)
@@ -696,44 +701,11 @@ bool ReadStream::getRead(uint64_t r_id,
 			read_pq.push(rdata);
 			break;
 		}
-		if (um_out && ((um_code && found) || !found )) {
-			// (!um_write_found && !found))) {
-			//write unmapped reads (or inadequately mapped if um_code>0)
-			//fprintf(um_out, "@%s\n%s\n+\n%s\n", read.alt_name.c_str(),
-			//                        read.seq.c_str(), read.qual.c_str());
-			string rname(rdata.read.alt_name);
-			/* //-- DEBUG
-			fprintf(stderr, ">WUM\t%c\t%s\t%c\t/%d\n", found?'F':'U',
-					rname.c_str(), (um_code && found) ? um_code: '-', rdata.matenum);
-			///-- DEBUG */
-			size_t slash_pos=rname.rfind('/');
-			if (slash_pos!=string::npos)
-				rname.resize(slash_pos);
-			GBamRecord bamrec(rname.c_str(), -1, 0, false, rdata.read.seq.c_str(),
-					NULL, rdata.read.qual.c_str());
-			if (rdata.matenum) {
-				bamrec.set_flag(BAM_FPAIRED);
-				if (rdata.matenum==1) bamrec.set_flag(BAM_FREAD1);
-				else bamrec.set_flag(BAM_FREAD2);
-			}
-			if (found && um_code) {
-				rdata.trashCode=um_code;
-			}
-			if (rdata.trashCode) {
-				if (rdata.trashCode=='M') {
-				}
-				else {
-					//multi-mapped reads did not really QC-fail
-					bamrec.set_flag(BAM_FQCFAIL);
-				}
-				bamrec.add_aux("ZT", 'A', 1, (uint8_t*)&rdata.trashCode);
-			}
-			um_out->write(&bamrec);
+		if (rProc) { //skipped read processing (unmapped reads)
+			if (!rProc->process(rdata, found, is_unmapped))
+				//  rProc->process() should normally return TRUE
+				return false; //abort search for r_id, return "not found"
 		}
-		if (unmapped_counter && um_out && !found) {
-			if (rdata.trashCode!='M') (*unmapped_counter)++;
-			else if (multimapped_counter) (*multimapped_counter)++;
-		}
-	} //while reads
+	} //while target read id not found
 	return found;
 }

@@ -20,6 +20,7 @@
 using std::string;
 
 
+
 // Note: qualities are not currently used by TopHat
 struct Read
 {
@@ -45,7 +46,7 @@ struct Read
 };
 
 void reverse_complement(string& seq);
-string convert_color_to_bp(const string& color);
+string str_convert_color_to_bp(const string& color);
 seqan::String<char> convert_color_to_bp(char base, const seqan::String<char>& color);
 
 string convert_bp_to_color(const string& bp, bool remove_primer = false);
@@ -59,7 +60,7 @@ seqan::String<char> convert_bp_to_color(const seqan::String<char>& bp, bool remo
  */
 void BWA_decode(const string& color, const string& qual, const string& ref, string& decode);
 
-  
+
 template <class Type>
 string DnaString_to_string(const Type& dnaString)
 {
@@ -141,7 +142,6 @@ bool next_fastx_read(FLineReader& fr, Read& read, ReadFormat reads_format=FASTQ,
 
 #define READSTREAM_BUF_SIZE 500000
 
-
 struct QReadData { //read data for the priority queue
   uint64_t id;
   Read read;
@@ -161,6 +161,24 @@ struct QReadData { //read data for the priority queue
   }
 
 };
+
+
+//callback struct for ReadStream::getRead() - called for each read in the stream
+struct GetReadProc {
+	 GBamWriter* um_out; //skipped (unmapped) reads will be written here
+	 int64_t* unmapped_counter;
+	 int64_t* multimapped_counter;
+   //char um_code;
+	GetReadProc(GBamWriter* bamw=NULL, int64_t* um_counter=NULL, int64_t* mm_counter=NULL):
+		um_out(bamw), unmapped_counter(um_counter), multimapped_counter(mm_counter) { }
+	virtual bool process(QReadData& rdata, bool& found, bool is_unmapped) {
+	//should return True  - if it returns FALSE it will cause getRead() to abort
+	//(stops looking for target readId in the stream) and to return false (="not found")
+		return true;
+	}
+	virtual ~GetReadProc() { }
+};
+
 
 class ReadStream {
 	FLineReader* flquals;
@@ -279,16 +297,22 @@ class ReadStream {
     const char* filename() {
         return fstream.filename.c_str();
         }
+
     //read_ids must ALWAYS be requested in increasing order
     bool getRead(uint64_t read_id, Read& read,
 		 ReadFormat read_format=FASTQ,
 		 bool strip_slash=false,
 		 uint64_t begin_id = 0,
 		 uint64_t end_id=std::numeric_limits<uint64_t>::max(),
-		 GBamWriter* um_out=NULL, //unmapped reads output
-		 char um_code=0,
+		 GetReadProc* rProc=NULL,
+		 bool is_unmapped=false //the target read, when found is also written by
+		                        //rProc into the unmapped BAM file
+		 /*
+		 GBamWriter* um_out=NULL, //skipped (unmapped) reads will be written here
+		 // char um_code=0
 		 int64_t* unmapped_counter=NULL,
 		 int64_t* multimapped_counter=NULL
+		 */
 		 );
 
     void rewind() {

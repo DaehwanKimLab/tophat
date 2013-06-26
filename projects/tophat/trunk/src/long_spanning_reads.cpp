@@ -336,7 +336,7 @@ BowtieHit merge_chain_color(RefSequenceTable& rt,
             color = read_seq.substr(curr_seg_index * segment_length - insert_to_prev_right, insert_to_prev_right + 1);
 
         color[0] = prev_hit->seq()[segment_length - insert_to_prev_right - 1];
-        colorSegmentSequence_prev = convert_color_to_bp(color);
+        colorSegmentSequence_prev = str_convert_color_to_bp(color);
       }
 
           const seqan::Dna5String newSegmentSequence = color ? colorSegmentSequence_prev : oldSegmentSequence;
@@ -389,7 +389,7 @@ BowtieHit merge_chain_color(RefSequenceTable& rt,
 
         color.push_back(curr_hit->seq()[curr_left_to_insert]);
         reverse(color.begin(), color.end());
-        string bp = convert_color_to_bp(color);
+        string bp = str_convert_color_to_bp(color);
         reverse(bp.begin(), bp.end());
         colorSegmentSequence_curr = bp;
       }
@@ -1122,7 +1122,7 @@ BowtieHit merge_chain(RefSequenceTable& rt,
 				color = read_seq.substr(curr_seg_index * segment_length - insert_to_prev_right, insert_to_prev_right + 1);
 			      
 			      color[0] = prev_hit->seq()[segment_length - insert_to_prev_right - 1];
-			      colorSegmentSequence_prev = convert_color_to_bp(color);
+			      colorSegmentSequence_prev = str_convert_color_to_bp(color);
 			    }
 			  
 			  const seqan::Dna5String newSegmentSequence = color ? colorSegmentSequence_prev : oldSegmentSequence;
@@ -1195,7 +1195,7 @@ BowtieHit merge_chain(RefSequenceTable& rt,
 			      
 			      color.push_back(curr_hit->seq()[curr_left_to_insert]);
 			      reverse(color.begin(), color.end());
-			      string bp = convert_color_to_bp(color);
+			      string bp = str_convert_color_to_bp(color);
 			      reverse(bp.begin(), bp.end());
 			      colorSegmentSequence_curr = bp;
 			    }
