@@ -1413,15 +1413,6 @@ void realign_reads(HitsForRead& hits,
 			    str_appendInt(NM, new_bh.edit_dist());
 			    aux_fields.push_back(NM);
 
-			    if (!bh.is_spliced())
-			      {
-				if (junc.antisense)
-				  aux_fields.push_back("XS:A:-");
-				else
-				  aux_fields.push_back("XS:A:+");
-			      }
-
-
 			    // replace the previous sam auxiliary fields with the new ones
 			    vector<string> sam_toks;
 			    tokenize(bh.hitfile_rec().c_str(), "\t", sam_toks);
@@ -1442,6 +1433,14 @@ void realign_reads(HitsForRead& hits,
 					break;
 				      }
 				  }
+			      }
+
+			    if (!bh.is_spliced())
+			      {
+				if (junc.antisense)
+				  sam_toks.push_back("XS:A:-");
+				else
+				  sam_toks.push_back("XS:A:+");
 			      }
 			    
 			    string new_rec = "";
