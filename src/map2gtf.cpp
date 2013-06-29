@@ -55,7 +55,7 @@ GffTranscript::GffTranscript(const std::string& tline): exons(1),
     std::string s_start=token.substr(0,sp_pos);
     std::string s_end=token.substr(sp_pos+1);
     GSeg exon(atoi(s_start.c_str()), atoi(s_end.c_str()));
-    if (exon.start==0 || exon.end==0 || exon.end<=exon.start) {
+    if (exon.start==0 || exon.end==0 || exon.end<exon.start) {
          std::string s("(invalid exon: ");
          s+=token;s+=")";
          tline_parserr(tline, s);
