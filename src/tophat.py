@@ -2240,7 +2240,8 @@ def bowtie(params,
         if not params.bowtie2:
            fix_map_cmd += ["--bowtie1"]
         if multihits_out != None:
-           fix_map_cmd += ["--aux-outfile", params.preflt_data[multihits_out].multihit_reads]
+           if params.bowtie2:
+               fix_map_cmd += ["--aux-outfile", params.preflt_data[multihits_out].multihit_reads]
            fix_map_cmd += ["--max-multihits", str(params.max_hits)]
         if t_mapping:
            out_bam = "-" # we'll pipe into map2gtf
