@@ -2500,13 +2500,13 @@ struct ReportWorker {
 					if (curr_left_hit_group.hits.size() > 0) {
 						write_singleton_alignments(curr_left_obs_order, curr_left_hit_group,
 						    left_reads_file, bam_writer, //*left_um_out,
-						    is_paired ? FRAG_LEFT : FRAG_UNPAIRED, &l_readProc, &l_read);
+									   is_paired ? FRAG_LEFT : FRAG_UNPAIRED, &l_readProc, got_left_read ? &l_read : NULL);
 					}
 
 					if (curr_right_hit_group.hits.size() > 0) {   //only right read mapped
 						write_singleton_alignments(curr_right_obs_order,
 						    curr_right_hit_group, right_reads_file, bam_writer, //*right_um_out,
-						    FRAG_RIGHT, &r_readProc, &r_read);
+									   FRAG_RIGHT, &r_readProc, got_right_read ? &r_read : NULL);
 					}
 				}
 
