@@ -2583,11 +2583,11 @@ bool dfs_seg_hits(RefSequenceTable& rt,
 	      if (success)
 		join_success = true;
 
-	      if (num_try <= 0)
-		return join_success;
-	      
 	      seg_hit_stack.pop_back();
 	      seg_hit_stack.back() = tempHit;
+
+	      if (num_try <= 0)
+		return join_success;
 	    }
 	}
     }
