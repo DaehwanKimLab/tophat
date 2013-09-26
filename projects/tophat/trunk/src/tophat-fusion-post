@@ -1897,10 +1897,6 @@ def generate_html(params):
         for i in range(min(max_num_fusions, len(cluster_temp_list))):
             do_not_add = False
             indices = cluster_temp_list[i]["index"]
-
-            if num_samples(indices) > 5:
-                do_not_add = True
-
             if not do_not_add:
                 def cmp(a, b):
                     return int(fusion_list[b]["score"] - fusion_list[a]["score"])
