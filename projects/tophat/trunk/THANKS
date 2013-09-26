@@ -1,4 +1,28 @@
-TopHat THANKS file
+TopHat and TopHat2 THANKS file
+
+TopHat2 was developed by Daehwan Kim, Geo Pertea, Cole Trapnell, and Steven Salzberg,
+with help of Harold Pimentel and Ryan Kelly. Lior Pachter and Adam Roberts contributed to
+the discussion of TopHat2.  The following list shows our contacts and people
+who contributed to the development of TopHat2 by suggesting improvements and giving feedbacks
+as well as reporting bugs with their test data set.
+
+Arthur Delcher	     	aldelcher@gmail.com
+Liliana Florea	     	florea@jhu.edu
+Brian Haas		bhaas@broadinstitute.org
+Kasper Hansen		kasperdanielhansen@gmail.com
+Ryan Kelley	     	ryankelly@illumina.com
+Daehwan Kim   	 	infphilo@gmail.com
+Ben Langmead		langmea@cs.jhu.edu
+Lior Pachter		lpachter@math.berkeley.edu
+Ela Pertea		mpertea@jhu.edu
+Geo Pertea		gpertea@jhu.edu
+Harold Pimentel		pimentel@cs.berkeley.edu
+Nathalie Pochet		npochet@broadinstitute.org
+Adam Roberts		adarob@gmail.com
+Cole Trapnell		cole@broadinstitute.org
+Steven Salzberg	 	salzberg@jhu.edu
+Alec Wysoker		alecw@broadinstitute.org
+
 
 TopHat was originally written by Cole Trapnell, with substantial creative
 input from Lior Pachter and Steven Salzberg. Many people further contributed
@@ -10,20 +34,20 @@ Robert Bradley		rbradley@math.berkeley.edu
 Steven Brenner		brenner@compbio.berkeley.edu
 Angela Brooks		angelabrooks@berkeley.edu
 Mark Diekhans		markd@soe.ucsc.edu
-Mike Duff			moduff@gmail.com
+Mike Duff		moduff@gmail.com
 Steffen Durinck		sdurinck@illumina.com
 Matthew Fitzgibbon	mfitzgib@fhcrc.org
 Brenton Graveley	graveley@neuron.uchc.edu
-Kasper Hansen		khansen@stat.berkeley.edu
+Kasper Hansen		kasperdanielhansen@gmail.com
 Rachel Harte		hartera@soe.ucsc.edu
-Ben Langmead		langmead@cs.umd.edu
+Ben Langmead		langmea@cs.jhu.edu
 Richard McCombie	mccombie@cshl.edu
 Ali Mortazavi		alim@caltech.edu
 Adam Phillippy		amp@umiacs.umd.edu
-Mike Schatz			mschatz@umiacs.umd.edu
+Mike Schatz		mschatz@cshl.edu
 Gary Schroth		gschroth@illumina.com
 Gavin Sherlock		sherlock@genome.stanford.edu
-Diane Trout			diane@caltech.edu
+Diane Trout		diane@caltech.edu
 Svilen Tzonev		stzonev@illumina.com
 Jeltje Van Baren	jeltje@wustl.edu
 Barbara Wold		wold@caltech.edu
