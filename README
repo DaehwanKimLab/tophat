@@ -28,3 +28,5 @@ Samtools files as indicated (the header files and libbam.a)
 TopHat also requires the Boost libraries (http://www.boost.org).
 Please refer to the TopHat webpage for installation information.
 
+Note TopHat uses the SeqAn library that comes with the TopHat2 source code distribution.
+It is not necessary for the SeqAn library to be installed separately in order to run TopHat.
