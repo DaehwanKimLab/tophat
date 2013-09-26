@@ -75,12 +75,13 @@ while the previous version, if present, can still be launched with the regular
 		<p> In order to build TopHat, you must have the following installed on your system: <br>
 </p>
   <ul>
-    <li>the&nbsp; <a href="http://www.boost.org">Boost C++ libraries</a>
+    <li>the <a href="http://www.boost.org">Boost C++ libraries</a>
 		  (we recommend version 1.47 or higher so you can use it for Cufflinks as well) <br>
     </li>
-    <li>the <a href="http://samtools.sourceforge.net/">SAM tools library</a> .</li>
+    <li>the <a href="http://samtools.sourceforge.net/">SAM tools library</a></li>
   </ul>
   <p>
+    Note TopHat uses the <a href="http://http://www.seqan.de/"> SeqAn </a> library that comes with the TopHat2 source code distribution.  It is not necessary for the SeqAn library to be installed separately in order to run TopHat.
   </p>
 
 		
