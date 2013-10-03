@@ -435,7 +435,7 @@ behavior).
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>--library-type</tt>
 	  </td><td valign="top">
-		TopHat will treat the reads as strand specific.  Every read alignment will have an <tt>XS</tt> attribute tag.  Consider supplying library type options below to select the correct RNA-seq protocol.
+		The default is unstranded (fr-unstranded). If either fr-firststrand or fr-secondstrand is specified, every read alignment will have an <tt>XS</tt> attribute tag as explained below.  Consider supplying library type options below to select the correct RNA-seq protocol.
 		</td></tr>
 	  </tbody></table>
 	  <table cellspacing="15">
