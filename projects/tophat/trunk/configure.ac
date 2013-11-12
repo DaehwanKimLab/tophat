@@ -4,7 +4,7 @@ m4_include([ax_bam.m4])
 #m4_include([ax_check_zlib.m4])
 
 define([svnversion], esyscmd([sh -c "svnversion|tr -d '\n'"]))dnl
-AC_INIT([tophat],[2.1.0],[tophat.cufflinks@gmail.com])
+AC_INIT([tophat],[2.0.10],[tophat.cufflinks@gmail.com])
 AC_DEFINE(SVN_REVISION, "svnversion", [SVN Revision])
 
 AC_CONFIG_SRCDIR([config.h.in])
