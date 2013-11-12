@@ -60,118 +60,35 @@ char* FLineReader::nextLine() {
    return buf;
 }
 
-void skip_lines(FLineReader& fr)
+ReadFormat skip_lines(FLineReader& fr)
 {
-  if (fr.fhandle() == NULL) return;
+  if (fr.fhandle() == NULL) return FASTX_AUTO;
   char* buf = NULL;
+  ReadFormat rfmt=FASTX_AUTO;
+  int lcount=0;
   while ((buf = fr.nextLine()) != NULL) {
-    if (buf[0] == '\0') continue;
-    if (buf[0] == '>' || buf[0] == '@')
-      {
-	fr.pushBack();
+	++lcount;
+	int i=0;
+    while (buf[i]!=0 && buf[i]==' ') ++i;
+    if (buf[i] == '\0') continue; //skip empty lines
+    if (buf[0] == '>') rfmt=FASTA;
+    if (buf[0] == '@') rfmt=FASTQ;
+    if (rfmt) {
+	   fr.pushBack();
+	   break;
+    }
+  /*
+  if (lcount==500) { //skipped 500 lines already, something is wrong here (large header?!?)
+	warn_msg("Warning: cannot determine file format! (large header?)\n");
 	break;
-      }
+   }
+ */
   }
+
+  return rfmt;
 }
 
-bool next_fasta_record(FLineReader& fr,
-		       string& defline, 
-		       string& seq,
-		       ReadFormat reads_format)
-
-{
-  seq.clear();
-  defline.clear();
-  char* buf=NULL;
-  while ((buf=fr.nextLine())!=NULL) {
-    if (buf[0]==0) continue; //skip empty lines
-    if ((reads_format == FASTA && buf[0] == '>') || (reads_format == FASTQ && (buf[0] == '+' || buf[0] == '@'))) { //next record
-        if (seq.length()>0) { //current record ending
-           fr.pushBack();
-           return true;
-           }
-        defline=buf+1;
-        string::size_type space_pos = defline.find_first_of(" \t");
-        if (space_pos != string::npos) {
-            defline.resize(space_pos);
-            }
-        continue;
-        } //defline
-    // sequence line
-    seq.append(buf);
-    } //line reading loop
-
-  replace(seq.begin(), seq.end(), '.', color ? '4' : 'N'); //shouldn't really be needed for FASTA files
-  return !(seq.empty());
-}
-
-bool next_fastq_record(FLineReader& fr,
-		       const string& seq,
-		       string& alt_name,
-		       string& qual,
-		       ReadFormat reads_format)
-{
-  alt_name.clear();
-  qual.clear();
-  char* fline=fr.nextLine();
-  if (fline==NULL) return false;
-  while (fline[0]==0) { //skip empty lines
-    fline=fr.nextLine();
-    if (fline==NULL) return false;
-    }
-  //must be on '+' line here
-  if (fline==NULL || (reads_format == FASTQ && fline[0] != '+') ||
-      (reads_format == FASTA && quals && fline[0] != '>')) {
-     err_exit("Error: '+' not found for fastq record %s\n",fline);
-     return false;
-     }
-  alt_name=fline+1;
-  string::size_type space_pos = alt_name.find_first_of(" \t");
-  if (space_pos != string::npos) alt_name.resize(space_pos);
-   //read qv line(s) now:
-  while ((fline=fr.nextLine())!=NULL) {
-    if (integer_quals)
-      {
-      vector<string> integer_qual_values;
-      tokenize(string(fline), " ", integer_qual_values);
-
-      string temp_qual;
-      for (size_t i = 0; i < integer_qual_values.size(); ++i)
-        {
-          int qual_value = atoi(integer_qual_values[i].c_str());
-          if (qual_value < 0) qual_value = 0;
-          temp_qual.push_back((char)(qual_value + 33));
-        }
-
-      qual.append(temp_qual);
-      }
-    else
-      qual.append(fline);
-      if (qual.length()>=seq.length()-1) break;
-     }
-  // final check
-  if (color) {
-     if (seq.length()==qual.length()) {
-        //discard first qv
-        qual=qual.substr(1);
-        }
-     if (seq.length()!=qual.length()+1) {
-        err_exit("Error: length of quality string does not match seq length (%d) for color read %s!\n",
-           seq.length(), alt_name.c_str());
-        }
-     }
-  else {
-    if (seq.length()!=qual.length()) {
-           err_exit("Error: qual string length (%d) differs from seq length (%d) for read %s!\n",
-               qual.length(), seq.length(), alt_name.c_str());
-           //return false;
-           }
-    }
-  //
-  return !(qual.empty());
-}
-
-bool next_fastx_read(FLineReader& fr, Read& read, ReadFormat reads_format, 
+bool next_fastx_read(FLineReader& fr, Read& read, ReadFormat rd_format,
                         FLineReader* frq) {
   /*
   if (fr.pushed_read)
@@ -185,8 +102,8 @@ bool next_fastx_read(FLineReader& fr, Read& read, ReadFormat reads_format,
   char* buf=NULL;
   while ((buf=fr.nextLine())!=NULL) {
     if (buf[0]==0) continue; //skip empty lines
-    if ((reads_format == FASTA && buf[0] == '>') ||
-          (reads_format == FASTQ && (buf[0] == '+' || buf[0] == '@'))) { //next record
+    if ((rd_format == FASTA && buf[0] == '>') ||
+          (rd_format == FASTQ && (buf[0] == '+' || buf[0] == '@'))) { //next record
         if (read.seq.length()>0) { //current record ending
            fr.pushBack();
            break;
@@ -203,7 +120,7 @@ bool next_fastx_read(FLineReader& fr, Read& read, ReadFormat reads_format,
     } //line reading loop
 
   replace(read.seq.begin(), read.seq.end(), '.', color ? '4' : 'N'); //shouldn't really be needed for FASTA files
-  if (reads_format != FASTQ && frq==NULL)
+  if (rd_format != FASTQ && frq==NULL)
       return (!read.seq.empty());
   if (frq==NULL) frq=&fr; //FASTQ
   //FASTQ or quals in a separate file -- now read quality values
@@ -214,8 +131,8 @@ bool next_fastx_read(FLineReader& fr, Read& read, ReadFormat reads_format,
     if (buf==NULL) return false;
     }
   //must be on '+' line here
-  if (buf==NULL || (reads_format == FASTQ && buf[0] != '+') ||
-           (reads_format == FASTA && buf[0] != '>')) {
+  if (buf==NULL || (rd_format == FASTQ && buf[0] != '+') ||
+           (rd_format == FASTA && buf[0] != '>')) {
      err_exit("Error: beginning of quality values record not found! (%s)\n",buf);
      return false;
      }
@@ -605,11 +522,11 @@ void bam2Read(bam1_t *b, Read& rd, bool alt_name=false) {
 }
 
 
-bool ReadStream::next_read(QReadData& rdata, ReadFormat read_format) {
+bool ReadStream::next_read(QReadData& rdata) {
   while (read_pq.size()<ReadBufSize && !r_eof) {
     //keep the queue topped off
     Read rf;
-    if (get_direct(rf, read_format)) {
+    if (get_direct(rf)) {
       uint64_t id = (uint64_t)atol(rf.name.c_str());
       QReadData rdata(id, rf, last_b());
       read_pq.push(rdata);
@@ -623,7 +540,7 @@ bool ReadStream::next_read(QReadData& rdata, ReadFormat read_format) {
   return true;
 }
 
-bool ReadStream::get_direct(Read& r, ReadFormat read_format) {
+bool ReadStream::get_direct(Read& r) {
   if (fstream.file==NULL) return false;
   if (fstream.is_bam) {
 	 bool got_read=false;
@@ -650,7 +567,6 @@ bool ReadStream::get_direct(Read& r, ReadFormat read_format) {
 // reads must ALWAYS be requested in increasing order of their ID
 bool ReadStream::getRead(uint64_t r_id,
 		Read& read,
-		ReadFormat read_format,
 		bool strip_slash,
 		uint64_t begin_id,
 		uint64_t end_id,
@@ -672,7 +588,7 @@ bool ReadStream::getRead(uint64_t r_id,
 	read.clear();
 	while (!found) {
 		QReadData rdata;
-		if (!next_read(rdata, read_format))
+		if (!next_read(rdata))
 			break;
 		/*
     if (strip_slash) {
@@ -702,7 +618,52 @@ bool ReadStream::getRead(uint64_t r_id,
 			break;
 		}
 		if (rProc) { //skipped read processing (unmapped reads)
-			if (!rProc->process(rdata, found, is_unmapped))
+			if (!rProc->process(rdata, found)) //, is_unmapped))
+				//  rProc->process() should normally return TRUE
+				return false; //abort search for r_id, return "not found"
+		}
+	} //while target read id not found
+	return found;
+}
+
+bool ReadStream::getQRead(uint64_t r_id,
+		QReadData& qread,
+		uint64_t begin_id,
+		uint64_t end_id,
+		GetReadProc* rProc,
+		bool is_unmapped )
+ {
+	if (!fstream.file)
+		err_die("Error: calling ReadStream::getRead() with no file handle!");
+	if (r_id<last_id)
+		err_die("Error: ReadStream::getRead() called with out-of-order id#!");
+	last_id=r_id;
+	bool found=false;
+	qread.clear();
+	while (!found) {
+		QReadData rdata;
+		if (!next_read(rdata))
+			break;
+		if (rdata.id >= end_id)
+			return false;
+
+		if (rdata.id < begin_id)
+			continue; //silently skip until begin_id found
+		//does not trigger rProc->process() until begin_id
+		if (rdata.id == r_id)
+		{
+			qread=rdata; //it will be returned
+			found=true;
+		}
+		else if (rdata.id > r_id)
+		{ //can't find it, went too far
+			//only happens when reads [mates] were removed for some reason
+			//read_pq.push(make_pair(id, read));
+			read_pq.push(rdata);
+			break;
+		}
+		if (rProc) { //skipped read processing (unmapped reads)
+			if (!rProc->process(rdata, found)) //, is_unmapped))
 				//  rProc->process() should normally return TRUE
 				return false; //abort search for r_id, return "not found"
 		}
