@@ -1,6 +1,9 @@
 # Directories to search for header files
 SEQAN = ./SeqAn-1.3
-SEARCHDIRS := -I. -I${SEQAN} -I.. -I/opt/geo/include
+SAMTOOLS = /mylocal/src/samtools-0.1.19
+LIBDIR = /opt/geo/lib
+INCDIR = /opt/geo/include
+SEARCHDIRS := -I${SEQAN} -I.. -I${INCDIR}
 
 SYSTYPE :=     $(shell uname)
 
@@ -20,10 +23,10 @@ BASEFLAGS  = -Wall -pthread ${SEARCHDIRS} $(MARCH) -DHAVE_CONFIG_H \
 
 ifeq ($(findstring nodebug,$(MAKECMDGOALS)),)
   CFLAGS = -g -DMEM_DEBUG -DDEBUG $(BASEFLAGS)
-  LDFLAGS = -g -L/opt/geo/lib
+  LDFLAGS = -g -L${SAMTOOLS} -L${LIBDIR}
 else
   CFLAGS = -O3 -DNDEBUG $(BASEFLAGS)
-  LDFLAGS = -L/opt/geo/lib
+  LDFLAGS = -L${SAMTOOLS} -L${LIBDIR}
 endif
 
 %.o : %.c
@@ -44,9 +47,8 @@ endif
 # C/C++ linker
 
 LINKER    := g++
-LIBS = -lz -lbam 
-#BLIBS = ${LIBS} -lpthread -lboost_thread
-BLIBS = ${LIBS} -lpthread -lboost_thread -lboost_system
+LIBS = -lz -lbam -lpthread
+BLIBS = ${LIBS} -lboost_thread -lboost_system
 
 COM_OBJS = common.o reads.o tokenize.o utils.o
 PREP_OBJS = ${COM_OBJS} qual.o
@@ -60,11 +62,10 @@ tophat_reports
 
 .PHONY : all
 #all: fix_map_ordering
-all: tophat_reports
+#all: tophat_reports
+all: all_exe
 #.PHONY : nodebug
 nodebug : all
-#all: prep_reads
-#debug: prep_reads
 
 all_exe: $(ALL_EXE)
 #all: $(ALL_EXE)

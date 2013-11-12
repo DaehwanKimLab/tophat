@@ -44,7 +44,7 @@ void load_readmap(string& flt_fname, vector<bool>& rmap) {
   if (flt_fname.empty()) return;
   ReadStream rdstream(flt_fname, NULL, true);
   Read read;
-  while (rdstream.get_direct(read, reads_format)) {
+  while (rdstream.get_direct(read)) {
     uint32_t rnum=(uint32_t)atol(read.name.c_str());
     if (rnum>=(uint32_t) rmap.size())
          rmap.resize(rnum+1, false);
@@ -209,7 +209,7 @@ void writePrepBam(GBamWriter* wbam, Read& read, uint32_t rid, char trashcode=0, 
   wbam->write(bamrec.get_b(), rid);
 }
 
-bool processRead(int matenum, Read& read, uint32_t next_id,  int& num_reads_chucked,
+bool processRead(int matenum, Read& read, ReadFormat rd_format, uint32_t next_id,  int& num_reads_chucked,
 		int& multimap_chucked, GBamWriter* wbam, FILE* fout, FILE* fqindex,
 		int& min_read_len, int& max_read_len, uint64_t& fout_offset, vector<bool>& rmap) {
 	if (read.seq.length()<12) {
@@ -269,7 +269,7 @@ bool processRead(int matenum, Read& read, uint32_t next_id,  int& num_reads_chuc
 	}
 
 	if (wbam) {
-		if (reads_format == FASTA && !quals)
+		if (rd_format == FASTA && !quals)
 			read.qual = string(read.seq.length(), 'I').c_str();
 		else if (color && quals)
 			read.qual = "!" + read.qual;
@@ -281,7 +281,7 @@ bool processRead(int matenum, Read& read, uint32_t next_id,  int& num_reads_chuc
 		// because it may contain some control characters such as "\" from quality values.
 		// Here, buf is only used for calculating the file offset
 		char buf[2048] = {0};
-		if (reads_format == FASTQ or (reads_format == FASTA && quals))
+		if (rd_format == FASTQ or (rd_format == FASTA && quals))
 		{
 			sprintf(buf, "@%u\n%s\n+%s\n%s\n",
 					next_id,
@@ -295,7 +295,7 @@ bool processRead(int matenum, Read& read, uint32_t next_id,  int& num_reads_chuc
 					read.name.c_str(),
 					read.qual.c_str());
 		}
-		else if (reads_format == FASTA)
+		else if (rd_format == FASTA)
 		{
 			string qual;
 			if (color)
@@ -342,25 +342,30 @@ void process_reads(vector<string>& reads_fnames, vector<FZPipe>& quals_files,
   int multimap_chucked = 0;
   int mate_num_reads_chucked = 0;
   int mate_multimap_chucked = 0;
-  int min_read_len = 20000000;
-  int max_read_len = 0;
-  int mate_min_read_len = 20000000;
-  int mate_max_read_len = 0;
+  int left_min_len = 20000000;
+  int left_max_len = 0;
+  int unpaired_min_len=left_min_len;
+  int unpaired_max_len=left_max_len;
+  int unpaired_num_chucked=0;
+  int unpaired_multimap_chucked=0;
+  int right_min_len = 20000000;
+  int right_max_len = 0;
   uint32_t next_id = 0;
+  uint32_t unpaired_count=0; //only used when PE_data + extra unpaired reads given
   uint32_t num_left = 0;
   uint32_t num_mates = 0;
+  bool PE_data = (mate_fnames.size() > 0);
 
   FILE* fw=NULL; //aux output file
   string outfname; //std_outfile after instancing template
   string mate_outfname;
   string idxfname; //index_outfile after instancing template
   string mate_idxfname;
-  bool have_mates = (mate_fnames.size() > 0);
 
   if (!aux_outfile.empty()) {
     fw=fopen(aux_outfile.c_str(), "w");
     if (fw==NULL)
-       err_die(ERR_FILE_CREATE,aux_outfile.c_str());
+       err_die(ERR_FILE_CREATE, aux_outfile.c_str());
     }
 
   FILE* fqindex = NULL; //fastq index
@@ -374,7 +379,7 @@ void process_reads(vector<string>& reads_fnames, vector<FZPipe>& quals_files,
   if (std_outfile.empty()) {
     fout=stdout;
     //for PE reads, flt_side will decide which side is printed (can't be both)
-    if (have_mates && flt_side==2)
+    if (PE_data && flt_side==2)
       err_die("Error: --flt-side option required for PE reads directed to stdout!\n");
     mate_fout=stdout;
   }
@@ -382,7 +387,7 @@ void process_reads(vector<string>& reads_fnames, vector<FZPipe>& quals_files,
 	//could be a template
 	if (std_outfile.find("%side%") != string::npos) {
 	  outfname=str_replace(std_outfile, "%side%", "left");
-	  if (have_mates)
+	  if (PE_data)
 	    mate_outfname=str_replace(std_outfile, "%side%", "right");
 	}
 	else {
@@ -390,7 +395,7 @@ void process_reads(vector<string>& reads_fnames, vector<FZPipe>& quals_files,
 	}
 	if (index_outfile.find("%side%") != string::npos) {
 	  idxfname=str_replace(index_outfile, "%side%", "left");
-	  if (have_mates)
+	  if (PE_data)
 	    mate_idxfname=str_replace(index_outfile, "%side%", "right");
 	}
 	else {
@@ -431,30 +436,35 @@ void process_reads(vector<string>& reads_fnames, vector<FZPipe>& quals_files,
 	Read read;
 	Read mate_read;
     ReadStream* reads=NULL;
+    ReadFormat rd_format=FASTX_AUTO;
 	ReadStream* mate_reads=NULL;
+    ReadFormat mate_rd_format=FASTX_AUTO;
 	FZPipe* fq=NULL;
 	FZPipe* mate_fq=NULL;
 	bool have_l_reads=(fi<reads_fnames.size());
-	bool have_r_reads=(have_mates && fi<mate_fnames.size());
+	bool have_r_reads=(PE_data && fi<mate_fnames.size());
 	if (have_l_reads) {
 	  if (quals)
 		fq = & quals_files[fi];
 	  reads=new ReadStream(reads_fnames[fi], fq, true);
+	  rd_format=reads->get_format();
 	}
 	if (have_r_reads) {
 	  if (quals)
 		 mate_fq = & mate_quals_files[fi];
 	  mate_reads=new ReadStream(mate_fnames[fi], mate_fq, true);
+	  mate_rd_format=mate_reads->get_format();
 	}
 
 	while (have_l_reads || have_r_reads) {
-	  if (have_l_reads && (have_l_reads=reads->get_direct(read, reads_format)))
+	  if (have_l_reads && (have_l_reads=reads->get_direct(read)))
 		 num_left++;
 	  // Get the next read from the file
 	  int matenum=0; // 0 = unpaired, 1 = left, 2 = right
-	  if (have_r_reads && (have_r_reads=mate_reads->get_direct(mate_read, reads_format)) ) {
+	  if (have_r_reads && (have_r_reads=mate_reads->get_direct(mate_read)) ) {
 		num_mates++;
 	  }
+	  bool have_reads = (have_l_reads || have_r_reads);
 	  if (have_l_reads && have_r_reads) {
 		matenum = 1; //read is first in a pair
 		if (have_l_reads && have_r_reads && !possible_mate_mismatch) {
@@ -478,19 +488,56 @@ void process_reads(vector<string>& reads_fnames, vector<FZPipe>& quals_files,
 		  }
 		} //mate check
 	  } //paired reads
-	  if (have_l_reads || have_r_reads) {
+	  else if (PE_data && have_reads) {
+         ++unpaired_count;
+         if (have_l_reads) --num_left;
+         else --num_mates; //if (have_r_reads)
+	  }
+	  if (have_reads) {
 		  //IMPORTANT: to keep paired reads in sync, this must be
 		  //incremented BEFORE any reads are chucked !
 		  ++next_id;
 	  }
-	  if ((flt_side & 1)==0 && have_l_reads)
-		  //for unpaired reads or left read in a pair
-	      processRead(matenum, read, next_id,  num_reads_chucked, multimap_chucked,
-		     wbam, fout, fqindex, min_read_len,  max_read_len,  fout_offset, readmap);
+	  int* min_rd_len=NULL, *max_rd_len=NULL,
+			  *num_rd_chucked=NULL, *num_multimap_chucked=NULL;
+	  if ((flt_side & 1)==0 && have_l_reads) {
+		  if (PE_data && matenum==0) {
+			  //extra unpaired read
+			  min_rd_len=&unpaired_min_len;
+			  max_rd_len=&unpaired_max_len;
+			  num_rd_chucked=&unpaired_num_chucked;
+			  num_multimap_chucked=&unpaired_multimap_chucked;
+		  }
+		  else { //paired read
+			  min_rd_len=&left_min_len;
+			  max_rd_len=&left_max_len;
+			  num_rd_chucked=&num_reads_chucked;
+			  num_multimap_chucked=&multimap_chucked;
+		  }
+	      processRead(matenum, read, rd_format, next_id,  *num_rd_chucked, *num_multimap_chucked,
+		     wbam, fout, fqindex, *min_rd_len,  *max_rd_len,  fout_offset, readmap);
+
+	  }
 	  if (flt_side>0 && have_r_reads) {
-		  matenum = have_l_reads ? 2 : 0;
-		  processRead(matenum, mate_read, next_id,  mate_num_reads_chucked, mate_multimap_chucked,
-			  mate_wbam, mate_fout, mate_fqindex, mate_min_read_len,  mate_max_read_len,
+		  //matenum = have_l_reads ? 2 : 0;
+		  if (have_l_reads) {
+			  matenum = 2;
+			  min_rd_len=&right_min_len;
+			  max_rd_len=&right_max_len;
+			  num_rd_chucked=&mate_num_reads_chucked;
+			  num_multimap_chucked=&mate_multimap_chucked;
+		  }
+		  else { //paired read
+			  //extra unpaired read
+			  matenum = 0;
+			  min_rd_len=&unpaired_min_len;
+			  max_rd_len=&unpaired_max_len;
+			  num_rd_chucked=&unpaired_num_chucked;
+			  num_multimap_chucked=&unpaired_multimap_chucked;
+		  }
+
+		  processRead(matenum, mate_read, mate_rd_format, next_id,  *num_rd_chucked, *num_multimap_chucked,
+			  mate_wbam, mate_fout, mate_fqindex, *min_rd_len,  *max_rd_len,
 			  mate_fout_offset, mate_readmap);
       }
     } //while !fr.isEof()
@@ -507,35 +554,42 @@ void process_reads(vector<string>& reads_fnames, vector<FZPipe>& quals_files,
 		  multimap_chucked, flt_reads_fnames[0].c_str());
   }
 
-  if (have_mates && (fout!=stdout || flt_side>0)) {
+  if (PE_data && (fout!=stdout || flt_side>0)) {
 	fprintf(stderr, "%u out of %u read mates have been filtered out\n",
 		mate_num_reads_chucked, num_mates);
 	if (readmap_loaded && mate_multimap_chucked)
 	  fprintf(stderr, "\t(%u mates filtered out due to %s)\n",
 		  mate_multimap_chucked, flt_reads_fnames[1].c_str());
   }
-
+  //we should also print to stderr stats related to the extra unpaired reads here, if any
   if (wbam) { delete wbam; }
   if (mate_wbam) { delete mate_wbam; }
   if (fout && fout!=stdout) fclose(fout);
   if (mate_fout) fclose(mate_fout);
   if (fw!=NULL) {
-	string side("");
-	if (have_mates)
-	   side="left_";
-    fprintf(fw, "%smin_read_len=%d\n", side.c_str(), min_read_len - (color ? 1 : 0));
-    fprintf(fw, "%smax_read_len=%d\n", side.c_str(), max_read_len - (color ? 1 : 0));
-    fprintf(fw, "%sreads_in =%d\n", side.c_str(), num_left);
-    fprintf(fw, "%sreads_out=%d\n", side.c_str(), num_left-num_reads_chucked);
-    if (have_mates) {
-      side="right_";
-      fprintf(fw, "%smin_read_len=%d\n", side.c_str(), mate_min_read_len - (color ? 1 : 0));
-      fprintf(fw, "%smax_read_len=%d\n", side.c_str(), mate_max_read_len - (color ? 1 : 0));
-      fprintf(fw, "%sreads_in =%d\n", side.c_str(), num_mates);
-      fprintf(fw, "%sreads_out=%d\n", side.c_str(), num_mates-mate_num_reads_chucked);
-    }
-    fclose(fw);
-    }
+	  string side("");
+	  if (PE_data)
+		  side="left_";
+	  fprintf(fw, "%smin_read_len=%d\n", side.c_str(), left_min_len - (color ? 1 : 0));
+	  fprintf(fw, "%smax_read_len=%d\n", side.c_str(), left_max_len - (color ? 1 : 0));
+	  fprintf(fw, "%sreads_in =%d\n", side.c_str(), num_left);
+	  fprintf(fw, "%sreads_out=%d\n", side.c_str(), num_left-num_reads_chucked);
+	  if (PE_data) {
+		  side="right_";
+		  fprintf(fw, "%smin_read_len=%d\n", side.c_str(), right_min_len - (color ? 1 : 0));
+		  fprintf(fw, "%smax_read_len=%d\n", side.c_str(), right_max_len - (color ? 1 : 0));
+		  fprintf(fw, "%sreads_in =%d\n", side.c_str(), num_mates);
+		  fprintf(fw, "%sreads_out=%d\n", side.c_str(), num_mates-mate_num_reads_chucked);
+		  if (unpaired_count) {
+			  side="unpaired_";
+			  fprintf(fw, "%smin_read_len=%d\n", side.c_str(), unpaired_min_len - (color ? 1 : 0));
+			  fprintf(fw, "%smax_read_len=%d\n", side.c_str(), unpaired_max_len - (color ? 1 : 0));
+			  fprintf(fw, "%sreads_in =%d\n", side.c_str(), unpaired_count);
+			  fprintf(fw, "%sreads_out=%d\n", side.c_str(), unpaired_count-unpaired_num_chucked);
+		  }
+	  }
+	  fclose(fw);
+  }
 
   if (fqindex) fclose(fqindex);
   if (mate_fqindex) fclose(mate_fqindex);

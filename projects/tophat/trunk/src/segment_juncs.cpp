@@ -450,23 +450,7 @@ void count_read_mers(string& reads_file, size_t half_splice_mer_len)
 	size_t mer_table_size = 1 << ((splice_mer_len)<<1);
 	extension_counts.resize(mer_table_size);
 	ReadStream readstream(reads_file);
-    //FLineReader fr(reads_file);
-	//while(!feof(reads_file))
-	while (readstream.get_direct(read, reads_format)) {
-	/*
-    while (!fr.isEof())
-	{
-		read.clear();
-		
-		// Get the next read from the file
-		if (!next_fasta_record(fr, read.name, read.seq, reads_format))
-		  break;
-		if (reads_format == FASTQ)
-		{
-		  if (!next_fastq_record(fr, read.seq, read.alt_name, read.qual, reads_format))
-		    break;
-		}
-      */
+	while (readstream.get_direct(read)) {
 		if (color && !readstream.isBam())
 		  // erase the primer and the adjacent color
 		  read.seq.erase(0, 2);
@@ -531,23 +515,7 @@ void store_read_mers(string& reads_file, size_t half_splice_mer_len)
 	
 	size_t num_indexed_reads = 0;
 	ReadStream readstream(reads_file);
-	while (readstream.get_direct(read, reads_format)) {
-	/*
-	FLineReader fr(reads_file);
-	//while(!feof(reads_file))
-	while(!fr.isEof())
-	{
-		read.clear();
-		
-		// Get the next read from the file
-		if (!next_fasta_record(fr, read.name, read.seq, reads_format))
-		  break;
-		if (reads_format == FASTQ)
-		{
-		  if (!next_fastq_record(fr, read.seq, read.alt_name, read.qual, reads_format))
-		    break;
-		}
-     */
+	while (readstream.get_direct(read)) {
 		if (color && !readstream.isBam())
 		  // erase the primer and the adjacent color
 		  read.seq.erase(0, 2);
@@ -2530,7 +2498,7 @@ void detect_small_insertion(RefSequenceTable& rt,
        bestInsertPosition + discrepancy <= (int)length(left_read_sequence)){
       String<char> insertedSequence = seqan::infix(left_read_sequence, bestInsertPosition, bestInsertPosition + discrepancy);
       if(color)
-	insertedSequence = convert_color_to_bp(genomic_sequence_temp[bestInsertPosition - begin_offset + end_offset - 1], insertedSequence);
+    	  insertedSequence = convert_color_to_bp(genomic_sequence_temp[bestInsertPosition - begin_offset + end_offset - 1], insertedSequence);
       insertions.insert(Insertion(leftHit.ref_id(),
 				  leftHit.left() + bestInsertPosition - 1 + end_offset,
 				  seqan::toCString(insertedSequence)));

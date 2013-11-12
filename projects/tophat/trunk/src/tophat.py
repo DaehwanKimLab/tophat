@@ -415,7 +415,7 @@ class TopHatParams:
                      color,
                      library_type,
                      seed_length,
-                     reads_format,
+                     # reads_format,
                      mate_inner_dist,
                      mate_inner_dist_std_dev,
                      read_group_id,
@@ -433,7 +433,7 @@ class TopHatParams:
             self.color = color
             self.library_type = library_type
             self.seed_length = seed_length
-            self.reads_format = reads_format
+            # self.reads_format = reads_format
             self.mate_inner_dist = mate_inner_dist
             self.mate_inner_dist_std_dev = mate_inner_dist_std_dev
             self.read_group_id = read_group_id
@@ -682,7 +682,7 @@ class TopHatParams:
                                            False,               # SOLiD - color space
                                            "",                  # library type (e.g. "illumina-stranded-pair-end")
                                            None,                # seed_length
-                                           "fastq",             # quality_format
+                                         # "fastq",             # quality_format
                                            None,                # mate inner distance
                                            20,                  # mate inner dist std dev
                                            None,                # read group id
@@ -714,6 +714,7 @@ class TopHatParams:
         self.transcriptome_only = False
         self.transcriptome_index = None
         self.transcriptome_outdir = None
+        self.transcriptome_buildonly = None
         self.raw_junctions = None
         self.resume_dir = None
         self.find_novel_juncs = True
@@ -1138,7 +1139,10 @@ class TopHatParams:
             tmp_dir = custom_tmp_dir
             sam_header = tmp_dir + "stub_header.sam"
         if len(args) < 2 and not self.resume_dir:
-            raise Usage(use_message)
+            if len(args) == 1 and self.transcriptome_index and self.gff_annotation:
+              self.transcriptome_buildonly = True
+            else:
+              raise Usage(use_message)
 
         if self.read_realign_edit_dist == None:
             self.read_realign_edit_dist = self.read_edit_dist + 1
@@ -1816,7 +1820,7 @@ class ZWriter:
 # to determines the file format
 def check_reads_format(params, reads_files):
     #seed_len = params.read_params.seed_length
-    fileformat = params.read_params.reads_format
+    #fileformat = params.read_params.reads_format
 
     observed_formats = set([])
     # observed_scales = set([])
@@ -1842,25 +1846,27 @@ def check_reads_format(params, reads_files):
                 max_seed_len = max(seq_len, max_seed_len)
         zf.close()
         observed_formats.add(freader.format)
-    if len(observed_formats) > 1:
-        die("Error: TopHat requires all reads be either FASTQ or FASTA.  Mixing formats is not supported.")
+#     if len(observed_formats) > 1:
+#         die("Error: TopHat requires all reads be either FASTQ or FASTA.  Mixing formats is not supported.")
     fileformat=list(observed_formats)[0]
-    #if seed_len != None:
-    #    seed_len = max(seed_len, max_seed_len)
-    #else:
-    #    seed_len = max_seed_len
-    #print >> sys.stderr, "\tmin read length: %dbp, max read length: %dbp" % (min_seed_len, max_seed_len)
-    th_logp("\tformat:\t\t %s" % fileformat)
-    if fileformat == "fastq":
-        quality_scale = "phred33 (default)"
-        if params.read_params.solexa_quals and not params.read_params.phred64_quals:
-            quality_scale = "solexa33 (reads generated with GA pipeline version < 1.3)"
-        elif params.read_params.phred64_quals:
-            quality_scale = "phred64 (reads generated with GA pipeline version >= 1.3)"
-        th_logp("\tquality scale:\t %s" % quality_scale)
-    elif fileformat == "fasta":
-        if params.read_params.color:
-            params.read_params.integer_quals = True
+#     #if seed_len != None:
+#     #    seed_len = max(seed_len, max_seed_len)
+#     #else:
+#     #    seed_len = max_seed_len
+#     #print >> sys.stderr, "\tmin read length: %dbp, max read length: %dbp" % (min_seed_len, max_seed_len)
+#     th_logp("\tformat:\t\t %s" % fileformat)
+#     if fileformat == "fastq":
+#         quality_scale = "phred33 (default)"
+#         if params.read_params.solexa_quals and not params.read_params.phred64_quals:
+#             quality_scale = "solexa33 (reads generated with GA pipeline version < 1.3)"
+#         elif params.read_params.phred64_quals:
+#             quality_scale = "phred64 (reads generated with GA pipeline version >= 1.3)"
+#         th_logp("\tquality scale:\t %s" % quality_scale)
+#     elif fileformat == "fasta":
+#         if params.read_params.color:
+#             params.read_params.integer_quals = True
+    if params.read_params.color and fileformat == "fasta":
+         params.read_params.integer_quals = True
 
     #print seed_len, format, solexa_scale
     #NOTE: seed_len will be re-evaluated later by prep_reads
@@ -1870,9 +1876,9 @@ def check_reads_format(params, reads_files):
                                    params.read_params.integer_quals,
                                    params.read_params.color,
                                    params.read_params.library_type,
-                                   #seed_len,
+                                   # seed_len,
                                    params.read_params.seed_length,
-                                   fileformat,
+                                   # fileformat,
                                    params.read_params.mate_inner_dist,
                                    params.read_params.mate_inner_dist_std_dev,
                                    params.read_params.read_group_id,
@@ -1970,10 +1976,10 @@ def prep_reads_cmd(params, l_reads_list, l_quals_list=None, r_reads_list=None, r
 
   prep_cmd.extend(params.cmd())
 
-  if params.read_params.reads_format == "fastq":
-      prep_cmd += ["--fastq"]
-  elif params.read_params.reads_format == "fasta":
-      prep_cmd += ["--fasta"]
+#   if params.read_params.reads_format == "fastq":
+#       prep_cmd += ["--fastq"]
+#   elif params.read_params.reads_format == "fasta":
+#       prep_cmd += ["--fasta"]
   if hits_to_filter:
     prep_cmd += ["--flt-hits=" + ",".join(hits_to_filter)]
   if aux_file:
@@ -2094,7 +2100,7 @@ def bowtie(params,
            bwt_idx_prefix,
            sam_headers,
            reads_list,
-           reads_format,
+           # reads_format,
            num_mismatches,
            gap_length,
            edit_dist,
@@ -2174,10 +2180,10 @@ def bowtie(params,
     # Launch Bowtie
     try:
         bowtie_cmd = [bowtie_path]
-        if reads_format == "fastq":
-            bowtie_cmd += ["-q"]
-        elif reads_format == "fasta":
-            bowtie_cmd += ["-f"]
+#         if reads_format == "fastq":
+#             bowtie_cmd += ["-q"]
+#         elif reads_format == "fasta":
+#             bowtie_cmd += ["-f"]
         if params.read_params.color:
             bowtie_cmd += ["-C", "--col-keepends"]
 
@@ -2188,8 +2194,8 @@ def bowtie(params,
            unzip_cmd=[ prog_path('bam2fastx'), "--all" ]
            if params.read_params.color:
                unzip_cmd.append("--color")
-           if reads_format:
-              unzip_cmd.append("--" + reads_format)
+           #if reads_format:
+           #   unzip_cmd.append("--" + reads_format)
            unzip_cmd+=[reads_list[0]]
 
         if use_zpacker and (unzip_cmd is None):
@@ -3047,7 +3053,6 @@ def junctions_from_segments(params,
                             right_reads_map,
                             right_seg_maps,
                             unmapped_reads,
-                            reads_format,
                             ref_fasta):
     # if left_reads_map != left_seg_maps[0]:
 
@@ -3277,18 +3282,19 @@ def map2gtf(params, genome_sam_header_filename, ref_fasta, left_reads, right_rea
        m2g_bwt_idx = params.transcriptome_index
        th_log("Using pre-built transcriptome data..")
     else:
-       th_log("Building transcriptome data files..")
        if params.transcriptome_outdir:
          t_out_dir=params.transcriptome_outdir+"/"
+       th_log("Building transcriptome data files "+t_out_dir+gtf_name)
        m2g_ref_name  = t_out_dir + gtf_name
        m2g_ref_fasta = gtf_to_fasta(params, params.gff_annotation, ref_fasta, m2g_ref_name)
        m2g_bwt_idx = build_idx_from_fa(params.bowtie2, m2g_ref_fasta, t_out_dir, params.read_params.color)
        params.transcriptome_index = m2g_bwt_idx
-
+    if params.transcriptome_buildonly:
+       return
     transcriptome_header_filename = get_index_sam_header(params, m2g_bwt_idx)
 
     mapped_gtf_list = []
-    unmapped_gtf_list = []
+    unmapped_gtf_list = []    
     # do the initial mapping in GTF coordinates
     for reads in [left_reads, right_reads]:
         if reads == None or os.path.getsize(reads) < 25 :
@@ -3306,7 +3312,6 @@ def map2gtf(params, genome_sam_header_filename, ref_fasta, left_reads, right_rea
                                             m2g_bwt_idx,
                                             [transcriptome_header_filename, genome_sam_header_filename],
                                             [reads],
-                                            "fastq",
                                             params.read_mismatches,
                                             params.read_gap_length,
                                             params.read_edit_dist,
@@ -3509,7 +3514,6 @@ def spliced_alignment(params,
                                                    bwt_idx_prefix,
                                                    sam_header_filename,
                                                    [reads],
-                                                   "fastq",
                                                    params.read_mismatches,
                                                    params.read_gap_length,
                                                    params.read_edit_dist,
@@ -3547,7 +3551,6 @@ def spliced_alignment(params,
                                              bwt_idx_prefix,
                                              sam_header_filename,
                                              [seg],
-                                             "fastq",
                                              params.segment_mismatches,
                                              params.segment_mismatches,
                                              params.segment_mismatches,
@@ -3605,7 +3608,6 @@ def spliced_alignment(params,
                                         right_reads_map,
                                         right_seg_maps,
                                         unmapped_reads,
-                                        "fastq",
                                         ref_fasta)
 
         if not params.system_params.keep_tmp:
@@ -3705,7 +3707,6 @@ def spliced_alignment(params,
                                                  tmp_dir + junc_idx_prefix,
                                                  juncs_bwt_samheader,
                                                  [seg],
-                                                 "fastq",
                                                  params.segment_mismatches,
                                                  params.segment_mismatches,
                                                  params.segment_mismatches,
@@ -3838,7 +3839,9 @@ def main(argv=None):
         params.check()
 
         bwt_idx_prefix = args[0]
-        left_reads_list = args[1]
+        left_reads_list = None
+        if len(args)>1:
+          left_reads_list = args[1]
         left_quals_list, right_quals_list = None, None
         if (not params.read_params.quals and len(args) > 2) or (params.read_params.quals and len(args) > 3):
             if params.read_params.mate_inner_dist == None:
@@ -3855,6 +3858,7 @@ def main(argv=None):
                 left_quals_list = args[2]
 
         start_time = datetime.now()
+        
         prepare_output_dir()
         init_logger(logging_dir + "tophat.log")
 
@@ -3862,7 +3866,10 @@ def main(argv=None):
         if resumeStage>0:
            th_log("Resuming TopHat run in directory '"+output_dir+"' stage '"+stageNames[resumeStage]+"'")
         else:
-           th_log("Beginning TopHat run (v"+get_version()+")")
+           if params.transcriptome_buildonly:
+             th_log("Building transcriptome files with TopHat v"+get_version())
+           else:
+             th_log("Beginning TopHat run (v"+get_version()+")")
         th_logp("-----------------------------------------------")
 
         global run_log
@@ -3914,7 +3921,11 @@ def main(argv=None):
            #end @ transcriptome_index given
 
         (ref_fasta, ref_seq_dict) = check_index(bwt_idx_prefix, params.bowtie2)
-
+        if params.transcriptome_buildonly:
+             map2gtf(params, "", ref_fasta, [], [])
+             th_logp("-----------------------------------------------")
+             th_log("Transcriptome files prepared. This was the only task requested.")
+             return
         if currentStage >= resumeStage:
            th_log("Generating SAM header for "+bwt_idx_prefix)
         # we need to provide another name for this sam header as genome and transcriptome may have the same prefix.
@@ -3979,7 +3990,7 @@ def main(argv=None):
                th_log("Pre-filtering multi-mapped "+sides[ri]+" reads")
                rdlist=reads_list.split(',')
                bwt=bowtie(params, bwt_idx_prefix, sam_header_filename, rdlist,
-                          params.read_params.reads_format,
+                          # params.read_params.reads_format,
                           params.read_mismatches,
                           params.read_gap_length,
                           params.read_edit_dist,
@@ -4060,7 +4071,7 @@ def main(argv=None):
 
 
         th_logp("-----------------------------------------------")
-        th_log("A summary of the alignment counts can be found in %salign_summary.txt" % output_dir);
+        th_log("A summary of the alignment counts can be found in %salign_summary.txt" % output_dir)
         th_log("Run complete: %s elapsed" %  formatTD(duration))
 
     except Usage, err:

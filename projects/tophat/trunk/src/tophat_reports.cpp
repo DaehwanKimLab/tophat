@@ -126,38 +126,34 @@ char read_best_alignments(const HitsForRead& hits_for_read,
 		ret_code |= 16;
 		return ret_code; //too many hits
 	}*/
- unsigned int nhits=0;
+	unsigned int nhits=0;
 	for (size_t i = 0; i < hits.size(); ++i)
 	{
-			if (hits[i].mismatches() > read_mismatches ||
-					hits[i].gap_length() > read_gap_length ||
-					hits[i].edit_dist() > read_edit_dist)
-				continue;
-			ret_code |= 1; //read has a valid mapping
-			nhits++;
-			if (nhits>1) ret_code |= 4; //read has multiple valid mappings
-			if (nhits>max_multihits) ret_code |= 16; //read has too many valid mappings
-			BowtieHit hit = hits[i];
-			AlignStatus align_status(hit, gtf_junctions,
-					junctions, insertions, deletions, fusions, coverage);
-			hit.alignment_score(align_status._alignment_score);
-			if (report_secondary_alignments || !final_report)
+		if (hits[i].mismatches() > read_mismatches ||
+				hits[i].gap_length() > read_gap_length ||
+				hits[i].edit_dist() > read_edit_dist)
+			continue;
+		BowtieHit hit = hits[i];
+		AlignStatus align_status(hit, gtf_junctions,
+				junctions, insertions, deletions, fusions, coverage);
+		hit.alignment_score(align_status._alignment_score);
+		if (report_secondary_alignments || !final_report)
+		{
+			best_hits.hits.push_back(hit);
+		}
+		else
+		{
+			// Is the new status better than the current best one?
+			if (best_hits.hits.size() == 0 || cmp_read_alignment()(hit, best_hits.hits[0]))
+			{
+				best_hits.hits.clear();
+				best_hits.hits.push_back(hit);
+			}
+			else if (!cmp_read_alignment()(best_hits.hits[0], hit)) // is it just as good?
 			{
 				best_hits.hits.push_back(hit);
 			}
-			else
-			{
-				// Is the new status better than the current best one?
-				if (best_hits.hits.size() == 0 || cmp_read_alignment()(hit, best_hits.hits[0]))
-				{
-					best_hits.hits.clear();
-					best_hits.hits.push_back(hit);
-				}
-				else if (!cmp_read_alignment()(best_hits.hits[0], hit)) // is it just as good?
-				{
-					best_hits.hits.push_back(hit);
-				}
-			}
+		}
 	}
 
 	// due to indel alignments, there may be alignments with the same location
@@ -167,16 +163,16 @@ char read_best_alignments(const HitsForRead& hits_for_read,
 
 	if ((report_secondary_alignments || !final_report) && best_hits.hits.size() > 0)
 	{
-			sort(best_hits.hits.begin(), best_hits.hits.end(), cmp_read_alignment());
+		sort(best_hits.hits.begin(), best_hits.hits.end(), cmp_read_alignment());
 	}
 
-	if (final_report)
-	{
-			if (suppress_hits && best_hits.hits.size() > max_multihits)
+	if (final_report) {
+		if (best_hits.hits.size() > max_multihits) {
+			ret_code |= 16; //read has too many valid mappings
+			if (suppress_hits)
 				best_hits.hits.clear();
-
-			if (best_hits.hits.size() > max_multihits)
-			{
+			else {
+				//if (best_hits.hits.size() > max_multihits)
 				// there may be several alignments with the same alignment scores,
 				// all of which we can not include because of this limit.
 				// let's pick up some of them randomly up to this many max multihits.
@@ -208,6 +204,11 @@ char read_best_alignments(const HitsForRead& hits_for_read,
 
 				best_hits.hits.erase(best_hits.hits.begin() + max_multihits, best_hits.hits.end());
 			}
+		}
+		if ((nhits=best_hits.hits.size())>0) {
+			ret_code |= 1; //read has a valid mapping
+			if (nhits>1) ret_code |= 4; //read has multiple mappings
+		}
 	}
 	return ret_code;
 }
@@ -314,16 +315,25 @@ struct SAlignStats {
 	int64_t num_unmapped_left; //total left reads unmapped, or mapped in too many places (!)
 	int64_t num_aligned_left_multi; //total left reads mapped in more than 1 place
 	int64_t num_aligned_left_xmulti; //total left reads mapped in too many places (> max_multihits)
+
 	int64_t num_aligned_right; //total right reads aligned
 	int64_t num_unmapped_right; //total right reads unmapped, or mapped in too many places (!)
 	int64_t num_aligned_right_multi; //total right reads in more than 1 place
 	int64_t num_aligned_right_xmulti; //total right reads mapped in too many places (> max_multihits)
+
 	int64_t num_aligned_pairs; //total pairs aligned
 	int64_t num_aligned_pairs_multi; //total pairs aligned in more than 1 place
 	int64_t num_aligned_pairs_disc; //total pairs aligned discordantly only
+
+	int64_t num_aligned_unpaired; //total unpaired reads aligned, when mixed with PE
+	int64_t num_unmapped_unpaired; //total right reads unmapped, or mapped in too many places (!)
+	int64_t num_aligned_unpaired_multi;
+	int64_t num_aligned_unpaired_xmulti; //total right reads mapped in too many places (> max_multihits)
+
 	SAlignStats():num_aligned_left(0), num_unmapped_left(0), num_aligned_left_multi(0), num_aligned_left_xmulti(0), num_aligned_right(0),
 			num_unmapped_right(0), num_aligned_right_multi(0), num_aligned_right_xmulti(0), num_aligned_pairs(0), num_aligned_pairs_multi(0),
-			num_aligned_pairs_disc(0) { }
+			num_aligned_pairs_disc(0),  num_aligned_unpaired(0), num_unmapped_unpaired(0),
+			num_aligned_unpaired_multi(0), num_aligned_unpaired_xmulti(0) { }
 	void add(SAlignStats& a) {
 		num_aligned_left+=a.num_aligned_left;
 		num_unmapped_left+=a.num_unmapped_left;
@@ -336,6 +346,10 @@ struct SAlignStats {
 		num_aligned_pairs+=a.num_aligned_pairs;
 		num_aligned_pairs_multi+=a.num_aligned_pairs_multi;
 		num_aligned_pairs_disc+=a.num_aligned_pairs_disc;
+		num_aligned_unpaired+=a.num_aligned_unpaired;
+		num_unmapped_unpaired+=a.num_unmapped_unpaired;
+		num_aligned_unpaired_multi+=a.num_aligned_unpaired_multi;
+		num_aligned_unpaired_xmulti+=a.num_aligned_unpaired_xmulti;
 	}
 
 };
@@ -367,7 +381,7 @@ char pair_best_alignments(const HitsForRead& left_hits,
 	if (ret_code)
 		return ret_code;
 	*/
-	unsigned int l_nhits=0, r_nhits=0;
+	unsigned int nhits=0;
 
 	vector<BowtieHit> rhits;
 
@@ -377,34 +391,25 @@ char pair_best_alignments(const HitsForRead& left_hits,
 				right[j].gap_length() > read_gap_length ||
 				right[j].edit_dist() > read_edit_dist)
 			continue;
-			r_nhits++;
-			ret_code|=2; //right read has acceptable mappings
-			if (r_nhits>1) ret_code |= 8; //right read has multiple valid mappings
-			if (r_nhits>max_multihits) {
-				ret_code |= 32; //left read has too many mappings
-				//if (r_nhits > (max_multihits<<2))
-					break;
-			}
-			BowtieHit rh = right[j];
-			AlignStatus align_status(rh, gtf_junctions,
-					junctions, insertions, deletions, fusions, coverage);
-			rh.alignment_score(align_status._alignment_score);
-			rhits.push_back(rh);
+		nhits++;
+		if ((nhits>>1) > max_multihits)
+			break;
+		BowtieHit rh = right[j];
+		AlignStatus align_status(rh, gtf_junctions,
+				junctions, insertions, deletions, fusions, coverage);
+		rh.alignment_score(align_status._alignment_score);
+		rhits.push_back(rh);
 	}
-
+    nhits=0;
 	for (size_t i = 0; i < left.size(); ++i)
 	{
 		if (left[i].mismatches() > read_mismatches ||
 				left[i].gap_length() > read_gap_length ||
 				left[i].edit_dist() > read_edit_dist)
 			continue;
-		l_nhits++;
-		ret_code|=1; //left read has acceptable mappings
-		if (l_nhits>1) ret_code |= 4; //left read has multiple valid mappings
-		if (l_nhits>max_multihits) {
-			ret_code |= 16; //left read has too many mappings
-			//if (l_nhits > (max_multihits<<2))
-				break;
+		nhits++;
+		if ((nhits>>1)>max_multihits) {
+		    break;
 		}
 		BowtieHit lh = left[i];
 		AlignStatus align_status(lh, gtf_junctions,
@@ -516,8 +521,15 @@ if (lh.insert_id() == 10790262)
 
 				if (final_report)
 				{
-					if (suppress_hits && best_hits.size() > max_multihits)
-						best_hits.clear();
+					nhits = best_hits.size();
+					if (nhits>0) {
+					  ret_code|=3; //both reads have acceptable mappings
+					}
+					if (nhits>1) ret_code |= 12; //both reads have multiple valid mappings
+					if (nhits>max_multihits) {
+						ret_code |= 48; //both reads have too many mappings
+						if (suppress_hits) best_hits.clear();
+					}
 
 					if (best_hits.size() > max_multihits)
 					{
@@ -597,37 +609,37 @@ void add_auxData(vector<string>& auxdata, vector<string>& sam_toks,
     // requirement, and that the strand indicated by the alignment is consistent
     // with the orientation of the splices (though that should be handled upstream).
   if (!XS_found) {
-    const string xs_f("XS:A:+");
-    const string xs_r("XS:A:-");
-    if (library_type == FR_FIRSTSTRAND) {
-      if (insert_side == FRAG_LEFT || insert_side == FRAG_UNPAIRED) {
-	if (bh.antisense_align())
-	  auxdata.push_back(xs_f);
-	else
-	  auxdata.push_back(xs_r);
-      }
-      else {
-	if (bh.antisense_align())
-	  auxdata.push_back(xs_r);
-	else
-	  auxdata.push_back(xs_f);
-      }
-    }
-    else if (library_type == FR_SECONDSTRAND)   {
-      if (insert_side == FRAG_LEFT || insert_side == FRAG_UNPAIRED){
-	if (bh.antisense_align())
-	  auxdata.push_back(xs_r);
-	else
-	  auxdata.push_back(xs_f);
-      }
-      else
-	{
-	  if (bh.antisense_align())
-	    auxdata.push_back(xs_f);
-	  else
-	    auxdata.push_back(xs_r);
-	}
-    }
+	  const string xs_f("XS:A:+");
+	  const string xs_r("XS:A:-");
+	  if (library_type == FR_FIRSTSTRAND) {
+		  if (insert_side == FRAG_LEFT || insert_side == FRAG_UNPAIRED) {
+			  if (bh.antisense_align())
+				  auxdata.push_back(xs_f);
+			  else
+				  auxdata.push_back(xs_r);
+		  }
+		  else {
+			  if (bh.antisense_align())
+				  auxdata.push_back(xs_r);
+			  else
+				  auxdata.push_back(xs_f);
+		  }
+	  }
+	  else if (library_type == FR_SECONDSTRAND)   {
+		  if (insert_side == FRAG_LEFT || insert_side == FRAG_UNPAIRED){
+			  if (bh.antisense_align())
+				  auxdata.push_back(xs_r);
+			  else
+				  auxdata.push_back(xs_f);
+		  }
+		  else
+		  {
+			  if (bh.antisense_align())
+				  auxdata.push_back(xs_f);
+			  else
+				  auxdata.push_back(xs_r);
+		  }
+	  }
   }
   if (hitIndex >= 0)
     {
@@ -2106,6 +2118,7 @@ void print_alnStats(SAlignStats& alnStats) {
 	FILE* f = fopen(fname.c_str(), "w");
 	int64_t total_left=alnStats.num_aligned_left+alnStats.num_unmapped_left;
 	int64_t total_right=alnStats.num_aligned_right+alnStats.num_unmapped_right;
+	int64_t total_unpaired=alnStats.num_aligned_unpaired+alnStats.num_unmapped_unpaired;
 	//int64_t accepted_left =alnStats.num_aligned_left -alnStats.num_aligned_left_xmulti; //accepted mappings, < max_multihits
 	//int64_t accepted_right=alnStats.num_aligned_right-alnStats.num_aligned_right_xmulti; //accepted right mappings
 	string rdn("Left reads");
@@ -2139,12 +2152,23 @@ void print_alnStats(SAlignStats& alnStats) {
 			fprintf(f,"            of these: %9ld (%4.1f%%) have multiple alignments (%ld have >%d)\n",
 					alnStats.num_aligned_right_multi, perc, alnStats.num_aligned_right_xmulti, max_multihits);
 		}
-/*	perc=(100.0*accepted_right)/total_left;
-		fprintf(f, "   Mapped acceptably: %9ld (%4.1f%% of input)\n",
-				accepted_right, perc);
-*/
 		total_mapped+=alnStats.num_aligned_right;
 		total_pairs=(total_right<total_left)? total_right : total_left;
+
+		if (total_unpaired) {
+				fprintf(f, "Unpaired reads:\n");
+				fprintf(f, "               Input: %9ld\n", total_unpaired);
+				total_input+=total_unpaired;
+				perc=(100.0*alnStats.num_aligned_unpaired)/total_unpaired;
+				fprintf(f, "              Mapped: %9ld (%4.1f%% of input)\n",
+						alnStats.num_aligned_unpaired, perc);
+				if (alnStats.num_aligned_unpaired) {
+					perc=(100.0* alnStats.num_aligned_unpaired_multi)/alnStats.num_aligned_unpaired;
+					fprintf(f,"            of these: %9ld (%4.1f%%) have multiple alignments (%ld have >%d)\n",
+							alnStats.num_aligned_unpaired_multi, perc, alnStats.num_aligned_unpaired_xmulti, max_multihits);
+				}
+		total_mapped+=alnStats.num_aligned_unpaired;
+		}
 	}
 	perc=(100.0*total_mapped)/total_input;
 	fprintf(f, "%4.1f%% overall read alignment rate.\n", perc);
@@ -2163,43 +2187,24 @@ void print_alnStats(SAlignStats& alnStats) {
 }
 
 struct CReadProc: public GetReadProc {
-	CReadProc(GBamWriter* bamw=NULL, int64_t* um_counter=NULL, int64_t* mm_counter=NULL):
-		GetReadProc(bamw, um_counter, mm_counter) {}
-	virtual bool process(QReadData& rdata, bool& found, bool is_unmapped) {
-		//if (um_out && ((um_code && found) || !found )) {
-		string rname(rdata.read.alt_name);
-		//-- DEBUG
-		//fprintf(stderr, ">WUM\t%c\t%s\t%c\t/%d\n", found?'F':'U',
-		//		rname.c_str(), (um_code && found) ? um_code: '-', rdata.matenum);
-		//-- DEBUG.
-		size_t slash_pos=rname.rfind('/');
-		if (slash_pos!=string::npos)
-			rname.resize(slash_pos);
-		GBamRecord bamrec(rname.c_str(), -1, 0, false, rdata.read.seq.c_str(),
-				NULL, rdata.read.qual.c_str());
-		if (rdata.matenum) {
-			bamrec.set_flag(BAM_FPAIRED);
-			if (rdata.matenum==1) bamrec.set_flag(BAM_FREAD1);
-			else bamrec.set_flag(BAM_FREAD2);
-		}
-		//if (found && um_code && !rdata.trashCode) {
-		//rdata.trashCode=um_code;
-		//}
-		if (rdata.trashCode) {
-			//multi-mapped reads did not really QC-fail
-			//should also not be written to unmapped.bam
-			bamrec.add_aux("ZT", 'A', 1, (uint8_t*)&rdata.trashCode);
-			if (rdata.trashCode!='M') {
-				bamrec.set_flag(BAM_FQCFAIL); //to be excluded from further processing?
-			}
-		}
-		if (is_unmapped || (rdata.trashCode!='M' && !found)) {
-			um_out->write(&bamrec);
+	CReadProc(GBamWriter* bamw=NULL, int64_t* um_counter=NULL, int64_t* mm_counter=NULL,
+			int64_t* u_um_counter=NULL, int64_t* u_mm_counter=NULL):
+		GetReadProc(bamw, um_counter, mm_counter, u_um_counter, u_mm_counter) {}
+	virtual bool process(QReadData& rdata, bool& found) { //, bool is_unmapped) {
+		//if (is_unmapped || (rdata.trashCode!='M' && !found)) {
+		if (rdata.trashCode!='M' && !found) {
+			this->writeUnmapped(rdata);
 		}
 		//
 		if (unmapped_counter && !found) {
-			if (rdata.trashCode!='M') (*unmapped_counter)++;
-			else if (multimapped_counter) (*multimapped_counter)++;
+			if (rdata.trashCode!='M') {
+				if (rdata.matenum) (*unmapped_counter)++;
+				else if (u_unmapped_counter) (*u_unmapped_counter)++;
+			}
+			else if (multimapped_counter) {
+				if (rdata.matenum) (*multimapped_counter)++;
+				else if (u_multimapped_counter) (*u_multimapped_counter)++;
+			}
 		}
 		return true;
 	}
@@ -2211,27 +2216,48 @@ struct ReportWorker {
 			insertions(NULL), deletions(NULL), rev_deletions(NULL), fusions(NULL), coverage(NULL),
 			final_junctions(NULL), final_insertions(NULL), final_deletions(NULL), final_fusions(NULL),
 			rt(r), begin_id(0), end_id(0),  left_reads_offset(0), left_map_offset(0), right_reads_offset(0),
-			right_map_offset(0), alnStats(s), is_paired(false) {  }
+			right_map_offset(0), alnStats(s), PE_reads(false) {  }
 
 	void write_singleton_alignments(uint64_t curr_obs_order,
 	    HitsForRead& curr_hit_group, ReadStream& reads_file,
 	    GBamWriter& bam_writer, FragmentType fragment_type,
 	    GetReadProc* readProc=NULL,
-	    Read* gotRead=NULL) {
+	    QReadData* gotRead=NULL) {
 		int64_t* unmapped_counter = & alnStats->num_unmapped_left;
 		int64_t* aligned_counter = & alnStats->num_aligned_left;
 		int64_t* aligned_counter_multi = & alnStats->num_aligned_left_multi;
 		int64_t* aligned_counter_xmulti = & alnStats->num_aligned_left_xmulti;
-		if (fragment_type == FRAG_RIGHT) {
+
+		QReadData read;
+		if (gotRead==NULL) {
+			if (reads_file.getQRead(curr_obs_order, read,
+			                   begin_id, end_id, readProc))
+                  gotRead=&read;
+		}
+		if (gotRead==NULL) {
+			//Should never happen!
+			warn_msg("Error: singleton getQRead() failed for id# %ld.\n", curr_obs_order);
+			return;
+		}
+
+		if (gotRead->matenum==0) {
+			 fragment_type = FRAG_UNPAIRED;
+			 if (PE_reads) {
+				 unmapped_counter = & alnStats->num_unmapped_unpaired;
+				 aligned_counter = & alnStats->num_aligned_unpaired;
+				 aligned_counter_multi = & alnStats->num_aligned_unpaired_multi;
+				 aligned_counter_xmulti = & alnStats->num_aligned_unpaired_xmulti;
+			 }
+		} else if (fragment_type == FRAG_RIGHT) {
 			unmapped_counter = & alnStats->num_unmapped_right;
 			aligned_counter = & alnStats->num_aligned_right;
 			aligned_counter_multi = & alnStats->num_aligned_right_multi;
 			aligned_counter_xmulti = & alnStats->num_aligned_right_xmulti;
 		}
-		if (is_paired && !report_mixed_alignments) {
-			// FIXME: how did we get here?
-			// can this be a problem if input reads are mixed: paired + single ?
-			if (!gotRead) {
+
+		if (PE_reads && !report_mixed_alignments) {
+			//the user only wants paired alignments reported
+			/* if (!gotRead) {
 				if (curr_hit_group.hits.size()>1) {
 					(*aligned_counter_multi)++;
 				}
@@ -2239,60 +2265,52 @@ struct ReportWorker {
 					(*aligned_counter)++;
 				}
 			}
+			*/
+			if (readProc) readProc->writeUnmapped(*gotRead);
+			(*unmapped_counter)++;
 			return;
 		}
 		HitsForRead best_hits;
 		best_hits.insert_id = curr_obs_order;
 		realign_reads(curr_hit_group, *rt, *junctions, *rev_junctions, *insertions,
-		    *deletions, *rev_deletions, *fusions);
+				*deletions, *rev_deletions, *fusions);
 
 		exclude_hits_on_filtered_junctions(*junctions, curr_hit_group);
 
 		// Process hits for singleton, select best alignments
 		const bool final_report = true;
 		char map_flags=read_best_alignments(curr_hit_group, best_hits, *gtf_junctions, *junctions,
-		    *insertions, *deletions, *fusions, *coverage, final_report, &rng);
+				*insertions, *deletions, *fusions, *coverage, final_report, &rng);
 
-		string read_alt_name;
-		bool got_read = false;
-		if (gotRead!=NULL) {
-			read_alt_name=gotRead->alt_name;
-			got_read = true;
+		char map_code=0;
+		if (map_flags & 4) {
+			(*aligned_counter_multi)++;
 		}
+		if (map_flags & 16) {
+			map_code='M';
+			(*aligned_counter_xmulti)++;
+		}
+		if (map_flags & 1) (*aligned_counter)++; //acceptable mappings found
 		else {
-			Read read;
-			char map_code=0;
-			if (map_flags & 4) {
-				(*aligned_counter_multi)++;
-			}
-			if (map_flags & 16) {
-				map_code='M';
-				(*aligned_counter_xmulti)++;
-			}
-			if (map_flags & 1) (*aligned_counter)++; //acceptable mappings found
-			else (*unmapped_counter)++;
-			//CReadProc readProc(&um_out, unmapped_counter, aligned_counter_xmulti);
-			got_read=reads_file.getRead(curr_obs_order, read, reads_format,
-			    false, begin_id, end_id, readProc, (map_flags & 1)==0 );
-			    //&um_out, map_code, unmapped_counter, aligned_counter_xmulti);
-			read_alt_name=read.alt_name;
+			if (!gotRead->um_written)
+				(*unmapped_counter)++;
+			if (readProc)
+				readProc->writeUnmapped(*gotRead);
 		}
+
 		if (best_hits.hits.size() > 0) {
-			if (got_read) {
 				update_junctions(best_hits, *final_junctions);
 				update_insertions_and_deletions(best_hits, *final_insertions,
-				    *final_deletions);
+						*final_deletions);
 				update_fusions(best_hits, *rt, *final_fusions, *fusions);
-
-				print_sam_for_single(*rt, best_hits, fragment_type, read_alt_name,
-				    bam_writer, rng);
-			}
-			else {
-				//Should never happen!
-				fprintf(stderr, "Warning: getRead() failed for id# %ld.\n", curr_obs_order);
-			}
+				if (!gotRead->um_written) {
+					print_sam_for_single(*rt, best_hits, fragment_type, gotRead->read.alt_name,
+							bam_writer, rng);
+				}
 		}
-		//else reads_file.
+		else {
+			readProc->writeUnmapped(*gotRead);
+		}
 	}
 
 	void operator()() {
@@ -2301,7 +2319,7 @@ struct ReportWorker {
 		ReadTable it;
 		GBamWriter bam_writer(bam_output_fname.c_str(), sam_header.c_str());
 
-		is_paired = right_map_fnames.size() > 0;
+		PE_reads = right_map_fnames.size() > 0;
 
 		ReadStream left_reads_file(left_reads_fname);
 		if (left_reads_file.file() == NULL)
@@ -2347,12 +2365,17 @@ struct ReportWorker {
 		const bool final_report = true;
 
 		// While we still have unreported hits...
-		Read l_read;
-		Read r_read;
+		QReadData l_read;
+		QReadData r_read;
+		int64_t* num_unmapped_unpaired = (PE_reads) ? &(alnStats->num_unmapped_unpaired) :
+				&(alnStats->num_unmapped_left);
+		int64_t* num_aligned_unpaired_xmulti= (PE_reads) ?  &(alnStats->num_aligned_unpaired_xmulti) :
+				&(alnStats->num_aligned_left_xmulti);
 		CReadProc l_readProc(left_um_out, &(alnStats->num_unmapped_left),
-		    &(alnStats->num_aligned_left_xmulti));
+		    &(alnStats->num_aligned_left_xmulti), num_unmapped_unpaired, num_aligned_unpaired_xmulti);
 		CReadProc r_readProc(right_um_out, &(alnStats->num_unmapped_right),
-		    &(alnStats->num_aligned_right_xmulti));
+		    &(alnStats->num_aligned_right_xmulti), &(alnStats->num_unmapped_unpaired),
+		    &(alnStats->num_aligned_unpaired_xmulti));
 
 		while ((curr_left_obs_order != VMAXINT32
 		    || curr_right_obs_order != VMAXINT32)
@@ -2366,7 +2389,7 @@ struct ReportWorker {
 			    && curr_left_obs_order < end_id && curr_left_obs_order != VMAXINT32) {
 				write_singleton_alignments(curr_left_obs_order, curr_left_hit_group,
 				    left_reads_file, bam_writer, //*left_um_out,
-				    is_paired ? FRAG_LEFT : FRAG_UNPAIRED, &l_readProc);
+				    PE_reads ? FRAG_LEFT : FRAG_UNPAIRED, &l_readProc);
 
 				// Get next hit group
 				left_hs.next_read_hits(curr_left_hit_group);
@@ -2387,7 +2410,7 @@ struct ReportWorker {
 			}
 
 			// Since we have both left hits and right hits for this insert,
-			// Find the best pairing and print both
+			//  find the best pairing and print both alignments
 			while (curr_left_obs_order == curr_right_obs_order
 			    && curr_left_obs_order < end_id && curr_left_obs_order != VMAXINT32) {
 				realign_reads(curr_left_hit_group, *rt, *junctions, *rev_junctions,
@@ -2403,44 +2426,54 @@ struct ReportWorker {
 				bool paired_alignments = curr_left_hit_group.hits.size() > 0
 				    && curr_right_hit_group.hits.size() > 0;
 				InsertAlignmentGrade grade;
-				bool got_left_read = false;
-				bool got_right_read = false;
-				if (paired_alignments) {
-					char pair_map_flags=pair_best_alignments(curr_left_hit_group, curr_right_hit_group, grade,
+				bool got_left_read = left_reads_file.getQRead(curr_left_obs_order,
+						    	l_read, begin_id, end_id, &l_readProc);
+				if (!got_left_read) {
+					warn_msg("Error: failed to retrieve left read for pair # %ld !\n", curr_left_obs_order);
+				}
+				bool got_right_read = right_reads_file.getQRead(curr_right_obs_order, r_read,
+					    begin_id, end_id, &r_readProc);
+				if (!got_right_read) {
+					warn_msg("Error: failed to retrieve right read for pair # %ld !\n", curr_right_obs_order);
+				}
+				char pair_map_flags=0;
+				if (paired_alignments) { //there are *some* paired alignments
+					pair_map_flags=pair_best_alignments(curr_left_hit_group, curr_right_hit_group, grade,
 					    best_hits, *gtf_junctions, *junctions, *insertions, *deletions,
 					    *fusions, *coverage, final_report, &rng);
+					/*
 					if (pair_map_flags & 1) alnStats->num_aligned_left++;
 					else alnStats->num_unmapped_left++;
 					if (pair_map_flags & 2) alnStats->num_aligned_right++;
 					else alnStats->num_unmapped_right++;
 					if ((pair_map_flags & 3)==3) //at least one acceptable alignment was found for each read
 						alnStats->num_aligned_pairs++;
-					if (pair_map_flags & 4) alnStats->num_aligned_left_multi++;
-					if (pair_map_flags & 8) alnStats->num_aligned_right_multi++;
-					if ((pair_map_flags & 12) == 12) alnStats->num_aligned_pairs_multi++;
 					char left_map_code=0;
+					*/
+					/*
+					//if (pair_map_flags & 4) alnStats->num_aligned_left_multi++;
+					//if (pair_map_flags & 8) alnStats->num_aligned_right_multi++;
+					if ((pair_map_flags & 12) == 12) alnStats->num_aligned_pairs_multi++;
+
 					if (pair_map_flags & 16) {
-						left_map_code='M';
+						//left_map_code='M';
 						alnStats->num_aligned_left_xmulti++;
 					}
 					char right_map_code=0;
 					if (pair_map_flags & 32) {
-						right_map_code='M';
+						//right_map_code='M';
 						alnStats->num_aligned_right_xmulti++;
 					}
-					got_left_read = left_reads_file.getRead(
-							curr_left_obs_order, l_read, reads_format, false,
-					    begin_id, end_id, &l_readProc, (pair_map_flags & 1)==0);
-					    //left_um_out, left_map_code, &(alnStats->num_unmapped_left),
-					    //&(alnStats->num_aligned_left_xmulti));
 
-					got_right_read = right_reads_file.getRead(
-							curr_right_obs_order, r_read, reads_format, false,
-					    begin_id, end_id, &r_readProc, (pair_map_flags & 2)==0);
-					    //right_um_out, right_map_code, &(alnStats->num_unmapped_right),
-					    //&(alnStats->num_aligned_right_xmulti));
-					//FIXME: what's the best way to check here if the pair alignment is discordant?
-					//if (((pair_map_flags & 3)==3) && (best_hits.size() <= 0 || grade.fusion)) {
+					//l_read should be written as unmapped if (pair_map_flags & 1)==0
+					if (got_left_read && (pair_map_flags & 1)==0) {
+						l_readProc.writeUnmapped(l_read);
+					}
+					// r_read should be written as unmapped if (pair_map_flags & 2)==0
+					if (got_right_read && (pair_map_flags & 2)==0) {
+						r_readProc.writeUnmapped(r_read);
+					}
+					*/
 					if (((pair_map_flags & 3)==3) && !grade.concordant()) {
 						alnStats->num_aligned_pairs_disc++;
 					}
@@ -2451,7 +2484,8 @@ struct ReportWorker {
 							paired_alignments = false;
 					}
 				}
-				if (paired_alignments) {
+				if (paired_alignments) { //after some filtering, these paired reads still
+					                     // have some alignments together
 					HitsForRead best_left_hit_group;
 					best_left_hit_group.insert_id = curr_left_obs_order;
 					HitsForRead best_right_hit_group;
@@ -2463,16 +2497,7 @@ struct ReportWorker {
 					}
 
 					if (best_hits.size() > 0) {
-/*
-						bool got_left_read = left_reads_file.getRead(
-						    best_hits[0].first.insert_id(), l_read, reads_format, false,
-						    begin_id, end_id, left_um_out, 0, &(alnStats->num_unmapped_left));
-
-						bool got_right_read = right_reads_file.getRead(
-						    best_hits[0].first.insert_id(), r_read, reads_format, false,
-						    begin_id, end_id, right_um_out, 0, &(alnStats->num_unmapped_right));
-*/
-						if (got_left_read && got_right_read) {
+						if (got_left_read && got_right_read) { //should always be true
 							update_junctions(best_left_hit_group, *final_junctions);
 							update_insertions_and_deletions(best_left_hit_group,
 							    *final_insertions, *final_deletions);
@@ -2488,25 +2513,66 @@ struct ReportWorker {
 							pair_support(best_hits, *final_fusions, *fusions);
 
 							print_sam_for_pair(*rt, best_hits, grade, bam_writer,
-							    l_read.alt_name, r_read.alt_name, rng, begin_id, end_id);
-						}
+							    l_read.read.alt_name, r_read.read.alt_name, rng, begin_id, end_id);
+							l_read.um_written=true;
+							r_read.um_written=true;
+						} /*
 						else {
-							fprintf(stderr, "Warning: couldn't get reads for pair #%ld (%d, %d)\n",
+							fprintf(stderr, "Error: couldn't get reads for pair #%ld (%d, %d)\n",
 									curr_left_obs_order, int(got_left_read), int(got_right_read));
-						}
+						}*/
+					}
+
+					if (best_hits.size()>0) {
+						alnStats->num_aligned_left++;
+						alnStats->num_aligned_right++;
+						alnStats->num_aligned_pairs++;
+					}
+					else {
+						alnStats->num_unmapped_left++;
+						alnStats->num_unmapped_right++;
+					}
+					if (pair_map_flags & 4) alnStats->num_aligned_left_multi++;
+					if (pair_map_flags & 8) alnStats->num_aligned_right_multi++;
+					if ((pair_map_flags & 12) == 12) alnStats->num_aligned_pairs_multi++;
+
+					if (pair_map_flags & 16) {
+						//left_map_code='M';
+						alnStats->num_aligned_left_xmulti++;
+					}
+					if (pair_map_flags & 32) {
+						//right_map_code='M';
+						alnStats->num_aligned_right_xmulti++;
+					}
+
+					//l_read should be written as unmapped if (pair_map_flags & 1)==0
+					if (got_left_read && (pair_map_flags & 1)==0) {
+						l_readProc.writeUnmapped(l_read);
+					}
+					// r_read should be written as unmapped if (pair_map_flags & 2)==0
+					if (got_right_read && (pair_map_flags & 2)==0) {
+						r_readProc.writeUnmapped(r_read);
 					}
 				}
-				else { //alignments not paired properly
+				else { //paired reads with alignments not paired properly
 					if (curr_left_hit_group.hits.size() > 0) {
 						write_singleton_alignments(curr_left_obs_order, curr_left_hit_group,
 						    left_reads_file, bam_writer, //*left_um_out,
-									   is_paired ? FRAG_LEFT : FRAG_UNPAIRED, &l_readProc, got_left_read ? &l_read : NULL);
+									   PE_reads ? FRAG_LEFT : FRAG_UNPAIRED, &l_readProc,
+											   got_left_read ? &l_read : NULL);
+					}
+					else {
+						l_readProc.writeUnmapped(l_read);
+						alnStats->num_unmapped_left++;
 					}
 
 					if (curr_right_hit_group.hits.size() > 0) {   //only right read mapped
 						write_singleton_alignments(curr_right_obs_order,
 						    curr_right_hit_group, right_reads_file, bam_writer, //*right_um_out,
 									   FRAG_RIGHT, &r_readProc, got_right_read ? &r_read : NULL);
+					} else {
+						r_readProc.writeUnmapped(r_read);
+						alnStats->num_unmapped_right++;
 					}
 				}
 
@@ -2522,11 +2588,11 @@ struct ReportWorker {
 
 		//print the remaining unmapped reads at the end of each reads' stream
 
-		left_reads_file.getRead(VMAXINT32, l_read, reads_format, false, begin_id,
+		left_reads_file.getQRead(VMAXINT32, l_read, begin_id,
 		    end_id, &l_readProc);
 		    //left_um_out, 0, &(alnStats->num_unmapped_left), &(alnStats->num_aligned_left_xmulti));
 		if (right_reads_file.file())
-			right_reads_file.getRead(VMAXINT32, r_read, reads_format, false, begin_id,
+			right_reads_file.getQRead(VMAXINT32, r_read, begin_id,
 			    end_id, &r_readProc);
 			    //right_um_out, 0, &(alnStats->num_unmapped_right), &(alnStats->num_aligned_right_xmulti));
 
@@ -2573,7 +2639,7 @@ struct ReportWorker {
 	//read alignment accounting:
 	SAlignStats* alnStats;
 
-	bool is_paired;
+	bool PE_reads;
 
 	boost::mt19937 rng;
 };
@@ -2945,7 +3011,7 @@ int main(int argc, char** argv)
   fprintf(stderr, "tophat_reports v%s (%s)\n", PACKAGE_VERSION, SVN_REVISION);
   fprintf(stderr, "---------------------------------------\n");
   
-  reads_format = FASTQ;
+  //reads_format = FASTQ;
   
   int parse_ret = parse_options(argc, argv, print_usage);
   if (parse_ret)

@@ -48,11 +48,11 @@ void extract_reads(FILE *fa, const READSET& selected_reads)
 		read.clear();
 		
 		// Get the next read from the file
-		if (!next_fasta_record(fr, read.name, read.seq, format))
+		if (!next_fastx_read(fr, read, format))
 		  break;
 		if (format == FASTQ)
 		{
-		  if (!next_fastq_record(fr, read.seq, read.alt_name, read.qual, format))
+		  if (!next_fastx_read(fr, read, format))
 		    break;
 		}
 		reads_examined++;

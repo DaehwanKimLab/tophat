@@ -126,7 +126,7 @@ int read_edit_dist = 2;
 int read_realign_edit_dist = 2;
 int max_splice_mismatches = 1;
 
-ReadFormat reads_format = FASTQ;
+//ReadFormat reads_format = FASTQ;
 
 bool verbose = false;
 
@@ -465,12 +465,14 @@ int parse_options(int argc, char** argv, void (*print_usage)())
     switch (next_option) {
     case -1:
       break;
+    /*
     case OPT_FASTA:
       reads_format = FASTA;
       break;
     case OPT_FASTQ:
       reads_format = FASTQ;
       break;
+    */
     case OPT_MIN_ANCHOR:
       min_anchor_len = (uint32_t)parseIntOpt(3, "--min-anchor arg must be at least 3", print_usage);
       break;

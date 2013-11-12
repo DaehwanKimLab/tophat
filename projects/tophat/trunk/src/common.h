@@ -90,8 +90,8 @@ extern int read_realign_edit_dist;
 
 extern int max_splice_mismatches;
 
-enum ReadFormat {FASTA, FASTQ};
-extern ReadFormat reads_format;
+enum ReadFormat {FASTX_AUTO=0, FASTA, FASTQ};
+//extern ReadFormat reads_format;
 
 extern bool verbose;
 extern unsigned int max_multihits;
