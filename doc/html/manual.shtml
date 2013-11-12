@@ -146,29 +146,28 @@ so you can invoke this new version of TopHat with the command 'tophat2'.</p>
 		the maximum intron size to 4 or 5 Kb is sufficient to discover most 
 		junctions while keeping the number of false positives low.
 
- 		</td></tr></tbody></table> </div><br>
+		</td></tr></tbody></table> </div><br>
 	  <h2 id="toph">Using <tt>TopHat</tt></h2><br>
-  	  
-	  <p>
-	  The following is a detailed description of the options used to control
-	  the <tt>tophat</tt> script:
-	  </p><br>
+	  
 	  <blockquote>
- 	   Usage: tophat [options]* &lt;index_base&gt; &lt;reads1_1[,...,readsN_1]&gt; [reads1_2,...readsN_2] <br>
+	   Usage: tophat [options]* &lt;genome_index_base&gt; &lt;reads1_1[,...,readsN_1]&gt; [reads1_2,...readsN_2] <br/>
 	  </blockquote>
-		When running TopHat with paired ends, it is <strong>critical</strong> 
-		that the *_1 files an the *_2 files appear in separate comma separated
-		lists, and that the order of the files in the two lists is the same. 
-	
-	  <p><strong>NOTE:</strong> TopHat can align reads that are up to 1024 bp, 
-		and it handles paired-end reads, but we <strong>do not recommend</strong>
- 
-		mixing different types of reads in the same TopHat run.  For example,
-		mixing 100bp single end reads and 2x27bp paired ends into the same 
-TopHat
-		run may give bad results. If you'd like to combine results from data 
-sets with different types of RNA-Seq reads, you can follow a protocol 
-like this:<br>
+<p>
+		When running TopHat with paired reads it is <strong>critical</strong> that the *_1 files an the *_2 
+		files appear in separate comma-delimited lists, and that the order of the files in the two lists is the same. 
+	<br/><a id="mixed"></a>TopHat allows the use of additional unpaired reads to be provided <i>after</i> the paired reads.
+	These unpaired reads can be either given at the end of the paired read files on one side (as reads that can no longer be paired with reads from the other side), 
+	or they can be given in separate file(s) which are appended (comma delimited) to the list of paired input files on either side e.g.:
+	  <blockquote>
+	   tophat [options]* &lt;genome_index_base&gt; PE_reads_1.fq.gz,SE_reads.fa PE_reads_2.fq.gz <br/>
+	   &dash; <i>or</i> &dash; <br/>
+	   tophat [options]* &lt;genome_index_base&gt; PE_reads_1.fq.gz PE_reads_2.fq.gz,SE_reads.fa <br/>
+	  </blockquote>
+	   Starting with version 2.0.10 TopHat accepts mixed input file formats (FASTA/FASTQ).
+	  <p><strong>NOTE:</strong> TopHat can align reads that are up to 1024 bp long, 
+		and it handles paired-end reads and unpaired reads at once, but we do not recommend mixing different types of reads in the same TopHat run.  For example,
+		mixing 100bp single end reads and 2x27bp paired reads in the same TopHat run may give sub-optimal results. If you'd like to combine 
+        results from data sets with different types of RNA-Seq reads, you can follow a protocol like this:<br>
 </p>
 <ul>
   <li>run TopHat on the first set of reads, with the appropriate parameters for this data set<br>
@@ -178,8 +177,10 @@ like this:<br>
   <li>run Tophat on the 2nd set of reads using the<b> -j</b> option to supply the junctions file produced by bed_to_juncs in the previous step<br>
   </li>
 </ul>
-<p><br>
-</p>
+	  <p>
+	  The following is a detailed description of the options used to control
+	  the <tt>TopHat</tt> script.
+	  </p>
 
 	  <table cellspacing="15">
 	  <tbody><tr><td valign="top">

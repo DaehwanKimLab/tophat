@@ -31,6 +31,27 @@
 	<!--#include virtual="sidebar.inc.shtml"-->
 	</div> <!-- End of "rightside" -->
 	<div id="leftside">
+	  <h2>TopHat 2.0.10 release 11/14/2013</h2>
+	  <p> Version 2.0.10 is a maintenance release with the following fixes and changes:</p>
+	  <ul>
+	    <li> Improved support for adding unpaired reads to PE reads in the same TopHat2 run (see <a href="manual.shtml#mixed">manual</a>).
+	    This includes showing separate counts for the additional unpaired reads and making sure that the SAM flags
+	    in the output files reflect the paired or unpaired origin of the reads.
+	    </li>
+	    </li>
+	    <li> The input read files can have different file formats, as TopHat now autodetects the FASTA/FASTQ format of each input file.
+	    </li>
+	    <li> Fixed a bug that could sometimes incorrectly rename the reads in the output alignments.
+	    </li>
+	    <li> The stats in <code>align_summary.txt</code> now reflect the <i>reported</i> mappings 
+	        under the constraints of the provided Tophat options, instead of reflecting the internally detected alignments.
+	        As such, the number of reads with multiple mappings may appear to be incorrectly reported  
+	        if the user provided options that directly affect the reporting of such multiple mapppings.
+	    </li>
+	    <li> Fixed a bug that caused TopHat to fail when bowtie1 and pre-filtering options were used together.
+	    </li>
+	</ul>
+	  <br>
 	  <h2>TopHat 2.0.9 release 6/28/2013</h2>
 	  <p><b>Note (6/29/2013):</b> this version is slightly updated to handle 1-bp exons when using --GTF option.</p>
 	  <p> Version 2.0.9 is a maintenance release providing better management of the transcriptome data files 
