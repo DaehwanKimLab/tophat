@@ -118,8 +118,6 @@ int main(int argc, char** argv)
 	fprintf(stderr, "sam_juncs v%s (%s)\n", PACKAGE_VERSION, SVN_REVISION); 
 	fprintf(stderr, "---------------------------------------\n");
 	
-	reads_format = FASTQ;
-	
     int parse_ret = parse_options(argc, argv, print_usage);
     if (parse_ret)
         return parse_ret;
