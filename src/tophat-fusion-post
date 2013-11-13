@@ -311,6 +311,7 @@ def map_fusion_kmer(bwt_idx_prefix, params, sample_update = False):
     fusion_kmer_file_name = output_dir + "fusion_seq.map"
 
     if not os.path.exists(fusion_kmer_file_name) or \
+           os.stat(fusion_kmer_file_name).st_size <= 0 or \
            sample_update:
         get_fusion_seq()
         cmd = ['bowtie', '-p', '8', '-a', '-n', '3', '-m', '100', bwt_idx_prefix, '-f', '%sfusion_seq.fa' % output_dir]
