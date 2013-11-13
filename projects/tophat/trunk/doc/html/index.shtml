@@ -38,7 +38,6 @@
 	    This includes showing separate counts for the additional unpaired reads and making sure that the SAM flags
 	    in the output files reflect the paired or unpaired origin of the reads.
 	    </li>
-	    </li>
 	    <li> The input read files can have different file formats, as TopHat now autodetects the FASTA/FASTQ format of each input file.
 	    </li>
 	    <li> Fixed a bug that could sometimes incorrectly rename the reads in the output alignments.
