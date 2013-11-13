@@ -31,7 +31,7 @@
 	<!--#include virtual="sidebar.inc.shtml"-->
 	</div> <!-- End of "rightside" -->
 	<div id="leftside">
-	  <h2>TopHat 2.0.10 release 11/14/2013</h2>
+	  <h2>TopHat 2.0.10 release 11/13/2013</h2>
 	  <p> Version 2.0.10 is a maintenance release with the following fixes and changes:</p>
 	  <ul>
 	    <li> Improved support for adding unpaired reads to PE reads in the same TopHat2 run (please see the <a href="manual.shtml#mixed">manual entry</a> for this usage).
