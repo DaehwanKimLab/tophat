@@ -34,9 +34,12 @@
 	  <h2>TopHat 2.0.10 release 11/14/2013</h2>
 	  <p> Version 2.0.10 is a maintenance release with the following fixes and changes:</p>
 	  <ul>
-	    <li> Improved support for adding unpaired reads to PE reads in the same TopHat2 run (see <a href="manual.shtml#mixed">manual</a>).
-	    This includes showing separate counts for the additional unpaired reads and making sure that the SAM flags
+	    <li> Improved support for adding unpaired reads to PE reads in the same TopHat2 run (please see the <a href="manual.shtml#mixed">manual entry</a> for this usage).
+	    This includes reporting separate counts for the additional unpaired reads and making sure that the SAM flags
 	    in the output files reflect the paired or unpaired origin of the reads.
+	    </li>
+	    <li> Added the possibility to run TopHat just for the purpose of preparing the transcriptome index files 
+        (please see the <a href="manual.shtml#tbuild">manual entry</a> for this special usage).
 	    </li>
 	    <li> The input read files can have different file formats, as TopHat now autodetects the FASTA/FASTQ format of each input file.
 	    </li>
