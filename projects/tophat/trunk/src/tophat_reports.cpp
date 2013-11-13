@@ -2124,11 +2124,11 @@ void print_alnStats(SAlignStats& alnStats) {
 	string rdn("Left reads");
 	if (total_right==0) rdn="Reads";
 	fprintf(f, "%s:\n", rdn.c_str());
-	fprintf(f, "               Input: %9ld\n", total_left);
+	fprintf(f, "          Input     : %9ld\n", total_left);
 	double perc=(100.0*alnStats.num_aligned_left)/total_left;
-	fprintf(f, "              Mapped: %9ld (%4.1f%% of input)\n",
+	fprintf(f, "           Mapped   : %9ld (%4.1f%% of input)\n",
 			alnStats.num_aligned_left, perc);
-	if (alnStats.num_aligned_left) {
+	if (alnStats.num_aligned_left && alnStats.num_aligned_left_multi>0) {
 		perc=(100.0*alnStats.num_aligned_left_multi)/alnStats.num_aligned_left;
 	 fprintf(f,"            of these: %9ld (%4.1f%%) have multiple alignments (%ld have >%d)\n",
 			alnStats.num_aligned_left_multi, perc, alnStats.num_aligned_left_xmulti, max_multihits);
@@ -2142,12 +2142,12 @@ void print_alnStats(SAlignStats& alnStats) {
 	int64_t total_pairs=0;
 	if (total_right) {
 		fprintf(f, "Right reads:\n");
-		fprintf(f, "               Input: %9ld\n", total_right);
+		fprintf(f, "          Input     : %9ld\n", total_right);
 		total_input+=total_right;
 		perc=(100.0*alnStats.num_aligned_right)/total_right;
-		fprintf(f, "              Mapped: %9ld (%4.1f%% of input)\n",
+		fprintf(f, "           Mapped   : %9ld (%4.1f%% of input)\n",
 				alnStats.num_aligned_right, perc);
-		if (alnStats.num_aligned_right) {
+		if (alnStats.num_aligned_right && alnStats.num_aligned_right_multi>0) {
 			perc=(100.0* alnStats.num_aligned_right_multi)/alnStats.num_aligned_right;
 			fprintf(f,"            of these: %9ld (%4.1f%%) have multiple alignments (%ld have >%d)\n",
 					alnStats.num_aligned_right_multi, perc, alnStats.num_aligned_right_xmulti, max_multihits);
@@ -2157,12 +2157,12 @@ void print_alnStats(SAlignStats& alnStats) {
 
 		if (total_unpaired) {
 				fprintf(f, "Unpaired reads:\n");
-				fprintf(f, "               Input: %9ld\n", total_unpaired);
+				fprintf(f, "          Input     : %9ld\n", total_unpaired);
 				total_input+=total_unpaired;
 				perc=(100.0*alnStats.num_aligned_unpaired)/total_unpaired;
-				fprintf(f, "              Mapped: %9ld (%4.1f%% of input)\n",
+				fprintf(f, "           Mapped   : %9ld (%4.1f%% of input)\n",
 						alnStats.num_aligned_unpaired, perc);
-				if (alnStats.num_aligned_unpaired) {
+				if (alnStats.num_aligned_unpaired && alnStats.num_aligned_unpaired_multi>0) {
 					perc=(100.0* alnStats.num_aligned_unpaired_multi)/alnStats.num_aligned_unpaired;
 					fprintf(f,"            of these: %9ld (%4.1f%%) have multiple alignments (%ld have >%d)\n",
 							alnStats.num_aligned_unpaired_multi, perc, alnStats.num_aligned_unpaired_xmulti, max_multihits);
@@ -2171,15 +2171,19 @@ void print_alnStats(SAlignStats& alnStats) {
 		}
 	}
 	perc=(100.0*total_mapped)/total_input;
-	fprintf(f, "%4.1f%% overall read alignment rate.\n", perc);
+	fprintf(f, "%4.1f%% overall read mapping rate.\n", perc);
 	if (alnStats.num_aligned_pairs) {
 		fprintf(f, "\nAligned pairs: %9ld\n", alnStats.num_aligned_pairs);
-		perc=(100.0*alnStats.num_aligned_pairs_multi)/alnStats.num_aligned_pairs;
-		fprintf(f, "     of these: %9ld (%4.1f%%) have multiple alignments\n",
+		if (alnStats.num_aligned_pairs_multi>0) {
+		  perc=(100.0*alnStats.num_aligned_pairs_multi)/alnStats.num_aligned_pairs;
+		  fprintf(f, "     of these: %9ld (%4.1f%%) have multiple alignments\n",
 				alnStats.num_aligned_pairs_multi, perc);
-		perc=(100.0*alnStats.num_aligned_pairs_disc)/alnStats.num_aligned_pairs;
-		fprintf(f, "          and: %9ld (%4.1f%%) are discordant alignments\n",
+		}
+		if (alnStats.num_aligned_pairs_disc>0) {
+		  perc=(100.0*alnStats.num_aligned_pairs_disc)/alnStats.num_aligned_pairs;
+		  fprintf(f, "               %9ld (%4.1f%%) are discordant alignments\n",
 				alnStats.num_aligned_pairs_disc, perc);
+		}
 		perc=(100.0*(alnStats.num_aligned_pairs-alnStats.num_aligned_pairs_disc))/total_pairs;
 		fprintf(f, "%4.1f%% concordant pair alignment rate.\n", perc);
 	}

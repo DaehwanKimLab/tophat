@@ -155,7 +155,7 @@ so you can invoke this new version of TopHat with the command 'tophat2'.</p>
 <p>
 		When running TopHat with paired reads it is <strong>critical</strong> that the *_1 files an the *_2 
 		files appear in separate comma-delimited lists, and that the order of the files in the two lists is the same. 
-	<br/><a id="mixed"></a>TopHat allows the use of additional unpaired reads to be provided <i>after</i> the paired reads.
+	<br/><a name="mixed" id="mixed"></a>TopHat allows the use of additional unpaired reads to be provided <i>after</i> the paired reads.
 	These unpaired reads can be either given at the end of the paired read files on one side (as reads that can no longer be paired with reads from the other side), 
 	or they can be given in separate file(s) which are appended (comma delimited) to the list of paired input files on either side e.g.:
 	  <blockquote>
@@ -189,17 +189,18 @@ so you can invoke this new version of TopHat with the command 'tophat2'.</p>
 	  <br>
 </td></tr>
 	  <tr><td nowrap="nowrap" valign="top">
-	  <tt>&lt;ebwt_base&gt;</tt>
+	  <tt>&lt;genome_index_base&gt;</tt>
 	  </td><td valign="top">
-	  The basename of the index to be searched.  The
-      basename is the name of any of the five index
-      files up to but not including the first period. Bowtie first looks in the current directory for
-      the index files, then looks in the <tt>indexes</tt>
-      subdirectory under the directory where the
-      currently-running <tt>bowtie</tt> executable is located,
-      then looks in the directory specified in the
-      <tt>BOWTIE_INDEXES</tt>&nbsp;
-      <tt>(</tt>or <tt>BOWTIE2_INDEXES)</tt> environment variable.
+	  The basename of the genome index to be searched. The basename is the name of any of the index files up to but not including the first period. 
+	  Bowtie first looks in the current directory for the index files, then looks in the <tt>indexes</tt>
+	  subdirectory under the directory where the
+	  currently-running <tt>bowtie</tt> executable is located,
+	  then looks in the directory specified in the
+	  <tt>BOWTIE_INDEXES</tt>&nbsp;
+	  <tt>(</tt>or <tt>BOWTIE2_INDEXES)</tt> environment variable.<br/>
+	  Please note that it is highly recommended that a FASTA file with the sequence(s) the genome being indexed be present in the same 
+	  directory with the Bowtie index files and having the name <tt>&lt;genome_index_base&gt;.fa</tt>. If not present, TopHat will automatically 
+	  rebuild this FASTA file from the Bowtie index files.
 	  </td></tr>
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>&lt;reads1_1[,...,readsN_1]&gt;</tt>
@@ -822,10 +823,10 @@ The default is 4.
 	  uses the <strong>exact same chromosome/contig names (case sensitive)</strong> as shown by the <tt>bowtie-inspect</tt> command above.
 	  </td></tr>
 	  <tr><td nowrap="nowrap" valign="top">
-	  <a name="t_idx"></a>
+	  <a name="t_idx" id="t_idx"></a>
 	  <tt>--transcriptome-index &lt;dir/prefix&gt;</tt>
 	  </td><td valign="top">
-	  <p> When providing TopHat with a known transcript file (-G/--GTF 
+	  <p> When providing TopHat with a known transcript file (<tt>-G/--GTF</tt> 
 option above), a transcriptome sequence file is built 
 	  and a Bowtie index has to be created for it in order to align the 
 reads to the known transcripts. Creating this Bowtie index 
@@ -835,40 +836,46 @@ is being used for aligning multiple samples with TopHat.
  file) can be thus reused for multiple TopHat runs with this option, 
 	  so these files are only created for the first run with a given set of
  transcripts. If multiple TopHat runs are planned with the same 
-transcriptome data, 
-	  TopHat should be first run with the -G option and with the 
---transcriptome-index option pointing to a directory and a name prefix 
-which will indicate 
-	  where the transcriptome data files will be stored. Then subsequent 
+transcriptome data, TopHat should be first run with the <tt>-G/--GTF</tt> option together with the 
+<tt>--transcriptome-index</tt> option pointing to a directory and a name prefix 
+which will indicate where the transcriptome data files will be stored. Then subsequent 
 TopHat runs using the same --transcriptome-index option value will 
-directly use
-	  the transcriptome data created in the first run (no -G option needed 
-for subsequent runs).</p>
-	  For example the first TopHat run could look like this:
+directly use the transcriptome data created in the first run (no -G option needed 
+after the first run). <br/>
+<a name="tbuild" id="tbuild"></a>
+Please note that starting with version 2.0.10 TopHat can be invoked with just the -G/--GTF and --transcriptome-index options 
+but <i>without</i> providing any input reads (the <tt>&lt;genome_index_base&gt;</tt> argument is still required).
+This is a special usage directing TopHat to only build the transcriptome index data files for the given annotation and then exit. 
+<br/>
+<b>Note:</b> Only after the transcriptome files are built with one of the methods above, by a single TopHat process, it is safe to run 
+multiple TopHat processes simultaneously making use of the same pre-built transcriptome index data.
+</p>
+	  For example, in order to just prepare the transcriptome index files for a specific annotation, an initial, single TopHat run could be invoked like this:
 	  <br>
-	  <tt>tophat -o out_sample1 -G known_genes.gtf \<br>
-      --transcriptome-index=transcriptome_data/known \<br>
-      hg19 sample1_1.fq.z</tt>
-      <br>
-	  In this example the first run will create the transcriptome_data 
-directory if it doesn't exist, and files known.fa, known.gff and 
-known.*ebwt 
-	  (Bowtie index files) will be generated in that directory. Then for 
-subsequent runs with the same genome and known transcripts but different
- reads 
-	  (e.g. sample2_2.fq.z etc.), TopHat will no longer spend time building
- the transcriptome index because it can directly use the previously 
-built 
-	  transcriptome index, so the -G option can be discarded for 
-subsequent runs (however using it again will not force TopHat to build 
-the transcriptome index files again if they are already present)<br>
-	  <tt>tophat -o out_sample2 \<br>
-      --transcriptome-index=transcriptome_data/known \<br>
-      hg19 sample2_1.fq.z</tt>
-      <br>
+	  <tt>tophat -G known_genes.gtf \<br>
+	  &nbsp; &nbsp; --transcriptome-index=transcriptome_data/known \<br>
+	  &nbsp; &nbsp; hg19</tt>
+	  <br>
+	  In this example TopHat will create the <tt>transcriptome_data</tt> directory in the current directory (if it doesn't exist already) 
+	  containing files known.gff, known.fa, known.fa.tlst, known.fa.ver and the known.* Bowtie index files. 
+	  Then for subsequent TopHat runs with the same genome and known transcripts but different reads, TopHat will no longer spend time building 
+	  the transcriptome index because it can use the previously built transcriptome index files, so the -G option is no longer needed
+	  (however using it again will not force TopHat to rebuild the transcriptome index files if they are already present and with the matching version)<br>
+	  <tt>
+	  tophat -o out_sample1 -p4 \<br>
+	  &nbsp; &nbsp; --transcriptome-index=transcriptome_data/known \<br>
+	  &nbsp; &nbsp; hg19 sample1_1.fq.z sample1_2.fq.z & <br/>
+	  <br/>
+	  tophat -o out_sample2 -p4 \<br>
+	  &nbsp; &nbsp; --transcriptome-index=transcriptome_data/known \<br>
+	  &nbsp; &nbsp; hg19 sample2_1.fq.z sample2_2.fq.z &
+	  </tt>
+	  <br>
 	  </td></tr>
 	  <tr><td colspan="2">
-	  (The following options in this section are only used when the transcriptome search was activated with <tt>-G/--GTF</tt> and/or <tt>--transcriptome-index</tt>)
+	  <br/>
+	  The following options in this section are only used when the transcriptome search 
+	  was activated with <tt>-G/--GTF</tt> and/or <tt>--transcriptome-index</tt>.
 	  </td></tr>
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>-T/--transcriptome-only</tt>
