@@ -41,10 +41,7 @@
 	  from other technologies.  In TopHat 1.1.0, we began supporting Applied Biosystems' Colorspace format.
 	  The software is optimized for reads 75bp or longer.  
 	  </p> 
-	  <p>Mixing paired- and single- 
-		end reads together is <strong>not</strong> supported.
-	</p>
-  	  <br>
+  	  <br/>
 	  <h2 id="whis">How does TopHat find junctions?</h2><br>
   	  <p> TopHat can find splice junctions without a reference annotation.  
 By 
