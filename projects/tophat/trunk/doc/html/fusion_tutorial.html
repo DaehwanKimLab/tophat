@@ -226,7 +226,7 @@
 	  <br><br>
 	  <ul>
   	    <li>
-	      Make (top_dir) directory and run the above command under (top_dir) - see <a href="#directory">suggested directory structure.</a> If you have multiple samples, you can run them under (top_dir).
+	      Make (top_dir) directory and run the above command under (top_dir) - see <a href="#directory">required directory structure.</a> If you have multiple samples, you can run them under (top_dir).
 	    </li>
   	    <li>
 	      Use tophat_(sample_name) for the output directory ("-o" option) such as tophat_MCF7.
@@ -237,8 +237,8 @@
 	    <li> Turn off "coverage-search", which takes lots of memory and is slow. </li>
 	    <li>
 	      The mean fragment length of the data is 100-bp, so the inner mate distance is 0 (= 100 - 50 * 2).
-	      We use a somewhat big mate standard derivation (80-bp)
-	      because TopHat-Fusion makes use of the area (mate_inner_dist &plusmn; std_dev) when it tries to find fusions.
+	      In this example, We use a larger standard derivation (80-bp) for inner mate distance
+	      because TopHat-Fusion makes use of the region (mate_inner_dist &plusmn; std_dev) to discover fusions.
 	    </li>
 	    <li>
 	      In addition to inter-chromosomal fusions,
@@ -266,11 +266,10 @@
 
 	  <br><br>
 	  <ul>
-  	    <li> Copy (tophat_install_dir)/annotation/* into (top_dir). </li>
 	    <li>
 	      TopHat-Fusion uses BLAST search results for filtering out false fusions due to highly similar sequences or pseudogenes.
 	      Also, the search results can be alternatively used for annotating purposes in case there is no known genes in the provided annotation files.
-	      50-bp sequence on the left side of a fusion and 50-bp on the right side are combined to make a 100-bp sequence, which in turn is BLASTed against human genome.
+	      50-bp sequence on the left side of a fusion and 50-bp on the right side are combined to make a 100-bp sequence, which in turn is BLASTed against the blast database.
 	      If match length (range: 0 to 100) + identity percent (0 to 100) is greater than 160, the fusion is filtered out.
 	      This BLAST step is usually done for a few hundreds of fusions after prior filtering steps.
 	      Thus, it is highly recommended to install BLAST and download blast database as follows.
@@ -294,14 +293,14 @@
 	      without deleting (top_dir)/tophatfusion_out, which is a database <tt><b>tophat-fusion-post</b><tt> internally uses for fast computation.
 	    </li>
 		<li>
-		  This script uses Bowtie1, meaning it requires Bowtie1 indexes.
+		  This program requires Bowtie1 and the index files for Bowtie1, as it uses Bowtie1 internally mostly for filtering purposes.
 		</li>
   	  </ul>
 	</blockquote>
         <br/>
 
 	<blockquote>
-	  <b id="directory">Suggested directory structure</b> <br/> <br/>
+	  <b id="directory">Required directory structure</b> <br/> <br/>
 	  <ul>
 	    <li> (top_dir)
 	      <ul>
@@ -312,7 +311,6 @@
 		<li> tophatfusion_out - the output directory by <tt><b>tophat-fusion-post</b></tt> </li> <br/>
 		<li> ensGene.txt </li>
 		<li> refGene.txt </li>
-		<li> <a href = "data/mcl">mcl</a> </li>
 		<li> blast - BLAST database </li>
 	      </ul>
 	    </li>
