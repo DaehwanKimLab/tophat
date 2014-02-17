@@ -1496,7 +1496,7 @@ def get_index_sam_header(params, idx_prefix, name = ""):
 def check_bowtie(params):
     bowtie_req=""
     if params.bowtie2:
-        bowtie_req="2-align"
+        bowtie_req="2"
     log_msg = "Checking for Bowtie"
     th_log(log_msg)
 
