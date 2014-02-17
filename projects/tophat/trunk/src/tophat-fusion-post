@@ -35,6 +35,8 @@ Options:
 
     -p/--num-threads               <int>       [ default: 1                  ]
 
+    --no-filter-by-annotation
+
     --skip-fusion-kmer
     --skip-filter-fusion
     --skip-blast
@@ -69,6 +71,8 @@ class TopHatFusionParams:
         self.is_human = True
 
         self.num_threads = 1
+
+        self.filter_by_annotation = True
         
         self.skip_fusion_kmer = False
         self.skip_filter_fusion = False
@@ -95,6 +99,7 @@ class TopHatFusionParams:
                                          "fusion-multireads=",
                                          "non-human",
                                          "num-threads=",
+                                         "no-filter-by-annotation",
                                          "skip-fusion-kmer",
                                          "skip-filter-fusion",
                                          "skip-blast",
@@ -129,6 +134,8 @@ class TopHatFusionParams:
                 output_dir = value + "/"
                 logging_dir = output_dir + "logs/"
                 tmp_dir = output_dir + "tmp/"
+            if option == "--no-filter-by-annotation":
+                self.filter_by_annotation = False
             if option == "--skip-fusion-kmer":
                 self.skip_fusion_kmer = True
             if option == "--skip-filter-fusion":
@@ -435,8 +442,9 @@ def filter_fusion(bwt_idx_prefix, params):
         fusion_file.readline()
         for line in fusion_file:
             info, sim, left_seq_org, right_seq_org, left_dist, right_dist, pair_list = line[:-1].split('\t@\t')[:7]
-
             info = info.split('\t')
+            if sim.strip() == "":
+                continue
             sim = sim.split(' ')
             left_seq = left_seq_org.replace(' ', '')
             right_seq = right_seq_org.replace(' ', '')
@@ -460,17 +468,8 @@ def filter_fusion(bwt_idx_prefix, params):
             else:
                 single = False
 
-            if string.find(data, "maher") != -1:
-                extent = min(10, num_reads)
-                if single:
-                    if left_ext < 25 + extent * 2 or right_ext < 25 + extent * 2:
-                        continue
-                else:
-                    if left_ext < 14 + extent or right_ext < 14 + extent:
-                        continue
-            else:
-                if left_ext < 16 or right_ext < 16:
-                    continue
+            if left_ext < 16 or right_ext < 16:
+                continue
 
             both = num_reads + num_pair_ends_both
             all = both
@@ -483,9 +482,11 @@ def filter_fusion(bwt_idx_prefix, params):
                     both < params.num_fusion_both:
                 continue
 
+            """
             if (chr1 != chr2 and num_unsupport_reads > num_reads) or \
                     (chr1 == chr2 and num_unsupport_reads > all + num_pair_ends + 5):
                 continue
+            """
 
             pairs = []
             if num_pair_ends >= 1:
@@ -500,7 +501,6 @@ def filter_fusion(bwt_idx_prefix, params):
             # are the sequences around the breakpoint different enough?
             if int(sim[0]) < 8:
                 continue
-           
 
             # is the reads distributed symmetrically?
             if sym >= 22 + max(0, 6 - num_reads):
@@ -511,7 +511,7 @@ def filter_fusion(bwt_idx_prefix, params):
                 coord_dif = coord2 - coord1
                 if coord_dif > 0 and coord_dif < max_intron_len:
                     continue
-
+            
             if not left_seq[half_len-kmer_len:half_len] in seq_chr_dic or not right_seq[half_len:half_len+kmer_len] in seq_chr_dic:
                 continue
 
@@ -531,7 +531,7 @@ def filter_fusion(bwt_idx_prefix, params):
 
             if same:
                 continue
-
+            
             for chr_coord in right_chrs:
                 chr, coord = chr_coord.split(':')
                 coord = int(coord)
@@ -555,12 +555,12 @@ def filter_fusion(bwt_idx_prefix, params):
             dir = info[3]
             gene1, gene1_name, gene1_where, gene1_belong, gene1_sense, ens_gene1, ens_gene1_name = find_gene(chr1, coord1, dir[0], True)
             gene2, gene2_name, gene2_where, gene2_belong, gene2_sense, ens_gene2, ens_gene2_name = find_gene(chr2, coord2, dir[1], False)
+            if params.filter_by_annotation:
+                if gene1_name == gene2_name or ens_gene1_name == ens_gene2_name or ens_gene1 == ens_gene2:
+                    continue
 
-            if gene1_name == gene2_name or ens_gene1_name == ens_gene2_name or ens_gene1 == ens_gene2:
-                continue
-
-            if gene1 == "N/A" or gene2 == "N/A" or (string.find(gene1, "ENS") == 0 and string.find(gene2, "ENS") == 0):
-                continue
+                if gene1 == "N/A" or gene2 == "N/A" or (string.find(gene1, "ENS") == 0 and string.find(gene2, "ENS") == 0):
+                    continue
 
             left_diff = how_diff(left_seq[half_len - 20:half_len], right_seq[half_len - 20:half_len])
             if left_diff <= 8:
@@ -582,9 +582,9 @@ def filter_fusion(bwt_idx_prefix, params):
 
             swap = False
             if (dir == 'ff' and gene1_sense == '-' and gene2_sense == '-') or \
-               (dir == 'rr' and gene1_sense == '+' and gene2_sense == '+') or \
-               (dir == 'fr' and gene1_sense == '-' and gene2_sense == '+') or \
-               (dir == 'rf' and gene1_sense == '+' and gene2_sense == '-'):
+                   (dir == 'rr' and gene1_sense == '+' and gene2_sense == '+') or \
+                   (dir == 'fr' and gene1_sense == '-' and gene2_sense == '+') or \
+                   (dir == 'rf' and gene1_sense == '+' and gene2_sense == '-'):
                 swap = True
 
             if swap:
@@ -692,8 +692,11 @@ def filter_fusion(bwt_idx_prefix, params):
             
         return gene_list
 
-    refGene_list = read_genes("refGene.txt")
-    ensGene_list = read_genes("ensGene.txt")
+    refGene_list, ensGene_list = [], []
+    if os.path.exists("refGene.txt"):
+        refGene_list = read_genes("refGene.txt")
+    if os.path.exists("ensGene.txt"):
+        ensGene_list = read_genes("ensGene.txt")
 
     fusion_gene_list = []
     for file in sorted(os.listdir(".")):
@@ -2585,7 +2588,7 @@ def prog_path(program):
 
 
 def get_version():
-   return "2.1.0"
+   return "2.0.11"
 
 
 def main(argv=None):
