@@ -25,8 +25,8 @@
 #include <bitset>
 #include <seqan/basic.h>
 #include <seqan/sequence.h>
-#include <seqan/find.h>
 #include <seqan/file.h>
+#include <seqan/find.h>
 #include <seqan/modifier.h>
 #include <seqan/align.h>
 #include <seqan/graph_align.h>
