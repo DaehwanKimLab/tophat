@@ -23,9 +23,8 @@ body {
 #top {
 	margin: 0 auto;
 	padding: 0;
-	color: #666;
-	background: #FFF url(../images/cbcbstrip.jpg) repeat-x top;
-	height: 81px;
+	background:#1E6BAC url(../images/ccbstrip.jpg) repeat-x top;
+	height: 141px;
 }
 #top h1 { padding: 10px 0 0 25px; color: #FFF; font-size: 240%; background: transparent;}
 #top h2 { padding: 0px 0 0 25px; color: #bbb; font-size: 100%; background: transparent;}
