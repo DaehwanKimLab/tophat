@@ -1415,6 +1415,9 @@ def get_index_sam_header(params, idx_prefix, name = ""):
         if read_params.color:
             bowtie_header_cmd.append('-C')
 
+        if params.bowtie2:
+            bowtie_header_cmd += ["-x"]
+
         bowtie_header_cmd.extend([idx_prefix, '/dev/null'])
         if noSkip:
            subprocess.call(bowtie_header_cmd,
