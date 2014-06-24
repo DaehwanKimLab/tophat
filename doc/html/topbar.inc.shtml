@@ -14,13 +14,12 @@
       <!--#endif -->
       </td>
       <td valign="middle" align="right">
-        <a href="http://bio.math.berkeley.edu/">
-        <img style="vertical-align:middle;padding-top:4px" src="images/UCBerkeley-seal.scaled.gif" border="0">
+        <a href="http://ccb.jhu.edu/">
+	<img style="vertical-align:middle;padding-top:4px" src="images/ccblogo_ondark.png"/>
         </a>&nbsp;
-        <a href="http://genomics.jhu.edu/">
-        <img style="vertical-align:middle;padding-top:4px" src="images/IGM_logo.png" border="0">
-        </a>&nbsp;
-        <a href="http://www.cbcb.umd.edu/"><img style="vertical-align:middle;padding-top:4px" src="images/cbcb_logo.gif" border="0"></a>&nbsp;&nbsp;
+        <a href="http://www.gs.washington.edu">
+	<img style="vertical-align:middle;padding-top:4px" src="images/UW_Seal_University_of_Washington.jpg" border="0">
+	</a>&nbsp;&nbsp;
       </td>
       </tr>
     </tbody>

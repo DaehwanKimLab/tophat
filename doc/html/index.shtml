@@ -17,10 +17,12 @@
   reads.  It aligns RNA-Seq reads to mammalian-sized genomes using the 
   ultra high-throughput short read aligner <a href="http://bowtie-bio.sourceforge.net">Bowtie</a>, and then analyzes the mapping results to identify splice junctions between exons. 
 	  <br> <br>
-	  TopHat is a collaborative effort between the <a href="http://genomics.jhu.edu">Institute of Genetic Medicine</a> 
-      at Johns Hopkins University, the <a href="http://math.berkeley.edu">Departments of Mathematics</a> and 
-      <a href="http://www.mcb.berkeley.edu">Molecular and Cell Biology</a> at the University of California, Berkeley
-      and the Department of Stem Cell and Regenerative Biology at Harvard University.
+	  TopHat is a collaborative effort among Daehwan Kim and Steven Salzberg in 
+	  the <a href="http://ccb.jhu.edu">Center for Computational Biology</a> at Johns Hopkins University, and 
+	  Cole Trapnell in the <a href="http://www.gs.washington.edu/faculty/trapnell.htm">Genome Sciences Department</a> 
+	  at the University of Washington. TopHat was originally developed by Cole Trapnell at the 
+	  <a href="http://cbcb.umd.edu">Center for Bioinformatics and Computational Biology</a> 
+	  at the University of Maryland, College Park.
 	  </td><td valign="middle" align="right">
     <a href="http://opensource.org"><img alt="Open Source Software" src="images/osi-certified.gif" border="0"></a>
     </td></tr>
