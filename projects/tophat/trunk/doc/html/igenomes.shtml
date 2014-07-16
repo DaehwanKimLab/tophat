@@ -1,14 +1,9 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml"><head>
-<title>TopHat :: Center for Bioinformatics and Computational Biology</title>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<link rel="stylesheet" type="text/css" href="css/style.css" media="screen">
-</head>
-<body>
-<div id="wrap">
-  <!--#include virtual="topbar.inc.shtml"-->
+<!--#set var="Title" value="TopHat" -->
+<!--#set var="NoCrumbs" value="1" -->
+<!--#set var="SubTitle" value="A spliced read mapper for RNA-Seq"-->
+<!--#include virtual="/iheader_r.shtml"-->
+<div id="mainContent">
   <div id="main">
-
   <div id="rightside">
  <!--  #  set var="BwtIndexes" value="1" -->
  <!--#include virtual="sidebar.inc.shtml"-->
@@ -22,8 +17,8 @@ The annotation files are augmented with the <tt>tss_id</tt> and <tt>p_id</tt>
  GTF attributes that Cufflinks needs to perform differential splicing, 
 CDS output, and promoter user analysis. We recommend that you download 
 your Bowtie indexes and annotation files from this page. More 
-information about Illumina's iGenomes project can be found <a href="ftp://igenome:G3nom3s4u@ussd-ftp.illumina.com/README.txt">here</a>.
-    <br>
+information about Illumina's iGenomes project can be found 
+<a href="ftp://igenome:G3nom3s4u@ussd-ftp.illumina.com/README.txt">here</a>.
     <br>
     <table id="box-table-a" cellpadding="3">
       <tbody><tr>
@@ -328,12 +323,10 @@ information about Illumina's iGenomes project can be found <a href="ftp://igenom
 <td align="LEFT">May 15 22:33</td>
 </tr>
 </tbody></table>
-
+    </div>
   </div>
-    <br>
-    <br>
-<!--#include virtual="footer.inc.html"-->
 </div>
+<!--#include virtual="footer.inc.html"-->
 
 <!-- Google analytics code -->
 <script type="text/javascript">
@@ -347,6 +340,4 @@ pageTracker._trackPageview();
 
 <!-- End google analytics code -->
 
-
-
-</div></body></html>
+</body></html>

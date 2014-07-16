@@ -1,24 +1,16 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml"><head>
-<title>TopHat :: Center for Bioinformatics and Computational Biology</title>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<link rel="stylesheet" type="text/css" href="css/style.css" media="screen">
-</head>
-<body>
-<div id="wrap">
-  <!--#include virtual="topbar.inc.shtml"-->
-  
+<!--#set var="Title" value="TopHat" -->
+<!--#set var="NoCrumbs" value="1" -->
+<!--#set var="SubTitle" value="A spliced read mapper for RNA-Seq"-->
+<!--#include virtual="/iheader_r.shtml"-->
+<div id="mainContent">
   <div id="main">
-  
      <div id="rightside">
-
  <!--  #  set var="BwtIndexes" value="1" -->
  <!--#include virtual="sidebar.inc.shtml"-->
           
 	</div> <!-- End of "rightside" -->
 
 	<div id="leftside">
-	  <table><tbody><tr><td cellpadding="7">
 	  <h1>Manual</h1><br>
 	  <div id="toc">
 	    <ul>
@@ -131,19 +123,17 @@ so you can invoke this new version of TopHat with the command 'tophat2'.</p>
 <p>Below you will find a detailed list of command-line options you can
 		use to control TopHat.  Beginning users should take a look at the 
 		<a href="tutorial.shtml">Getting started</a> guide for a tutorial on
-		installing and running TopHat and its prerequisites.<br>
-  	  
+		installing and running TopHat and its prerequisites.<br />
 	  </p>
 <div id="subheader">
-	  <table width="100%"><tbody><tr> <td> <strong>Please Note</strong> TopHat has a number
+	  <strong>Please Note:</strong> TopHat has a number
 		of parameters and options, and their default values are tuned for processing
 		<strong>mammalian</strong> RNA-Seq reads. If you would like to use TopHat for
 		another class of organism, we recommend setting some of the parameters 
 		with more strict, conservative values than their defaults.  Usually, setting
 		the maximum intron size to 4 or 5 Kb is sufficient to discover most 
 		junctions while keeping the number of false positives low.
-
-		</td></tr></tbody></table> </div><br>
+</div><br />
 	  <h2 id="toph">Using <tt>TopHat</tt></h2><br>
 	  
 	  <blockquote>
@@ -457,7 +447,6 @@ sequenced for single-end reads).  Equivalently, it is assumed that only
 the strand generated during second strand synthesis is sequenced.</td></tr>
 	  </tbody></table>
 	</td></tr></tbody></table>
-	<table><tbody><tr><td cellpadding="7">  
 	  <table cellspacing="15">
 	  <tbody><tr><td valign="top">      
 	  <b>Advanced Options:</b>
@@ -963,11 +952,11 @@ and exclude such multi-mapped reads (according to the value of the
 	  <br>Deletions.bed - chromLeft refers to the first genomic base of the deletion.
 	  </li>
       </ol>
-      </td></tr></tbody></table><br>
     </div>
   </div>
-  <!--#include virtual="footer.inc.html"-->
+ </div>
 </div>
+<!--#include virtual="footer.inc.html"-->
 
 <!-- Google analytics code -->
 <script type="text/javascript">

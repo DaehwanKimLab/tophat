@@ -1,18 +1,13 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml"><head>
-<title>TopHat :: Center for Bioinformatics and Computational Biology</title>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<link rel="stylesheet" type="text/css" href="css/style.css" media="screen">
-</head>
-<body>
-<div id="wrap">
-  <!--#include virtual="topbar.inc.shtml"-->
+<!--#set var="Title" value="TopHat" -->
+<!--#set var="NoCrumbs" value="1" -->
+<!--#set var="SubTitle" value="A spliced read mapper for RNA-Seq"-->
+<!--#include virtual="/iheader_r.shtml"-->
+<div id="mainContent">
   <div id="main">
 	<div id="rightside">
 	<!--#include virtual="sidebar.inc.shtml"-->
 	</div> <!-- End of "rightside" -->
     <div id="leftside">
-  	  <table><tbody><tr><td cellpadding="7">
   	  <h1>Frequently Asked Questions</h1><br>
       <div id="toc">
   	    <ul>
@@ -54,10 +49,9 @@ incorrectly be aligned to processed pseudogenes that are rarely (if any)
 from. You can use either of the options below to improve the accuracy of spliced mapping in TopHat:<br>
 <ul>
   <li>If a good gene annotation is available (as the
- case with the human genome), use it with the -G option<br>
+ case with the human genome), use it with the -G option.<br>
   </li>
-  
-  <li>For poorly annotated genomes you might want to consider using the "<tt>--read-realign-edit-dist 0</tt>" option <br>
+  <li>For poorly annotated genomes you might want to consider using the "<tt>--read-realign-edit-dist 0</tt>" option. 
 With the realignment option
 users can choose to remap some (or all) of the mapped reads with mapping edit distance
 equal to or above user-specified "remapping" edit distance (see <a href="manual.shtml#read_realign">--read-realign-edit-dist</a> option). Setting "<tt>--read-realign-edit-dist 0</tt>"
@@ -120,9 +114,10 @@ protocol.  Please let us know more details about your protocol so we can
 	    The solution is to raise the limit to a higher number (e.g. 10000).  For Mac, you can change this using a command, "sudo sysctl -w kern.maxfiles=10240".
 	    </p>
   	  </p>
-<br><br>
 
-  <!--#include virtual="footer.inc.html"-->
+</div></div></div>
+
+<!--#include virtual="footer.inc.html"-->
 
 <!-- Google analytics code -->
 <script type="text/javascript">
@@ -134,6 +129,5 @@ var pageTracker = _gat._getTracker("UA-6101038-1");
 pageTracker._trackPageview();
 </script>
 
-</td></tr></tbody></table></div></div></div>
 
 </body></html>
