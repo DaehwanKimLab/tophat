@@ -885,7 +885,7 @@ document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.
 var pageTracker = _gat._getTracker("UA-6101038-1");
 pageTracker._trackPageview();
 </script>
-<-- End google analytics code -->
+<!-- End google analytics code -->
 </body>
 </html>
 
