@@ -1,15 +1,9 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml"><head>
-<title>TopHat :: Center for Bioinformatics and Computational Biology</title>
-
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-
-<link rel="stylesheet" type="text/css" href="css/style.css" media="screen">
-
-</head>
-<body>
-<div id="wrap">
-  <!--#include virtual="topbar.inc.shtml"-->
+<!--#set var="Title" value="TopHat" -->
+<!--#set var="NoCrumbs" value="1" -->
+<!--#set var="SubTitle" value="A spliced read mapper for RNA-Seq"-->
+<!--#include virtual="/iheader_r.shtml"-->
+<div id="mainContent">
+  <!-- disabled.#include virtual="topbar.inc.shtml"-->
   <div id="subheader">
     <table width="100%"><tbody><tr>
     <td>
@@ -100,7 +94,8 @@
 	    The TopHat2 <a href="http://genomebiology.com/2013/14/4/R36/abstract">paper</a> has been published in <a href="http://genomebiology.com/"><i>Genome Biology</i></a>.
 	  </p>
 	   <ul>
-	       <li> Thesimulation data set (error-free) is available <a href="./downloads/tophat2_simulation_data/junction_test">here</a>.
+	       <li>The simulation data set (error-free) 
+		is available <a href="./downloads/tophat2_simulation_data/junction_test">here</a>.
 	           </li>
 		   </ul>
 	  <br/>
@@ -877,8 +872,9 @@ or pipes) is a workaround.  Users are recommended to use names like
 			Check back soon for a release with full paired-end support
 	</p></div>
   </div>
-  <!--#include virtual="footer.inc.html"-->
 </div>
+
+<!--#include virtual="footer.inc.html"-->
 
 <!-- Google analytics code -->
 <script type="text/javascript">
@@ -889,5 +885,7 @@ document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.
 var pageTracker = _gat._getTracker("UA-6101038-1");
 pageTracker._trackPageview();
 </script>
-<!-- End google analytics code -->
-</body></html>
+<-- End google analytics code -->
+</body>
+</html>
+

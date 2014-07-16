@@ -1,19 +1,13 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml"><head>
-<title>TopHat :: Center for Bioinformatics and Computational Biology</title>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<link rel="stylesheet" type="text/css" href="css/style.css" media="screen">
-
-</head>
-<body>
-<div id="wrap">
-    <!--#include virtual="topbar.inc.shtml"-->
+<!--#set var="Title" value="TopHat" -->
+<!--#set var="NoCrumbs" value="1" -->
+<!--#set var="SubTitle" value="A spliced read mapper for RNA-Seq"-->
+<!--#include virtual="/iheader_r.shtml"-->
+<div id="mainContent">
   <div id="main">
 	<div id="rightside">
 	<!--#include virtual="sidebar.inc.shtml"-->
 	</div> <!-- End of "rightside" -->
     <div id="leftside">
-  	<table><tbody><tr><td cellpadding="7">
   	<h1> Getting started</h1><br>
       <div id="toc">
   	    <ul>
@@ -331,6 +325,10 @@ viewers, including <a href="http://www.broadinstitute.org/igv/">IGV</a>, <a href
 	 	</p>
 		<br>
   
+  </div>
+ </div>
+</div>
+
 <!--#include virtual="footer.inc.html"-->
 
 <!-- Google analytics code -->
@@ -344,8 +342,5 @@ pageTracker._trackPageview();
 </script>
 
 <!-- End google analytics code -->
-
-</td></tr></tbody></table></div></div></div>
-
 
 </body></html>
