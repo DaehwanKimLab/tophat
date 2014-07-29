@@ -3,7 +3,7 @@ Stylesheet for the free sNews15_1 template
 from http://www.free-css-templates.com
 */
 
-/* Reset all margins and paddings for browsers 
+/* Reset all margins and paddings for browsers */
 * { 
 	padding: 0;
 	margin: 0;
@@ -13,10 +13,11 @@ body {
 	font: .8em Verdana, Arial, Sans-Serif; 
 	line-height: 1.6em; 
 	margin: 0;
+	/* background-image: url(../images/bg.jpg); */
+	/* background-repeat: repeat */
 }
-*/
-#wrap {	margin: 0 auto;	width: 95% }
 
+#wrap {	margin: 0 auto;	width: 95% }
 
 /* TOP HEADER -------- */
 #top {
@@ -61,17 +62,57 @@ body {
 
 #subheader { 
 	clear: both; 
-	/* border-top: 1px dotted #888;
-	border-bottom: 1px dotted #888;*/
+	border-top: 1px dotted #888;	
+	border-bottom: 1px dotted #888;
 	background: #eaeaea;
 	color: #505050;
-	padding: 0.6em;
-	margin: 0px 0px 4px 0px;
+	padding: 1em;
+	margin: 15px 0px 10px 0px;
 	
 }
 #subheader a { text-decoration: none; /* border-bottom: 1px dashed #0066B3; */ } 
+ 
+ 
+/* TOP MENU ---------- */
+#topmenu {  	margin: 0px 8px 0 8px; 
+			padding: 0;
+			background: url(../images/menu.jpg) repeat-x top;
+			height: 30px;
+			
+}
+#topmenu .lefts { 
+	background: url(../images/menul.jpg) no-repeat left; 
+	height: 30px; 
+	padding-left: 0px;
+}
+#topmenu .rights {
+	background: url(../images/menur.jpg) no-repeat right;
+	float: right;
+	height: 30px;
+	width: 8px;
+}
+#topmenu li a { 
+	color: #FFF;
+	text-align: left;
+	padding-left: 10px;
+	padding-right: 15px;
+	text-decoration: none;
+	background: transparent;
+	font-weight: bold
+} 
+#topmenu li { padding: 0px;
+	float: left;
+	margin: 0;
+	font-size: 11px;
+	line-height: 30px;
+	white-space: nowrap;
+	/* list-style-type: none; */
+	width: auto;
+	background: url(../images/sep.gif) no-repeat top right
+	
+}
 
-#main { background: #FFF; margin: 8px 0 8px 0; color: #666; }
+#main { background: #FFF; margin: 25px 0 15px 0; color: #666; }
 
 #main #rightside {
 	width: 300px;
@@ -79,6 +120,7 @@ body {
 	background: #FFF;
 	margin-right: 0px;
 	color: #555;
+	
 } 
 
 #main #rightside .box {
@@ -101,8 +143,7 @@ body {
 	padding-left: 8px;
 	color: #555;
 	background: #FFF;
-	margin-right: 300px;
-	padding-right:4px;
+	margin-right: 255px;
 	margin-left: 0px;
 	
 }
