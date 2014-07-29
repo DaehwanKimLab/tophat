@@ -1,6 +1,7 @@
 <!--#set var="Title" value="TopHat" -->
 <!--#set var="NoCrumbs" value="1" -->
 <!--#set var="SubTitle" value="A spliced read mapper for RNA-Seq"-->
+<!--#set var="ExtraCSS" value="/software/tophat/add.css"-->
 <!--#include virtual="/iheader_r.shtml"-->
 <div id="mainContent">
   <div id="main">
@@ -11,7 +12,7 @@
 	</div> <!-- End of "rightside" -->
 
 	<div id="leftside">
-	  <h1>Manual</h1><br>
+	  <h1>Manual</h1>
 	  <div id="toc">
 	    <ul>
 	    <li><a href="#whis">What is TopHat?</a></li>
@@ -20,21 +21,21 @@
 
 	    </ul><br>
 	  </div>
-	  <h2 id="whis">What is TopHat?</h2><br>
+	  <h2 id="whis">What is TopHat?</h2>
 	  <p> TopHat is a program that aligns RNA-Seq reads to a genome in order 
 		to identify exon-exon splice junctions.  It is built on the ultrafast
 	  short read mapping program <a href="http://bowtie-bio.sourceforge.net">Bowtie</a>.
 	  TopHat runs on <strong>Linux</strong> and <strong>OS X</strong>.
 	  </p> 
 	  <br>
-	  <h2 id="whis">What types of reads can I use TopHat with?</h2><br>
+	  <h2 id="whis">What types of reads can I use TopHat with?</h2>
 	  <p>TopHat was designed to work with reads produced by the Illumina Genome 
 	  Analyzer, although users have been successful in using TopHat with reads
 	  from other technologies.  In TopHat 1.1.0, we began supporting Applied Biosystems' Colorspace format.
 	  The software is optimized for reads 75bp or longer.  
 	  </p> 
   	  <br/>
-	  <h2 id="whis">How does TopHat find junctions?</h2><br>
+	  <h2 id="whis">How does TopHat find junctions?</h2>
   	  <p> TopHat can find splice junctions without a reference annotation.  
 By 
 		first mapping RNA-Seq reads to the genome, TopHat identifies potential
@@ -75,7 +76,7 @@ This latter option will only report alignments across "GT-AG" introns</p>
 
 	
   	  <br>
-  	  <h2 id="prer">Prerequisites</h2><br>
+  	  <h2 id="prer">Prerequisites</h2>
 	  <p> To use TopHat, you will need the following programs in your <tt>PATH</tt>:
       </p><ul>
          <li><tt>bowtie2 and bowtie2-align (or bowtie)<br>
@@ -92,7 +93,7 @@ This latter option will only report alignments across "GT-AG" introns</p>
 	  </p><p>You will also need Python <strong>version 2.6 or higher</strong>.
       </p>
   	  <br>
-  	  <h2 id="bins">Obtaining and installing TopHat</h2><br>
+  	  <h2 id="bins">Obtaining and installing TopHat</h2>
 	  <p> You can download the latest source release and precompiled binaries for Linux and Mac OSX <a href="./downloads/">here</a>. See the <a href="tutorial.shtml">Getting started</a>
  guide for detailed instructions about installing TopHat from the binary
  package or building TopHat and its dependencies from source.<br>
@@ -126,7 +127,7 @@ so you can invoke this new version of TopHat with the command 'tophat2'.</p>
 		installing and running TopHat and its prerequisites.<br />
 	  </p>
 <div id="subheader">
-	  <strong>Please Note:</strong> TopHat has a number
+	  <strong>Please note:</strong> TopHat has a number
 		of parameters and options, and their default values are tuned for processing
 		<strong>mammalian</strong> RNA-Seq reads. If you would like to use TopHat for
 		another class of organism, we recommend setting some of the parameters 
@@ -134,7 +135,7 @@ so you can invoke this new version of TopHat with the command 'tophat2'.</p>
 		the maximum intron size to 4 or 5 Kb is sufficient to discover most 
 		junctions while keeping the number of false positives low.
 </div><br />
-	  <h2 id="toph">Using <tt>TopHat</tt></h2><br>
+	  <h2 id="toph">Using <tt>TopHat</tt></h2>
 	  
 	  <blockquote>
 	   Usage: tophat [options]* &lt;genome_index_base&gt; &lt;reads1_1[,...,readsN_1]&gt; [reads1_2,...readsN_2] <br/>
@@ -908,19 +909,19 @@ and exclude such multi-mapped reads (according to the value of the
 	  <tt>--insertions/--deletions &lt;.juncs file&gt;</tt>
 	  </td><td valign="top">
           <p> Supply TopHat with a list of insertions or deletions with respect to the reference.  Indels are specified
-                one per line, in a tab-delimited format, identical to that of junctions.  Records look like:
-          </p> <br>
-            Fordeletion,<br/>
+                one per line, in a tab-delimited format, identical to that of junctions.  
+                Records are formatted as follows:
+          </p>
+            For deletion:<br/>
                 <tt>&lt;chrom&gt;   &lt;left&gt;   &lt;right&gt;</tt>
                 <p><tt>left</tt> and <tt>right</tt> are zero-based coordinates, and
                         specify the last character of the left sequenced to be spliced to
-                  the first character of the right sequence, inclusive.<br/>
-                  For instance, <tt>"chr1 20564 20567"</tt>, where two base pairs located at 20565 and 20566 are deleted in the sequenced genome. </p><br/>
+                  the first character of the right sequence, inclusive. For example: <pre>chr1 20564 20567</pre> ..means that two base pairs located at 20565 and 20566 are deleted in the sequenced genome. </p>
 
-                For insertion,<br/>
+                For insertion:<br/>
                 <tt>&lt;chrom&gt;   &lt;left&gt;   &lt;dummy&gt;  &lt;inserted sequence&gt;</tt>
-                <p><tt>left</tt> is zero-based coordinate and <tt>dummy</tt> can be set to the same value as <tt>left</tt><br/>.
-                  For instance, <tt>"chr1 17491 17491 CA"</tt>, where two base pairs "CA" are inserted between 17490 and 17491 of the reference genome.</p>
+                <p><tt>left</tt> is zero-based coordinate and <tt>dummy</tt> can be set to the same value as <tt>left</tt>.
+                For instance: <pre>chr1 17491 17491 CA</pre>..means that the two base pairs "CA" are inserted between 17490 and 17491 of the reference genome.</p>
           </td></tr>
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>--no-novel-indels</tt>
@@ -930,7 +931,7 @@ and exclude such multi-mapped reads (according to the value of the
 
 	  </tbody></table>
 	
-  	  <h2 id="output">TopHat Output</h2><br>
+  	  <h2 id="output">TopHat Output</h2>
   	  <p>
   	  The <tt>tophat</tt> script produces a number of files in the directory
 	  in which it was invoked.  Most of these files are internal, intermediate 
