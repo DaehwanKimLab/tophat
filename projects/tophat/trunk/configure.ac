@@ -4,7 +4,7 @@ m4_include([ax_bam.m4])
 #m4_include([ax_check_zlib.m4])
 
 define([svnversion], esyscmd([sh -c "svnversion|tr -d '\n'"]))dnl
-AC_INIT([tophat],[2.0.12],[tophat.cufflinks@gmail.com])
+AC_INIT([tophat],[2.0.13],[tophat.cufflinks@gmail.com])
 AC_DEFINE(SVN_REVISION, "svnversion", [SVN Revision])
 
 AC_CONFIG_SRCDIR([config.h.in])
@@ -16,11 +16,13 @@ AM_INIT_AUTOMAKE
 
 AC_ARG_VAR(PYTHON, [python program])
 
- # Make sure CXXFLAGS is defined so that AC_PROG_CXX doesn't set it.
+# Make sure CXXFLAGS is defined so that AC_PROG_CXX doesn't set it.
 CXXFLAGS="$CXXFLAGS"
 CFLAGS="$CFLAGS"
 
-AC_LANG(C)
+AC_LANG([C++])
+
+m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 
 # Checks for programs.
 AC_PROG_AWK
