@@ -99,7 +99,7 @@ AS_IF([test "x$enable_debug" = xyes],
 CFLAGS="${generic_CFLAGS} ${ext_CFLAGS} ${user_CFLAGS} ${debug_CFLAGS}"
 CXXFLAGS="$CFLAGS"
 CXXFLAGS="$CXXFLAGS $BOOST_CPPFLAGS $BAM_CPPFLAGS -I./SeqAn-1.3"
-LDFLAGS="$user_LDFLAGS"
+LDFLAGS="$BOOST_LDFLAGS $BAM_LDFLAGS $user_LDFLAGS"
 
 AM_INIT_AUTOMAKE([-Wall foreign tar-pax foreign])
 
@@ -114,7 +114,8 @@ echo \
 "
 -- ${PACKAGE_STRING} Configuration Results --
   C++ compiler:        ${CXX} ${CXXFLAGS}
-  Linker flags:        ${LDFLAGS}"
+  Linker flags:        ${LDFLAGS}
+  BOOST libraries:     ${BOOST_THREAD_LIB} ${BOOST_SYSTEM_LIB}"
 
 if test x"${GCC}" = x"yes" ; then
    gcc_version=`${CC} --version | head -n 1`
