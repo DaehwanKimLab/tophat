@@ -52,10 +52,11 @@ def main(argv=None):
             orientation = cols[5]
             block_starts = [int(x) for x in cols[11].split(",")]
             block_sizes = [int(x) for x in cols[10].split(",")]
-                
             left_pos = int(cols[1]) + block_starts[0] + block_sizes[0] - 1
-            right_pos = int(cols[1]) + block_starts[1] 
-            print "%s\t%d\t%d\t%s" % (chromosome, left_pos, right_pos, orientation)
+            right_pos = int(cols[1]) + block_starts[1]
+            #print "%s\t%d\t%d\t%s" % (chromosome, left_pos, right_pos, orientation)
+            counts = cols[4]
+            print "%s\t%d\t%d\t%s\t%s" % (chromosome, left_pos, right_pos, orientation, counts)
             
 
     except Usage, err:
