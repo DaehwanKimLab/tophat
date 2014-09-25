@@ -34,22 +34,18 @@
 	<br>
 	
         <strong>Installing a pre-compiled binary release</strong><br>
-		<p>In order to make it easy to install TopHat, we
-		  provide a few binary packages to save users from
-		  occasionally frustrating process of building
-		  TopHat, which requires that you have <a href="http://www.boost.org">Boost</a> and <a href="http://samtools.sourceforge.net/">SAM tools</a> 
-		  libraries installed.
-		  To use the binary packages, simply download the appropriate one for your platform, unpack
-		  it, and make sure the <tt>TopHat</tt> binaries are in a
-		  directory in your PATH environment variable. <b><br>
+		<p>In order to make it easy to install TopHat we provide a few binary packages to save users from
+		  the occasionally frustrating process of building TopHat themselves, which requires a certain development environment and 
+          the <a href="http://www.boost.org">Boost</a> libraries installed. To use the binary packages, simply download the appropriate 
+          one for your platform, unpack it, and make sure the <tt>TopHat</tt> binaries are in a directory in your PATH environment variable 
+          (or create a symbolic link to the included tophat2 script somewhere in your PATH, see below)<b><br>
+          
 Note:</b> if you want to be able to install and run this new version 
-without 
-overwriting a previous TopHat version already installed on your system, 
+without overwriting a previous TopHat version already installed on your system, 
 make sure you unpack the new version into a different directory 
 from the old version, then instead of copying the new programs in a 
 directory in your PATH just create a symbolic link from the <tt>tophat2</tt>
-wrapper
- script in this new directory to a directory in your shell's PATH. 
+wrapper script in this new directory to a directory in your shell's PATH. 
 For example, assuming the ~/bin directory is in your PATH and you unpack
  tophat-2.0.0.Linux_x86_64.tar.gz under your home directory:<br>
 </p>
@@ -62,49 +58,41 @@ Now you can start the new version of TopHat with the <tt>tophat2</tt> command,
 while the previous version, if present, can still be launched with the regular 
 "tophat" command (assuming this is how you used it before). <br>
   <pre><br></pre>
-
-		
 		
 	<strong>Building TopHat from source</strong><br>
-		<p> In order to build TopHat, you must have the following installed on your system: <br>
-</p>
+		<p> In order to build TopHat2 you must have the following installed on your system:</p>
   <ul>
     <li>the <a href="http://www.boost.org">Boost C++ libraries</a>
-		  (we recommend version 1.47 or higher so you can use it for Cufflinks as well) <br>
+		  (we recommend version 1.47 or higher so you can use it for building Cufflinks as well) <br>
     </li>
-    <li>the <a href="http://samtools.sourceforge.net/">SAM tools library</a></li>
-  </ul>
+    <!-- li>the <a href="http://samtools.sourceforge.net/">SAM tools library</a></li -->
+  </ul><br/>
   <p>
-    Note TopHat uses the <a href="http://http://www.seqan.de/"> SeqAn </a> library that comes with the TopHat2 source code distribution.  It is not necessary for the SeqAn library to be installed separately in order to run TopHat.
+    <b>Note</b>: Starting with version 2.0.13 TopHat no longer requires the user to have the SAMtools library (libbam.a), headers or even the samtools program installed,
+    as TopHat2 comes pre-packaged with a stable version of SAMtools which is known to work well with TopHat.
+    Also, TopHat uses the <a href="http://http://www.seqan.de/"> SeqAn </a> library that comes with the TopHat2 source code distribution. 
+    It is not necessary for the SeqAn library to be installed separately in order to run TopHat.
   </p>
-
-		
-		<br>
-<h3 id="boost">Installing Boost</h3>
-
-		<br>
-		<ol>
+<div style="margin-left:24px;">
+<h2 id="boost" style="font-size:110%;">Building Boost</h2>
+		<ol style="margin-left:16px;">
 		  <li><a href="http://www.boost.org/users/download/">Download</a>
 a recent		    Boost source tarball, unpack it and <tt>cd</tt> to the newly unpacked Boost source directory.</li>
 		  <li>Prepare the build: <br>
 <tt>./bootstrap.sh</tt><br>
 </li>
-		  
+		
 <li>Build Boost. Note that you can specify where to install Boost with the <tt>--prefix</tt>
- option, which specifies the base path (prefix) under which
-         subdirectories ./include/ and ./lib/ will host the Boost 
-headers and library files. The default Boost installation directory 
-prefix is <tt>/usr/local</tt>. 
-                    Take note of this installation directory (if you 
-specify your own) because you will need to provide it to the <tt>--with-boost</tt> option 
-                    of TopHat's <tt>./configure</tt> script. Run the build and install command:<br>
+ option, which specifies the base path (prefix) where sub-directories ./include/ and ./lib/ will host the Boost 
+headers and library files respectively. The default Boost installation directory prefix is <tt>/usr/local</tt>. 
+Take note of this installation directory (if you specify your own) because you will need to provide it to the 
+<tt>--with-boost</tt> option of TopHat's <tt>./configure</tt> script. Run the build and install command:<br>
 		    
 		    <blockquote><tt>./bjam
 		              --prefix=&lt;YOUR_BOOST_INSTALL_DIRECTORY&gt; link=static \<br>
 &nbsp;runtime-link=static stage install</tt></blockquote>
-		  </li>
-</ol><br>
-		<h3 id="samtools">Installing the SAM tools</h3>
+		  </li></ol> <p> </p>
+		<!-- h3 id="samtools">Installing the SAM tools</h3>
 		<br>
 		<ol>
 		  <li><a href="http://samtools.sourceforge.net/">Download</a>
@@ -132,10 +120,9 @@ directory (e.g. your home directory). Take note of this directory prefix
                       (e.g. <tt>cp *.h /usr/local/include/bam/</tt>)
 		  </li>
 		</ol>
-		<br>
-		<h3 id="boost">Building TopHat</h3>
-		<br>
-		<ol>
+		<br -->
+		<h2 style="margin-left:0px; font-size:110%;">Building TopHat</h2>
+		<ol style="margin-left:16px;">
 		  <li>Unpack the TopHat source tarball:
 		    <blockquote>tar zxvf tophat-2.0.0.tar.gz</blockquote>
 		  </li>
@@ -145,16 +132,13 @@ directory (e.g. your home directory). Take note of this directory prefix
 		  
   <li>Configure TopHat using the <tt>./configure</tt> script. If Boost libraries were installed
 		    somewhere other than under<tt>/usr/local</tt>, you will need to tell the installer where to find Boost
-		    using the <tt>--with-boost</tt> option, specifying the base 
-(prefix) install directory for the Boost library as discussed 
-		in the Boost installation section above. In a similar fashion, to 
-indicate the location of SAM tools development files, use the <tt>--with-bam</tt>
- 
-		option to the specify the base (prefix) directory which contains 
-./lib/libbam.a and ./include/bam as discussed above in the SAMTools
-		installation section. The <tt>--prefix</tt> option specifies where TopHat programs will be installed, and it should point to a base directory path that 
+		    using the <tt>--with-boost</tt> option, specifying the base (prefix) install directory for the Boost library as discussed 
+		in the Boost installation section above. 
+		<!-- In a similar fashion, to indicate the location of SAM tools development files, use the <tt>--with-bam</tt>
+		option to the specify the base (prefix) directory which contains ./lib/libbam.a and ./include/bam as discussed above in the SAMTools
+		installation section. --> The <tt>--prefix</tt> option specifies where TopHat programs will be installed, and it should point to a base directory path that 
 		will end up having a <tt>./bin/</tt> subdirectory containing the new TopHat programs. 
-                A common prefix choice can be, again,  <tt>/usr/local</tt>, which will cause the final <tt>tophat</tt> program and binaries to be installed in
+	    A common prefix choice can be, again,  <tt>/usr/local</tt>, which will cause the final <tt>tophat</tt> program and binaries to be installed in
 		 <tt>/usr/local/bin/</tt>. 
 		<br><b>Note:</b> if you want to preserve (i.e. not overwrite) a 
 previous TopHat installation and be able to use both the new version and
@@ -170,11 +154,11 @@ version of TopHat (assuming the older version of TopHat is launched
 		priority to the new binaries and it should not interfere with the TopHat programs from the previous installation.
 		    
   <blockquote>./configure
-                      --prefix=/path/to/tophat_base_dir
-                      --with-boost=/path/to/boost_prefix_dir
-\<br>
+                      --prefix=/path/to/tophat_base_dir \<br/>
+                       &nbsp;--with-boost=/path/to/boost_prefix_dir
+<!-- \<br>
 &nbsp;--with-bam=/path/to/libbam_prefix_dir<br>
-    <br>
+    <br -->
   </blockquote>
 </li>
 
@@ -183,17 +167,20 @@ version of TopHat (assuming the older version of TopHat is launched
 		    <blockquote>make install</blockquote>
 		  </li>
 		  <p>This will install tophat and its modules into <tt>/path/to/tophat_base_dir/bin</tt> directory. 
-		    You may want to add that directory to your shell's <tt>PATH</tt> 
-if it's not there already. Alternatively, you can just copy the <tt>tophat2</tt> wrapper script from this ./bin directory somewhere in a directory which is 
-in your shell's PATH (this is especially useful if an older&nbsp; <tt>tophat</tt> script from a previous TopHat installation is already found in your shell's PATH). 
-If you prefer this alternative please&nbsp; make sure you use the <tt><b>tophat2</b></tt> command instead of <tt><b>tophat</b></tt> for the rest of this tutorial.<br>
+		    You may want to add that directory to your shell's <tt>PATH</tt> if it's not there already. Alternatively, 
+            as mentioned above, you can just copy the <tt>tophat2</tt> wrapper script from this <tt>/path/to/tophat_base_dir/bin</tt> directory 
+            somewhere in a directory which is in your shell's PATH (this is especially useful if an older&nbsp; <tt>tophat</tt> 
+            script from a previous TopHat installation is already found in your shell's PATH).
+  If you prefer this alternative please&nbsp; make sure you use the <tt><b>tophat2</b></tt> command instead of <tt><b>tophat</b></tt> 
+  for the rest of this tutorial.<br>
 </p><p>
 		</p></ol>
+</div>
 		<br>
 
 		<h2 id="test">Testing the installation</h2><br>
 		<p>
-		After you installed Bowtie, Samtools and TopHat, you should 
+		After you installed Bowtie/Bowtie2 and TopHat programs, you could
 		test the pipeline on a simple test data set, which you can download 
 		<a href="./downloads/test_data.tar.gz">here</a>.  This data is not meant
 		to exhaustively test all the features of TopHat.  It's just to 

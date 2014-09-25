@@ -1,15 +1,24 @@
-TopHat authors
-Primary contact <cole@cs.umd.edu>
+TopHat Authors
 
-Cole Trapnell wrote TopHat. TopHat is built on Bowtie, which was written by
-Ben Langmead and Cole Trapnell.  Daehwan Kim and Geo Pertea added support 
-for SOLiD reads, Bowtie 2 and other features and improvements. The SeqAn-1.2 library is used 
-in TopHat and Bowtie and some of its sources are included in TopHat source releases; its
-authors are Andreas Doring, David Weese, Tobias Rausch, and Knut Reinert. 
+Contact:
+  tophat.cufflinks@gmail.com
+  
+Cole Trapnell wrote the original TopHat program. TopHat is built on Bowtie,
+  which was written by Ben Langmead and Cole Trapnell.
+Daehwan Kim and Geo Pertea added support for SOLiD reads, Bowtie 2 and many 
+  other features and improvements leading to the release of TopHat2, of which
+  they are the current maintainers.
+
+SAMtools version 0.1.18 is used in TopHat2 and its sources are included in 
+  TopHat2's source release starting with version 2.0.13; SAMtools 0.1.18 was
+  written primarily by Heng Li and Bob Handsaker.
+   
+The SeqAn-1.3 library is used in TopHat and some of its sources are included 
+  in TopHat source releases; its authors are Andreas Doring, David Weese, 
+  Tobias Rausch, and Knut Reinert.
 
 Websites:
- TopHat:			 http://tophat.cbcb.umd.edu
- Bowtie:                         http://bowtie-bio.sf.net
- SeqAn:                          http://www.seqan.de
-
-October 2010
+ TopHat:                http://ccb.jhu.edu/software/tophat
+ Bowtie:                http://bowtie-bio.sourceforge.net/bowtie2
+ Samtools:              http://samtools.sourceforge.net
+ SeqAn:                 http://www.seqan.de
