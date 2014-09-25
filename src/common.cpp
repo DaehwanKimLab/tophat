@@ -151,7 +151,7 @@ string ium_reads = "";
 string sam_header = "";
 string sam_readgroup_id = "";
 string zpacker = "";
-string samtools_path = "samtools";
+string samtools_path = "samtools_0.1.18";
 
 bool solexa_quals = false;
 bool phred64_quals = false;

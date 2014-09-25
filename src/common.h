@@ -15,8 +15,8 @@
 #include <cstdio>
 #include <string>
 #include <vector>
-#include "bam/bam.h"
-#include "bam/sam.h"
+#include "bam.h"
+#include "sam.h"
 
 #define MAX_READ_LEN 1024
 

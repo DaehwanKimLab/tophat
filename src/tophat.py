@@ -182,7 +182,7 @@ use_BWT_FIFO = False # can only be set to True if use_zpacker is True and only w
 unmapped_reads_fifo = None # if use_BWT_FIFO is True, this tricks bowtie into writing the
                            # unmapped reads into a compressed file
 
-samtools_path = None
+samtools_path = "samtools_0.1.18"
 bowtie_path = None
 fail_str = "\t[FAILED]\n"
 gtf_juncs = None #file name with junctions extracted from given GFF file
@@ -1155,7 +1155,7 @@ def nonzeroFile(filepath):
      fpath, fname=os.path.split(filepath)
      fbase, fext =os.path.splitext(fname)
      if fext.lower() == ".bam":
-         samtools_view_cmd = ["samtools", "view", filepath]
+         samtools_view_cmd = [samtools_path, "view", filepath]
          samtools_view = subprocess.Popen(samtools_view_cmd, stdout=subprocess.PIPE)
          head_cmd = ["head", "-1"]
          head = subprocess.Popen(head_cmd, stdin=samtools_view.stdout, stdout=subprocess.PIPE)
@@ -1553,15 +1553,16 @@ def get_samtools_version():
 
 # Make sure the SAM tools are installed and are recent enough to be useful
 def check_samtools():
-    th_log("Checking for Samtools")
+    #th_log("Checking for Samtools")
     global samtools_path
-    samtools_path=prog_path("samtools")
-    samtools_version_str, samtools_version_arr = get_samtools_version()
-    if samtools_version_str == None:
-        die("Error: Samtools not found on this system")
-    elif  samtools_version_arr[1] < 1 or samtools_version_arr[2] < 7:
-        die("Error: TopHat requires Samtools 0.1.7 or later")
-    th_logp("\t\tSamtools version:\t %s" % ".".join([str(x) for x in samtools_version_arr]))
+    samtools_path=prog_path("samtools_0.1.18")
+    #samtools_version_str, samtools_version_arr = get_samtools_version()
+    #if samtools_version_str == None:
+    if not samtools_path:
+        die("Error: Required samtools version not found on this system")
+    #elif  samtools_version_arr[1] < 1 or samtools_version_arr[2] < 7:
+    #    die("Error: TopHat2 requires Samtools 0.1.19")
+    #th_logp("\t\tSamtools version:\t %s" % ".".join([str(x) for x in samtools_version_arr]))
 
 
 

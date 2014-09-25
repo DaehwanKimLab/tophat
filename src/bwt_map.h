@@ -16,7 +16,7 @@
 #include <algorithm>
 #include <seqan/sequence.h>
 
-#include <bam/sam.h>
+#include <sam.h>
 using namespace std;
 
 #include "common.h"

@@ -63,7 +63,7 @@ AC_DEFUN([AX_BOOST_THREAD],
 		LDFLAGS="$LDFLAGS $BOOST_LDFLAGS"
 		export LDFLAGS
 
-        AC_CACHE_CHECK(whether the Boost::Thread library is available,
+		AC_CACHE_CHECK(whether the Boost::Thread library is available,
 					   ax_cv_boost_thread,
         [AC_LANG_PUSH([C++])
 			 CXXFLAGS_SAVE=$CXXFLAGS
@@ -75,10 +75,10 @@ AC_DEFUN([AX_BOOST_THREAD],
 			 else
 				CXXFLAGS="-pthread $CXXFLAGS"
 			 fi
-			 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[@%:@include <boost/thread/thread.hpp>]],
+			 AC_COMPILE_IFELSE(AC_LANG_PROGRAM([[@%:@include <boost/thread/thread.hpp>]],
                                    [[boost::thread_group thrds;
                                    return 0;]]),
-                   ax_cv_boost_thread=yes, ax_cv_boost_thread=no])
+                   ax_cv_boost_thread=yes, ax_cv_boost_thread=no)
 			 CXXFLAGS=$CXXFLAGS_SAVE
              AC_LANG_POP([C++])
 		])
