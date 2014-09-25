@@ -20,8 +20,8 @@
 #include <sstream>
 #include <vector>
 
-#include <bam/bam.h>
-#include <bam/sam.h>
+#include <bam.h>
+#include <sam.h>
 
 #include <seqan/sequence.h>
 

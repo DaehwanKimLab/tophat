@@ -1,7 +1,5 @@
 m4_include([ax_boost_base.m4])
 m4_include([ax_boost_thread.m4])
-m4_include([ax_bam.m4])
-#m4_include([ax_check_zlib.m4])
 
 define([svnversion], esyscmd([sh -c "svnversion|tr -d '\n'"]))dnl
 AC_INIT([tophat],[2.0.13],[tophat.cufflinks@gmail.com])
@@ -12,15 +10,13 @@ AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE
 
-#AM_PATH_CPPUNIT(1.10.2)
-
 AC_ARG_VAR(PYTHON, [python program])
 
 # Make sure CXXFLAGS is defined so that AC_PROG_CXX doesn't set it.
 CXXFLAGS="$CXXFLAGS"
 CFLAGS="$CFLAGS"
 
-AC_LANG([C++])
+AC_LANG([C])
 
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 
@@ -33,9 +29,16 @@ AC_PROG_RANLIB
 AC_PROG_INSTALL
 AM_PATH_PYTHON([2.4])
 AX_BOOST_BASE([1.38.0])
-AX_BAM
 AX_BOOST_THREAD
-# AX_CHECK_ZLIB()
+
+# BAM related:
+ ac_bam_path=samtools-0.1.18
+ BAM_LIB="-lbam"
+ BAM_LDFLAGS="-L./$ac_bam_path"
+ BAM_CPPFLAGS="-I./$ac_bam_path"
+ AC_SUBST(BAM_CPPFLAGS)
+ AC_SUBST(BAM_LDFLAGS)
+ AC_SUBST(BAM_LIB)
 
 
 # Checks for header files.

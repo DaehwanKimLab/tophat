@@ -14,7 +14,7 @@
 #include <cassert>
 #include <cstring>
 #include <seqan/sequence.h>
-#include <bam/sam.h>
+#include <sam.h>
 #include "common.h"
 
 #include "bwt_map.h"

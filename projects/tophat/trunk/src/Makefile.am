@@ -7,6 +7,90 @@
 EXTRA_DIST = \
 tophat.py \
 tophat2.in \
+samtools-0.1.18/AUTHORS \
+samtools-0.1.18/COPYING \
+samtools-0.1.18/ChangeLog \
+samtools-0.1.18/INSTALL \
+samtools-0.1.18/Makefile \
+samtools-0.1.18/Makefile.mingw \
+samtools-0.1.18/NEWS \
+samtools-0.1.18/bam.c \
+samtools-0.1.18/bam.h \
+samtools-0.1.18/bam2bcf.c \
+samtools-0.1.18/bam2bcf.h \
+samtools-0.1.18/bam2bcf_indel.c \
+samtools-0.1.18/bam2depth.c \
+samtools-0.1.18/bam_aux.c \
+samtools-0.1.18/bam_cat.c \
+samtools-0.1.18/bam_color.c \
+samtools-0.1.18/bam_endian.h \
+samtools-0.1.18/bam_import.c \
+samtools-0.1.18/bam_index.c \
+samtools-0.1.18/bam_lpileup.c \
+samtools-0.1.18/bam_mate.c \
+samtools-0.1.18/bam_md.c \
+samtools-0.1.18/bam_pileup.c \
+samtools-0.1.18/bam_plcmd.c \
+samtools-0.1.18/bam_reheader.c \
+samtools-0.1.18/bam_rmdup.c \
+samtools-0.1.18/bam_rmdupse.c \
+samtools-0.1.18/bam_sort.c \
+samtools-0.1.18/bam_stat.c \
+samtools-0.1.18/bam_tview.c \
+samtools-0.1.18/bamtk.c \
+samtools-0.1.18/bedidx.c \
+samtools-0.1.18/bgzf.c \
+samtools-0.1.18/bgzf.h \
+samtools-0.1.18/bgzip.c \
+samtools-0.1.18/cut_target.c \
+samtools-0.1.18/errmod.c \
+samtools-0.1.18/errmod.h \
+samtools-0.1.18/faidx.c \
+samtools-0.1.18/faidx.h \
+samtools-0.1.18/kaln.c \
+samtools-0.1.18/kaln.h \
+samtools-0.1.18/khash.h \
+samtools-0.1.18/klist.h \
+samtools-0.1.18/knetfile.c \
+samtools-0.1.18/knetfile.h \
+samtools-0.1.18/kprobaln.c \
+samtools-0.1.18/kprobaln.h \
+samtools-0.1.18/kseq.h \
+samtools-0.1.18/ksort.h \
+samtools-0.1.18/kstring.c \
+samtools-0.1.18/kstring.h \
+samtools-0.1.18/phase.c \
+samtools-0.1.18/razf.c \
+samtools-0.1.18/razf.h \
+samtools-0.1.18/razip.c \
+samtools-0.1.18/sam.c \
+samtools-0.1.18/sam.h \
+samtools-0.1.18/sam_header.c \
+samtools-0.1.18/sam_header.h \
+samtools-0.1.18/sam_view.c \
+samtools-0.1.18/sample.c \
+samtools-0.1.18/sample.h \
+samtools-0.1.18/samtools.1 \
+samtools-0.1.18/bcftools/Makefile \
+samtools-0.1.18/bcftools/README \
+samtools-0.1.18/bcftools/bcf.c \
+samtools-0.1.18/bcftools/bcf.h \
+samtools-0.1.18/bcftools/bcf.tex \
+samtools-0.1.18/bcftools/bcf2qcall.c \
+samtools-0.1.18/bcftools/bcfutils.c \
+samtools-0.1.18/bcftools/call1.c \
+samtools-0.1.18/bcftools/em.c \
+samtools-0.1.18/bcftools/fet.c \
+samtools-0.1.18/bcftools/index.c \
+samtools-0.1.18/bcftools/kfunc.c \
+samtools-0.1.18/bcftools/kmin.c \
+samtools-0.1.18/bcftools/kmin.h \
+samtools-0.1.18/bcftools/main.c \
+samtools-0.1.18/bcftools/mut.c \
+samtools-0.1.18/bcftools/prob1.c \
+samtools-0.1.18/bcftools/prob1.h \
+samtools-0.1.18/bcftools/vcf.c \
+samtools-0.1.18/bcftools/vcfutils.pl \
 SeqAn-1.3/COPYING \
 SeqAn-1.3/README \
 SeqAn-1.3/seqan/chaining/chain_generic.h \
@@ -516,8 +600,17 @@ SeqAn-1.3/seqan/find_motif/find_motif_pms1.h \
 SeqAn-1.3/seqan/find_motif/frequency_distribution.h \
 SeqAn-1.3/seqan.h
 
+SAMDIR = ./samtools-0.1.18
+SAMLIB = libbam.a
+SAMPROG = samtools_0.1.18
+BAM_LIB = -lbam
+BAM_CPPFLAGS = -I$(SAMDIR)
+BAM_LDFLAGS = -L$(SAMDIR)
+
 #-- progs to be installed in $prefix/bin
+
 bin_PROGRAMS = \
+	$(SAMPROG) \
 	prep_reads \
 	gtf_to_fasta \
 	fix_map_ordering \
@@ -531,6 +624,7 @@ bin_PROGRAMS = \
 	tophat_reports \
 	sam_juncs
 
+#	$(SAMPROG) 
 bin_SCRIPTS = \
 	tophat2 \
 	tophat
@@ -542,9 +636,16 @@ dist_bin_SCRIPTS = \
 	sra_to_solid \
 	tophat-fusion-post
 
+
+#samtools_0_1_18_SOURCES = 
+#samtools_0_1_18_LDADD = 
+
 CLEANFILES = \
 	tophat2 \
 	tophat
+
+clean-local:
+	cd $(SAMDIR) && make clean
 
 tophat2: tophat2.in
 	sed -e 's|__PREFIX__|$(prefix)|' tophat2.in > tophat2
@@ -552,13 +653,8 @@ tophat2: tophat2.in
 tophat: tophat.py
 	sed -e 's|__VERSION__|$(VERSION)|' tophat.py > tophat
 
-#SUFFIXES = .py
-#.py:
-#	(echo '#!$(PYTHON)'; sed '/^#!/d' $<) > $@
-
-
 #-- tophat library for linking convienence
-noinst_LIBRARIES = libtophat.a libgc.a
+noinst_LIBRARIES = $(SAMLIB) libgc.a libtophat.a
 
 noinst_HEADERS = \
 	reads.h \
@@ -611,7 +707,7 @@ libtophat_a_SOURCES = \
 	bam_merge_impl.cpp \
 	utils.cpp \
 	coverage.cpp
-    
+
 libgc_a_SOURCES = \
 	GBase.cpp \
 	codons.cpp \
@@ -669,3 +765,13 @@ map2gtf_LDFLAGS = $(LDFLAGS) $(BAM_LDFLAGS)
 gtf_to_fasta_SOURCES = GTFToFasta.cpp FastaTools.cpp
 gtf_to_fasta_LDADD = $(top_builddir)/src/libtophat.a libgc.a $(BAM_LIB)
 gtf_to_fasta_LDFLAGS = $(LDFLAGS) $(BAM_LDFLAGS)
+
+
+libbam_a_SOURCES = 
+samtools_0_1_18_SOURCES = 
+
+$(SAMPROG): $(SAMLIB)
+	
+
+$(SAMLIB):
+	cd $(SAMDIR) && make $(SAMPROG) && cp $(SAMLIB) $(SAMPROG) ..
