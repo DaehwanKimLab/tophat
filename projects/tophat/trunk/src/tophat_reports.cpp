@@ -2854,10 +2854,10 @@ for (; deletion_iter != deletions.end(); ++deletion_iter)
 			fprintf(stderr, "Warning: %lu small overhang junctions!\n", (long unsigned int)small_overhangs);
 	 */
 
-	JunctionSet vfinal_junctions[num_threads];
-	InsertionSet vfinal_insertions[num_threads];
-	DeletionSet vfinal_deletions[num_threads];
-	FusionSet vfinal_fusions[num_threads];
+	vector<JunctionSet> vfinal_junctions(num_threads);
+	vector<InsertionSet> vfinal_insertions(num_threads);
+	vector<DeletionSet> vfinal_deletions(num_threads);
+	vector<FusionSet> vfinal_fusions(num_threads);
 
 	vector<SAlignStats> alnStats(num_threads);
 

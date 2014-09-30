@@ -922,13 +922,7 @@ class SplicedBowtieHitFactory : public LineHitFactory {
 	SplicedBowtieHitFactory(ReadTable& insert_table, 
 							RefSequenceTable& reference_table,
 							int anchor_length) : 
-	LineHitFactory(insert_table, reference_table),
-	_anchor_length(anchor_length){}
-	
-  private:
-	int _anchor_length;
-	int _seg_offset;
-	int _size_buf;
+  LineHitFactory(insert_table, reference_table) {}
 };
 
 class SplicedSAMHitFactory : public LineHitFactory {
