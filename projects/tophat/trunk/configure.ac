@@ -1,13 +1,10 @@
-m4_include([ax_boost_base.m4])
-m4_include([ax_boost_thread.m4])
-
 define([svnversion], esyscmd([sh -c "svnversion|tr -d '\n'"]))dnl
 AC_INIT([tophat],[2.0.13],[tophat.cufflinks@gmail.com])
 AC_DEFINE(SVN_REVISION, "svnversion", [SVN Revision])
 
 AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_AUX_DIR([build-aux])
+# AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE
 
 AC_ARG_VAR(PYTHON, [python program])
@@ -15,8 +12,10 @@ AC_ARG_VAR(PYTHON, [python program])
 # Make sure CXXFLAGS is defined so that AC_PROG_CXX doesn't set it.
 CXXFLAGS="$CXXFLAGS"
 CFLAGS="$CFLAGS"
+AC_PROG_CXX
+AC_LANG([C++])
 
-AC_LANG([C])
+# AC_LANG([C])
 
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 
@@ -28,8 +27,18 @@ AC_PROG_MAKE_SET
 AC_PROG_RANLIB
 AC_PROG_INSTALL
 AM_PATH_PYTHON([2.4])
+
+m4_include([ax_boost_base.m4])
+m4_include([ax_boost_thread.m4])
+# CXXFLAGS="$CXXFLAGS $threadLib"
 AX_BOOST_BASE([1.38.0])
 AX_BOOST_THREAD
+if test -z "$BOOST_THREAD_LIBS"; then
+  AC_MSG_ERROR([boost.thread not found. Aborting.])
+fi
+
+
+
 
 # BAM related:
  ac_bam_path=samtools-0.1.18
@@ -115,7 +124,7 @@ echo \
 -- ${PACKAGE_STRING} Configuration Results --
   C++ compiler:        ${CXX} ${CXXFLAGS}
   Linker flags:        ${LDFLAGS}
-  BOOST libraries:     ${BOOST_THREAD_LIB} ${BOOST_SYSTEM_LIB}"
+  BOOST libraries:     ${BOOST_THREAD_LIBS}"
 
 if test x"${GCC}" = x"yes" ; then
    gcc_version=`${CC} --version | head -n 1`
