@@ -26,10 +26,6 @@
 #include <seqan/basic.h>
 #include <seqan/sequence.h>
 #include <seqan/file.h>
-#include <seqan/find.h>
-#include <seqan/modifier.h>
-#include <seqan/align.h>
-#include <seqan/graph_align.h>
 #include <getopt.h>
 
 #include <boost/thread.hpp>
@@ -47,7 +43,6 @@
 
 using namespace seqan;
 using namespace std;
-using namespace __gnu_cxx;
 
 // daehwan //geo
 //#define B_DEBUG 1
@@ -2593,100 +2588,6 @@ void detect_small_deletion(RefSequenceTable& rt,
   return;
 }
 
-void gappedAlignment(const seqan::String<char>& read,
-		     const seqan::String<char>& leftReference,
-		     const seqan::String<char>& rightReference,
-		     vector<int>& insertLeftPositions,
-		     vector<int>& insertRightPositions,
-		     int& mismatchCount)
-{
-  const Score<int> globalScore(0, -5, -1, -10);  // (match, mismatch, gapextend, gapopen)
-  Align<String<char> > align;
-  appendValue(rows(align), read);
-  
-  String<char> genomicSequence;
-  assign(genomicSequence, leftReference);
-  append(genomicSequence, rightReference);
-  appendValue(rows(align), genomicSequence);
-  // int score = globalAlignment(align, globalScore);
-
-  Row<Align<String<char> > >::Type& row0 = row(align, 0);
-  Row<Align<String<char> > >::Type& row1 = row(align, 1);
-
-  // find gap whose length >= read_len - 10
-  int start_in_align = -1, end_in_align = -1;
-  int start_in_ref = -1, end_in_ref = -1;
-  
-  int temp_start = -1;
-  int ref_pos = 0;
-  
-  int gap = 0;
-  mismatchCount = 0;
-  
-  int len = length(row0);
-  for (int i = 0; i < len; ++i)
-    {
-      if (row0[i] == '-')
-	{
-	  if (temp_start < 0)
-	    temp_start = i;
-	}
-      else if (row1[i] != '-')
-	{
-	  if (temp_start >= 0)
-	    {
-	      if (i - temp_start > end_in_align - start_in_align)
-		{
-		  end_in_align = i;
-		  start_in_align = temp_start;
-
-		  end_in_ref = ref_pos;
-		  start_in_ref = ref_pos - (i - temp_start);
-		  temp_start = -1;
-		}
-	    }
-	  
-	  if (row0[i] != row1[i])
-	    ++mismatchCount;	  
-	}
-
-      if (row0[i] == '-' || row1[i] == '-')
-	++gap;
-      if (row1[i] != '-')
-	++ref_pos;
-    }
-
-  // assume the lengths of read, leftReference, and rightReference are all equal.
-  const int max_gap = end_in_align - start_in_align;
-  if (max_gap < (int)length(read) - 10)
-    return;
-
-  if (start_in_ref < 0)
-    return;
-
-  insertLeftPositions.push_back(start_in_ref);
-  insertRightPositions.push_back(end_in_ref - length(leftReference));
-
-#if B_DEBUG
-  if (gap - max_gap >= 0)
-    {
-      cerr << "Score = " << score << endl;
-      cerr << row(align, 0) << endl
-	   << row(align, 1) << endl;
-      
-      cerr << "len: " << len
-	   << ", gap: " << gap
-	   << ", max_gap: " << max_gap
-	   << "(" << start_in_align << ", " << end_in_align
-	   << "), ref (" << start_in_ref << ", " << end_in_ref
-	   << "), mismatch: " << mismatchCount << endl;
-
-      if (gap - max_gap > 0)
-	cerr << "daehwan" << endl;
-    }
-#endif
-}
-  
 void detect_fusion(RefSequenceTable& rt,
 		   seqan::String<char>& read_sequence,
 		   BowtieHit& leftHit,
@@ -2744,28 +2645,16 @@ void detect_fusion(RefSequenceTable& rt,
   vector<int> bestRightInsertPositions;
   int minErrors = -1;
 
-  // todo - we need to do (efficient) Smith-Waterman Alignment using SIMD like the way Bowtie2 does!
-  // too slow and too many false positives
-  // daehwan - turn off this for now.
-  if (bowtie2 && false)
-    gappedAlignment(read_sequence,
-		    leftGenomicSequence,
-		    rightGenomicSequence,
-		    bestLeftInsertPositions,
-		    bestRightInsertPositions,
-		    minErrors);
-  else
-    simpleSplitAlignment(read_sequence,
-			 leftGenomicSequence,
-			 rightGenomicSequence,
-			 bestLeftInsertPositions,
-			 minErrors);
+  simpleSplitAlignment(read_sequence,
+		       leftGenomicSequence,
+		       rightGenomicSequence,
+		       bestLeftInsertPositions,
+		       minErrors);
 
   uint32_t total_edit_dist = leftHit.edit_dist() + rightHit.edit_dist();
   if (minErrors > (int)total_edit_dist)
     return;
 
-#if 1
   if (minErrors > 2)
     return;
   
@@ -2779,28 +2668,6 @@ void detect_fusion(RefSequenceTable& rt,
       if (length(rightGenomicSequence) - right < fusion_anchor_length)
 	return;
     }
-
-  // daehwan - this is very slow - the older version of "difference" is way faster
-#else
-  if (read_length <= 60)
-    {
-      /*
-       * check if the two contig from two different chromosome are different enough
-       */
-      const Score<int> globalScore(0, -1, -2, -2);
-      Align<String<char> > align;
-      appendValue(rows(align), read_sequence);
-      appendValue(rows(align), leftGenomicSequence);
-
-      int score = globalAlignment(align, globalScore);
-      assignSource(row(align, 0), read_sequence);
-      assignSource(row(align, 1), rightGenomicSequence);
-
-      score = max(score, globalAlignment(align, globalScore));
-      if (abs(score) < read_length / 6)
-	return;
-    }
-#endif
 
   for (size_t i = 0; i < bestLeftInsertPositions.size(); ++i)
     {
