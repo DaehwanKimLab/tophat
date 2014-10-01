@@ -64,10 +64,11 @@ void GError(const char* format,...){
     char msg[4096];
     va_list arguments;
     va_start(arguments,format);
-    vsprintf(msg,format,arguments);
+    _vsnprintf(msg, 4095, format, arguments);
+    vfprintf(stderr, format, arguments); // if a console is available
+    msg[4095]=0;
     va_end(arguments);
     OutputDebugString(msg);
-    fprintf(stderr,"%s",msg); // if a console is available
     MessageBox(NULL,msg,NULL,MB_OK|MB_ICONEXCLAMATION|MB_APPLMODAL);
   #else
     va_list arguments;
@@ -75,7 +76,7 @@ void GError(const char* format,...){
     vfprintf(stderr,format,arguments);
     va_end(arguments);
     #ifdef DEBUG
-     // modify here if you want a core dump
+     // modify here if you [don't] want a core dump
      abort();
     #endif
   #endif
@@ -84,15 +85,21 @@ void GError(const char* format,...){
   
 // Warning routine (just print message without exiting)
 void GMessage(const char* format,...){
-  char msg[4096];
-  va_list arguments;
-  va_start(arguments,format);
-  vsprintf(msg,format,arguments);
-  va_end(arguments);
   #ifdef __WIN32__
+    char msg[4096];
+    va_list arguments;
+    va_start(arguments,format);
+    vfprintf(stderr, format , arguments); // if a console is available
+    _vsnprintf(msg, 4095, format, arguments);
+    msg[4095]=0;
+    va_end(arguments);
     OutputDebugString(msg);
+  #else
+    va_list arguments;
+    va_start(arguments,format);
+    vfprintf(stderr,format,arguments);
+    va_end(arguments);
   #endif
-  fprintf(stderr,"%s",msg);fflush(stderr);
   }
 
 /*************** Memory management routines *****************/
@@ -286,7 +293,7 @@ char* Gsubstr(const char* str, char* from, char* to) {
     }
  if (to<from) return newEmptyStr();
  int newlen=to-from+1;
- char* subs;
+ char* subs=NULL;
  GMALLOC(subs, newlen);
  memcpy(subs, str, newlen-1);
  subs[newlen]='\0';
@@ -412,7 +419,7 @@ char* strchrs(const char* s, const char* chrs) {
 char* upCase(const char* str) {
  if (str==NULL) return NULL;
  int len=strlen(str);
- char* upstr;
+ char* upstr=NULL;
  GMALLOC(upstr, len+1);
  upstr[len]='\0';
  for (int i=0;i<len;i++) upstr[i]=toupper(str[i]);
@@ -422,7 +429,7 @@ char* upCase(const char* str) {
 char* loCase(const char* str) {
  if (str==NULL) return NULL;
  int len=strlen(str);
- char* lostr;
+ char* lostr=NULL;
  GMALLOC(lostr, len+1);
  lostr[len]='\0';
  for (int i=0;i<len;i++) lostr[i]=tolower(str[i]);
@@ -475,7 +482,7 @@ char* rstrfind(const char* str, const char* substr) {
 
 
 char* strifind(const char* str,  const char* substr) {
- // the case insensitive version of strstr -- finding a string within a strin
+ // case insensitive version of strstr -- finding a string within another
   int l,i;
   if (str==NULL || *str==0) return NULL;
   if (substr==NULL || *substr==0) return NULL;
@@ -753,25 +760,15 @@ void writeFasta(FILE *fw, const char* seqid, const char* descr,
   fflush(fw);
  }
 
-char* commaprint(uint64 n) {
-  int comma = '\0';
+char* commaprintnum(uint64 n) {
+  int comma = ',';
   char retbuf[48];
   char *p = &retbuf[sizeof(retbuf)-1];
   int i = 0;
-  if(comma == '\0') {
-    /* struct lconv *lcp = localeconv();
-    if(lcp != NULL) {
-      if(lcp->thousands_sep != NULL &&
-        *lcp->thousands_sep != '\0')
-        comma = *lcp->thousands_sep;
-      else  */
-                          comma = ',';
-     // }
-    }
   *p = '\0';
   do {
     if(i%3 == 0 && i != 0)
-      *--p = comma;
+        *--p = comma;
     *--p = '0' + n % 10;
     n /= 10;
     i++;
