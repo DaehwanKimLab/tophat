@@ -24,7 +24,7 @@ import re
 import glob
 import signal
 from datetime import datetime, date, time
-from shutil import copy, rmtree
+from shutil import copy, rmtree, move
 import logging
 
 use_message = '''
@@ -2796,7 +2796,7 @@ def compile_reports(params, sam_header_filename, ref_fasta, mappings, readfiles,
             for bam_part in bam_parts:
                 os.remove(bam_part)
         else: # only one file
-            os.rename(bam_parts[0], accepted_hits+".bam")
+            shutil.move(bam_parts[0], accepted_hits+".bam")
             if not params.report_params.convert_bam:
                #just convert to .sam
                bam2sam_cmd = [samtools_path, "view", "-h", accepted_hits+".bam"]
@@ -2827,7 +2827,7 @@ def compile_reports(params, sam_header_filename, ref_fasta, mappings, readfiles,
 
       if len(um_parts) > 0:
           if len(um_parts)==1:
-            os.rename(um_parts[0], um_merged)
+            shutil.move(um_parts[0], um_merged)
           else:
             merge_cmd=[prog_path("bam_merge"), "-Q",
               "--sam-header", sam_header_filename, um_merged]
