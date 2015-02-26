@@ -382,7 +382,9 @@ class TopHatParams:
             if self.zipper:
                 use_zpacker=True
                 if self.num_threads>1 and not self.zipper_opts:
-                    if self.zipper.endswith('pbzip2') or self.zipper.endswith('pigz'):
+                    if self.zipper.endswith('pxz'):
+                         self.zipper_opts.append('-T'+str(self.num_threads))
+                    elif self.zipper.endswith('pbzip2') or self.zipper.endswith('pigz'):
                          self.zipper_opts.append('-p'+str(self.num_threads))
             else:
                 use_zpacker=False
@@ -1757,6 +1759,8 @@ class ZReader:
           if guess:
              if s.endswith(".z") or s.endswith(".gz") or s.endswith(".gzip"):
                   pipecmd=['gzip']
+             elif s.endswith(".xz"):
+                  pipecmd=['xz']
              else:
                   if s.endswith(".bz2") or s.endswith(".bzip2") or s.endswith(".bzip"):
                        pipecmd=['bzip2']
@@ -1764,6 +1768,9 @@ class ZReader:
                  die("Error: cannot find %s to decompress input file %s " % (pipecmd, filename))
              if len(pipecmd)>0:
                 if pipecmd[0]=='gzip' and sys_params.zipper.endswith('pigz'):
+                   pipecmd[0]=sys_params.zipper
+                   pipecmd.extend(sys_params.zipper_opts)
+                elif pipecmd[0]=='xz' and sys_params.zipper.endswith('pxz'):
                    pipecmd[0]=sys_params.zipper
                    pipecmd.extend(sys_params.zipper_opts)
                 elif pipecmd[0]=='bzip2' and sys_params.zipper.endswith('pbzip2'):

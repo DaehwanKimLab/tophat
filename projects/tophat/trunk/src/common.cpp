@@ -881,6 +881,18 @@ string guess_packer(const string& fname, bool use_all_cpus) {
             }
          else picmd="bzip2";
       }
+      else if (fext=="xz") {
+      if (use_all_cpus && str_endsWith(zpacker,"pxz")) {
+            picmd=zpacker;
+            if (num_threads<2) picmd.append(" -T 1");
+                 else {
+                   picmd.append(" -T ");
+                   str_appendInt(picmd, num_threads);
+                   //picmd.append(" -cd");
+                   }
+            }
+         else picmd="xz";
+      }
   return picmd;
 }
 
