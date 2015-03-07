@@ -2720,8 +2720,13 @@ void driver(const string& bam_output_fname,
 		fnames.push_back(left_reads_fname);
 		fnames.push_back(left_map_fnames.back());
 		bool enough_data = calculate_offsets(fnames, read_ids, offsets);
-		if (!enough_data)
+		if (!enough_data) {
+//debugging:
+#if 0
+           fprintf(stderr, ">>>DEBUG: not enough data, switching to single thread mode\n");
+#endif
 			num_threads = 1;
+			}
 	}
 
 	vector<JunctionSet> vjunctions(num_threads);
@@ -2769,7 +2774,7 @@ void driver(const string& bam_output_fname,
 			threads.push_back(new boost::thread(worker));
 		else
 			worker();
-	}
+	} //for each thread
 
 	for (size_t i = 0; i < threads.size(); ++i)
 	{

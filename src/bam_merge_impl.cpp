@@ -45,8 +45,15 @@ BamMerge::BamMerge(const vector<string>& bam_fnames,
     }
 
     if (bam_fnames.size() == file_offsets.size() &&
-	file_offsets[i] > 0)
-      bgzf_seek(fp->x.bam, file_offsets[i], SEEK_SET);
+	     file_offsets[i] > 0) {
+      int64_t rseek=bgzf_seek(fp->x.bam, file_offsets[i], SEEK_SET);
+//debugging 
+#if 1
+      if (rseek!=0) warn_msg("Warning: bgzf_seek() failed for %s\n",
+          fname);
+      
+#endif
+      }
 
     bam1_t* b = bam_init1();
     if (samread(fp, b) > 0) {
@@ -54,13 +61,19 @@ BamMerge::BamMerge(const vector<string>& bam_fnames,
       CBamLine brec(_lines.size(), b, fp->header);
       _lines.push(brec);
     }
-    else { bam_destroy1(b); }
-  }
+    else {
+//debugging:
+#if 1
+     warn_msg("Warning: no input BAM records found in %s (possibly due to wrong offset)\n",fname);
+#endif
+    bam_destroy1(b); 
+    }
+  } //read records from each file
 
-  if (_lines.size() == 0) {
-    warn_msg("Warning: no input BAM records found.\n");
-    exit(1);
-  }
+  /*if (_lines.size() == 0) {
+    warn_msg("Warning: no input BAM records found in input files.\n");
+    //exit(1);
+  }*/
 }
 
 BamMerge::~BamMerge()
