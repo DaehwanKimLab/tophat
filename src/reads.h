@@ -13,37 +13,17 @@
 #include <sstream>
 #include <queue>
 #include <limits>
+#include <boost/shared_ptr.hpp>
 #include <seqan/sequence.h>
 #include "common.h"
+//#include "QReadData.h"
 
 
 using std::string;
 
 
 
-// Note: qualities are not currently used by TopHat
-struct Read
-{
-	Read() 
-	{
-		//seq.reserve(MAX_READ_LEN);
-		//qual.reserve(MAX_READ_LEN);
-	}
-	
-	string name;
-	string seq;
-	string alt_name;
-	string qual;
-	
-	bool lengths_equal() { return seq.length() == qual.length(); }
-	void clear() 
-	{ 
-		name.clear(); 
-		seq.clear(); 
-		qual.clear(); 
-		alt_name.clear();
-	}
-};
+
 
 void reverse_complement(string& seq);
 string str_convert_color_to_bp(const string& color);
@@ -134,23 +114,58 @@ public:
     }
 };
 
+
+
+// Note: qualities are not currently used by TopHat
+struct Read
+{
+	Read()
+	{
+		//seq.reserve(MAX_READ_LEN);
+		//qual.reserve(MAX_READ_LEN);
+	}
+
+	string name;
+	string seq;
+	string alt_name;
+	string qual;
+
+	bool lengths_equal() { return seq.length() == qual.length(); }
+	void clear()
+	{
+		name.clear();
+		seq.clear();
+		qual.clear();
+		alt_name.clear();
+	}
+};
+
+
 ReadFormat skip_lines(FLineReader& fr);
 bool next_fastx_read(FLineReader& fr, Read& read, ReadFormat rd_format=FASTQ,
                         FLineReader* frq=NULL);
 
 #define READSTREAM_BUF_SIZE 500000
 
-struct QReadData { //read data for the priority queue
+
+
+struct QReadDataValue;
+typedef boost::shared_ptr<QReadDataValue> QReadData;
+
+struct QReadDataValue { //read data for the priority queue
   uint64_t id;
   Read read;
   char trashCode; //ZT tag value
   int8_t matenum; //mate number (1,2) 0 if unpaired
   bool um_written;
-  QReadData():id(0),read(),trashCode(0), matenum(0), um_written(false) { }
-  QReadData(uint64_t rid, Read& rd, bam1_t* bd=NULL) {
+
+  static QReadData Null;
+
+  QReadDataValue():id(0),read(),trashCode(0), matenum(0), um_written(false) { }
+  QReadDataValue(uint64_t rid, const Read& rd, bam1_t* bd=NULL) {
   	  init(rid, rd, bd);
   }
-  void init(uint64_t rid, Read& rd, bam1_t* bd=NULL) {
+  void init(uint64_t rid, const Read& rd, bam1_t* bd=NULL) {
 	 id=rid;
 	 read=rd;
 	 trashCode=0;
@@ -177,6 +192,31 @@ struct QReadData { //read data for the priority queue
 };
 
 
+/*typedef struct  { //read data for the priority queue
+	size_t refCount;
+	uint64_t id;
+	Read read;
+	char trashCode; //ZT tag value
+	int8_t matenum; //mate number (1,2) 0 if unpaired
+	bool um_written;
+
+	QReadDataValue():id(0),read(),trashCode(0), matenum(0), um_written(false),refCount(1) {}
+	QReadDataValue(uint64_t rid, Read& rd, bam1_t* bd=NULL);
+	~QReadDataValue();
+
+	void clear();
+			// void init(uint64_t rid, Read& rd, bam1_t* bd=NULL);
+} QReadDataValue;*/
+
+
+
+
+
+/*void deleteQReadDataValue() {
+	// nothing to do for the moment. May be interesting later to log deletion.
+}*/
+
+
 //callback struct for ReadStream::getRead() - called for each read in the stream
 struct GetReadProc {
 	 GBamWriter* um_out; //skipped (unmapped) reads will be written here
@@ -192,36 +232,37 @@ struct GetReadProc {
 		um_out(bamw), unmapped_counter(um_counter), multimapped_counter(mm_counter),
 		u_unmapped_counter(u_um_counter), u_multimapped_counter(u_mm_counter)
 		{ }
+
 	virtual bool process(QReadData& rdata, bool& found) { //, bool is_unmapped) {
 	//should return True  - if it returns FALSE it will cause getRead() to abort
 	//(stops looking for target readId in the stream) and to return false (="not found")
 		return true;
 	}
-	void writeUnmapped(QReadData& rdata) {
-		if (rdata.um_written) return;
-		string rname(rdata.read.alt_name);
+	void writeUnmapped(const QReadData& rdata) {
+		if (rdata->um_written) return;
+		string rname(rdata->read.alt_name);
 		size_t slash_pos=rname.rfind('/');
 		if (slash_pos!=string::npos && rname.length()-slash_pos<4)
 			rname.resize(slash_pos);
-		GBamRecord bamrec(rname.c_str(), -1, 0, false, rdata.read.seq.c_str(),
-				NULL, rdata.read.qual.c_str());
-		if (rdata.matenum) {
+		GBamRecord bamrec(rname.c_str(), -1, 0, false, rdata->read.seq.c_str(),
+				NULL, rdata->read.qual.c_str());
+		if (rdata->matenum) {
 			bamrec.set_flag(BAM_FPAIRED);
-			if (rdata.matenum==1) bamrec.set_flag(BAM_FREAD1);
+			if (rdata->matenum==1) bamrec.set_flag(BAM_FREAD1);
 			else bamrec.set_flag(BAM_FREAD2);
 		}
-		//if (found && um_code && !rdata.trashCode) {
-		//rdata.trashCode=um_code;
+		//if (found && um_code && !rdata->trashCode) {
+		//rdata->trashCode=um_code;
 		//}
-		if (rdata.trashCode) {
+		if (rdata->trashCode) {
 			//multi-mapped reads did not really QC-fail
 			//should also not be written to unmapped.bam
-			bamrec.add_aux("ZT", 'A', 1, (uint8_t*)&rdata.trashCode);
-			//if (rdata.trashCode!='M')
+			bamrec.add_aux("ZT", 'A', 1, (uint8_t*)&rdata->trashCode);
+			//if (rdata->trashCode!='M')
 				//bamrec.set_flag(BAM_FQCFAIL); //to be excluded from further processing?
 		}
 		um_out->write(&bamrec);
-		rdata.um_written=true;
+		rdata->um_written=true;
 	}
 
 	virtual ~GetReadProc() { }
@@ -241,7 +282,7 @@ class ReadStream {
     {
       bool operator()(QReadData& lhs, QReadData& rhs)
       {
-        return (lhs.id > rhs.id);
+        return (lhs->id > rhs->id);
       }
     };
     FZPipe fstream;
@@ -384,6 +425,7 @@ class ReadStream {
 
     void rewind() {
       fstream.rewind();
+      r_eof=false;
       clear();
       if (flseqs) {
         flseqs->reset(fstream);
@@ -393,18 +435,23 @@ class ReadStream {
     	flquals->reset(*fquals);
         }
       }
+
     void seek(int64_t offset) {
       clear();
       fstream.seek(offset);
     }
+
     FILE* file() {
       return fstream.file;
     }
+
     void clear() {
       read_pq=std::priority_queue< QReadData,
           std::vector<QReadData>,
           ReadOrdering > ();
+      last_id=0;
     }
+
     void close() {
       clear();
       fstream.close();
