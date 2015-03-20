@@ -2196,17 +2196,17 @@ struct CReadProc: public GetReadProc {
 		GetReadProc(bamw, um_counter, mm_counter, u_um_counter, u_mm_counter) {}
 	virtual bool process(QReadData& rdata, bool& found) { //, bool is_unmapped) {
 		//if (is_unmapped || (rdata.trashCode!='M' && !found)) {
-		if (rdata.trashCode!='M' && !found) {
+		if (rdata->trashCode!='M' && !found) {
 			this->writeUnmapped(rdata);
 		}
 		//
 		if (unmapped_counter && !found) {
-			if (rdata.trashCode!='M') {
-				if (rdata.matenum) (*unmapped_counter)++;
+			if (rdata->trashCode!='M') {
+				if (rdata->matenum) (*unmapped_counter)++;
 				else if (u_unmapped_counter) (*u_unmapped_counter)++;
 			}
 			else if (multimapped_counter) {
-				if (rdata.matenum) (*multimapped_counter)++;
+				if (rdata->matenum) (*multimapped_counter)++;
 				else if (u_multimapped_counter) (*u_multimapped_counter)++;
 			}
 		}
@@ -2226,7 +2226,7 @@ struct ReportWorker {
 	    HitsForRead& curr_hit_group, ReadStream& reads_file,
 	    GBamWriter& bam_writer, FragmentType fragment_type,
 	    GetReadProc* readProc=NULL,
-	    QReadData* gotRead=NULL) {
+	    QReadData gotRead=QReadDataValue::Null) {
 		int64_t* unmapped_counter = & alnStats->num_unmapped_left;
 		int64_t* aligned_counter = & alnStats->num_aligned_left;
 		int64_t* aligned_counter_multi = & alnStats->num_aligned_left_multi;
@@ -2236,7 +2236,7 @@ struct ReportWorker {
 		if (gotRead==NULL) {
 			if (reads_file.getQRead(curr_obs_order, read,
 			                   begin_id, end_id, readProc))
-                  gotRead=&read;
+                  gotRead=read;
 		}
 		if (gotRead==NULL) {
 			//Should never happen!
@@ -2270,7 +2270,7 @@ struct ReportWorker {
 				}
 			}
 			*/
-			if (readProc) readProc->writeUnmapped(*gotRead);
+			if (readProc) readProc->writeUnmapped(gotRead);
 			(*unmapped_counter)++;
 			return;
 		}
@@ -2299,7 +2299,7 @@ struct ReportWorker {
 			if (!gotRead->um_written)
 				(*unmapped_counter)++;
 			if (readProc)
-				readProc->writeUnmapped(*gotRead);
+				readProc->writeUnmapped(gotRead);
 		}
 
 		if (best_hits.hits.size() > 0) {
@@ -2313,7 +2313,7 @@ struct ReportWorker {
 				}
 		}
 		else {
-			readProc->writeUnmapped(*gotRead);
+			readProc->writeUnmapped(gotRead);
 		}
 	}
 
@@ -2517,9 +2517,9 @@ struct ReportWorker {
 							pair_support(best_hits, *final_fusions, *fusions);
 
 							print_sam_for_pair(*rt, best_hits, grade, bam_writer,
-							    l_read.read.alt_name, r_read.read.alt_name, rng, begin_id, end_id);
-							l_read.um_written=true;
-							r_read.um_written=true;
+							    l_read->read.alt_name, r_read->read.alt_name, rng, begin_id, end_id);
+							l_read->um_written=true;
+							r_read->um_written=true;
 						} /*
 						else {
 							fprintf(stderr, "Error: couldn't get reads for pair #%ld (%d, %d)\n",
@@ -2563,7 +2563,7 @@ struct ReportWorker {
 						write_singleton_alignments(curr_left_obs_order, curr_left_hit_group,
 						    left_reads_file, bam_writer, //*left_um_out,
 									   PE_reads ? FRAG_LEFT : FRAG_UNPAIRED, &l_readProc,
-											   got_left_read ? &l_read : NULL);
+											   got_left_read ? l_read : QReadDataValue::Null);
 					}
 					else {
 						l_readProc.writeUnmapped(l_read);
@@ -2573,7 +2573,7 @@ struct ReportWorker {
 					if (curr_right_hit_group.hits.size() > 0) {   //only right read mapped
 						write_singleton_alignments(curr_right_obs_order,
 						    curr_right_hit_group, right_reads_file, bam_writer, //*right_um_out,
-									   FRAG_RIGHT, &r_readProc, got_right_read ? &r_read : NULL);
+									   FRAG_RIGHT, &r_readProc, got_right_read ? r_read : QReadDataValue::Null);
 					} else {
 						r_readProc.writeUnmapped(r_read);
 						alnStats->num_unmapped_right++;

@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cstring>
 #include <cstdlib>
+#include <boost/smart_ptr/make_shared.hpp>
 
 #include <seqan/find.h>
 #include <seqan/file.h>
@@ -27,6 +28,8 @@
 #include "tokenize.h"
 
 using namespace std;
+
+QReadData QReadDataValue::Null;
 
 char* FLineReader::nextLine() {
    if(!file) return NULL;
@@ -528,7 +531,7 @@ bool ReadStream::next_read(QReadData& rdata) {
     Read rf;
     if (get_direct(rf)) {
       uint64_t id = (uint64_t)atol(rf.name.c_str());
-      QReadData rdata(id, rf, last_b());
+      QReadData rdata=boost::make_shared<QReadDataValue>(id, rf, last_b());
       read_pq.push(rdata);
       }
     }
@@ -598,19 +601,19 @@ bool ReadStream::getRead(uint64_t r_id,
        }
     uint64_t id = (uint64_t)atol(read.name.c_str());
 		 */
-		if (rdata.id >= end_id)
+		if (rdata->id >= end_id)
 			return false;
 
-		if (rdata.id < begin_id)
+		if (rdata->id < begin_id)
 			continue; //silently skip until begin_id found
 		//does not trigger rProc->process() until begin_id
 
-		if (rdata.id == r_id)
+		if (rdata->id == r_id)
 		{
-			read=rdata.read; //it will be returned
+			read=rdata->read; //it will be returned
 			found=true;
 		}
-		else if (rdata.id > r_id)
+		else if (rdata->id > r_id)
 		{ //can't find it, went too far
 			//only happens when reads [mates] were removed for some reason
 			//read_pq.push(make_pair(id, read));
@@ -639,23 +642,24 @@ bool ReadStream::getQRead(uint64_t r_id,
 		err_die("Error: ReadStream::getRead() called with out-of-order id#!");
 	last_id=r_id;
 	bool found=false;
-	qread.clear();
+	//qread.clear();
+	qread.reset();
 	while (!found) {
 		QReadData rdata;
 		if (!next_read(rdata))
 			break;
-		if (rdata.id >= end_id)
+		if (rdata->id >= end_id)
 			return false;
 
-		if (rdata.id < begin_id)
+		if (rdata->id < begin_id)
 			continue; //silently skip until begin_id found
 		//does not trigger rProc->process() until begin_id
-		if (rdata.id == r_id)
+		if (rdata->id == r_id)
 		{
 			qread=rdata; //it will be returned
 			found=true;
 		}
-		else if (rdata.id > r_id)
+		else if (rdata->id > r_id)
 		{ //can't find it, went too far
 			//only happens when reads [mates] were removed for some reason
 			//read_pq.push(make_pair(id, read));
