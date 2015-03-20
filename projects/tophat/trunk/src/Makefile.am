@@ -720,51 +720,51 @@ libgc_a_SOURCES = \
 
 prep_reads_SOURCES = prep_reads.cpp
 prep_reads_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
-prep_reads_LDFLAGS = $(LDFLAGS) $(BAM_LDFLAGS) 
+prep_reads_LDFLAGS = $(BAM_LDFLAGS) $(LDFLAGS) 
 
 segment_juncs_SOURCES = segment_juncs.cpp
 segment_juncs_LDADD = $(top_builddir)/src/libtophat.a $(BOOST_THREAD_LIBS) $(BOOST_SYSTEM_LIB) $(BAM_LIB)
-segment_juncs_LDFLAGS = $(LDFLAGS) $(BOOST_LDFLAGS) $(BAM_LDFLAGS)
+segment_juncs_LDFLAGS = $(BAM_LDFLAGS) $(LDFLAGS) $(BOOST_LDFLAGS)
 
 long_spanning_reads_SOURCES = long_spanning_reads.cpp
 long_spanning_reads_LDADD = $(top_builddir)/src/libtophat.a $(BOOST_THREAD_LIBS) $(BOOST_SYSTEM_LIB) $(BAM_LIB)
-long_spanning_reads_LDFLAGS = $(LDFLAGS) $(BOOST_LDFLAGS) $(BAM_LDFLAGS)
+long_spanning_reads_LDFLAGS = $(BAM_LDFLAGS) $(LDFLAGS) $(BOOST_LDFLAGS)
 
 gtf_juncs_SOURCES = gtf_juncs.cpp
 gtf_juncs_LDADD = $(top_builddir)/src/libtophat.a libgc.a $(BAM_LIB)
-gtf_juncs_LDFLAGS = $(LDFLAGS) $(BAM_LDFLAGS)
+gtf_juncs_LDFLAGS = $(BAM_LDFLAGS) $(LDFLAGS)
 
 juncs_db_SOURCES = juncs_db.cpp
 juncs_db_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
-juncs_db_LDFLAGS = $(LDFLAGS) $(BAM_LDFLAGS)
+juncs_db_LDFLAGS = $(BAM_LDFLAGS) $(LDFLAGS)
 
 tophat_reports_SOURCES = tophat_reports.cpp
 tophat_reports_LDADD = $(top_builddir)/src/libtophat.a  $(BOOST_THREAD_LIBS) $(BOOST_SYSTEM_LIB) $(BAM_LIB)
-tophat_reports_LDFLAGS = $(LDFLAGS) $(BOOST_LDFLAGS) $(BAM_LDFLAGS)
+tophat_reports_LDFLAGS = $(BAM_LDFLAGS) $(LDFLAGS) $(BOOST_LDFLAGS)
 
 fix_map_ordering_SOURCES = fix_map_ordering.cpp
 fix_map_ordering_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
-fix_map_ordering_LDFLAGS = $(LDFLAGS) $(BAM_LDFLAGS)
+fix_map_ordering_LDFLAGS = $(BAM_LDFLAGS) $(LDFLAGS)
 
 bam2fastx_SOURCES = bam2fastx.cpp
 bam2fastx_LDADD = $(top_builddir)/src/libgc.a $(BAM_LIB)
-bam2fastx_LDFLAGS = $(LDFLAGS) $(BAM_LDFLAGS)
+bam2fastx_LDFLAGS = $(BAM_LDFLAGS) $(LDFLAGS)
 
 bam_merge_SOURCES = bam_merge.cpp
 bam_merge_LDADD = $(top_builddir)/src/libtophat.a $(top_builddir)/src/libgc.a $(BAM_LIB)
-bam_merge_LDFLAGS = $(LDFLAGS) $(BAM_LDFLAGS)
+bam_merge_LDFLAGS = $(BAM_LDFLAGS) $(LDFLAGS)
 
 sam_juncs_SOURCES = sam_juncs.cpp
 sam_juncs_LDADD = $(top_builddir)/src/libtophat.a $(BAM_LIB)
-sam_juncs_LDFLAGS = $(LDFLAGS) $(BAM_LDFLAGS)
+sam_juncs_LDFLAGS = $(BAM_LDFLAGS) $(LDFLAGS)
 
 map2gtf_SOURCES = map2gtf.cpp
 map2gtf_LDADD = $(top_builddir)/src/libtophat.a libgc.a $(BAM_LIB)
-map2gtf_LDFLAGS = $(LDFLAGS) $(BAM_LDFLAGS)
+map2gtf_LDFLAGS = $(BAM_LDFLAGS) $(LDFLAGS)
 
 gtf_to_fasta_SOURCES = GTFToFasta.cpp FastaTools.cpp
 gtf_to_fasta_LDADD = $(top_builddir)/src/libtophat.a libgc.a $(BAM_LIB)
-gtf_to_fasta_LDFLAGS = $(LDFLAGS) $(BAM_LDFLAGS)
+gtf_to_fasta_LDFLAGS = $(BAM_LDFLAGS) $(LDFLAGS)
 
 
 libbam_a_SOURCES = 
