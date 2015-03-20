@@ -38,8 +38,6 @@ if test -z "$BOOST_THREAD_LIBS"; then
 fi
 
 
-
-
 # BAM related:
  ac_bam_path=samtools-0.1.18
  BAM_LIB="-lbam"
@@ -107,8 +105,8 @@ AS_IF([test "x$enable_debug" = xyes],
 	  
 CFLAGS="${generic_CFLAGS} ${ext_CFLAGS} ${user_CFLAGS} ${debug_CFLAGS}"
 CXXFLAGS="$CFLAGS"
-CXXFLAGS="$CXXFLAGS $BOOST_CPPFLAGS $BAM_CPPFLAGS -I./SeqAn-1.3"
-LDFLAGS="$BOOST_LDFLAGS $BAM_LDFLAGS $user_LDFLAGS"
+CXXFLAGS="$CXXFLAGS $BAM_CPPFLAGS $BOOST_CPPFLAGS -I./SeqAn-1.3"
+LDFLAGS="$BAM_LDFLAGS $BOOST_LDFLAGS $user_LDFLAGS"
 
 AM_INIT_AUTOMAKE([-Wall foreign tar-pax foreign])
 
@@ -139,7 +137,7 @@ echo \
   Install eprefix:     ${exec_prefix}
 
   See config.h for further configuration information.
-  Email <${PACKAGE_BUGREPORT}> with questions and bug reports.
+  Email bug reports to <${PACKAGE_BUGREPORT}>.
 "
 
 if test x"${PYTHON}" = x":"  ||  ! test -x "${PYTHON}"; then
