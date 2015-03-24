@@ -27,12 +27,21 @@
 	<!--#include virtual="sidebar.inc.shtml"-->
 	</div> <!-- End of "rightside" -->
 	<div id="leftside">
-	  <h2>TopHat 2.0.14 release 3/23/2015</h2>
+	  <h2>TopHat 2.0.14 release 3/24/2015</h2>
 	   Version 2.0.14 is a maintenance release with the following changes:
 	   <ul>
 	     <li>
-	       Speed improvement in this version with contribution from Veronique Legrand and Michaël Pressigout at the Institut Pasteur for the center of bioinformatics.
-	       </li>
+	       speed improvements with contribution from V&#233;ronique Legrand and Micha&#235;l Pressigout from Institut Pasteur.
+	     </li>
+	     <li>
+	       added support for xz compressed read files (thanks to a patch submitted by Ashton Trey Belew)
+	     </li>
+	     <li>
+	       applied a couple of Python fixes to prevent potential issues with package handling and some file operations
+	     </li>
+	     <li>
+	       fixed a linking issue where the wrong libbam.a library could have been linked when building from source
+	     </li>
 	   </ul>
 	   <br/>
 	<h2>TopHat 2.0.13 release 10/2/2014</h2>
