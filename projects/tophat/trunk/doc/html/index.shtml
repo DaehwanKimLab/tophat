@@ -31,7 +31,7 @@
 	   Version 2.0.14 is a maintenance release with the following changes:
 	   <ul>
 	     <li>
-	       speed improvements with contribution from V&#233;ronique Legrand and Micha&#235;l Pressigout from Institut Pasteur.
+	       pipeline speed improvements thanks to contributions from V&#233;ronique Legrand and Micha&#235;l Pressigout of Institut Pasteur
 	     </li>
 	     <li>
 	       added support for xz compressed read files (thanks to a patch submitted by Ashton Trey Belew)
@@ -40,7 +40,7 @@
 	       applied a couple of Python fixes to prevent potential issues with package handling and some file operations
 	     </li>
 	     <li>
-	       fixed a linking issue where the wrong libbam.a library could have been linked when building from source
+	       fixed a potential linking issue where the wrong libbam.a library could have been linked when building from source
 	     </li>
 	   </ul>
 	   <br/>
