@@ -468,7 +468,10 @@ if (lh.insert_id() == 10790262)
 		}//for j in right mate hits
 	} //for i in left mate hits
 
-	std::sort(best_hits.begin(), best_hits.end(), cmp_pair_less());
+	{
+	  cmp_pair_alignment cmp(final_report ? junctions : gtf_junctions);
+	  sort(best_hits.begin(), best_hits.end(), cmp);
+	}
 
 				// daehwan - for debugging purposes
 			#if 0
