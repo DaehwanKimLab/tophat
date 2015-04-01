@@ -68,6 +68,7 @@ class TopHatFusionParams:
         self.num_fusion_reads = 3
         self.num_fusion_pairs = 2
         self.num_fusion_both = 0
+        self.max_num_fusions = 500
 
         self.fusion_read_mismatches = 2
         self.fusion_multireads = 2
@@ -101,6 +102,7 @@ class TopHatFusionParams:
                                          "num-fusion-reads=",
                                          "num-fusion-pairs=",
                                          "num-fusion-both=",
+                                         "max-num-fusions=",
                                          "fusion-read-mismatches=",
                                          "fusion-multireads=",
                                          "non-human",
@@ -129,6 +131,8 @@ class TopHatFusionParams:
                 self.num_fusion_pairs = int(value)
             if option == "--num-fusion-both":
                 self.num_fusion_both = int(value)
+            if option == "--max-num-fusions":
+                self.max_num_fusions = int(value)
             if option == "--fusion-read-mismatches":
                 self.fusion_read_mismatches = int(value)
             if option == "--fusion-multireads":
@@ -2177,8 +2181,7 @@ def generate_html(params):
 
         cluster_temp_list = sorted(cluster_temp_list2, cmp=cmp)
 
-        max_num_fusions = 500
-        for i in range(min(max_num_fusions, len(cluster_temp_list))):
+        for i in range(min(params.max_num_fusions, len(cluster_temp_list))):
             do_not_add = False
             indices = cluster_temp_list[i]["index"]
             if not do_not_add:
