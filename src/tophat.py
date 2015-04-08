@@ -23,7 +23,7 @@ import warnings
 import re
 import glob
 import signal
-from datetime import datetime, date, time
+from datetime import datetime
 from shutil import copy, rmtree, move
 import logging
 
