@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-generate_chromosome.pl
+generate_chromosome.py
 """
 
 import sys
@@ -12,7 +12,7 @@ use_message = '''
 Given a chromosome, the script introduces indels and snp.
 
 Usage:
-    generate_chromosome.pl input.fastq input.gtf
+    generate_chromosome.py input.fastq input.gtf
     , which gives input_var.fastq, input_var.gtf, and variant.list
 '''
 
