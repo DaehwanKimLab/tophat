@@ -606,11 +606,12 @@ SAMPROG = samtools_0.1.18
 BAM_LIB = -lbam
 BAM_CPPFLAGS = -I$(SAMDIR)
 BAM_LDFLAGS = -L$(SAMDIR)
+AM_CFLAGS = $(BAM_CPPFLAGS)
+
 
 #-- progs to be installed in $prefix/bin
-
+#	$(SAMPROG) \  <-- removed because samtools has a Makefile.am that works off the same autotools config as this, and is set to compile first
 bin_PROGRAMS = \
-	$(SAMPROG) \
 	prep_reads \
 	gtf_to_fasta \
 	fix_map_ordering \
@@ -643,9 +644,9 @@ dist_bin_SCRIPTS = \
 CLEANFILES = \
 	tophat2 \
 	tophat
-
-clean-local:
-	cd $(SAMDIR) && make clean
+## this should be unnecessary now, it should auto-generate cleaning data 
+#clean-local:
+#	cd $(SAMDIR) && make clean
 
 tophat2: tophat2.in
 	sed -e 's|__PREFIX__|$(prefix)|' tophat2.in > tophat2
@@ -654,7 +655,7 @@ tophat: tophat.py
 	sed -e 's|__VERSION__|$(VERSION)|' tophat.py > tophat
 
 #-- tophat library for linking convienence
-noinst_LIBRARIES = $(SAMLIB) libgc.a libtophat.a
+noinst_LIBRARIES = libgc.a libtophat.a #$(SAMLIB) <-- will be handled properly in subdir
 
 noinst_HEADERS = \
 	reads.h \
@@ -767,11 +768,13 @@ gtf_to_fasta_LDADD = $(top_builddir)/src/libtophat.a libgc.a $(BAM_LIB)
 gtf_to_fasta_LDFLAGS = $(BAM_LDFLAGS) $(LDFLAGS)
 
 
-libbam_a_SOURCES = 
-samtools_0_1_18_SOURCES = 
+#libbam_a_SOURCES = 
+#samtools_0_1_18_SOURCES = 
 
-$(SAMPROG): $(SAMLIB)
+#$(SAMPROG): $(SAMLIB)
 	
 
-$(SAMLIB):
-	cd $(SAMDIR) && make $(SAMPROG) && cp $(SAMLIB) $(SAMPROG) ..
+#$(SAMLIB):
+#	cd $(SAMDIR) && bash -c "make" #$(SAMPROG) && cp $(SAMLIB) $(SAMPROG) ..
+
+SUBDIRS = samtools-0.1.18 .

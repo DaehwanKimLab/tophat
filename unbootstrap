@@ -2,6 +2,8 @@
 # Reverses the actions of bootstrap
 #
 
+echo "unboostrapping tophat"
+
 echo "- removing m4 macros"
 rm -f aclocal.m4
 rm -rf autom4te.cache
@@ -14,6 +16,9 @@ rm -f `find . -name Makefile.in`
 
 echo "- removing conifgure script"
 rm -f configure
+
+echo "- removing other files added by autotools"
+rm -f ./ar-lib ./compile ./config.guess ./config.sub ./depcomp ./install-sh ./missing 
 
 echo "UNBOOTSTRAP COMPLETE"
 
