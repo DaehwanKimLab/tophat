@@ -15,6 +15,8 @@ import string, re
 import random
 from datetime import datetime, date, time
 import math
+from collections import defaultdict
+from intervaltree import Interval, IntervalTree
 
 use_message = '''
 TopHat-Fusion
@@ -44,6 +46,9 @@ Options:
     --skip-html
 
     --tex-table
+    
+    --gtf-file                     <string>
+    --fusion-pair-dist             <int>       [ default: 250                ]
 '''
 
 
@@ -81,6 +86,9 @@ class TopHatFusionParams:
         self.skip_html = False
 
         self.tex_table = False
+        
+        self.GTF_file = None
+        self.fusion_pair_dist = 250
             
     def check(self):
         if False:
@@ -105,7 +113,9 @@ class TopHatFusionParams:
                                          "skip-blast",
                                          "skip-read-dist",
                                          "skip-html",
-                                         "tex-table"])
+                                         "tex-table",
+                                         "gtf-file=",
+                                         "fusion-pair-dist="])
         except getopt.error, msg:
             raise Usage(msg)
 
@@ -148,6 +158,10 @@ class TopHatFusionParams:
                 self.skip_html = True
             if option == "--tex-table":
                 self.tex_table = True
+            if option == "--gtf-file":
+                self.GTF_file = value
+            if option == "--fusion-pair-dist":
+                self.fusion_pair_dist = int(value)
 
         if len(args) < 1:
             raise Usage(use_message)
@@ -334,7 +348,216 @@ def filter_fusion(bwt_idx_prefix, params):
     for chr in chrs:
         chr_order[chr] = len(chr_order)
 
-    def filter_fusion_impl(fusion, refGene_list, ensGene_list, seq_chr_dic, fusion_gene_list):
+    ### Compute number of paired reads ###
+    def load_junctions(gtf_file, juncs_file):
+        # junctions are Interval(start, stop, (strand, ...))
+        
+        # Load exons
+        # TODO - clean up what isn't needed anymore
+        _junctions = defaultdict(IntervalTree)
+        prev_stop = ('', 0)
+        if gtf_file is not None:
+            for line in open(gtf_file):
+                chrom, _, feature, start, stop, _, strand, _, info = line.split('\t')
+                if feature != 'exon':
+                    continue
+                m = re.search(r'gene_id\s"([^"]+).*transcript_id\s"([^"]+)', info)
+                gene_id, trans_id = m.group(1,2)
+    
+                # Add introns to tree
+                if trans_id == prev_stop[0]:
+                    # interval tree is non-incluse => +1 end
+                    _junctions[chrom].addi(prev_stop[1], int(start)+1, (strand, 'exon', gene_id, trans_id)) 
+                prev_stop = (trans_id, int(stop))
+    
+        # Load junctions
+        if juncs_file is not None:
+            for line in open(juncs_file):
+                if line[:5] == 'track':
+                    continue
+                chrom, start, stop, _, _, strand, _, _, _, _, overhangs, _ = line.split('\t')
+                a,b = overhangs.split(',')
+                _junctions[chrom].addi( int(start)+int(a), int(stop)-int(b)+2, (strand, 'tophat') )
+    
+        return _junctions
+    
+    # Helper classes
+    class Fusion(object):
+        def __init__(self, info, pairs):
+            # args should be info[:4] from the fusions.out entry
+            # Parse the chromosome string
+            self.chrL, self.chrR = info[0].rstrip().split('-')
+            
+            # Fusion positions
+            self.posL = int(info[1])
+            self.posR = int(info[2])
+            
+            # Strand
+            self.strandL = info[3][0]
+            self.strandR = info[3][1]
+            
+            # Pairs
+            pairs = pairs.rstrip()
+            if pairs:
+                self.pairs = [pair.split(':') for pair in pairs.split(' ')]
+                self.pairs = [(int(p1), int(p2)) for (p1, p2) in self.pairs]
+            else:
+                self.pairs = []
+                
+        def get_sign(self, which):
+            switch = which == 'R'
+            strand = self.strandL if which == 'L' else self.strandR
+            if strand == 'r':
+                return -1 if not switch else 1
+            else:
+                return 1 if not switch else -1
+    
+    class TransMaps(object):
+        def __init__(self, fusion, juncs):
+            self.fusion = fusion
+            self.chroms = (fusion.chrL, fusion.chrR)
+            self.maps = {}
+            self.starts = {}
+            self.juncs = juncs
+    
+        def add_map(self, chrom, start, stop, strand, fusion_pos):
+            self.maps[chrom, strand] = self.compute_transcript_map(chrom, start, stop, strand, fusion_pos)
+            self.starts[chrom, strand] = start
+    
+        def map(self, chrom, pos, strand):
+            pos2 = pos - self.starts[chrom,strand]
+            the_map = self.maps[chrom,strand]
+            if pos2 < 0 or pos2 >= len(the_map):
+                # out of bounds - return distance to boundary
+                if pos2 < 0:
+                    return the_map[0] - pos2
+                else:
+                    return the_map[-1] + (pos2 - len(the_map) + 1)
+            else:
+                # position in the map
+                return the_map[pos2]
+            
+        def compute_transcript_map(self, chrom, start, stop, strand, fusion_pos):
+            #return list(range(0, stop-start+1))
+            
+            chrom = self.chroms[chrom]
+            w = stop - start + 1
+            
+            # Initialize distance vector
+            distance = [abs(ii-fusion_pos) for ii in range(start, stop+1)]
+            
+            # Find junctions within the interval
+            # strict=True means that only intervals entirely contained are returned
+            # The junction dict contains both {end: start} and {start: end}
+            junctions = defaultdict(set)
+            for junc in self.juncs[chrom].search(start, stop, strict=True):
+                if junc[2][0] == strand:
+                    junctions[junc[1]-start].add(junc[0]-start)
+                    junctions[junc[0]-start].add(junc[1]-start)
+    
+            # Working out from fusion position, follow junctions
+            # Can be optimized for speed - avoid sort
+            fusii = fusion_pos - start
+            for _, ii in sorted(zip(distance, range(len(distance)))):
+                if ii == fusii: continue
+                ii_ = ii + (1 if fusii-ii >= 0 else -1)
+                if ii in junctions:
+                    # If ends of junction are further away, ignore them.
+                    # If ends of junction are closer to fusion, shorten distance
+                    distance[ii] = min( [distance[ii_]] + [distance[jj] for jj in junctions[ii] 
+                                                          if abs(jj-fusii) < abs(ii-fusii)] ) + 1
+                else:
+                    distance[ii] = distance[ii_] + 1
+                    
+            # Re-sign the distances
+            # Users downstream will need to work out fusion arm orientation
+            distance[:fusii] *= -1
+            return distance
+        
+    # Helper functions
+    def get_transcript_maps(fusion, junctions):
+        # Find left side range
+        p1s = [p1 for p1, _ in fusion.pairs]
+        dL = max([0, max(p1s)])
+        dL2 = min([0, min(p1s)])
+        
+        s = fusion.get_sign('L')
+        startL = fusion.posL - s*dL
+        endL = fusion.posL - s*dL2
+        if startL > endL:
+            startL, endL = endL, startL
+            
+        # Find right side range
+        p2s = [p2 for _, p2 in fusion.pairs]
+        dR = max([0, max(p2s)])
+        dR2 = min([0, min(p2s)])
+        
+        s = fusion.get_sign('R')
+        startR = fusion.posR - s*dR
+        endR = fusion.posR - s*dR2
+        if startR > endR:
+            startR, endR = endR, startR
+        
+        # Make maps
+        tmaps = TransMaps(fusion, junctions)
+        tmaps.add_map(0, startL, endL, '-', fusion.posL)
+        tmaps.add_map(0, startL, endL, '+', fusion.posL)
+        tmaps.add_map(1, startR, endR, '-', fusion.posR)
+        tmaps.add_map(1, startR, endR, '+', fusion.posR)
+    
+        for m in tmaps.maps.values():
+            if len(m)==0:
+                raise Exception()
+                
+        return tmaps    
+    
+    def pick_short(a, b):
+        return a if abs(a) < abs(b) else b
+    
+    def convert_pair_distances(fusion, junctions):
+        # Define transcript maps
+        # These map genomic coordinates to transcript coordinates.
+        tmaps = get_transcript_maps(fusion, junctions)
+        
+        # Compute inner distances
+        # Because we don't know which strand, we'll take the min of the
+        # transcript distances on each strand.
+        pairs = []
+        for p1, p2 in fusion.pairs:
+            s1 = fusion.get_sign('L')
+            p1 = p1 * s1
+            d1 = s1* pick_short( tmaps.map(0, fusion.posL, '-') - tmaps.map(0, fusion.posL - p1, '-'), 
+                                 tmaps.map(0, fusion.posL, '+') - tmaps.map(0, fusion.posL - p1, '+') )
+            
+            s2 = fusion.get_sign('R')
+            p2 = p2 * s2
+            d2 = s2* pick_short( tmaps.map(1, fusion.posR, '-') - tmaps.map(1, fusion.posR - p2, '-'), 
+                                 tmaps.map(1, fusion.posR, '+') - tmaps.map(1, fusion.posR - p2, '+') )
+            
+            pairs.append((d1,d2)) 
+    
+        return pairs
+    
+    def get_valid_pairs(info, pairs, junctions):
+        # This method converts the distances from spanning pairs to the fusion
+        #  from genomic to transcript coordinates - i.e. how far are the pairs
+        #  in the processed transcript.
+        # Parse fusion
+        fusion = Fusion(info, pairs)
+        
+        if len(fusion.pairs) == 0:
+            return []
+        
+        # Convert pairs to transcript coordinates
+        tpairs = convert_pair_distances(fusion, junctions)
+        
+        # Return pairs with inner distance less than the threshold
+        
+        pairs = [(a,b) for (a,b) in tpairs if abs(a)+abs(b) <= params.fusion_pair_dist]
+        return pairs
+    
+    ## Filter fusion implementation ##
+    def filter_fusion_impl(fusion, junctions, refGene_list, ensGene_list, seq_chr_dic, fusion_gene_list):
         def gene_exists(gene_list, chr, coord, dir, is_left):
             min = 0
             max = len(gene_list) - 1
@@ -441,6 +664,7 @@ def filter_fusion(bwt_idx_prefix, params):
         fusion_file = open(fusion, 'r')
         fusion_file.readline()
         for line in fusion_file:
+            # Parse the fusion entry
             info, sim, left_seq_org, right_seq_org, left_dist, right_dist, pair_list = line[:-1].split('\t@\t')[:7]
             info = info.split('\t')
             if sim.strip() == "":
@@ -450,10 +674,20 @@ def filter_fusion(bwt_idx_prefix, params):
             right_seq = right_seq_org.replace(' ', '')
 
             num_reads = int(info[4])
-            num_pair_ends = int(info[5])
+            
+            # Correct the number of spanning pairs by filtering on the inner distance
+            #  based on transcript coordinates instead of genomic coordinates
+            pairs = get_valid_pairs(info[:4], pair_list, junctions)
+            num_pair_ends = len(pairs)
+            
+            # Format pairs for usage downstream
+            pairs = ['{0}:{1}'.format(a,b) for (a,b) in pairs]
+            
+            #num_pair_ends = int(info[5])
+            
             num_pair_ends_fusion = int(info[6])
             num_pair_ends_both = int(num_pair_ends + num_pair_ends_fusion * 0.5)
-            num_unsupport_reads = int(info[7])
+            num_contracting_reads = int(info[7])
             left_ext = int(info[8])
             right_ext = int(info[9])
             sym = float(info[10])
@@ -468,6 +702,7 @@ def filter_fusion(bwt_idx_prefix, params):
             else:
                 single = False
 
+            # Begin fusion filters
             if left_ext < 16 or right_ext < 16:
                 continue
 
@@ -482,30 +717,18 @@ def filter_fusion(bwt_idx_prefix, params):
                     both < params.num_fusion_both:
                 continue
 
-            """
-            if (chr1 != chr2 and num_unsupport_reads > num_reads) or \
-                    (chr1 == chr2 and num_unsupport_reads > all + num_pair_ends + 5):
+            if (chr1 != chr2 and num_contracting_reads > num_reads) or \
+                    (chr1 == chr2 and num_contracting_reads > all + num_pair_ends + 5):
                 continue
-            """
-
-            pairs = []
-            if num_pair_ends >= 1:
-                pairs = pair_list.strip().split()
-
-                left, right = pairs[0].split(':')
-                if abs(int(left)) + abs(int(right)) > 2000:
-                    continue
-
-                pairs = pairs[:200]
 
             # are the sequences around the breakpoint different enough?
             if int(sim[0]) < 8:
                 continue
 
-            # is the reads distributed symmetrically?
+            # are the reads distributed symmetrically?
             if sym >= 22 + max(0, 6 - num_reads):
                 continue
-
+            
             max_intron_len = 100000
             if chr1 == chr2 and dir == "ff":
                 coord_dif = coord2 - coord1
@@ -625,7 +848,7 @@ def filter_fusion(bwt_idx_prefix, params):
             fusion_gene.append(" ".join(pairs))
 
             fusion_gene_list.append(fusion_gene)
-
+            
         fusion_file.close()
 
     print >> sys.stderr, "[%s] Filtering fusions" % right_now()
@@ -707,17 +930,30 @@ def filter_fusion(bwt_idx_prefix, params):
         if not os.path.exists(fusion_file):
             continue
 
+        juncs_file = file + '/junctions.bed'
+        if not os.path.exists(juncs_file):
+            juncs_file = None
+            print >> sys.stderr, 'Warning: could not find juctions.bed (%s).' % (juncs_file)
+            
+        if params.GTF_file is not None and not os.path.exists(params.GTF_file):
+            die('GTF file does not exist: %s' % (params.GTF_file))
+            
+        if juncs_file is None and params.GTF_file is None:
+            print >> sys.stderr, 'Warning: neither a junctions.bed was found nor a GTF file was specified.'
+
+        junctions = load_junctions(params.GTF_file, juncs_file)
+        
         print >> sys.stderr, "\tProcessing:", fusion_file
-        filter_fusion_impl(fusion_file, refGene_list, ensGene_list, seq_chr_dic, fusion_gene_list)
+        filter_fusion_impl(fusion_file, junctions, refGene_list, ensGene_list, seq_chr_dic, fusion_gene_list)
 
     fusion_out_file = output_dir + "potential_fusion.txt"
-    print >> sys.stderr, '\t%d fusions are output in %s' % (len(fusion_gene_list), fusion_out_file)
     output_file = open(fusion_out_file, 'w')
     for fusion_gene in fusion_gene_list:
         for line in fusion_gene:
             print >> output_file, line
-    
     output_file.close()
+    print >> sys.stderr, '\t%d fusions are output in %s' % (len(fusion_gene_list), fusion_out_file)
+    
 
 
 def parallel_work(pids, work):
@@ -2588,7 +2824,7 @@ def prog_path(program):
 
 
 def get_version():
-   return "2.0.14"
+   return "2.0.15"
 
 
 def main(argv=None):
