@@ -683,8 +683,6 @@ def filter_fusion(bwt_idx_prefix, params):
             # Format pairs for usage downstream
             pairs = ['{0}:{1}'.format(a,b) for (a,b) in pairs]
             
-            #num_pair_ends = int(info[5])
-            
             num_pair_ends_fusion = int(info[6])
             num_pair_ends_both = int(num_pair_ends + num_pair_ends_fusion * 0.5)
             num_contracting_reads = int(info[7])
@@ -717,9 +715,11 @@ def filter_fusion(bwt_idx_prefix, params):
                     both < params.num_fusion_both:
                 continue
 
+            """
             if (chr1 != chr2 and num_contracting_reads > num_reads) or \
                     (chr1 == chr2 and num_contracting_reads > all + num_pair_ends + 5):
                 continue
+            """
 
             # are the sequences around the breakpoint different enough?
             if int(sim[0]) < 8:
@@ -839,6 +839,7 @@ def filter_fusion(bwt_idx_prefix, params):
                     None
 
             fusion_gene = []
+            info[5] = str(num_pair_ends)
             fusion_gene.append(sample_name + ' ' + ' '.join(info[:10]))
             fusion_gene.append(left_seq_org)
             fusion_gene.append(right_seq_org)

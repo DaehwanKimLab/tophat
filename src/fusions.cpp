@@ -555,7 +555,7 @@ void pair_support(const vector<pair<BowtieHit, BowtieHit> >& best_hits, FusionSe
       
       // int inner_dist = max_report_intron_length * 2;
 
-      const int range = min((int)fusion_min_dist, 10000);
+      const int range = min((int)fusion_min_dist, (1<<16));
       int inner_dist = range;
       int outer_dist = range * 2;
       int max_dist = range * 2;
