@@ -3235,28 +3235,49 @@ def filter_fusion(bwt_idx_prefix, params):
         chr_order[chr] = len(chr_order)
 
     ### Compute number of paired reads ###
-    def load_junctions(gtf_file, juncs_file):
-        # junctions are Interval(start, stop, (strand, ...))
+    class RefGeneEntry(object):
+        fields = [('bin', int),
+                  ('name', str), 
+                  ('chrom', str), 
+                  ('strand', str),
+                  ('txStart', int), 
+                  ('txEnd', int), 
+                  ('cdsStart', int),
+                  ('cdsEnd', int), 
+                  ('exonCount', int),
+                  ('exonStarts', lambda x: [int(y) for y in list(x.split(',')[:-1])]), 
+                  ('exonEnds', lambda x: [int(y) for y in list(x.split(',')[:-1])]), 
+                  ('score', int), 
+                  ('name2', str), 
+                  ('cdsStartStat', str), 
+                  ('cdsEndStat', str),
+                  ('exonFrames', lambda x: [int(y) for y in list(x.split(',')[:-1])])]
         
-        # Load exons
-        # TODO - clean up what isn't needed anymore
+        '''Representation of one line in the refGene.txt file.'''
+        def __init__(self, entry_string):
+            tokens = entry_string.split('\t') # Assumes tab delimited.
+            for (field, type_), token in zip(self.fields, tokens):
+                setattr(self, field, type_(token))
+            
+        def __str__(self):
+            return str(self.__dict__)
+        
+        def __repr__(self):
+            return str(self)
+        
+    def load_junctions(refgene_file, juncs_file):
+        # junctions are Interval(start, stop, (strand, ...))
+    
         _junctions = defaultdict(IntervalTree)
-        prev_stop = ('', 0)
-        if gtf_file is not None:
-            for line in open(gtf_file):
-                chrom, _, feature, start, stop, _, strand, _, info = line.split('\t')
-                if feature != 'exon':
-                    continue
-                m = re.search(r'gene_id\s"([^"]+).*transcript_id\s"([^"]+)', info)
-                gene_id, trans_id = m.group(1,2)
-    
-                # Add introns to tree
-                if trans_id == prev_stop[0]:
-                    # interval tree is non-incluse => +1 end
-                    _junctions[chrom].addi(prev_stop[1], int(start)+1, (strand, 'exon', gene_id, trans_id)) 
-                prev_stop = (trans_id, int(stop))
-    
-        # Load junctions
+        # Load exons from refGene.txt
+        if refgene_file is not None:
+            for line in open(refgene_file):
+                entry = RefGeneEntry(line)
+                # Iterate over introns
+                for start, stop in zip(entry.exonEnds[:-1], entry.exonStarts[1:]):
+                    _junctions[entry.chrom].addi(start, stop+1, (entry.strand, 'intron', entry.name))
+        
+        # Load junctions from junctions.bed
         if juncs_file is not None:
             for line in open(juncs_file):
                 if line[:5] == 'track':
@@ -3266,7 +3287,7 @@ def filter_fusion(bwt_idx_prefix, params):
                 _junctions[chrom].addi( int(start)+int(a), int(stop)-int(b)+2, (strand, 'tophat') )
     
         return _junctions
-    
+
     # Helper classes
     class Fusion(object):
         def __init__(self, info, pairs):
