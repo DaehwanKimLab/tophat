@@ -2933,7 +2933,6 @@ Options:
 
     --tex-table
     
-    --gtf-file                     <string>
     --fusion-pair-dist             <int>       [ default: 250                ]
 '''
 
@@ -2973,7 +2972,6 @@ class TopHatFusionParams:
 
         self.tex_table = False
         
-        self.GTF_file = None
         self.fusion_pair_dist = 250
             
     def check(self):
@@ -3235,6 +3233,7 @@ def filter_fusion(bwt_idx_prefix, params):
         chr_order[chr] = len(chr_order)
 
     ### Compute number of paired reads ###
+    # Helper classes
     class RefGeneEntry(object):
         fields = [('bin', int),
                   ('name', str), 
@@ -3265,30 +3264,6 @@ def filter_fusion(bwt_idx_prefix, params):
         def __repr__(self):
             return str(self)
         
-    def load_junctions(refgene_file, juncs_file):
-        # junctions are Interval(start, stop, (strand, ...))
-    
-        _junctions = defaultdict(IntervalTree)
-        # Load exons from refGene.txt
-        if refgene_file is not None:
-            for line in open(refgene_file):
-                entry = RefGeneEntry(line)
-                # Iterate over introns
-                for start, stop in zip(entry.exonEnds[:-1], entry.exonStarts[1:]):
-                    _junctions[entry.chrom].addi(start, stop+1, (entry.strand, 'intron', entry.name))
-        
-        # Load junctions from junctions.bed
-        if juncs_file is not None:
-            for line in open(juncs_file):
-                if line[:5] == 'track':
-                    continue
-                chrom, start, stop, _, _, strand, _, _, _, _, overhangs, _ = line.split('\t')
-                a,b = overhangs.split(',')
-                _junctions[chrom].addi( int(start)+int(a), int(stop)-int(b)+2, (strand, 'tophat') )
-    
-        return _junctions
-
-    # Helper classes
     class Fusion(object):
         def __init__(self, info, pairs):
             # args should be info[:4] from the fusions.out entry
@@ -3382,6 +3357,29 @@ def filter_fusion(bwt_idx_prefix, params):
             return distance
         
     # Helper functions
+    def load_junctions(refgene_file, juncs_file):
+        # junctions are Interval(start, stop, (strand, ...))
+    
+        _junctions = defaultdict(IntervalTree)
+        # Load exons from refGene.txt
+        if refgene_file is not None:
+            for line in open(refgene_file):
+                entry = RefGeneEntry(line)
+                # Iterate over introns
+                for start, stop in zip(entry.exonEnds[:-1], entry.exonStarts[1:]):
+                    _junctions[entry.chrom].addi(start, stop+1, (entry.strand, 'intron', entry.name))
+        
+        # Load junctions from junctions.bed
+        if juncs_file is not None:
+            for line in open(juncs_file):
+                if line[:5] == 'track':
+                    continue
+                chrom, start, stop, _, _, strand, _, _, _, _, overhangs, _ = line.split('\t')
+                a,b = overhangs.split(',')
+                _junctions[chrom].addi( int(start)+int(a), int(stop)-int(b)+2, (strand, 'tophat') )
+    
+        return _junctions
+
     def get_transcript_maps(fusion, junctions):
         # Find left side range
         p1s = [p1 for p1, _ in fusion.pairs]
@@ -3843,13 +3841,18 @@ def filter_fusion(bwt_idx_prefix, params):
             juncs_file = None
             print >> sys.stderr, 'Warning: could not find juctions.bed (%s).' % (juncs_file)
             
-        if params.GTF_file is not None and not os.path.exists(params.GTF_file):
-            die('GTF file does not exist: %s' % (params.GTF_file))
+        genes_file = None
+        if os.path.exists("refGene.txt"):
+            genes_file = "refGene.txt"
+        else if os.path.exists("ensGene.txt"):
+            genes_file = "ensGene.txt"
+        else:
+            print >> sys.stderr, "Warning: could not find refGene.txt or ensGene.txt"
             
-        if juncs_file is None and params.GTF_file is None:
-            print >> sys.stderr, 'Warning: neither a junctions.bed was found nor a GTF file was specified.'
+        if juncs_file is None and genes_file is None:
+            print >> sys.stderr, 'Warning: neither junctions.bed nor ref/ensGene.txt found.'
 
-        junctions = load_junctions(params.GTF_file, juncs_file)
+        junctions = load_junctions(genes_file, juncs_file)
         
         print >> sys.stderr, "\tProcessing:", fusion_file
         filter_fusion_impl(fusion_file, junctions, refGene_list, ensGene_list, seq_chr_dic, fusion_gene_list)
