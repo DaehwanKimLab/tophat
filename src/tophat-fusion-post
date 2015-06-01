@@ -3844,7 +3844,7 @@ def filter_fusion(bwt_idx_prefix, params):
         genes_file = None
         if os.path.exists("refGene.txt"):
             genes_file = "refGene.txt"
-        else if os.path.exists("ensGene.txt"):
+        elif os.path.exists("ensGene.txt"):
             genes_file = "ensGene.txt"
         else:
             print >> sys.stderr, "Warning: could not find refGene.txt or ensGene.txt"
