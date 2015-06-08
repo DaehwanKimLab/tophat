@@ -3325,9 +3325,6 @@ def filter_fusion(bwt_idx_prefix, params):
             chrom = self.chroms[chrom]
             w = stop - start + 1
             
-            # Initialize distance vector
-            distance = [abs(ii-fusion_pos) for ii in range(start, stop+1)]
-            
             # Find junctions within the interval
             # strict=True means that only intervals entirely contained are returned
             # The junction dict contains both {end: start} and {start: end}
@@ -3337,11 +3334,27 @@ def filter_fusion(bwt_idx_prefix, params):
                     junctions[junc[1]-start].add(junc[0]-start)
                     junctions[junc[0]-start].add(junc[1]-start)
     
+            # Initialize distance vector
+            distance = [abs(ii-fusion_pos) for ii in range(start, stop+1)]
+            
             # Working out from fusion position, follow junctions
-            # Can be optimized for speed - avoid sort
+            # First, get positions in the right order
             fusii = fusion_pos - start
-            for _, ii in sorted(zip(distance, range(len(distance)))):
-                if ii == fusii: continue
+            N = len(distance)
+            positions = [fusii]
+            up = 1
+            down = 1
+            while len(positions) < len(distance):
+                if fusii - down >= 0:
+                    positions.append(fusii-down)
+                    down += 1
+                if fusii + up < N:
+                    positions.append(fusii+up)
+                    up += 1
+                    
+            # Second, compute the transcript distance at each position
+            # Skip the first position, which is the fusion break (distance=0)
+            for ii in positions[1:]:
                 ii_ = ii + (1 if fusii-ii >= 0 else -1)
                 if ii in junctions:
                     # If ends of junction are further away, ignore them.
