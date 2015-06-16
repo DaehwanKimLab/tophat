@@ -348,7 +348,7 @@ def filter_fusion(bwt_idx_prefix, params):
 
     ### Compute number of paired reads ###
     # Helper classes
-    class RefGeneEntry(object):
+    class GeneEntry(object):
         fields = [('bin', int),
                   ('name', str), 
                   ('chrom', str), 
@@ -484,17 +484,23 @@ def filter_fusion(bwt_idx_prefix, params):
             return distance
         
     # Helper functions
-    def load_junctions(refgene_file, juncs_file):
-        # junctions are Interval(start, stop, (strand, ...))
-    
-        _junctions = defaultdict(IntervalTree)
-        # Load exons from refGene.txt
-        if refgene_file is not None:
-            for line in open(refgene_file):
-                entry = RefGeneEntry(line)
+    def load_junctions(refgene_file, ensgene_file, juncs_file):
+        def _load(gene_file, _junctions):
+            for line in open(gene_file):
+                entry = GeneEntry(line)
                 # Iterate over introns
                 for start, stop in zip(entry.exonEnds[:-1], entry.exonStarts[1:]):
-                    _junctions[entry.chrom].addi(start, stop+1, (entry.strand, 'intron', entry.name))
+                    _junctions[entry.chrom].addi(start, stop+1, (entry.strand, 'intron'))
+                    
+        # junctions are Interval(start, stop, (strand, ...))
+        _junctions = defaultdict(IntervalTree)
+    
+        # Load exons from refGene.txt and ensGene.txt
+        if refgene_file is not None:
+            _load(refgene_file, _junctions)
+        
+        if ensgene_file is not None:
+            _load(ensgene_file, _junctions)
         
         # Load junctions from junctions.bed
         if juncs_file is not None:
@@ -503,7 +509,7 @@ def filter_fusion(bwt_idx_prefix, params):
                     continue
                 chrom, start, stop, _, _, strand, _, _, _, _, overhangs, _ = line.split('\t')
                 a,b = overhangs.split(',')
-                _junctions[chrom].addi( int(start)+int(a), int(stop)-int(b)+2, (strand, 'tophat') )
+                _junctions[chrom].addi( int(start)+int(a), int(stop)-int(b)+2, (strand, 'intron') )
     
         return _junctions
 
@@ -968,18 +974,18 @@ def filter_fusion(bwt_idx_prefix, params):
             juncs_file = None
             print >> sys.stderr, 'Warning: could not find juctions.bed (%s).' % (juncs_file)
             
-        genes_file = None
-        if os.path.exists("refGene.txt"):
-            genes_file = "refGene.txt"
-        elif os.path.exists("ensGene.txt"):
-            genes_file = "ensGene.txt"
-        else:
-            print >> sys.stderr, "Warning: could not find refGene.txt or ensGene.txt"
-            
-        if juncs_file is None and genes_file is None:
+        ref_file = "refGene.txt"
+        if not os.path.exists(ref_file):
+            ref_file = None
+        
+        ens_file = "ensGene.txt"
+        if not os.path.exists(ens_file):
+            ens_file = None
+        
+        if juncs_file is None and ref_file is None and ens_file is None:
             print >> sys.stderr, 'Warning: neither junctions.bed nor ref/ensGene.txt found.'
 
-        junctions = load_junctions(genes_file, juncs_file)
+        junctions = load_junctions(ref_file, ens_file, juncs_file)
         
         print >> sys.stderr, "\tProcessing:", fusion_file
         filter_fusion_impl(fusion_file, junctions, refGene_list, ensGene_list, seq_chr_dic, fusion_gene_list)
