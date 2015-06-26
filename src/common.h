@@ -9,6 +9,7 @@
  *
  */
 #include <stdint.h>
+#include <unistd.h>
 #include <cassert>
 #include <cstring>
 #include <cstdlib>
