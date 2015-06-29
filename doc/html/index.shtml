@@ -42,6 +42,17 @@
 	     <li>
 	     fixed a runtime-error when using --no-discordant option.
 	     </li>
+	    </ul>
+	     And the following fixes/improvements, thanks to contributors on GitHub:
+	    <ul>
+	      <li>
+             build fixes for FreeBSD and clang
+           </li>
+           <li>
+             new <code>--max-num-fusions</code> option allowing 
+             the user to specify the maximum number of reported fusions in tophat-fusion-post
+           </li>
+           <li> various small fixes (adjusting lower limit for <code>--fusion-multipairs</code>, typos, python tweaks etc.) </li>
 	   </ul>
 	   <br/>
 	   

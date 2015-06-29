@@ -27,10 +27,10 @@ Usage:
 Options:
     -v/--version
     -o/--output-dir                <string>    [ default: ./tophatfusion_out ]
-    --num_fusion_reads             <int>       [ default: 3                  ]
-    --num_fusion_pairs             <int>       [ default: 2                  ]
-    --num_fusion_both              <int>       [ default: 5                  ]
-
+    --num-fusion-reads             <int>       [ default: 3                  ]
+    --num-fusion-pairs             <int>       [ default: 2                  ]
+    --num-fusion-both              <int>       [ default: 5                  ]
+    --max-num-fusions              <int>       [ default: 500                ]
     --fusion-read-mismatches       <int>       [ default: 2                  ]
     --fusion-multireads            <int>       [ default: 2                  ]
     --non-human
