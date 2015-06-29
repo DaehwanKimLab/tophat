@@ -36,7 +36,7 @@
 <a href="./downloads"><h2><u>Releases</u></h2></a>
 <div class="box">
  <ul>
-   <table width="100%"><tbody><tr><td>version 2.1.0</td> <td align="right">6/2X/2015</td></tr>
+   <table width="100%"><tbody><tr><td>version 2.1.0</td> <td align="right">6/29/2015</td></tr>
 	 <tr>
 		 <td><a href="./downloads/tophat-2.1.0.tar.gz" onclick="javascript: pageTracker._trackPageview('/downloads/tophat'); ">&nbsp;&nbsp;&nbsp;Source code</a></td>
 	 </tr>

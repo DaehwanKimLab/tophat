@@ -157,8 +157,8 @@ if __name__ == "__main__":
     # the TopHat executable
     #
     samtoolsExecutable = sys.argv[3]
-    if not os.path.isfile(samtoolsExecutable) or not samtoolsExecutable.endswith("samtools"):
-        sys.stderr.write(topHatExecutable + " should be the samtools executable\n")
+    if not os.path.isfile(samtoolsExecutable): #or not samtoolsExecutable.endswith("samtools"):
+        sys.stderr.write(samtoolsExecutable + " should be the samtools executable\n")
         sys.exit(-1)
     samtoolsExecutable = os.path.abspath(samtoolsExecutable)
 

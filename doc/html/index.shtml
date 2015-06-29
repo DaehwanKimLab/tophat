@@ -27,15 +27,17 @@
 	<!--#include virtual="sidebar.inc.shtml"-->
 	</div> <!-- End of "rightside" -->
 	<div id="leftside">
-	<h2>TopHat 2.1.0 release 6/2X/2015</h2>
+	<h2>TopHat 2.1.0 release 6/29/2015</h2>
 	   <ul>
 	     <li>
 	       TopHat-Fusion algorithm improvements for more sensitive and accurate discovery of fusions, thanks to contributions from Gordon Bean and Ryan Kelley at Illumina.
-	       <ul>
+	     </li>
 		 <li>
-		   This release implements a new algorithm for counting fusion-supporting read pairs that reduces the number of false-positive potential fusions. This algorithm computes the inner distance between read pairs by first converting the pair positions to transcript coordinates using the transcript information in refGene.txt and ensGene.txt. Pairs with small inner distance (suggesting the pair could come from a plausible pair-end insert) are counted as supporting evidence for the fusion. The default threshold for the inner distance is 250 base pairs; this parameter can be set using the <code>--fusion-pair-dist &lt;int&gt;</code> flag.
-		   </li>
-		 </ul>
+		   This release implements a new algorithm for counting fusion-supporting read pairs that reduces the number of false-positive potential fusions. 
+		   This algorithm computes the inner distance between read pairs by first converting the pair positions to transcript coordinates using the transcript information in refGene.txt and ensGene.txt. Pairs with small inner distance (suggesting the pair could come from a plausible pair-end insert) are counted as supporting evidence for the fusion. The default threshold for the inner distance is 250 base pairs; this parameter can be set using the <code>--fusion-pair-dist &lt;int&gt;</code> flag.
+		 </li>
+		 <li>
+		  fixed a few issues with GFF parsing of some annotation files
 	     </li>
 	     <li>
 	     fixed a runtime-error when using --no-discordant option.
