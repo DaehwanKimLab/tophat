@@ -23,7 +23,7 @@ import warnings
 import re
 import glob
 import signal
-from datetime import datetime, date, time
+from datetime import datetime
 from shutil import copy, rmtree, move
 import logging
 
@@ -100,7 +100,7 @@ Advanced Options:
     --max-segment-intron           <int>       [ default: 500000           ]
     --no-sort-bam                              (Output BAM is not coordinate-sorted)
     --no-convert-bam                           (Do not output bam format.
-                                                Output is <output_dir>/accepted_hit.sam)
+                                                Output is <output_dir>/accepted_hits.sam)
     --keep-fasta-order
     --allow-partial-mapping
 
@@ -288,8 +288,8 @@ def init_logger(log_fname):
     tophat_logger.addHandler(logfh)
     tophat_log=logfh.stream
 
-# TopHatParams captures all of the runtime paramaters used by TopHat, and many
-# of these are passed as command line options to exectubles run by the pipeline
+# TopHatParams captures all of the runtime parameters used by TopHat, and many
+# of these are passed as command line options to executables run by the pipeline
 
 # This class and its nested classes also do options parsing through parse_options()
 # and option validation via the member function check()

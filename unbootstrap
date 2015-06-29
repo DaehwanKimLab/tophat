@@ -12,7 +12,7 @@ rm -f config.h.in
 echo "- removing makefile inputs"
 rm -f `find . -name Makefile.in`
 
-echo "- removing conifgure script"
+echo "- removing configure script"
 rm -f configure
 
 echo "UNBOOTSTRAP COMPLETE"

@@ -672,7 +672,7 @@ int parse_options(int argc, char** argv, void (*print_usage)())
       fusion_multireads = parseIntOpt(1, "--fusion-multireads must be at least 1", print_usage);
       break;
     case OPT_FUSION_MULTIPAIRS:
-      fusion_multipairs = parseIntOpt(1, "--fusion-multipairs must be at least 0", print_usage);
+      fusion_multipairs = parseIntOpt(1, "--fusion-multipairs must be at least 1", print_usage);
       break;
     case OPT_FUSION_IGNORE_CHROMOSOMES:
       tokenize(optarg, ",", fusion_ignore_chromosomes);
