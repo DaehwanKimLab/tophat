@@ -43,22 +43,21 @@
 	     fixed a runtime-error when using --no-discordant option.
 	     </li>
 	    </ul>
-	     And the following fixes/improvements, thanks to contributors on GitHub:
+	     Several fixes/improvements thanks to contributors on GitHub:
 	    <ul>
-	      <li>
-             build fixes for FreeBSD and clang
-           </li>
            <li>
              new <code>--max-num-fusions</code> option allowing 
              the user to specify the maximum number of reported fusions in tophat-fusion-post
            </li>
-           <li> various small fixes (adjusting lower limit for <code>--fusion-multipairs</code>, typos, python tweaks etc.) </li>
+           <li> adjusting lower limit for <code>--fusion-multipairs</code></li>
+           <li> fixed a few typos, cleaning up python code etc.</li>
 	   </ul>
 	   <br/>
 	   
-	<h2>TopHat2 source is available in a <a href="https://github.com/infphilo/tophat">public GitHub repository</a> (3/31/2015).</h2> <br/>
-	
-	  <h2>TopHat 2.0.14 release 3/24/2015</h2>
+	<h2>TopHat source code moved to <a href="https://github.com/infphilo/tophat">GitHub</a> 3/31/2015</h2>
+      <p>TopHat is now available as a public GitHub repository where users are welcome to submit bug reports (issues)
+      and developers are encouraged to submit patches (pull requests).</p>
+	<h2>TopHat 2.0.14 release 3/24/2015</h2>
 	   Version 2.0.14 is a maintenance release with the following changes:
 	   <ul>
 	     <li>
