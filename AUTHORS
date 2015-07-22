@@ -17,8 +17,18 @@ The SeqAn-1.3 library is used in TopHat and some of its sources are included
   in TopHat source releases; its authors are Andreas Doring, David Weese, 
   Tobias Rausch, and Knut Reinert.
 
+The IntervalTree library is used by TopHat in its fusion-calling pipeline; 
+  its authors are Chaim-Leib Halbert and Konstantin Tretyakov. This package
+  is released under the Apache 2.0 license.
+
+The SortedContainers library is used by TopHat in its fusion-calling
+  pipeline; its author is Grant Jenks. This package is released under the
+  Apache 2.0 license.
+
 Websites:
  TopHat:                http://ccb.jhu.edu/software/tophat
  Bowtie:                http://bowtie-bio.sourceforge.net/bowtie2
  Samtools:              http://samtools.sourceforge.net
  SeqAn:                 http://www.seqan.de
+ IntervalTree:          https://github.com/chaimleib/intervaltree
+ SotredContainers:      http://www.grantjenks.com/docs/sortedcontainers/
