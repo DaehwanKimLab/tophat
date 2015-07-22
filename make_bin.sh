@@ -4,7 +4,7 @@
 if [[ -z "$1" ]]; then
  echo -e "Usage:\n./make_bin.sh <binary_package_name> [<boost_prefix>]"
  echo "  <binary_package_name> cannot be a full path, but only a file name"
- echo "  e.g.: tophat-2.0.13.Linux_x86_64"
+ echo "  e.g.: tophat-2.1.0.Linux_x86_64"
  exit 1
 fi
 #echo "packing up $1.tar.gz, using BOOST installation in $2"
@@ -36,8 +36,10 @@ make install
 cp $build/bin/* $build
 
 cp README $build
-cp COPYING $build
+cp LICENSE $build
 cp AUTHORS $build
+cp -r src/sortedcontainers $build
+cp -r src/intervaltree $build
 
 /bin/rm -rf $build/bin
 
