@@ -26,20 +26,17 @@ if [[ $(uname -m) = "x86_64" ]]; then
  export LDFLAGS="-static-libgcc -static-libstdc++"
 fi
 if [[ $(uname) = "Darwin" ]]; then
- export CFLAGS="-mmacosx-version-min=10.6"
+ export CFLAGS="-mmacosx-version-min=10.7"
 fi
 
 ./configure --prefix=`pwd`/$build --with-boost=$boostpre
 sed -e 's|__PREFIX__||' src/tophat2.in > src/tophat2
-make
 make install
-cp $build/bin/* $build
+mv $build/bin/* $build
 
 cp README $build
 cp LICENSE $build
 cp AUTHORS $build
-cp -r src/sortedcontainers $build
-cp -r src/intervaltree $build
 
 /bin/rm -rf $build/bin
 

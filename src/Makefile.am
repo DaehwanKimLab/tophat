@@ -7,6 +7,15 @@
 EXTRA_DIST = \
 tophat.py \
 tophat2.in \
+intervaltree/__init__.py \
+intervaltree/interval.py \
+intervaltree/intervaltree.py \
+intervaltree/node.py \
+sortedcontainers/__init__.py \
+sortedcontainers/sorteddict.py \
+sortedcontainers/sortedlist.py \
+sortedcontainers/sortedlistwithkey.py \
+sortedcontainers/sortedset.py \
 samtools-0.1.18/AUTHORS \
 samtools-0.1.18/COPYING \
 samtools-0.1.18/ChangeLog \
@@ -624,7 +633,6 @@ bin_PROGRAMS = \
 	tophat_reports \
 	sam_juncs
 
-#	$(SAMPROG) 
 bin_SCRIPTS = \
 	tophat2 \
 	tophat
@@ -635,10 +643,6 @@ dist_bin_SCRIPTS = \
 	bed_to_juncs \
 	sra_to_solid \
 	tophat-fusion-post
-
-
-#samtools_0_1_18_SOURCES = 
-#samtools_0_1_18_LDADD = 
 
 CLEANFILES = \
 	tophat2 \
@@ -775,3 +779,6 @@ $(SAMPROG): $(SAMLIB)
 
 $(SAMLIB):
 	cd $(SAMDIR) && make $(SAMPROG) && cp $(SAMLIB) $(SAMPROG) ..
+
+install-data-hook:
+	cp -r intervaltree sortedcontainers $(DESTDIR)$(bindir)
