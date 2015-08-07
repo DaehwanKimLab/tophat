@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # If no configure script exists in the base directory, run this
 # script to bootstrap the project via automake and autoconf
 # OR

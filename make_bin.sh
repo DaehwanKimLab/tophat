@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 #simple script to pack up a precompiled binary package
 if [[ -z "$1" ]]; then
