@@ -200,7 +200,7 @@ so you can invoke this new version of TopHat with the command 'tophat2'.</p>
 	  <tr><td nowrap="nowrap" valign="top">
 	  <tt>&lt;[reads1_2,...readsN_2]&gt;</tt>
 	  </td><td valign="top">
-	  A comma-separated list of files containing reads in FASTA or FASTA format.  
+	  A comma-separated list of files containing reads in FASTQ or FASTA format.  
 	  Only used when running TopHat with paired end reads, and contains the 
 	  *_2 ("right") set of files.  The *_2 files <strong>MUST</strong> appear 
 	  in the same order as the *_1 files.
