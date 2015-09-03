@@ -1288,9 +1288,21 @@ def check_bowtie_index(idx_prefix, is_bowtie2, add="(genome)"):
        os.path.exists(idx_rev_2):
         if os.path.exists(idx_prefix + ".1.ebwt") and os.path.exists(idx_prefix + ".1.bt2"):
             print >> sys.stderr, bwtbotherr
-
         return
     else:
+        if is_bowtie2:
+            idxext="bt2l"
+            bowtie_ver="2 "
+            idx_fwd_1 = idx_prefix + ".1."+idxext
+            idx_fwd_2 = idx_prefix + ".2."+idxext
+            idx_rev_1 = idx_prefix + ".rev.1."+idxext
+            idx_rev_2 = idx_prefix + ".rev.2."+idxext
+            if os.path.exists(idx_fwd_1) and \
+               os.path.exists(idx_fwd_2) and \
+               os.path.exists(idx_rev_1) and \
+               os.path.exists(idx_rev_2):
+                return
+            
         bwtidxerr="Error: Could not find Bowtie "+bowtie_ver+"index files (" + idx_prefix + ".*."+idxext+")"
 
         if is_bowtie2:
