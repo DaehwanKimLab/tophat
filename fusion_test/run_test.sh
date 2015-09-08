@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 outdir=tophat_out_fusion
 
