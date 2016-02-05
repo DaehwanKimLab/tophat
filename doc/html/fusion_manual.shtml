@@ -1,0 +1,237 @@
+<!--#set var="Title" value="TopHat-Fusion" -->
+<!--#set var="NoCrumbs" value="1" -->
+<!--#set var="SubTitle" value="An algorithm for Discovery of Novel Fusion Transcripts"-->
+<!--#set var="ExtraCSS" value="/software/tophat/add.css"-->
+<!--#include virtual="/iheader_r.shtml"-->
+<div id="mainContent">
+  <div id="subheader">
+  <table width="100%"><tr>
+  <td>
+  <strong>TopHat-Fusion</strong> is an enhanced version of TopHat with the ability to align reads across fusion points, which results from the breakage and re-joining of two different chromosomes, or from rearrangements within a chromosome. 
+  <br/> <br/>
+  </td><td valign="middle" align="right">
+	<a href="http://opensource.org"><img alt="Open Source Software" src="images/osi-certified.gif" border="0"></a>
+    </td></tr>
+  </table>
+  </div>  
+  <div id="main">
+	
+     <div id="rightside">
+       <h2>Site Map</h2>
+       <div class="box">
+	 <ul>
+	   <li><a href="fusion_index.html">Home</a></li>
+	   <li><a href="fusion_tutorial.html">Getting started</a></li>
+	   <li><a href="fusion_manual.html">Manual</a></li>
+	 </ul>
+       </div>
+       
+    </div> <!-- End of "rightside" -->
+    <div id="leftside">
+  	  <table><tr><td cellpadding=7>
+  	  <h1>Manual</h1><br/>
+	  <p>Beginning users should take a look at the 
+	    <a href="fusion_tutorial.html">Getting started</a> guide for a tutorial on
+	    running TopHat-Fusion.</p>
+
+	  <br/>
+  	  
+	  <h2 id="algn">How to use fusion mapping</h2><br/>
+	  <p>
+	  After running <tt>tophat</tt>, you can run <tt>tophat-fusion-post</tt> to filter out fusion candidates.
+	  </p><br/>
+	  <blockquote>
+ 	    <b>Usage: tophat-fusion-post [options]* &lt;index_base&gt;</b> <br/>
+	  <table CELLSPACING=15>
+	  <tr><td VALIGN=top>
+	  <b>Options:</b>
+	  </td><td VALIGN=top>
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>-v/--version</tt>
+	  </td><td VALIGN=top>
+	  Prints the help message and exits.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>-p/--num-threads</tt>
+	  </td><td VALIGN=top>
+	      The number of threads used.  The default is 1.
+	  </td></tr>
+	 <tr><td VALIGN=top nowrap>
+	  <tt>--num-fusion-reads</tt>
+	  </td><td VALIGN=top>
+	     Fusions with at least this many supporting reads will be reported.
+	     The default is 3.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--num-fusion-pairs</tt>
+	  </td><td VALIGN=top>
+	      Fusions with at least this many supporting pairs will be reported.
+	      The default is 2.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--num-fusion-both</tt>
+	  </td><td VALIGN=top>
+	      The sum of supporting reads and pairs is at least this number for a fusion to be reported.
+	      The default is 0.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	  <tt>--max-num-fusions</tt>
+	  </td><td VALIGN=top>
+	      The maximum number of reported fusions.
+	      The default is 500.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	      <tt>--fusion-read-mismatches</tt>
+	    </td><td VALIGN=top>
+	      Reads support fusions if they map across fusion with at most this many mismatches.
+	      The default is 2.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	      <tt>--fusion-multireads</tt>
+	    </td><td VALIGN=top>
+	      Reads that map to more than this many places will be ignored.
+	      The default is 2.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	      <tt>--non-human</tt>
+	    </td><td VALIGN=top>
+	      If your annotation is different from that of human, use the option.
+	  </td></tr>
+	  <tr><td VALIGN=top nowrap>
+	      <tt>--fusion-pair-dist</tt>
+	    </td><td VALIGN=top>
+	      Pairs with this specified distance are counted as supporting evidence for the fusion. The default threshold for the inner distance is 250. 
+	  </td></tr>
+	 </table><br/>
+	  </blockquote>
+	  
+  	  <h2 id="output">Additional Output</h2><br/>
+  	  <p>
+  	  In addition to <a href="http://tophat.cbcb.umd.edu/manual.html#output">those files</a> ouput by TopHat,
+	  the <tt>tophat (with --fusion-search)</tt> and <tt>tophat-fusion-post</tt> scripts produce a number of files in the directories
+	  in which they were invoked.  Most of these files are internal, intermediate 
+	  files that are generated for use within the pipeline.  The output 
+	  files you will likely want to look at are:
+      </p> <br/>
+	  <blockquote>
+	    <tt><b>tophat (with --fusion-search option)</b></tt><br/><br/>
+	    <ul>
+	      <li><tt>accepted_hits.bam</tt>.
+		A list of read alignments in <a href="http://samtools.sourceforge.net">SAM</a> format.  SAM is a 
+		compact short read alignment format that is increasingly being 
+		adopted. The formal specification is <a href="http://samtools.sourceforge.net/SAM1.pdf">here</a>. <br/> <br/>
+
+		We assume that a fusion alignment involves two chromosomes or different places on the same chromosome (distant or inversion).
+		So, a fusion alignment is reported in two partial alignments (one before the fusion point and the other after) as follows: <br/><br/>
+		<blockquote>
+		<b>(1) SRR064286.11667197 chr12 2910488255 16M chr20 625050470 ATATGTTTGAGAGGCT BCBCCBCCCBBBBBBB <u>XF:Z:1 chr12-chr20 2910488 16M62500758F34M</u></b> <br/>
+		<b>(2) SRR064286.11667197 chr20 62500758255 34M = 625050470 GGCTGAGGAGGAGGAGCTCAGGGCTGAGCTTACC BB?B@;@B?AA?A?;?:@>>@@B>>;;B>?=9## <u>XF:Z:2 chr12-chr20 2910488 16M62500758F34M</u></b> <br/><br/>
+		    Some of fields are skipped for the sake of illustration, as shown above,
+		    16bp of 50bp read is mapped on chr12 and 34bp is mapped on chr20.
+		    The whole fusion alignment is available in a custom field <b>XF</b> in both partial alignments above.
+		    XF:Z:1 and XF:Z:2 indicates the first and the second partial alignments, respectively.
+		</blockquote>
+		
+		<br/><br/>
+		
+		A new CIGAR operator 'F' (Fusion) is introduced to indicate the presence of a fusion in read alignments.
+		The following example shows a read alignment across a fusion between chromosome 20 and chromosome 12. <br/> <br/>
+		<blockquote>
+		  <b><u>XF:Z:1 chr12-chr20 2910488 16M62500758F34M</u></b> <br/><br/>
+		  The left most base of a read (SRR064286.11667197) is mapped to 2910488<i>th</i> base of chromosome 12
+		  from which the first 16 bases of a read are mapped from 2910488 to 2910503 on chromosome 12,
+		  the 17<i>th</i> base of the read is mapped to 62500758<i>th</i> base of chromosome 20, and
+		  the remaining 34 bases are mapped from 62500758 to 62500791 on chromosome 20.
+		  The precise fusion point is between 2910503 on chromsome 12 and 62500758 on chromosome 20.
+		  Note that small letters such as m, n, i, d have opposite interpretations of big letters,
+		  meaning a coordinate is decreasing instead of increasing.
+		</blockquote>
+
+		<br/><br/>
+		In case the other end spans a fusion point, a custom field <b>XP</b> used as follows: <br/><br/>
+		<blockquote>
+		  <b>SRR064286.73586371 chr11 44890 50M <u>XP:Z:chr1-chr10 14482</u></b> <br/><br/>
+		  The read (SRR064286.73586371) is mapped on chr11 at 44890<i>th</i> position
+		  while its mate partner spans a fusion point between chr1 and chr10.
+		</blockquote>
+	      </li>
+
+	      <p><br/><br/>
+
+	      <li><tt>fusions.out</tt>.
+		A list of fusions <tt><b>tophat (with --fusion-search)</b></tt> finds before running <tt><b>tophat-fusion-post</b></tt>, where each fusion is supported by at least one read alignment.
+		Each row represents a fusion with the detailed description given in the below.
+		A row can be split into seven rows using @ as a line separator.
+		<br/> <br/>
+		
+		<blockquote>
+		  <b>chr20-chr17	49411707	59445685	ff	106	116	167	0	37	36	0.569598	@ <br/>
+		    11 25 38 49 63 	@ <br/>
+		    CAGCGGGGCGCGCGAGCTCGCGCTCTTCCTGACCCCCGAGCCTGGGGCCG AGGTAGGGGACGGGGCTGTGGAGTTGGAGGAGAGGGTTCTCGCGGTTAGG	@ <br/>
+		    CCTGCTCCCTGAAGGTGTGGACTCAACGTCAGATGTCCCGTGTGTGCCAC AGGTACCTTTGACAGGAGCGTGACCCTGCTGGAGGTGTGCGGGAGCTGGC	@ <br/>
+		    106 106 106 106 106 106 106 106 106 106 106 106 106 106 98 90 84 79 79 78 74 68 65 64 63 63 59 59 56 55 52 51 20 15 12 10 8 0 0 0 0 0 0 0 0 0 0 0 0 0 	@ <br/>
+		    106 106 106 106 106 106 106 106 106 106 106 106 106 98 96 94 91 86 55 54 51 50 47 47 43 43 42 41 38 32 28 27 27 22 16 8 0 0 0 0 0 0 0 0 0 0 0 0 0 0 	@ <br/>
+		    -6:1 11:0 16:-3 18:1 14:6 14:6 15:7 23:0 5:21 31:5 18:19 36:-1 ... 
+		  </b> <br/><br/>
+		  This is a fusion between 49411707th base on chromosome 20 and 59445685th base on chromosome 17. <br/>
+		  ff is the orientations of the two chromosomes - both chromosomes are in forwarding direction, like  (chr 20) -----&gt; -----&gt; (chr 17). <br/>
+		  106 is the number of reads that span the fusion, 116 is the number of mate pairs that support the fusion,
+		  167 is the number of mate pairs that support the fusion and whose one end spans the fusion. <br/>
+		  0 is the number of reads that contradict the fusion by mapping to only one of the chromosomes 20 and 17. <br/>
+		  37 and 36 are the number of bases on the left and right sides of a fusion, respectively, covered by spanning reads. <br/>
+		  The second row is likely to be dropped in the next version. <br/>
+		  The third row shows two 50-bp contigs around a fusion point on chromosome 20.
+		  The fourth row is similarly defined for chromosome 17. <br/>
+		  The fifth row is depth coverage by spanning reads on chromosome 20 from 49411707th base to 49411658th base.
+		  The sixth row is depth coverage by spanning reads on chromosome 17 from 59445685th base to 59445734th base. <br/>
+		  The seventh row is distances (distance1:distance2) between a mate pair and the fusion,
+		  i.e., distance1 bewtween the left end of a pair and the left side of the fusion and
+		  distance2 between the right end of a pair and the right side of the fusion. <br/><br/>
+
+		  A useful linux command 'awk' can be used for filtering fusions as follows:
+		  <blockquote>
+		    <b> awk '{if($5 > 100) print}' fusions.out | sed 's/@\t/\n/g' </b> <br/>
+		    Here, $5 is the number of spanning reads, this command shows the fusions supported by at least 100 spanning reads.
+		  </blockquote>
+		</blockquote>
+		
+	      </li>
+	    </ul>
+	    <br/><br/>
+	    
+	    <tt><b>tophat-fusion-post</b></tt><br/><br/>
+	    <ul>
+              <li><tt>result.html</tt>.
+		A list of fusion candidates is given in HTML format.
+		A sample list is found <a href="./data/result.html">here</a>.
+	      </li>
+	      <li><tt>result.txt</tt>.
+		A text version of result.html.
+	      </li>
+	    </ul>
+      </blockquote>
+      </td></tr></table><br/>
+    </div>
+  </div>
+  <div id="footer">
+  	<table width="100%" cellspacing=15><tr><td>
+    This research was supported in part by NIH grants R01-LM06845 and R01-GM083873.
+    </td><td align=right>
+    Administrator: <a href="mailto:infphilo@gmail.com">Daehwan Kim</a>. Design by <a href="http://www.free-css-templates.com" title="Design by David Herreman">David Herreman</a>
+    </td></tr></table>
+  </div>
+</div>
+
+<!-- Google analytics code -->
+<script type="text/javascript">
+var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+</script>
+<script type="text/javascript">
+var pageTracker = _gat._getTracker("UA-6101038-1");
+pageTracker._trackPageview();
+</script>
+
+</body>
+</html>
