@@ -105,7 +105,7 @@ AS_IF([test "x$enable_debug" = xyes],
 	  
 CFLAGS="${generic_CFLAGS} ${ext_CFLAGS} ${user_CFLAGS} ${debug_CFLAGS}"
 CXXFLAGS="$CFLAGS"
-CXXFLAGS="$CXXFLAGS $BAM_CPPFLAGS $BOOST_CPPFLAGS -I./SeqAn-1.3"
+CXXFLAGS="$CXXFLAGS $BAM_CPPFLAGS $BOOST_CPPFLAGS -I./SeqAn-1.4.2"
 LDFLAGS="$BAM_LDFLAGS $BOOST_LDFLAGS $user_LDFLAGS"
 
 AM_INIT_AUTOMAKE([-Wall foreign tar-pax foreign])

@@ -2050,10 +2050,13 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
     typedef map<uint32_t, IntronMotifs> MotifMap;
     
     MotifMap ims;
-	
-    seqan::DnaStringReverseComplement rev_donor_dinuc(donor_dinuc);
-    seqan::DnaStringReverseComplement rev_acceptor_dinuc(acceptor_dinuc);
-    
+
+    typedef seqan::ModifiedString<
+                    seqan::ModifiedString<seqan::DnaString const, seqan::ModView<seqan::FunctorComplement<seqan::Dna> > >,  
+                    seqan::ModReverse>   ConstDnaStringReverseComplement;
+    ConstDnaStringReverseComplement rev_donor_dinuc(donor_dinuc);
+    ConstDnaStringReverseComplement rev_acceptor_dinuc(acceptor_dinuc);
+     
     if (talkative)
         fprintf(stderr, "Collecting potential splice sites in islands\n");
 
