@@ -67,8 +67,7 @@ void get_seqs(istream& ref_stream,
 	      bool keep_seqs = true)
 {    
   while(ref_stream.good() &&
-	!ref_stream.eof())
-    {
+	!ref_stream.eof()) {
       RefSequenceTable::Sequence* ref_str = new RefSequenceTable::Sequence();
       string name;
       readMeta(ref_stream, name, Fasta());
@@ -76,14 +75,17 @@ void get_seqs(istream& ref_stream,
       if (space_pos != string::npos)
 	{
 	  name.resize(space_pos);
-	}
+	} 
+    if (name.size()>0) {
       fprintf(stderr, "\tLoading %s...", name.c_str());
-      seqan::read(ref_stream, *ref_str, Fasta());
-      fprintf(stderr, "done\n");
-      rt.get_id(name, keep_seqs ? ref_str : NULL, 0);
-      if (!keep_seqs)
-	delete ref_str;
+      fflush(stderr);
     }
+    seqan::read(ref_stream, *ref_str, Fasta());
+    if (seqan::length(*ref_str)>0)
+      fprintf(stderr, " done (%ld bases).\n", seqan::length(*ref_str));
+    rt.get_id(name, keep_seqs ? ref_str : NULL, 0);
+    if (!keep_seqs) delete ref_str;
+    } //while FASTA records
 }
 
 RefSeg seg_from_bowtie_hit(const BowtieHit& T)
@@ -746,10 +748,10 @@ struct IntronMotifs
 	    Dna5String seg_str = seqan::infixWithLength(ref_str,
 							pos - half_splice_mer_len - 1,
 							half_splice_mer_len + 1);
-	    stringstream ss(stringstream::in | stringstream::out);
-	    string s;
-	    ss << seg_str;
-	    ss >> s;
+        stringstream ss;
+        ss << seg_str;
+        const std::string& s = ss.str();
+        //const char* cstr=s.c_str();
 	    
 	    string col_seg_str = convert_bp_to_color(s, true);
 	    uint64_t idx = colorstr_to_idx(col_seg_str);
@@ -760,21 +762,24 @@ struct IntronMotifs
 	    dinucs[i].second.last_in_string = s[half_splice_mer_len];
 	  }
 	else
-	  {
+	  { //regular sequence
 	    if (pos <= (size_t)half_splice_mer_len || pos >= length(ref_str))
 	      continue; 
-	    
 	    Dna5String seg_str = seqan::infixWithLength(ref_str,
 							pos - half_splice_mer_len,
 							half_splice_mer_len);
 	    
-	    stringstream ss(stringstream::in | stringstream::out);
-	    string s;
-	    ss << seg_str;
-	    ss >> s;
+        stringstream ss;
+        ss << seg_str;
+        const std::string& s = ss.str();
+        //const char* cstr=s.c_str();
+        //fprintf(stderr, "XXXXXXXX> infix at pos %ld (-%d) : \"%s\"\n", pos, half_splice_mer_len, cstr);
+
 	    uint64_t idx = dna5str_to_idx(s);
 	    dinucs[i].second.fwd_string = idx;
 	    dinucs[i].second.rev_string = rc_dna_str(idx);
+        //fprintf(stderr, "############ attach_upstream_mers pos=%ld, seg_str=\"%s\", fwd_string=%016lX, rev_string=%016lX\n",
+        //   pos, cstr, dinucs[i].second.fwd_string,  dinucs[i].second.rev_string);
 	  }
       }
   }
@@ -797,10 +802,10 @@ struct IntronMotifs
 	    Dna5String seg_str = seqan::infixWithLength(ref_str,
 							pos + 2 - 1,
 							half_splice_mer_len + 1);
-	    stringstream ss(stringstream::in | stringstream::out);
-	    string s;
-	    ss << seg_str;
-	    ss >> s;
+        stringstream ss;
+        ss << seg_str;
+        const std::string& s = ss.str();
+        //const char* cstr=s.c_str();
 	    
 	    string col_seg_str = convert_bp_to_color(s, true);
 	    uint64_t idx = colorstr_to_idx(col_seg_str);
@@ -816,10 +821,10 @@ struct IntronMotifs
 							pos + 2,
 							half_splice_mer_len);
 	    
-	    stringstream ss(stringstream::in | stringstream::out);
-	    string s;
-	    ss << seg_str;
-	    ss >> s;
+        stringstream ss;
+        ss << seg_str;
+        const std::string& s = ss.str();
+        //const char* cstr=s.c_str();
 	    uint64_t idx = dna5str_to_idx(s);
 	    
 	    dinucs[i].second.fwd_string = idx;
@@ -1519,11 +1524,13 @@ bool extendable_junction(uint64_t upstream_dna_str,
 			 size_t min_ext_len,
 			 bool reverse,
 			 char last_in_upstream = 'N',
-			 char first_in_downstream = 'N')
+			 char first_in_downstream = 'N', bool locdebug=false)
 {
   if (color)
     {
-      string two_bp; two_bp.push_back(last_in_upstream); two_bp.push_back(first_in_downstream);
+      string two_bp; 
+      two_bp.push_back(last_in_upstream); 
+      two_bp.push_back(first_in_downstream);
       string color = convert_bp_to_color(two_bp, true);
       char num = (color[0] - '0')  & 0x3;
 
@@ -1542,7 +1549,11 @@ bool extendable_junction(uint64_t upstream_dna_str,
   uint32_t key = junction_key(upstream_dna_str, 
 			      downstream_dna_str,
 			      splice_mer_len);
-
+ /*if (locdebug) {
+   fprintf(stderr, "===============x0x0x0x0x0x0x0x0x0x0x0x=== splice_mer_len=%d\n",splice_mer_len);
+   fprintf(stderr, "\t upstream_dna_str:%016lX, downstream_dna_str:%016lX\n", upstream_dna_str, downstream_dna_str);
+   fprintf(stderr, "\t            junction_key:%08X\n", key);
+ }*/
   upstream_dna_str >>= splice_mer_len;
   downstream_dna_str <<= splice_mer_len;
   
@@ -1581,7 +1592,9 @@ struct RecordExtendableJuncs
 	
 	size_t left_pos = left_sites[L].first;
 	size_t max_right_pos = left_pos + max_intron;
-	for (size_t R = curr_R; 
+    //fprintf(stderr, "XXXXXXXXXXX> curr_R=%ld, max_right_pos=%ld, right_sites.size()=%ld\n",
+    // curr_R, max_right_pos, right_sites.size());
+	for (size_t R = curr_R;
 	     R < right_sites.size() && right_sites[R].first < max_right_pos; ++R)
 	  {
 	    uint64_t upstream_dna_str = left_sites[L].second.fwd_string;
@@ -1590,20 +1603,22 @@ struct RecordExtendableJuncs
 	    char first_in_downstream = right_sites[R].second.first_in_string;
 	    uint64_t rc_upstream_dna_str = left_sites[L].second.rev_string;
 	    uint64_t rc_downstream_dna_str = right_sites[R].second.rev_string;
-
+        bool locdebug=(curr_R==28 && L==5 && R==28);
 	    if (extendable_junction(upstream_dna_str,
 				    downstream_dna_str, splice_mer_len, 7, false,
-				    last_in_upstream, first_in_downstream) ||
+				    last_in_upstream, first_in_downstream, locdebug) ||
 		extendable_junction(rc_downstream_dna_str,
 				    rc_upstream_dna_str, splice_mer_len, 7, true,
-				    last_in_upstream, first_in_downstream))
-	      {
+				    last_in_upstream, first_in_downstream, locdebug))
+		{
+        //DEBUG:
+        //fprintf(stderr, "xxxxxxxxxx> keeping junction (L,R)=(%ld, %ld), curr_R=%ld\n", L,R,curr_R);
 		juncs.insert(Junction(ref_id,
 				      left_sites[L].first - 1,
 				      right_sites[R].first + 2,
 				      antisense,
 				      R - curr_R));
-	      }
+		}
 	    if (juncs.size() > max_juncs)
 		juncs.erase(*(juncs.rbegin()));
 	      }			
@@ -2051,11 +2066,32 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
     
     MotifMap ims;
 	
-    seqan::DnaStringReverseComplement rev_donor_dinuc(donor_dinuc);
-    seqan::DnaStringReverseComplement rev_acceptor_dinuc(acceptor_dinuc);
+    //seqan::DnaStringReverseComplement rev_donor_dinuc(donor_dinuc);
+    //seqan::DnaStringReverseComplement rev_acceptor_dinuc(acceptor_dinuc);
     
-    if (talkative)
-        fprintf(stderr, "Collecting potential splice sites in islands\n");
+    seqan::DnaString rev_donor_dinuc(donor_dinuc);
+    seqan::DnaString rev_acceptor_dinuc(acceptor_dinuc);
+    seqan::reverseComplement(rev_donor_dinuc);
+    seqan::reverseComplement(rev_acceptor_dinuc);
+    
+    /* typedef seqan::ModifiedString<
+                    seqan::ModifiedString<seqan::DnaString const, seqan::ModView<seqan::FunctorComplement<seqan::Dna> > >,  
+                    seqan::ModReverse>   ConstDnaStringReverseComplement;
+    ConstDnaStringReverseComplement rev_donor_dinuc(donor_dinuc);
+    ConstDnaStringReverseComplement rev_acceptor_dinuc(acceptor_dinuc);
+    */
+
+    if (talkative) {
+        stringstream sdon,sacc;
+        sdon << donor_dinuc;
+        sacc << acceptor_dinuc;
+        const std::string& acctmp = sacc.str();
+        const char* accstr = acctmp.c_str();
+        const std::string& dontmp = sdon.str();
+        const char* donstr = dontmp.c_str();
+        fprintf(stderr, "Collecting potential splice sites in islands (%s-%s)\n",
+             donstr, accstr);
+        }
 
     // 
     bool all_both = true;
@@ -2306,7 +2342,8 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
 	
         //motifs.attach_mer_counts(*ref_str);
         motifs.attach_mers(*ref_str);
-        
+       //DEBUG: fprintf(stderr, "\tFWD (donors, acceptors) = (%d, %d)\n\tREV (donors, acceptors) = (%d, %d)\n",
+       //   motifs.fwd_donors.size(), motifs.fwd_acceptors.size(), motifs.rev_donors.size(), motifs.rev_acceptors.size());
         vector<pair<size_t, DnaSpliceStrings> >& fwd_donors = motifs.fwd_donors;
         vector<pair<size_t, DnaSpliceStrings> >& fwd_acceptors = motifs.fwd_acceptors;
         vector<pair<size_t, DnaSpliceStrings> >& rev_acceptors = motifs.rev_acceptors;
@@ -2324,7 +2361,8 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
                         max_intron, 
                         max_juncs,
                         half_splice_mer_len);
-        
+   //DEBUG:
+   //   fprintf(stderr, "\tFWD potential juncs: %d\n", juncs.size());
         recorder.record(ref_id, 
                         rev_acceptors, 
                         rev_donors, 
@@ -2334,6 +2372,7 @@ void juncs_from_ref_segs(RefSequenceTable& rt,
                         max_intron, 
                         max_juncs,
                         half_splice_mer_len);
+    //DEBUG:  fprintf(stderr, "\ttotal FWD+REV potential juncs: %d\n", juncs.size());
     }
     //fprintf(stderr, "Found %d total splices\n", num_juncs);
 }
@@ -3577,7 +3616,6 @@ void find_gaps(RefSequenceTable& rt,
 	    }
 	}
     } //for each hits_for_read
-
   juncs_from_ref_segs<RecordSegmentJuncs>(rt, 
 				      expected_don_acc_windows, 
 				      seg_juncs, 
@@ -4491,6 +4529,7 @@ void capture_island_ends(ReadTable& it,
 				  expected_look_left_windows.end());
   
   if (!butterfly_search) coverage_map.clear(); //free some memory
+  //fprintf(stderr, "--------->>>>>> RecordExtendableJuncs <<<<<<---------\n");
   juncs_from_ref_segs<RecordExtendableJuncs>(rt, 
 					     expected_don_acc_windows, 
 					     cov_juncs, 
@@ -4501,7 +4540,7 @@ void capture_island_ends(ReadTable& it,
 					     max_cov_juncs,
 					     true,
 					     half_splice_mer_len);
-  //fprintf(stderr, "Found %ld potential island-end pairing junctions\n", (long int)cov_juncs.size());
+  //fprintf(stderr, "############# found %ld potential island-end pairing junctions\n", (long int)cov_juncs.size());
 }
 
 void print_juncs(RefSequenceTable& rt, std::set<Junction, skip_count_lt>& juncs, const char* str)
@@ -4713,7 +4752,7 @@ void driver(istream& ref_stream,
   
   if (left_segmap_fnames.size() > 1)
     {
-      fprintf( stderr, "Loading left segment hits...\n");
+      fprintf( stderr, "Loading left segment hits... ");fflush(stderr);
       
       vector<uint64_t> read_ids;
       vector<vector<int64_t> > offsets;
@@ -4792,7 +4831,7 @@ void driver(istream& ref_stream,
   
   if (right_segmap_fnames.size() > 1)
     {
-      fprintf( stderr, "Loading right segment hits...\n");
+      fprintf( stderr, "Loading right segment hits...");fflush(stderr);
 
       vector<uint64_t> read_ids;
       vector<vector<int64_t> > offsets;

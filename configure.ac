@@ -1,5 +1,5 @@
 define([svnversion], esyscmd([sh -c "svnversion|tr -d '\n'"]))dnl
-AC_INIT([tophat],[2.1.0],[tophat.cufflinks@gmail.com])
+AC_INIT([tophat],[2.1.1],[tophat.cufflinks@gmail.com])
 AC_DEFINE(SVN_REVISION, "svnversion", [SVN Revision])
 
 AC_CONFIG_SRCDIR([config.h.in])
@@ -105,7 +105,7 @@ AS_IF([test "x$enable_debug" = xyes],
 	  
 CFLAGS="${generic_CFLAGS} ${ext_CFLAGS} ${user_CFLAGS} ${debug_CFLAGS}"
 CXXFLAGS="$CFLAGS"
-CXXFLAGS="$CXXFLAGS $BAM_CPPFLAGS $BOOST_CPPFLAGS -I./SeqAn-1.3"
+CXXFLAGS="$CXXFLAGS $BAM_CPPFLAGS $BOOST_CPPFLAGS -I./SeqAn-1.4.2"
 LDFLAGS="$BAM_LDFLAGS $BOOST_LDFLAGS $user_LDFLAGS"
 
 AM_INIT_AUTOMAKE([-Wall foreign tar-pax foreign])

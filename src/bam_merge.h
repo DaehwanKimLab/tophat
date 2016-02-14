@@ -43,6 +43,9 @@ struct equal_bam {
 
     if (first.b->core.n_cigar != second.b->core.n_cigar)
       return false;
+    
+    if ((first.b->core.flag & BAM_FREVERSE) != (second.b->core.flag & BAM_FREVERSE))
+      return false;
 
     for (int i = 0; i < first.b->core.n_cigar; ++i){
       if (bam1_cigar(first.b)[i] != bam1_cigar(second.b)[i])

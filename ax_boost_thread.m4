@@ -68,19 +68,19 @@ if test "$ax_cv_boost_thread" = yes; then
     AC_CHECK_LIB($ax_lib, main, [BOOST_THREAD_LIBS=-l$ax_lib; break])
   done
 
-  # in recent Boost versions, boost::thread depends on boost::system
+  # in some Boost versions, boost::thread depends on boost::system
   AC_CACHE_CHECK(whether Boost::Thread needs Boost::System library,
   ax_cv_boost_thread_system,
   [LIBS="$LIBS $BOOST_THREAD_LIBS"
   AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <boost/thread/thread.hpp>]],
             [[boost::thread_group thrds; return 0;]])],
             [ax_cv_boost_thread_system=no],
-            [LIBS="$LIBS $BOOST_THREAD_LIBS -lboost_system$with_boost_thread"
+            [LIBS="$LIBS $BOOST_THREAD_LIBS -lboost_system$with_boost_thread -lrt"
                 AC_LINK_IFELSE([
                     AC_LANG_PROGRAM([[#include <boost/thread/thread.hpp>]],
                         [[boost::thread_group thrds; return 0;]])
                     ],
-                    [BOOST_THREAD_LIBS="$BOOST_THREAD_LIBS -lboost_system$with_boost_thread"
+                    [BOOST_THREAD_LIBS="$BOOST_THREAD_LIBS -lboost_system$with_boost_thread -lrt"
                         ax_cv_boost_thread_system=yes],
                     [AC_ERROR([Cannot use Boost::Thread])]
                     )])

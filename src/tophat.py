@@ -4099,7 +4099,7 @@ def main(argv=None):
 
     except Usage, err:
         th_logp(sys.argv[0].split("/")[-1] + ": " + str(err.msg))
-        th_logp("    for detailed help see http://tophat.cbcb.umd.edu/manual.html")
+        th_logp("    for detailed help see http://ccb.jhu.edu/software/tophat/manual.shtml")
         return 2
 
 
