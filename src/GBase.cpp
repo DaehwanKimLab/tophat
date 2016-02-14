@@ -1,6 +1,7 @@
 #include "GBase.h"
 #include <stdarg.h>
 #include <ctype.h>
+#include <errno.h>
 
 #ifndef S_ISDIR
 #define S_ISDIR(mode)  (((mode) & S_IFMT) == S_IFDIR)
@@ -188,22 +189,38 @@ int Gstrcmp(const char* a, const char* b, int n) {
 
 }
 
-int G_mkdir(const char* path, int perms=0775) {
+int G_mkdir(const char* path, int perms = (S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) ) {
+   //int perms=(S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) ) {
  #ifdef __WIN32__
      return _mkdir(path);
  #else
- //#if _POSIX_C_SOURCE
- //    return ::mkdir(path);
- //#else
-     return mkdir(path, perms); // not sure if this works on mac
- //#endif
+     return  mkdir(path, perms);
  #endif
 }
 
 
+void Gmktempdir(char* templ) {
+#ifdef __WIN32__
+  int blen=strlen(templ);
+  if (_mktemp_s(templ, blen)!=0)
+	  GError("Error creating temp dir %s!\n", templ);
+#else
+  char* cdir=mkdtemp(templ);
+  if (cdir==NULL)
+	  GError("Error creating temp dir %s!(%s)\n", templ, strerror(errno));
+#endif
+}
+
 int Gmkdir(const char *path, bool recursive, int perms) {
 	if (path==NULL || path[0]==0) return -1;
-	if (!recursive) return G_mkdir(path, perms);
+	mode_t process_mask = umask(0); //is this really needed?
+	if (!recursive) {
+	   int r=G_mkdir(path, perms);
+	   if (r!=0) 
+	      GMessage("Warning: G_mkdir(%s) failed: %s\n", path, strerror(errno));
+	   umask(process_mask);
+	   return r;
+	   }
 	int plen=strlen(path);
 	char* gpath=NULL;
 	//make sure gpath ends with /
@@ -221,15 +238,33 @@ int Gmkdir(const char *path, bool recursive, int perms) {
 	while (*ss!=0 && (psep=strchr(ss, '/'))!=NULL)  {
 		*psep=0; //now gpath is the path up to this /
 		ss=psep; ++ss; //ss repositioned just after the /
-		// create current level
-		if (fileExists(gpath)!=1 && G_mkdir(gpath, perms)!=0) {
+		// create current level if it doesn't exist
+		if (fileExists(gpath)) { //path exists
+		    *psep='/';
+		    continue; //assume it's a directory or a symlink to one
+		              //if not, it'll fail later
+		}
+		int mkdir_err=0;
+		if ((mkdir_err=G_mkdir(gpath, perms))!=0) {
+				GMessage("Warning: mkdir(%s) failed: %s\n", gpath, strerror(errno));
 			GFREE(gpath);
+			umask(process_mask);
 			return -1;
 		}
 		*psep='/';
 	}
 	GFREE(gpath);
+	umask(process_mask);
 	return 0;
+}
+
+FILE* Gfopen(const char *path, char *mode) {
+	FILE* f=NULL;
+	if (mode==NULL) f=fopen(path, "rb");
+	    	   else f=fopen(path, mode);
+	if (f==NULL)
+		GMessage("Error opening file '%s':  %s\n", path, strerror(errno));
+	return f;
 }
 
 bool GstrEq(const char* a, const char* b) {
@@ -674,12 +709,12 @@ const char* getFileExt(const char* filepath) {
 int fileExists(const char* fname) {
   struct stat stFileInfo;
   int r=0;
-  // Attempt to get the file attributes
+  // Attempt to get the path attributes
   int fs = stat(fname,&stFileInfo);
   if (fs == 0) {
       r=3;
       // We were able to get the file attributes
-      // so the file obviously exists.
+      // so the path exists
       if (S_ISREG (stFileInfo.st_mode)) {
          r=2;
          }
@@ -690,14 +725,6 @@ int fileExists(const char* fname) {
   return r;
 }
 
-/*bool fileExists(const char* filepath) {
-  if (filepath==NULL) return false;
-  FILE* ft=fopen(filepath, "rb");
-  if (ft==NULL) return false;
-  fclose(ft);
-  return true;
-}
-*/
 int64 fileSize(const char* fpath) {
   struct stat results;
   if (stat(fpath, &results) == 0)
