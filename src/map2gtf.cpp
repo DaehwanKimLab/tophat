@@ -69,10 +69,6 @@ GffTranscript::GffTranscript(const std::string& tline): exons(1),
 Map2GTF::Map2GTF(const std::string& gtf_fname, const std::string& in_fname) :
     gtf_fname_(gtf_fname), in_fname_(in_fname), out_sam_header_(NULL), refSeqTable_(true)
 {
-	/*
-  gtf_fhandle_ = fopen(gtf_fname_.c_str(), "r");
-  if (gtf_fhandle_ == NULL)
-  */
 	tlststream.open(gtf_fname_.c_str(), std::ios::in);
 	if (!tlststream.good())
     {
@@ -95,8 +91,6 @@ Map2GTF::Map2GTF(const std::string& gtf_fname, const std::string& in_fname) :
     }
   in_sam_header_ = in_fhandle_->header;
   std::cout << "Reading the transcript data: " << gtf_fname_ << std::endl;
-  //gtfReader_.init(gtf_fhandle_, true); //only recognizable transcripts will be loaded
-  //gtfReader_.readAll();
 
   std::string tline;
   while (std::getline(tlststream, tline)) {
@@ -114,13 +108,6 @@ Map2GTF::Map2GTF(const std::string& gtf_fname, const std::string& in_fname) :
 Map2GTF::~Map2GTF()
 {
   std::cout << "map2gtf has completed. Cleaning up." << std::endl;
-  /*
-  if (gtf_fhandle_ != NULL && fclose(gtf_fhandle_))
-    {
-      std::cerr << "Warning: Error closing annotation: " << gtf_fname_
-                << std::endl;
-    }
-  */
   if (in_fhandle_ != NULL)
     {
       samclose(in_fhandle_);
