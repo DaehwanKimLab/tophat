@@ -13,6 +13,7 @@
 
 #include <cassert>
 #include <cstdio>
+#include <boost/thread.hpp>
 #include <vector>
 #include <string>
 #include <map>
@@ -27,8 +28,6 @@
 #include <seqan/sequence.h>
 #include <seqan/file.h>
 #include <getopt.h>
-
-#include <boost/thread.hpp>
 
 #include "common.h"
 #include "utils.h"

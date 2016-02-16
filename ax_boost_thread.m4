@@ -73,17 +73,26 @@ if test "$ax_cv_boost_thread" = yes; then
   ax_cv_boost_thread_system,
   [LIBS="$LIBS $BOOST_THREAD_LIBS"
   AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <boost/thread/thread.hpp>]],
-            [[boost::thread_group thrds; return 0;]])],
+                   [[boost::thread_group thrds; return 0;]])],
             [ax_cv_boost_thread_system=no],
-            [LIBS="$LIBS $BOOST_THREAD_LIBS -lboost_system$with_boost_thread -lrt"
+            [LIBS="$LIBS $BOOST_THREAD_LIBS -lboost_system$with_boost_thread"
                 AC_LINK_IFELSE([
                     AC_LANG_PROGRAM([[#include <boost/thread/thread.hpp>]],
                         [[boost::thread_group thrds; return 0;]])
                     ],
-                    [BOOST_THREAD_LIBS="$BOOST_THREAD_LIBS -lboost_system$with_boost_thread -lrt"
+                    [BOOST_THREAD_LIBS="$BOOST_THREAD_LIBS -lboost_system$with_boost_thread"
                         ax_cv_boost_thread_system=yes],
-                    [AC_ERROR([Cannot use Boost::Thread])]
-                    )])
+		            [LIBS="$LIBS $BOOST_THREAD_LIBS -lboost_system$with_boost_thread -lrt"
+		                AC_LINK_IFELSE([
+		                    AC_LANG_PROGRAM([[#include <boost/thread/thread.hpp>]],
+		                        [[boost::thread_group thrds; return 0;]])
+		                    ],
+		                    [BOOST_THREAD_LIBS="$BOOST_THREAD_LIBS -lboost_system$with_boost_thread -lrt"
+		                        ax_cv_boost_thread_system=yes],
+		                       [AC_ERROR([Cannot use Boost::Thread])]
+		                    )
+					 ])
+			 ])
   ])
   
   CXXFLAGS=$CXXFLAGS_SAVE

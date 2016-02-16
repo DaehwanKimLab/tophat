@@ -16,6 +16,9 @@
 
 #include <cassert>
 #include <cstdio>
+#include <boost/thread.hpp>
+#include <boost/random/mersenne_twister.hpp>
+
 #include <cstring>
 #include <vector>
 #include <string>
@@ -30,8 +33,6 @@
 #include <seqan/file.h>
 #include <getopt.h>
 #include <inttypes.h>
-#include <boost/thread.hpp>
-#include <boost/random/mersenne_twister.hpp>
 
 #include "common.h"
 #include "utils.h"
