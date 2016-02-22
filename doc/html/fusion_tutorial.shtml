@@ -93,7 +93,7 @@
 </TD>
 <TD ALIGN="LEFT">
   <a href = "http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/refGene.txt.gz">refGene.txt</a> /
-  <a href = "http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/ensGene.txt.gz">ensGene.txt</a>
+  <a href = "downloads/hg38/ensGene.txt.gz">ensGene.txt</a>
 </TD>
 </TR>
 <TR>
