@@ -1,3 +1,11 @@
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#else
+#define PACKAGE_VERSION "local"
+#define SVN_REVISION "unknown"
+#endif
+
+
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
@@ -7,6 +15,8 @@
 
 #include "bam.h"
 #include "sam.h"
+
+
 
 using namespace std;
 
@@ -22,7 +32,8 @@ bool ignoreOQ=false; // ignore OQ tag
 
 string outfname;
 
-#define USAGE "Usage: bam2fastx [--fasta|-a] [-C|--color] [-P|--paired] [-N]\n\
+#define USAGE "bam2fastx v%s (%s) usage:\n\
+ bam2fastx [--fasta|-a] [-C|--color] [-P|--paired] [-N]\n\
  [-A|--all|-M|--mapped-only] [-Q] [--sam|-s|-t] [-o <outfname>] <in.bam>\n\
  \nBy default, bam2fastx only converts the unmapped reads from the input file,\n\
   discarding those unmapped reads flagged as QC failed.\n\
@@ -54,10 +65,12 @@ string outfname;
    sample.1.fq.gz and sample.2.fq.gz\n\
 "
 
-const char *short_options = "o:ac:qstOQCMAPN";
+const char *short_options = "o:ac:qvhstOQCMAPN";
 
 enum {
-   OPT_FASTA = 127,
+   OPT_HELP = 127,
+   OPT_VERSION,
+   OPT_FASTA,
    OPT_FASTQ,
    OPT_SAM,
    OPT_PAIRED,
@@ -80,6 +93,8 @@ struct Read {
 };
 
 struct option long_options[] = {
+  {"help", no_argument, 0, OPT_HELP},
+  {"version", no_argument, 0, OPT_VERSION},
   {"fasta", no_argument, 0, OPT_FASTA},
   {"fastq", no_argument, 0, OPT_FASTQ},
   {"sam", no_argument, 0, OPT_SAM},
@@ -99,6 +114,14 @@ int parse_options(int argc, char** argv)
      switch (next_option) {
       case -1:
          break;
+      case 'h':
+      case OPT_HELP:
+         fprintf(stdout, USAGE, PACKAGE_VERSION, SVN_REVISION);
+         exit(0);
+      case 'v':
+      case OPT_VERSION:
+         fprintf(stdout, "%s\n", PACKAGE_VERSION);
+         exit(0);
       case 'a':
       case OPT_FASTA:
         is_fastq = false;
@@ -347,13 +370,13 @@ int main(int argc, char *argv[])
     char* fname=NULL;
     bool use_pclose=false;
     if (parse_options(argc, argv) || optind>=argc) {
-       fprintf(stderr, USAGE);
+       fprintf(stderr, USAGE, PACKAGE_VERSION, SVN_REVISION);
        return -1;
        }
     fname=argv[optind++];
 
     if (fname==NULL || fname[0]==0) {
-        fprintf(stderr, USAGE);
+        fprintf(stderr, USAGE, PACKAGE_VERSION, SVN_REVISION);
         return 1;
         }
     if (sam_input)
