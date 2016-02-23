@@ -1,6 +1,6 @@
-define([svnversion], esyscmd([sh -c "svnversion|tr -d '\n'"]))dnl
+define([gitversion], esyscmd([sh -c 'git show -s --pretty=format:%h']))dnl
 AC_INIT([tophat],[2.1.1],[tophat.cufflinks@gmail.com])
-AC_DEFINE(SVN_REVISION, "svnversion", [SVN Revision])
+AC_DEFINE(SVN_REVISION, "gitversion", [SVN Revision])
 
 AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_HEADERS([config.h])

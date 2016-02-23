@@ -969,7 +969,7 @@ uint8_t* dupalloc_bdata(bam1_t *b, int size) {
   return odata; //user must FREE this after
 }
 
-extern unsigned short bam_char2flag_table[];
+//extern unsigned short bam_char2flag_table[];
 
 GBamRecord::GBamRecord(const char* qname, int32_t gseq_tid,
 		       int pos, bool reverse, const char* qseq, const char* cigar, const char* quals) {
@@ -984,7 +984,7 @@ GBamRecord::GBamRecord(const char* qname, int32_t gseq_tid,
    b->core.tid=gseq_tid;
    b->core.mtid=-1;
    b->core.mpos=-1;
-   b->core.qual=255;
+   b->core.qual=0;
    int l_qseq=strlen(qseq);
    //this may not be accurate, setting CIGAR is the correct way
    //b->core.bin = bam_reg2bin(b->core.pos, b->core.pos+l_qseq-1);

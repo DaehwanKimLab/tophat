@@ -710,7 +710,7 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
   
   string qname(read_alt_name);
   size_t slash_pos=qname.rfind('/');
-  if (slash_pos!=string::npos)
+  if (slash_pos!=string::npos && qname.length()-slash_pos<4)
     qname.resize(slash_pos);
   //read_alt_name as QNAME
   int flag=atoi(sam_toks[1].c_str()); //FLAG
@@ -799,19 +799,19 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
   tokenize(bwt_buf, "\t", sam_toks);
   string qname(read_alt_name);
   size_t slash_pos=qname.rfind('/');
-  if (slash_pos!=string::npos)
+  if (slash_pos!=string::npos && qname.length()-slash_pos<4)
     qname.resize(slash_pos);
   //read_alt_name as QNAME
   int flag = atoi(sam_toks[1].c_str());
   // 0x0010 (strand of query) is assumed to be set correctly
   // to begin with
-  flag |= 0x0001; //it must be paired
+  flag |= BAM_FPAIRED; //it must be paired
   if (insert_side == FRAG_LEFT)
-    flag |= 0x0040;
+    flag |= BAM_FREAD1;
   else if (insert_side == FRAG_RIGHT)
-    flag |= 0x0080;
+    flag |= BAM_FREAD2;
   if (!primary)
-    flag |= 0x100;
+    flag |= BAM_FSECONDARY;
 
   string ref_name = sam_toks[2], ref_name2 = "";
   char cigar1[1024] = {0}, cigar2[1024] = {0};
@@ -879,9 +879,9 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
     }
     mate_pos = partner->left() + 1;
     if (grade.happy())
-      flag |= 0x0002;
+      flag |= BAM_FPROPER_PAIR;
     if (partner->antisense_align())
-      flag |=  0x0020;
+      flag |=  BAM_FMREVERSE;
 
     if (fusion_alignment)
       {
@@ -915,7 +915,7 @@ bool rewrite_sam_record(GBamWriter& bam_writer,
   }
   else {
     mate_pos = 0;
-    flag |= 0x0008;
+    flag |= BAM_FMUNMAP;
   }
 
   string rg_aux = "";
@@ -2290,12 +2290,12 @@ struct ReportWorker {
 		char map_flags=read_best_alignments(curr_hit_group, best_hits, *gtf_junctions, *junctions,
 				*insertions, *deletions, *fusions, *coverage, final_report, &rng);
 
-		char map_code=0;
+		//char map_code=0;
 		if (map_flags & 4) {
 			(*aligned_counter_multi)++;
 		}
 		if (map_flags & 16) {
-			map_code='M';
+			//map_code='M';
 			(*aligned_counter_xmulti)++;
 		}
 		if (map_flags & 1) (*aligned_counter)++; //acceptable mappings found

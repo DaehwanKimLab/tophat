@@ -16,14 +16,8 @@
 #include <boost/shared_ptr.hpp>
 #include <seqan/sequence.h>
 #include "common.h"
-//#include "QReadData.h"
-
 
 using std::string;
-
-
-
-
 
 void reverse_complement(string& seq);
 string str_convert_color_to_bp(const string& color);
@@ -251,9 +245,7 @@ struct GetReadProc {
 			if (rdata->matenum==1) bamrec.set_flag(BAM_FREAD1);
 			else bamrec.set_flag(BAM_FREAD2);
 		}
-		//if (found && um_code && !rdata->trashCode) {
-		//rdata->trashCode=um_code;
-		//}
+
 		if (rdata->trashCode) {
 			//multi-mapped reads did not really QC-fail
 			//should also not be written to unmapped.bam
