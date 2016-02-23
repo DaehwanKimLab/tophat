@@ -16,8 +16,6 @@
 #include "bam.h"
 #include "sam.h"
 
-
-
 using namespace std;
 
 bool is_fastq=true; //default is fastq
