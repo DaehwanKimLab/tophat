@@ -27,6 +27,22 @@
 	<!--#include virtual="sidebar.inc.shtml"-->
 	</div> <!-- End of "rightside" -->
 	<div id="leftside">
+	<h2>TopHat 2.1.1 release 2/23/2016</h2>
+	  Please note that TopHat has entered a low maintenance, low support stage as it is now largely superseded by <a href="http://ccb.jhu.edu/software/hisat2"><b>HISAT2</b></a>
+	  which provides the same core functionality (i.e. splice alignment of RNA-Seq reads), in a more accurate and <b>much more efficient</b> way.<br/>
+	 Version 2.1.1 of TopHat is a maintenance release which includes the following changes, some of them thanks to <a href="https://github.com/infphilo/tophat">GitHub</a> contributors:
+	  <ul>
+	    <li> TopHat can be now built on more recent Linux distributions with newer GNU C++ (5.x), as the included SeqAn library was finally upgraded to a newer version.
+	    </li>
+	    <li> improved the detection of linker options for the Boost::Thread library which prevented the TopHat build from source on some systems.
+	    </li>
+	    <li> incorporated Luca Venturini's code to support large bowtie2 indexes (.bt2l).
+	    </li>
+	    <li> <code>bam2fastx</code> usage message (-h/--help) was updated in order to better document the functions of this program which can be used as a standalone utility 
+	        for converting reads from BAM/SAM to FASTQ/FASTA; the -v/--version option was also added to this utility for easier integration in other pipelines.
+	    </li>
+	  </ul>
+      <br/>
 	<h2>TopHat 2.1.0 release 6/29/2015</h2>
 	   <ul>
 	     <li>
