@@ -22,15 +22,39 @@ bool ignoreOQ=false; // ignore OQ tag
 
 string outfname;
 
-#define USAGE "Usage: bam2fastx [--fasta|-a|--fastq|-q] [--color] [-Q] [--sam|-s|-t]\n\
-   [-M|--mapped-only|-A|--all] [-o <outfile>] [-P|--paired] [-N] <in.bam>\n\
-   \nNote: By default, reads flagged as not passing quality controls are\n\
-   discarded; the -Q option can be used to ignore the QC flag.\n\
-   \nUse the -N option if the /1 and /2 suffixes should be appended to\n\
-   read names according to the SAM flags\n\
-   \nUse the -O option to ignore the OQ tag, if present, when writing quality values\n"
+#define USAGE "Usage: bam2fastx [--fasta|-a] [-C|--color] [-P|--paired] [-N]\n\
+ [-A|--all|-M|--mapped-only] [-Q] [--sam|-s|-t] [-o <outfname>] <in.bam>\n\
+ \nBy default, bam2fastx only converts the unmapped reads from the input file,\n\
+  discarding those unmapped reads flagged as QC failed.\n\
+  The input BAM/SAM file MUST be sorted by read name (-n option for samtools\n\
+  sort). If the input file name is \"-\", stdin will be used instead.\n\
+ \nOptions:\n\
+ -A,--all         convert all reads (mapped and unmapped)\n\
+                  (but discarding those flagged as QC failed, unless -Q)\n\
+ -P               paired reads are expected and converted into two output\n\
+                  files (see <outfname> comments below)\n\
+ -Q               convert unmapped reads even when flagged as QC failed\n\
+ -M,--maped-only  convert only mapped reads\n\
+ -N               for -P, append  /1 and /2 suffixes to read names\n\
+ -O               ignore the original quality values (OQ tag) and write the\n\
+                  current quality values (default is to use OQ data if found)\n\
+ -C,--color       reads are in ABI SOLiD color format\n\
+ -s,-t,--sam      input is a SAM text file (default: BAM input expected)\n\
+ -a,--fasta       output FASTA records, not FASTQ (discard quality values)\n\
+ -o <outfname>    output file name or template (see below)\n\
+\n\
+ <outfname> serves as a name template when -P option is provided, as suffixes\n\
+ .1 and .2 will be automatically inserted before the file extension in \n\
+ <outfname>, such that two file names will be created.\n\
+ If <outfname> ends in .gz or .bz2 then bam2fastx will write the\n\
+ output compressed by gzip or bzip2 respectively.\n\n\
+ Example of converting all paired reads from a BAM file to FASTQ format:\n\
+    bam2fastx -PANQ -o sample.fq.gz sample.sortedbyname.bam\n\
+ In this example the output will be written in two files: \n\
+   sample.1.fq.gz and sample.2.fq.gz\n\
+"
 
-const char *short_options = "o:ac:qstOQMAPN";
+const char *short_options = "o:ac:qstOQCMAPN";
 
 enum {
    OPT_FASTA = 127,
@@ -41,7 +65,7 @@ enum {
    OPT_ALL,
    OPT_COLOR
    };
-   
+
 struct Read {
 	string name;
 	int mate;
@@ -73,54 +97,55 @@ int parse_options(int argc, char** argv)
   do {
      next_option = getopt_long(argc, argv, short_options, long_options, &option_index);
      switch (next_option) {
-       case -1:    
+      case -1:
          break;
-       case 'a':
-       case OPT_FASTA:
-         is_fastq = false;
-         break;
-       case 'q':
-       case OPT_FASTQ:
-         is_fastq = true;
-         break;
-       case 's':
-       case 't':
-       case OPT_SAM: //sam (text) input
-         sam_input = true;
-         break;
-       case 'M':
-       case OPT_MAPPED_ONLY:
-         mapped_only = true;
-         break;
-       case 'A':
-       case OPT_ALL:
-         all_reads = true;
-         break;
-     case OPT_COLOR:
-       color = true;
-       break;
-       case 'P':
-       case OPT_PAIRED:
-         pairs = true;
-         break;
-       case 'Q':
-    	 ignoreQC = true;
-    	 break;
-       case 'O':
-    	 ignoreOQ = true;
-    	 break;
-       case 'o':
-         outfname=optarg;
-         break;
-       case 'N':
-    	 add_matenum=true;
-    	 break;
-       default:
-         return 1;
-       }
+      case 'a':
+      case OPT_FASTA:
+        is_fastq = false;
+        break;
+      case 'q':
+      case OPT_FASTQ:
+        is_fastq = true;
+        break;
+      case 's':
+      case 't':
+      case OPT_SAM: //sam (text) input
+        sam_input = true;
+        break;
+      case 'M':
+      case OPT_MAPPED_ONLY:
+        mapped_only = true;
+        break;
+      case 'A':
+      case OPT_ALL:
+        all_reads = true;
+        break;
+      case 'C':
+      case OPT_COLOR:
+        color = true;
+        break;
+     case 'P':
+        case OPT_PAIRED:
+        pairs = true;
+        break;
+      case 'Q':
+        ignoreQC = true;
+        break;
+      case 'O':
+        ignoreOQ = true;
+        break;
+      case 'o':
+        outfname=optarg;
+        break;
+      case 'N':
+        add_matenum=true;
+        break;
+      default:
+        return 1;
+      }
    } while(next_option != -1);
   if (all_reads && mapped_only) {
-    fprintf(stderr, "Error: incompatible options !\n");
+    fprintf(stderr, "Error: incompatible options, use either -A/--all or -M/--mapped-only!\n");
     exit(2);
     }
   return 0;

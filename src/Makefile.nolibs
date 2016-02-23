@@ -62,7 +62,7 @@ tophat_reports
 
 .PHONY : all
 #all: all_exe
-all: tophat_reports
+all: tophat_reports bam2fastx
 #.PHONY : nodebug
 nodebug : all
 

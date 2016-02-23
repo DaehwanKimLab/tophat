@@ -576,13 +576,13 @@ class GBamWriter {
       }
    void write(bam1_t* b, int64_t read_id=0) {
      int64_t pre_block_addr=0; //offsets after last write()
-     int     pre_block_offs=0; //but before this write()
+     //int     pre_block_offs=0; //but before this write()
      int64_t pre_pos=0;
      bool write_index=false;
      if (findex && read_id) {
        if (idxcount >= INDEX_REC_COUNT && read_id != idx_last_id) {
 	 pre_pos = this->tell();
-	 pre_block_offs = pre_pos & 0xFFFF;
+	 //pre_block_offs = pre_pos & 0xFFFF;
 	 pre_block_addr = (pre_pos >> 16) & 0xFFFFFFFFFFFFLL;
 	 write_index=true;
        }
