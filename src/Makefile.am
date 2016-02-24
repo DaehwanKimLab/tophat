@@ -6,7 +6,7 @@
 # - and tophat2.in added
 EXTRA_DIST = \
 tophat.py \
-tophat2.in \
+tophat2.sh \
 intervaltree/__init__.py \
 intervaltree/interval.py \
 intervaltree/intervaltree.py \
@@ -725,11 +725,11 @@ CLEANFILES = \
 clean-local:
 	cd $(SAMDIR) && make clean
 
-tophat2: tophat2.in
-	sed -e 's|__PREFIX__|$(prefix)|' tophat2.in > tophat2
+tophat2: tophat2.sh
+	cp tophat2.sh tophat2 && chmod 755 tophat2
 
 tophat: tophat.py
-	sed -e 's|__VERSION__|$(VERSION)|' tophat.py > tophat
+	sed -e 's|__VERSION__|$(VERSION)|' tophat.py > tophat && chmod 755 tophat
 
 #-- tophat library for linking convienence
 noinst_LIBRARIES = $(SAMLIB) libgc.a libtophat.a

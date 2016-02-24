@@ -1,4 +1,0 @@
-#!/bin/bash
-pbin="$( readlink -f "$( dirname "${BASH_SOURCE[0]}" )" )";
-export PATH=$pbin:$PATH
-$pbin/tophat "$@"
