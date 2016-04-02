@@ -3,9 +3,7 @@
 # Generated with 
 # find SeqAn-1.3 -type f -print | grep -v ".svn" | sed 's/$/ \\/g'
 # run from src
-# - and tophat2.in added
-EXTRA_DIST = \
-tophat.py \
+EXTRA_DIST = tophat.py \
 tophat2.sh \
 intervaltree/__init__.py \
 intervaltree/interval.py \

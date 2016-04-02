@@ -30,7 +30,6 @@ if [[ $(uname) = "Darwin" ]]; then
 fi
 
 ./configure --prefix=`pwd`/$build --with-boost=$boostpre
-sed -e 's|__PREFIX__||' src/tophat2.in > src/tophat2
 make install
 mv $build/bin/* $build
 
