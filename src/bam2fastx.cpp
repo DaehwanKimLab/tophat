@@ -335,7 +335,7 @@ void flushPair(Read* pbuf, int& wpair, FILE* fout, FILE* fout2, FILE* fout_s) {
 	pbuf[1].clear();
 }
 
-
+/*
 void writePaired(Read& rd, int& wpair, FILE* fout, FILE* fout2) {
   if (rd.mate==1) {
 	 writeRead(rd, wpair, fout);
@@ -348,7 +348,7 @@ void writePaired(Read& rd, int& wpair, FILE* fout, FILE* fout2) {
 	exit(1);
   }
 }
-
+*/
 
 void err_order(string& last) {
   fprintf(stderr, "Error: couldn't retrieve both reads for pair %s. "
@@ -503,6 +503,7 @@ int main(int argc, char *argv[])
     	     }
 		   } //new pair
       }
+    flushPair(pbuf, wpair, fout, fout2, fout_s);
     if (fout!=stdout) {
        if (use_pclose) pclose(fout);
        else fclose(fout);
