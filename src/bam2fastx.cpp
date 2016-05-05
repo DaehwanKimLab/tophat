@@ -27,6 +27,7 @@ bool pairs=false;
 bool color=false;
 bool ignoreQC=false; // ignore qc fail flag 0x400
 bool ignoreOQ=false; // ignore OQ tag
+long s_w=0; //in paired mode, number of singletons written
 
 string outfname;
 
@@ -53,14 +54,15 @@ string outfname;
  -o <outfname>    output file name or template (see below)\n\
 \n\
  <outfname> serves as a name template when -P option is provided, as suffixes\n\
- .1 and .2 will be automatically inserted before the file extension in \n\
- <outfname>, such that two file names will be created.\n\
+ .1 and .2 (and .s) will be automatically inserted before the file extension\n\
+ in <outfname>, such that multiple output files will be created.\n\
  If <outfname> ends in .gz or .bz2 then bam2fastx will write the\n\
  output compressed by gzip or bzip2 respectively.\n\n\
  Example of converting all paired reads from a BAM file to FASTQ format:\n\
     bam2fastx -PANQ -o sample.fq.gz sample.sortedbyname.bam\n\
  In this example the output will be written in two files: \n\
-   sample.1.fq.gz and sample.2.fq.gz\n\
+   sample.1.fq.gz and sample.2.fq.gz (and optionally sample.s.fq.gz\n\
+   for unpaired reads)\n\
 "
 
 const char *short_options = "o:ac:qvhstOQCMAPN";
@@ -287,6 +289,7 @@ void getRead(const bam1_t *b, samfile_t* fp, Read& rd) {
   }
 }
 
+
 void writeRead(Read& rd, int& wpair, FILE* fout) {
   // shouldn't get an empty sequence here
   //if (rd.seq.empty()) {
@@ -311,6 +314,27 @@ void writeRead(Read& rd, int& wpair, FILE* fout) {
 	 }
   }
 }
+
+void flushPair(Read* pbuf, int& wpair, FILE* fout, FILE* fout2, FILE* fout_s) {
+	if (pbuf[0].seq.length()>0) {
+		if (pbuf[1].seq.length()>0) { //both mates present
+		  if (pbuf[0].mate==1) writeRead(pbuf[0], wpair, fout);
+		  else if (pbuf[0].mate==2)
+			writeRead(pbuf[0], wpair, fout2);
+		  else { writeRead(pbuf[0], wpair, fout_s); ++s_w; }
+		  if (pbuf[1].mate==1) writeRead(pbuf[1], wpair, fout);
+		  else if (pbuf[1].mate==2)
+			writeRead(pbuf[1], wpair, fout2);
+		  else { writeRead(pbuf[1], wpair, fout_s); ++s_w; }
+		} //paired reads
+		else { writeRead(pbuf[0], wpair, fout_s); ++s_w; }
+	}
+	else if (pbuf[1].seq.length()>0)
+		{ writeRead(pbuf[1], wpair, fout_s); ++s_w; }
+	pbuf[0].clear();
+	pbuf[1].clear();
+}
+
 
 void writePaired(Read& rd, int& wpair, FILE* fout, FILE* fout2) {
   if (rd.mate==1) {
@@ -387,46 +411,58 @@ int main(int argc, char *argv[])
         }
     FILE* fout=stdout;
     FILE* fout2=NULL;
+    FILE* fout_s=NULL;
     if (pairs && outfname.empty()) {
       fprintf(stderr, "Error: paired output (-P) requires the -o option.\n");
       return 1;
       }
+    string f_single;
     if (!outfname.empty()) {
- 	   string fext;
- 	   string pocmd;
- 	   string fbase=getFBase(outfname, fext, pocmd);
-       if (pairs) {
-    	 outfname=fbase+".1."+fext;
-    	 string out2=fbase+".2."+fext;
-         if (!pocmd.empty()) {
-               out2=pocmd+">"+out2;
-               fout2=popen(out2.c_str(),"w");
-               }
-            else {
-               fout2=fopen(out2.c_str(),"w");
-               }
-         if (fout2==NULL) {
-      	    fprintf(stderr, "Error opening file stream: %s\n", out2.c_str());
-      	    return 1;
-            }
-         }
-  	   string out1(outfname);
-       if (!pocmd.empty()) {
-             out1=pocmd+">"+out1;
-             fout=popen(out1.c_str(),"w");
-             use_pclose=true;
-             }
-          else {
-             fout=fopen(out1.c_str(),"w");
-             }
-       if (fout==NULL) {
-    	    fprintf(stderr, "Error opening file stream: %s\n", out1.c_str());
-    	    return 1;
-          }
-       }
+    	string fext;
+    	string pocmd;
+    	string fbase=getFBase(outfname, fext, pocmd);
+    	if (pairs) {
+    		outfname=fbase+".1."+fext;
+    		string out2=fbase+".2."+fext;
+    		string out_s=fbase+".s."+fext;
+    		f_single=out_s;
+    		if (!pocmd.empty()) {
+    			out2=pocmd+">"+out2;
+    			fout2=popen(out2.c_str(),"w");
+    			out_s=pocmd+">"+out_s;
+    			fout_s=popen(out_s.c_str(),"w");
+    		}
+    		else {
+    			fout2=fopen(out2.c_str(),"w");
+    			fout_s=fopen(out_s.c_str(),"w");
+    		}
+    		if (fout2==NULL) {
+    			fprintf(stderr, "Error opening file stream: %s\n", out2.c_str());
+    			return 1;
+    		}
+    		if (fout_s==NULL) {
+    			fprintf(stderr, "Error opening file stream: %s\n", out_s.c_str());
+    			return 1;
+    		}
+    	}
+    	string out1(outfname);
+    	if (!pocmd.empty()) {
+    		out1=pocmd+">"+out1;
+    		fout=popen(out1.c_str(),"w");
+    		use_pclose=true;
+    	}
+    	else {
+    		fout=fopen(out1.c_str(),"w");
+    	}
+    	if (fout==NULL) {
+    		fprintf(stderr, "Error opening file stream: %s\n", out1.c_str());
+    		return 1;
+    	}
+    }
 
     bam1_t *b = bam_init1();
     Read rd;
+    Read pbuf[2];
     //bool write_mapped=(all_reads || mapped_only);
     string last;
     int wpair=0; //writing pair status bitmask (bit 1 set mate 1 was written,
@@ -437,31 +473,50 @@ int main(int argc, char *argv[])
     	 continue; //skip secondary alignments with no sequence
        int pstatus=rd.mate;
        if (rd.mate==0) pstatus=4;
-       if (last!=rd.name) {
-   	      if (pairs && !last.empty() && wpair!=3)
-   	    	 err_order(last);
+       if (last!=rd.name) { //new read/pair
+   	      //if (pairs && !last.empty() && wpair!=3)
+   	    	 //err_order(last); //previous pair was incomplete
+    	  //flushPair(Read* pbuf, int& wpair, FILE* fout, FILE* fout2, FILE* fout_s)
+   	      flushPair(pbuf, wpair, fout, fout2, fout_s);
     	  wpair=0;
     	  last=rd.name;
           }
        if ( (pstatus & wpair)==0) {
     	    if (pairs) {
-    	       writePaired(rd, wpair, fout, fout2);
-    	     } //paired
+    	       //writePaired(rd, wpair, fout, fout2);
+    	       //keep pair in buffer pbuf
+    	    	if (rd.mate>0) {
+    	    		wpair|=rd.mate;
+    	    		if (rd.mate>2) {
+    	    			fprintf(stderr, "Error invalid mate index (%d) for read %s\n", rd.mate, rd.name.c_str());
+    	    			return 1;
+    	    		}
+    	    		pbuf[rd.mate-1]=rd; //copy read in the buffer
+    	    	}
+    	    	else {
+    	    	  wpair |= 4;
+    	    	  pbuf[0]=rd;
+    	    	}
+    	     } //paired I/O
     	     else  { //single reads
     		   writeRead(rd, wpair, fout);
     	     }
 		   } //new pair
       }
     if (fout!=stdout) {
-      if (use_pclose) pclose(fout);
-      else fclose(fout);
+       if (use_pclose) pclose(fout);
+       else fclose(fout);
     }
     if (fout2) {
-      if (use_pclose) pclose(fout2);
-      else fclose(fout2);
+       if (use_pclose) pclose(fout2);
+       else fclose(fout2);
+    }
+    if (fout_s) {
+       if (use_pclose) pclose(fout_s);
+       else fclose(fout_s);
+       if (s_w==0) unlink(f_single.c_str());
     }
     bam_destroy1(b);
-    
     samclose(fp);
     return 0;
 }
