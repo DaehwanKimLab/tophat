@@ -28,7 +28,6 @@ std::string get_exonic_sequence(GffObj &p_trans,
 
 
 GTFToFasta::GTFToFasta(std::string gtf_fname, std::string genome_fname)
-: genome_fhandle_(genome_fname.c_str(), false)
 {
     gtf_fname_ = gtf_fname;
     gtf_fhandle_ = fopen(gtf_fname_.c_str(), "r");
