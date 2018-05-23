@@ -40,7 +40,10 @@ public:
     void print_mapping();
 private:
     GffReader gtfReader_;
-    GFaSeqGet genome_fhandle_;
+    // The genome_fhandle_ isn't used anywhere after being
+    // initialized, and double opening the fasta file means that pipes
+    // cannot work.
+    // GFaSeqGet genome_fhandle_;
 
     std::string gtf_fname_;
     std::string genome_fname_;
