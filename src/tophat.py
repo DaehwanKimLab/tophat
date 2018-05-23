@@ -1264,6 +1264,19 @@ def subprocess_setup():
  # gzip or other de/compression pipes to complain about "stdout: Broken pipe"
    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
+
+def check_bowtie_index_for_ext(idx_prefix, idxext):
+    idx_fwd_1 = idx_prefix + ".1."+idxext
+    idx_fwd_2 = idx_prefix + ".2."+idxext
+    idx_rev_1 = idx_prefix + ".rev.1."+idxext
+    idx_rev_2 = idx_prefix + ".rev.2."+idxext
+
+    return (os.path.exists(idx_fwd_1) and \
+       os.path.exists(idx_fwd_2) and \
+       os.path.exists(idx_rev_1) and \
+       os.path.exists(idx_rev_2))
+
+
 # Check that the Bowtie index specified by the user is present and all files
 # are there.
 def check_bowtie_index(idx_prefix, is_bowtie2, add="(genome)"):
@@ -1275,34 +1288,17 @@ def check_bowtie_index(idx_prefix, is_bowtie2, add="(genome)"):
         idxext="bt2"
         bowtie_ver="2 "
 
-    idx_fwd_1 = idx_prefix + ".1."+idxext
-    idx_fwd_2 = idx_prefix + ".2."+idxext
-    idx_rev_1 = idx_prefix + ".rev.1."+idxext
-    idx_rev_2 = idx_prefix + ".rev.2."+idxext
-
     #bwtbotherr = "Warning: we do not recommend to have both Bowtie1 and Bowtie2 indexes in the same directory \n the genome sequence (*.fa) may not be compatible with one of them"
     bwtbotherr = "\tFound both Bowtie1 and Bowtie2 indexes."
-    if os.path.exists(idx_fwd_1) and \
-       os.path.exists(idx_fwd_2) and \
-       os.path.exists(idx_rev_1) and \
-       os.path.exists(idx_rev_2):
+    if check_bowtie_index_for_ext(idx_prefix, idxext):
         if os.path.exists(idx_prefix + ".1.ebwt") and os.path.exists(idx_prefix + ".1.bt2"):
             print >> sys.stderr, bwtbotherr
         return
     else:
         if is_bowtie2:
-            idxext="bt2l"
-            bowtie_ver="2 "
-            idx_fwd_1 = idx_prefix + ".1."+idxext
-            idx_fwd_2 = idx_prefix + ".2."+idxext
-            idx_rev_1 = idx_prefix + ".rev.1."+idxext
-            idx_rev_2 = idx_prefix + ".rev.2."+idxext
-            if os.path.exists(idx_fwd_1) and \
-               os.path.exists(idx_fwd_2) and \
-               os.path.exists(idx_rev_1) and \
-               os.path.exists(idx_rev_2):
+            if check_bowtie_index_for_ext(idx_prefix, "bt2l"):
                 return
-            
+
         bwtidxerr="Error: Could not find Bowtie "+bowtie_ver+"index files (" + idx_prefix + ".*."+idxext+")"
 
         if is_bowtie2:
@@ -1312,14 +1308,18 @@ def check_bowtie_index(idx_prefix, is_bowtie2, add="(genome)"):
 
         if bwtidx_env == None:
             die(bwtidxerr)
-        if os.path.exists(bwtidx_env+idx_fwd_1) and \
-           os.path.exists(bwtidx_env+idx_fwd_2) and \
-           os.path.exists(bwtidx_env+idx_rev_1) and \
-           os.path.exists(bwtidx_env+idx_rev_2):
+
+        idx_in_bt_idx_path = os.path.join(bwtidx_env, idx_prefix)
+        if check_bowtie_index_for_ext(idx_in_bt_idx_path, idxext):
             if os.path.exists(bwtidx_env + idx_prefix + ".1.ebwt") and os.path.exists(bwtidx_env + idx_prefix + ".1.bt2"):
                 print >> sys.stderr, bwtbotherr
             return
         else:
+            if is_bowtie2:
+                if check_bowtie_index_for_ext(idx_in_bt_idx_path, "bt2l"):
+                    if os.path.exists(bwtidx_env + idx_prefix + ".1.ebwt") and os.path.exists(bwtidx_env + idx_prefix + ".1.bt2l"):
+                        print >> sys.stderr, bwtbotherr
+                    return
             die(bwtidxerr)
 
 # Reconstructs the multifasta file from which the Bowtie index was created, if
@@ -1369,7 +1369,7 @@ def check_fasta(idx_prefix, is_bowtie2):
         else:
             bowtie_idx_env_var = os.environ.get("BOWTIE_INDEXES")
         if bowtie_idx_env_var:
-            idx_fasta = bowtie_idx_env_var + idx_prefix + ".fa"
+            idx_fasta = os.path.join(bowtie_idx_env_var, idx_prefix + ".fa")
             if os.path.exists(idx_fasta):
                 return idx_fasta
 
