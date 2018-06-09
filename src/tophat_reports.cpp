@@ -2705,7 +2705,7 @@ void driver(const string& bam_output_fname,
 				junction_stat.gtf_match = true;
 				junction_stat.accepted = true;
 
-				gtf_junctions.insert(make_pair<Junction, JunctionStats>(Junction(ref_id, left_coord, right_coord, antisense), junction_stat));
+				gtf_junctions.insert(make_pair(Junction(ref_id, left_coord, right_coord, antisense), junction_stat));
 			}
 		}
 		fprintf(stderr, "Loaded %d GFF junctions from %s.\n", (int)(gtf_junctions.size()), gtf_juncs.c_str());
