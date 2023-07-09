@@ -5,7 +5,7 @@ AC_DEFINE(SVN_REVISION, "gitrev", [SVN Revision])
 AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_HEADERS([config.h])
 # AC_CONFIG_AUX_DIR([build-aux])
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([-Wall foreign tar-pax foreign])
 
 AC_ARG_VAR(PYTHON, [python program])
 
@@ -108,7 +108,7 @@ CXXFLAGS="$CFLAGS"
 CXXFLAGS="$CXXFLAGS $BAM_CPPFLAGS $BOOST_CPPFLAGS -I./SeqAn-1.4.2"
 LDFLAGS="$BAM_LDFLAGS $BOOST_LDFLAGS $user_LDFLAGS"
 
-AM_INIT_AUTOMAKE([-Wall foreign tar-pax foreign])
+#AM_INIT_AUTOMAKE([-Wall foreign tar-pax foreign])
 
 # makefiles to configure
 AC_CONFIG_FILES([Makefile src/Makefile])
