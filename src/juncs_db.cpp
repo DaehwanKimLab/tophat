@@ -338,7 +338,7 @@ void driver(const vector<FILE*>& splice_coords_files,
 			uint32_t left_coord = atoi(scan_left_coord);
 			uint32_t right_coord = atoi(scan_right_coord);
 			bool antisense = *orientation == '-';
-			junctions.insert(make_pair<Junction, JunctionStats>(Junction(ref_id, left_coord, right_coord, antisense), JunctionStats()));
+			junctions.insert(make_pair(Junction(ref_id, left_coord, right_coord, antisense), JunctionStats()));
 		}
 	}
 
